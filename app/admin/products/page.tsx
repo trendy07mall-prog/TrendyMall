@@ -14,10 +14,10 @@ export default async function AdminProductsPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Products</h1>
         <Link
           href="/admin/products/new"
-          className="bg-black px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-black"
+          className="rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85"
         >
           Add product
         </Link>
@@ -26,7 +26,7 @@ export default async function AdminProductsPage() {
       <div className="mt-8 overflow-x-auto">
         <table className="w-full min-w-[600px] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-black text-left dark:border-white">
+            <tr className="border-b border-[var(--border)] text-left">
               <th className="py-2 pr-4">Name</th>
               <th className="py-2 pr-4">Category</th>
               <th className="py-2 pr-4">Price</th>
@@ -37,10 +37,7 @@ export default async function AdminProductsPage() {
           </thead>
           <tbody>
             {(products ?? []).map((product) => (
-              <tr
-                key={product.id}
-                className="border-b border-zinc-200 dark:border-zinc-800"
-              >
+              <tr key={product.id} className="border-b border-[var(--border)]">
                 <td className="py-2 pr-4">{product.name}</td>
                 <td className="py-2 pr-4">
                   {categoryNames.get(product.category_id) ?? "—"}

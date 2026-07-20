@@ -24,13 +24,13 @@ export default async function EditProductPage({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-heading text-2xl font-bold tracking-tight">
           Edit product
         </h1>
         <form action={boundDelete}>
           <button
             type="submit"
-            className="text-sm text-red-600 underline dark:text-red-400"
+            className="text-sm text-red-600 underline"
           >
             Delete
           </button>

@@ -51,7 +51,7 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto grid w-full max-w-4xl flex-1 gap-10 px-6 py-12 sm:grid-cols-2">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Checkout</h1>
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Checkout</h1>
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
           <Field id="name" name="name" label="Full name" required />
           <Field
@@ -72,15 +72,13 @@ export default function CheckoutPage() {
               name="address"
               required
               rows={4}
-              className="border border-black bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black dark:border-white dark:focus:ring-white"
+              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-[var(--muted)]">
             Payment is not collected yet — your order will be saved as
             &quot;pending payment&quot; and we&apos;ll follow up on payment
             separately.
@@ -89,7 +87,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={pending || items.length === 0}
-            className="mt-2 bg-black px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-50 dark:bg-white dark:text-black"
+            className="mt-2 rounded-full bg-[var(--foreground)] px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
           >
             {pending
               ? "Placing order…"
@@ -113,7 +111,7 @@ export default function CheckoutPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex justify-between border-t border-black pt-4 text-sm font-medium dark:border-white">
+        <div className="mt-4 flex justify-between border-t border-[var(--border)] pt-4 text-sm font-medium">
           <span>Total</span>
           <span>{formatPrice(subtotal)}</span>
         </div>
@@ -145,7 +143,7 @@ function Field({
         name={name}
         type={type}
         required={required}
-        className="border border-black bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black dark:border-white dark:focus:ring-white"
+        className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
       />
     </div>
   );

@@ -24,3 +24,14 @@ export async function getCategoryBySlug(
 
   return data;
 }
+
+export async function getCategoryById(id: string): Promise<Category | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  return data;
+}

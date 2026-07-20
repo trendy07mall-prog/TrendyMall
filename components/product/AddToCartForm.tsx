@@ -13,23 +13,30 @@ export function AddToCartForm({ product }: { product: Product }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
-        <label htmlFor="qty" className="text-sm font-medium">
-          Qty
-        </label>
-        <input
-          id="qty"
-          type="number"
-          min={1}
-          max={product.stock}
-          value={qty}
-          disabled={outOfStock}
-          onChange={(e) =>
-            setQty(
-              Math.max(1, Math.min(product.stock, Number(e.target.value) || 1)),
-            )
-          }
-          className="w-20 border border-black bg-transparent px-2 py-1 text-sm dark:border-white"
-        />
+        <span className="text-sm font-medium">Quantity</span>
+        <div className="flex items-center rounded-full border border-[var(--border)]">
+          <button
+            type="button"
+            aria-label="Decrease quantity"
+            disabled={outOfStock}
+            onClick={() => setQty((q) => Math.max(1, q - 1))}
+            className="flex h-9 w-9 items-center justify-center text-lg disabled:opacity-40"
+          >
+            −
+          </button>
+          <span className="w-8 text-center text-sm" aria-live="polite">
+            {qty}
+          </span>
+          <button
+            type="button"
+            aria-label="Increase quantity"
+            disabled={outOfStock}
+            onClick={() => setQty((q) => Math.min(product.stock, q + 1))}
+            className="flex h-9 w-9 items-center justify-center text-lg disabled:opacity-40"
+          >
+            +
+          </button>
+        </div>
       </div>
       <button
         type="button"
@@ -46,9 +53,9 @@ export function AddToCartForm({ product }: { product: Product }) {
           setAdded(true);
           setTimeout(() => setAdded(false), 1500);
         }}
-        className="bg-black px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-40 dark:bg-white dark:text-black"
+        className="rounded-full border border-[var(--foreground)] px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03] disabled:opacity-40"
       >
-        {outOfStock ? "Out of stock" : added ? "Added ✓" : "Add to cart"}
+        {outOfStock ? "Out of stock" : added ? "Added ✓" : "Add to Cart"}
       </button>
     </div>
   );

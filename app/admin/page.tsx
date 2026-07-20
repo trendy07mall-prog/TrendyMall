@@ -19,9 +19,9 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Dashboard</h1>
 
-      <div className="mt-8 grid grid-cols-2 gap-px bg-black sm:grid-cols-3 dark:bg-white">
+      <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3">
         <StatTile label="Products" value={productCount ?? 0} />
         <StatTile label="Pending payment orders" value={pendingOrders ?? 0} />
         <StatTile label="Low stock (<5)" value={lowStock?.length ?? 0} />
@@ -34,7 +34,7 @@ export default async function AdminDashboardPage() {
             {lowStock.map((product) => (
               <li
                 key={product.id}
-                className="flex justify-between border-b border-zinc-200 pb-2 text-sm dark:border-zinc-800"
+                className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
               >
                 <span>{product.name}</span>
                 <span>{product.stock} left</span>
@@ -49,9 +49,9 @@ export default async function AdminDashboardPage() {
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-white px-6 py-8 dark:bg-black">
+    <div className="bg-white px-6 py-8">
       <p className="text-3xl font-semibold">{value}</p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
+      <p className="mt-1 text-sm text-[var(--muted)]">{label}</p>
     </div>
   );
 }

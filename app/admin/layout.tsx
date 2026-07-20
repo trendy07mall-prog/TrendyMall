@@ -25,7 +25,7 @@ export default async function AdminLayout({
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
       <div className="flex flex-col gap-8 sm:flex-row">
-        <aside className="flex shrink-0 flex-row gap-4 border-b border-black pb-4 sm:w-48 sm:flex-col sm:border-r sm:border-b-0 sm:pr-6 sm:pb-0 dark:border-white">
+        <aside className="flex shrink-0 flex-row gap-4 border-b border-[var(--border)] pb-4 sm:w-48 sm:flex-col sm:border-r sm:border-b-0 sm:pr-6 sm:pb-0">
           <Link href="/admin" className="text-sm font-medium hover:underline">
             Dashboard
           </Link>

@@ -26,6 +26,7 @@ previous one having run):
 2. `sql/002_rls_policies.sql` — row-level security policies
 3. `sql/003_storage.sql` — the `product-images` storage bucket + its policies
 4. `sql/004_seed_data.sql` — the 4 starter categories and products (LKR prices — edit later via `/admin`)
+5. `sql/005_update_seed_content.sql` — updates those 4 products with their real names, prices, stock, and descriptions (run this once, after 004; it's an `UPDATE`, safe to skip if you've already customized these products via `/admin`)
 
 Paste each file's contents into the SQL editor and click **Run**. If a script
 errors partway through, check whether part of it already applied before
@@ -47,9 +48,12 @@ Fill in `.env.local` with the values from step 1:
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-`.env.local` is gitignored and will never be committed.
+`.env.local` is gitignored and will never be committed. `NEXT_PUBLIC_SITE_URL`
+is used for SEO metadata, `sitemap.xml`, and `robots.txt` — set it to your
+real production domain once deployed (step 8).
 
 ## 4. Install dependencies and run locally
 
@@ -151,12 +155,15 @@ To wire up a real gateway (Stripe, PayHere, Sampath IPG, etc.):
    the `trendy07mall-prog/TrendyMall` repository.
 3. Framework preset should auto-detect as **Next.js** — leave the build
    command (`next build`) and output settings at their defaults.
-4. Under **Environment Variables**, add the same three variables from your
+4. Under **Environment Variables**, add the same variables from your
    `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (mark it as a server-only/secret variable —
      never expose it with a `NEXT_PUBLIC_` prefix)
+   - `NEXT_PUBLIC_SITE_URL` — set this to your real Vercel URL (e.g.
+     `https://trendymall.vercel.app`) or custom domain, so SEO metadata,
+     `sitemap.xml`, and `robots.txt` point at the right place
 5. Click **Deploy**.
 6. In the Supabase dashboard, go to **Authentication → URL Configuration**
    and add your Vercel deployment URL (e.g. `https://trendymall.vercel.app`)
@@ -171,7 +178,7 @@ Supabase project unless you created a separate one for each.
 
 - `app/` — Next.js App Router pages and route handlers
 - `components/` — UI components, grouped by feature
-- `context/CartContext.tsx` — client-side cart (backed by `localStorage`)
+- `context/CartContext.tsx`, `context/WishlistContext.tsx` — client-side cart/wishlist (backed by `localStorage`, no DB table)
 - `lib/supabase/` — Supabase client factories (browser, server, admin/service-role)
 - `lib/admin/` — admin-only Server Actions (product CRUD, order status updates)
 - `lib/orders.ts`, `lib/payment.ts` — checkout order creation and the payment integration stub

@@ -12,11 +12,11 @@ export default async function AdminOrdersPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Orders</h1>
       <div className="mt-8 overflow-x-auto">
         <table className="w-full min-w-[600px] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-black text-left dark:border-white">
+            <tr className="border-b border-[var(--border)] text-left">
               <th className="py-2 pr-4">Order</th>
               <th className="py-2 pr-4">Customer</th>
               <th className="py-2 pr-4">Total</th>
@@ -28,7 +28,7 @@ export default async function AdminOrdersPage() {
             {(orders ?? []).map((order) => (
               <tr
                 key={order.id}
-                className="border-b border-zinc-200 dark:border-zinc-800"
+                className="border-b border-[var(--border)]"
               >
                 <td className="py-2 pr-4">#{order.id.slice(0, 8)}</td>
                 <td className="py-2 pr-4">{order.customer_name}</td>

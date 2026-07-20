@@ -34,7 +34,7 @@ export function OrderStatusSelect({
             await updateOrderStatus(orderId, next);
           });
         }}
-        className="border border-black bg-transparent px-2 py-1 text-sm dark:border-white"
+        className="rounded-full border border-[var(--border)] bg-transparent px-3 py-1 text-sm"
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>
@@ -42,7 +42,7 @@ export function OrderStatusSelect({
           </option>
         ))}
       </select>
-      {pending && <span className="text-xs text-zinc-500">Saving…</span>}
+      {pending && <span className="text-xs text-[var(--muted)]">Saving…</span>}
     </div>
   );
 }

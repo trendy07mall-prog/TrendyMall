@@ -6,7 +6,7 @@ import type { Category, Product } from "@/types";
 import type { ProductFormState } from "@/lib/admin/products";
 
 const inputClass =
-  "border border-black bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black dark:border-white dark:focus:ring-white";
+  "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
 export function ProductForm({
   categories,
@@ -137,7 +137,7 @@ export function ProductForm({
           <div className="flex flex-wrap gap-3">
             {product.images.map((src) => (
               <label key={src} className="flex flex-col items-center gap-1 text-xs">
-                <span className="relative block h-16 w-16 overflow-hidden border border-black dark:border-white">
+                <span className="relative block h-16 w-16 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]">
                   <Image src={src} alt="" fill sizes="64px" className="object-cover" />
                 </span>
                 <span className="flex items-center gap-1">
@@ -171,14 +171,12 @@ export function ProductForm({
         <textarea id="imageUrls" name="imageUrls" rows={2} className={inputClass} />
       </div>
 
-      {state?.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-      )}
+      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
 
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 self-start bg-black px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-50 dark:bg-white dark:text-black"
+        className="mt-2 self-start rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
       >
         {pending ? "Saving…" : product ? "Save changes" : "Create product"}
       </button>

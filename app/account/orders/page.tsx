@@ -15,12 +15,12 @@ export default async function OrdersPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Your orders</h1>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Your orders</h1>
 
       {!orders || orders.length === 0 ? (
-        <p className="mt-8 text-sm text-zinc-500">
+        <p className="mt-8 text-sm text-[var(--muted)]">
           You haven&apos;t placed any orders yet.{" "}
-          <Link href="/" className="underline">
+          <Link href="/shop" className="underline">
             Start shopping
           </Link>
           .
@@ -31,7 +31,7 @@ export default async function OrdersPage() {
             <li key={order.id}>
               <Link
                 href={`/account/orders/${order.id}`}
-                className="flex items-center justify-between border border-black px-4 py-3 text-sm transition-colors hover:bg-black hover:text-white dark:border-white dark:hover:bg-white dark:hover:text-black"
+                className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm transition-colors hover:bg-black/5"
               >
                 <span>
                   Order #{order.id.slice(0, 8)} —{" "}

@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { login } from "@/app/auth/actions";
 
+const inputClass =
+  "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+
 export function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/";
@@ -13,10 +16,12 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-4 py-20">
-      <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">
+        Log in
+      </h1>
 
       {justSignedUp && (
-        <p className="mt-4 border border-black px-3 py-2 text-sm dark:border-white">
+        <p className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
           Account created. Check your email to confirm it, then log in.
         </p>
       )}
@@ -28,13 +33,7 @@ export function LoginForm() {
           <label htmlFor="email" className="text-sm font-medium">
             Email
           </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            className="border border-black bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black dark:border-white dark:focus:ring-white"
-          />
+          <input id="email" name="email" type="email" required className={inputClass} />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -46,26 +45,22 @@ export function LoginForm() {
             name="password"
             type="password"
             required
-            className="border border-black bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black dark:border-white dark:focus:ring-white"
+            className={inputClass}
           />
         </div>
 
-        {state?.error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {state.error}
-          </p>
-        )}
+        {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
 
         <button
           type="submit"
           disabled={pending}
-          className="mt-2 bg-black px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-50 dark:bg-white dark:text-black"
+          className="mt-2 rounded-full bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
         >
           {pending ? "Logging in…" : "Log in"}
         </button>
       </form>
 
-      <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="mt-6 text-sm text-[var(--muted)]">
         Don&apos;t have an account?{" "}
         <Link href="/signup" className="underline">
           Sign up

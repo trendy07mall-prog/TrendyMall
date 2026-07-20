@@ -27,10 +27,10 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-16 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight">
+      <h1 className="font-heading text-2xl font-bold tracking-tight">
         Thank you — order placed
       </h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+      <p className="mt-2 text-[var(--muted)]">
         Order #{order.id.slice(0, 8)} is saved as{" "}
         <strong>pending payment</strong>. We&apos;ll follow up on payment and
         shipping details shortly.
@@ -40,7 +40,7 @@ export default async function CheckoutSuccessPage({
         {(items ?? []).map((item) => (
           <li
             key={item.id}
-            className="flex justify-between border-b border-zinc-200 pb-2 text-sm dark:border-zinc-800"
+            className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
           >
             <span>
               {item.product_name} × {item.quantity}

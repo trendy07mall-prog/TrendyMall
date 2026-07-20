@@ -27,16 +27,16 @@ export default async function AdminOrderDetailPage({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">
+        <h1 className="font-heading text-xl font-bold tracking-tight">
           Order #{order.id.slice(0, 8)}
         </h1>
         <OrderStatusSelect orderId={order.id} status={order.status} />
       </div>
-      <p className="mt-2 text-sm text-zinc-500">
+      <p className="mt-2 text-sm text-[var(--muted)]">
         Placed {new Date(order.created_at).toLocaleString()}
       </p>
 
-      <div className="mt-8 grid gap-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <div className="mt-8 grid gap-1 text-sm text-[var(--muted)]">
         <p>{order.customer_name}</p>
         <p>{order.customer_email}</p>
         <p>{order.customer_phone}</p>
@@ -47,7 +47,7 @@ export default async function AdminOrderDetailPage({
         {(items ?? []).map((item) => (
           <li
             key={item.id}
-            className="flex justify-between border-b border-zinc-200 pb-2 text-sm dark:border-zinc-800"
+            className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
           >
             <span>
               {item.product_name} × {item.quantity}

@@ -15,7 +15,7 @@ export function ProductGallery({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative aspect-square w-full overflow-hidden border border-black dark:border-white">
+      <div className="group relative aspect-square w-full overflow-hidden rounded-[var(--radius-lg)] bg-black/5">
         {current ? (
           <Image
             src={current}
@@ -23,10 +23,10 @@ export function ProductGallery({
             fill
             priority
             sizes="(max-width: 640px) 100vw, 50vw"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-sm text-zinc-500">
+          <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
             No image
           </div>
         )}
@@ -40,10 +40,10 @@ export function ProductGallery({
               type="button"
               onClick={() => setActive(i)}
               aria-label={`View image ${i + 1}`}
-              className={`relative h-16 w-16 overflow-hidden border ${
+              className={`relative h-16 w-16 overflow-hidden rounded-[var(--radius-sm)] border transition-colors ${
                 i === active
-                  ? "border-black dark:border-white"
-                  : "border-zinc-300 dark:border-zinc-700"
+                  ? "border-[var(--foreground)]"
+                  : "border-[var(--border)]"
               }`}
             >
               <Image

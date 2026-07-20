@@ -10,8 +10,8 @@ export function CartLineItem({ item }: { item: CartItem }) {
   const { updateQuantity, removeItem } = useCart();
 
   return (
-    <li className="flex gap-4 border-b border-zinc-200 py-4 dark:border-zinc-800">
-      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden border border-black dark:border-white">
+    <li className="flex gap-4 border-b border-[var(--border)] py-4">
+      <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] bg-black/5">
         {item.image ? (
           <Image
             src={item.image}
@@ -37,7 +37,7 @@ export function CartLineItem({ item }: { item: CartItem }) {
         <div className="flex items-center gap-3">
           <label
             htmlFor={`qty-${item.productId}`}
-            className="text-xs text-zinc-500"
+            className="text-xs text-[var(--muted)]"
           >
             Qty
           </label>
@@ -49,12 +49,12 @@ export function CartLineItem({ item }: { item: CartItem }) {
             onChange={(e) =>
               updateQuantity(item.productId, Number(e.target.value) || 1)
             }
-            className="w-16 border border-black bg-transparent px-2 py-1 text-sm dark:border-white"
+            className="w-16 rounded-full border border-[var(--border)] bg-transparent px-3 py-1 text-sm"
           />
           <button
             type="button"
             onClick={() => removeItem(item.productId)}
-            className="text-xs text-zinc-500 underline"
+            className="text-xs text-[var(--muted)] underline"
           >
             Remove
           </button>
