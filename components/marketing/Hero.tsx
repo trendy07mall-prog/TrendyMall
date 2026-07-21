@@ -45,7 +45,7 @@ export function Hero() {
         className="relative aspect-square w-full max-w-md flex-1 overflow-hidden rounded-[var(--radius-lg)] bg-black/5"
       >
         <Image
-          src="/images/earbuds-airpods-pro-2/1.jpg"
+          src="/images/hero.jpg"
           alt="TrendyMall mobile accessories"
           fill
           priority

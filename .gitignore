@@ -39,6 +39,8 @@ yarn-error.log*
 
 # raw source images (copied into public/images at setup time)
 /images/
+/Products Categories/
+/web banner/
 
 # claude code session artifacts
 /.claude/
