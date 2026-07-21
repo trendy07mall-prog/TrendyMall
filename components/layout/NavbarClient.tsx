@@ -36,6 +36,7 @@ export function NavbarClient({
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -143,13 +144,61 @@ export function NavbarClient({
             <CartCount />
           </Link>
 
-          <Link
-            href={user ? "/account/orders" : "/login"}
-            aria-label={user ? "Your account" : "Log in"}
-            className="hidden h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5 sm:flex"
+          <div
+            className="relative hidden sm:block"
+            onMouseEnter={() => setAccountOpen(true)}
+            onMouseLeave={() => setAccountOpen(false)}
           >
-            <UserIcon className="h-5 w-5" />
-          </Link>
+            <button
+              type="button"
+              aria-label="Account menu"
+              aria-haspopup="true"
+              aria-expanded={accountOpen}
+              onClick={() => setAccountOpen((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+            >
+              <UserIcon className="h-5 w-5" />
+            </button>
+            {accountOpen && (
+              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-soft)]">
+                {user ? (
+                  <>
+                    <Link
+                      href="/account/orders"
+                      className="block px-4 py-2 text-sm hover:bg-black/5"
+                    >
+                      Your orders
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        className="block px-4 py-2 text-sm hover:bg-black/5"
+                      >
+                        Admin
+                      </Link>
+                    )}
+                    <form action={signOut}>
+                      <button
+                        type="submit"
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-black/5"
+                      >
+                        Log out
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <Link href="/login" className="block px-4 py-2 text-sm hover:bg-black/5">
+                      Log in
+                    </Link>
+                    <Link href="/signup" className="block px-4 py-2 text-sm hover:bg-black/5">
+                      Sign up
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
