@@ -51,7 +51,7 @@ export function ProductTabs({
         aria-labelledby="tab-description"
         hidden={active !== "description"}
         className="prose-editor py-6 text-sm text-[var(--muted)]"
-        // Sanitized server-side (isomorphic-dompurify) before it was ever
+        // Sanitized server-side (sanitize-html) before it was ever
         // stored — see lib/admin/products.ts.
         dangerouslySetInnerHTML={{ __html: product.description }}
       />

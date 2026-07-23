@@ -2,12 +2,27 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify } from "@/lib/utils";
 import type { ProductStatus } from "@/types";
 
 export type ProductFormState = { error: string } | undefined;
+
+// Allowlist matches exactly what the Tiptap editor's StarterKit + Image
+// extensions can produce (bold/italic/lists/headings/blockquote/inline
+// images) — anything else (scripts, event handlers, iframes, etc.) is
+// stripped. Uses sanitize-html rather than isomorphic-dompurify: the latter
+// depends on jsdom, which fails to load in Vercel's serverless bundling
+// (ERR_REQUIRE_ESM) and crashed every page that references these Server
+// Actions, not just the ones that submit the form.
+const DESCRIPTION_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p", "br", "strong", "em", "s", "code", "pre", "blockquote", "hr",
+    "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "img",
+  ],
+  allowedAttributes: { img: ["src", "alt"] },
+};
 
 type AdminSupabaseClient = Awaited<ReturnType<typeof requireAdminClient>>;
 
@@ -61,7 +76,10 @@ function readCommonFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
   const slug = slugify(slugInput || name);
-  const description = DOMPurify.sanitize(String(formData.get("description") ?? ""));
+  const description = sanitizeHtml(
+    String(formData.get("description") ?? ""),
+    DESCRIPTION_SANITIZE_OPTIONS,
+  );
   const brand = String(formData.get("brand") ?? "").trim() || null;
   const model = String(formData.get("model") ?? "").trim() || null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
