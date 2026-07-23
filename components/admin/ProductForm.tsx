@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import dynamic from "next/dynamic";
 import type { Category, Product, ProductImage, ProductVariant } from "@/types";
 import type { ProductFormState } from "@/lib/admin/products";
 import { CategoryField } from "./product-form/CategoryField";
@@ -9,7 +10,22 @@ import { PricingFields } from "./product-form/PricingFields";
 import { VariantsEditor, type VariantDraft } from "./product-form/VariantsEditor";
 import { WhatsInBoxEditor } from "./product-form/WhatsInBoxEditor";
 import { GalleryUploader } from "./product-form/GalleryUploader";
-import { RichTextEditor } from "./product-form/RichTextEditor";
+
+// Tiptap/ProseMirror constructs real DOM structures when the editor is
+// instantiated, which isn't safe during Next.js's server-side render pass of
+// this client component's initial HTML — load it browser-only.
+const RichTextEditor = dynamic(
+  () => import("./product-form/RichTextEditor").then((mod) => mod.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col gap-1">
+        <label className="text-sm font-medium">Description</label>
+        <div className="h-40 animate-pulse rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5" />
+      </div>
+    ),
+  },
+);
 
 const inputClass =
   "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
