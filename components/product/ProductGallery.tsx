@@ -36,7 +36,7 @@ export function ProductGallery({
         <div className="flex gap-2">
           {images.map((src, i) => (
             <button
-              key={src}
+              key={`${src}-${i}`}
               type="button"
               onClick={() => setActive(i)}
               aria-label={`View image ${i + 1}`}

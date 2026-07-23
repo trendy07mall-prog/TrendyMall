@@ -2,13 +2,16 @@
 
 import { useWishlist } from "@/context/WishlistContext";
 import { HeartIcon } from "@/components/ui/Icon";
+import { getEffectivePrice } from "@/lib/utils";
 import type { Product } from "@/types";
 
 export function WishlistButton({
   product,
+  image,
   className,
 }: {
-  product: Product;
+  product: Pick<Product, "id" | "slug" | "name" | "actual_price" | "special_price">;
+  image: string | null;
   className?: string;
 }) {
   const { toggle, has } = useWishlist();
@@ -26,8 +29,8 @@ export function WishlistButton({
           productId: product.id,
           slug: product.slug,
           name: product.name,
-          price: product.price,
-          image: product.images[0] ?? null,
+          price: getEffectivePrice(product),
+          image,
         });
       }}
       className={

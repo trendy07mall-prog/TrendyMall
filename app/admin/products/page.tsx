@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getEffectivePrice } from "@/lib/utils";
 
 export default async function AdminProductsPage() {
   const supabase = await createClient();
@@ -24,14 +24,15 @@ export default async function AdminProductsPage() {
       </div>
 
       <div className="mt-8 overflow-x-auto">
-        <table className="w-full min-w-[600px] border-collapse text-sm">
+        <table className="w-full min-w-[700px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] text-left">
               <th className="py-2 pr-4">Name</th>
               <th className="py-2 pr-4">Category</th>
               <th className="py-2 pr-4">Price</th>
               <th className="py-2 pr-4">Stock</th>
-              <th className="py-2 pr-4">Active</th>
+              <th className="py-2 pr-4">Status</th>
+              <th className="py-2 pr-4">Featured</th>
               <th className="py-2"></th>
             </tr>
           </thead>
@@ -42,9 +43,10 @@ export default async function AdminProductsPage() {
                 <td className="py-2 pr-4">
                   {categoryNames.get(product.category_id) ?? "—"}
                 </td>
-                <td className="py-2 pr-4">{formatPrice(product.price)}</td>
+                <td className="py-2 pr-4">{formatPrice(getEffectivePrice(product))}</td>
                 <td className="py-2 pr-4">{product.stock}</td>
-                <td className="py-2 pr-4">{product.is_active ? "Yes" : "No"}</td>
+                <td className="py-2 pr-4 capitalize">{product.status}</td>
+                <td className="py-2 pr-4">{product.is_featured ? "Yes" : "No"}</td>
                 <td className="py-2">
                   <Link
                     href={`/admin/products/${product.id}/edit`}

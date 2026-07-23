@@ -16,3 +16,10 @@ export function slugify(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+export function getEffectivePrice(product: {
+  actual_price: number;
+  special_price: number | null;
+}): number {
+  return product.special_price ?? product.actual_price;
+}

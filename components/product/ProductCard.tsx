@@ -1,12 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { formatPrice } from "@/lib/utils";
+import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
-import type { Product } from "@/types";
+import type { ProductWithPrimaryImage } from "@/types";
 
-export function ProductCard({ product }: { product: Product }) {
-  const image = product.images[0];
+export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
   const inStock = product.stock > 0;
 
   return (
@@ -16,9 +15,9 @@ export function ProductCard({ product }: { product: Product }) {
           href={`/product/${product.slug}`}
           className="relative block aspect-square overflow-hidden rounded-[var(--radius-md)] bg-black/5"
         >
-          {image ? (
+          {product.image ? (
             <Image
-              src={image}
+              src={product.image}
               alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, 25vw"
@@ -31,7 +30,7 @@ export function ProductCard({ product }: { product: Product }) {
           )}
         </Link>
         <div className="absolute top-2 right-2">
-          <WishlistButton product={product} />
+          <WishlistButton product={product} image={product.image} />
         </div>
       </div>
 
@@ -39,7 +38,11 @@ export function ProductCard({ product }: { product: Product }) {
         <h3 className="mt-3 line-clamp-2 text-sm font-medium">{product.name}</h3>
       </Link>
       <div className="mt-1 flex items-center justify-between">
-        <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
+        <PriceDisplay
+          actualPrice={product.actual_price}
+          specialPrice={product.special_price}
+          size="sm"
+        />
         <span
           className={`text-xs ${inStock ? "text-[var(--muted)]" : "text-red-600"}`}
         >

@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
-import type { Product } from "@/types";
+import { getEffectivePrice } from "@/lib/utils";
+import type { ProductWithPrimaryImage } from "@/types";
 
-export function QuickAddButton({ product }: { product: Product }) {
+export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const outOfStock = product.stock <= 0;
@@ -20,8 +21,8 @@ export function QuickAddButton({ product }: { product: Product }) {
           productId: product.id,
           slug: product.slug,
           name: product.name,
-          price: product.price,
-          image: product.images[0] ?? null,
+          price: getEffectivePrice(product),
+          image: product.image,
           quantity: 1,
         });
         setAdded(true);

@@ -34,3 +34,37 @@ body {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
 }
+
+/* Rich-text product descriptions (Tiptap output, both the live editor and
+   the read-only render on the product page share this class). Tailwind's
+   preflight strips default list/heading styling, so raw HTML needs it back. */
+.prose-editor p {
+  margin-bottom: 0.75em;
+}
+.prose-editor ul,
+.prose-editor ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+.prose-editor ul {
+  list-style: disc;
+}
+.prose-editor ol {
+  list-style: decimal;
+}
+.prose-editor h1,
+.prose-editor h2,
+.prose-editor h3 {
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  color: var(--foreground);
+}
+.prose-editor img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin: 0.75em 0;
+}
+.prose-editor strong {
+  font-weight: 700;
+  color: var(--foreground);
+}

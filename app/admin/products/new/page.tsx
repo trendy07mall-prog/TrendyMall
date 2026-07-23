@@ -11,7 +11,7 @@ export default async function NewProductPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Add product</h1>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Add product</h1>
       <ProductForm categories={categories ?? []} action={createProduct} />
     </div>
   );

@@ -10,6 +10,8 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
+export type ProductStatus = "draft" | "published";
+
 export interface Database {
   public: {
     Tables: {
@@ -73,11 +75,20 @@ export interface Database {
           slug: string;
           name: string;
           description: string;
-          price: number;
+          actual_price: number;
+          special_price: number | null;
+          brand: string | null;
+          model: string | null;
+          compatible_devices: string[];
+          bluetooth: boolean;
+          sku: string | null;
+          whats_in_box: string[];
           category_id: string;
           stock: number;
-          images: string[];
-          is_active: boolean;
+          status: ProductStatus;
+          is_featured: boolean;
+          meta_title: string | null;
+          meta_description: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -86,11 +97,20 @@ export interface Database {
           slug: string;
           name: string;
           description?: string;
-          price: number;
+          actual_price: number;
+          special_price?: number | null;
+          brand?: string | null;
+          model?: string | null;
+          compatible_devices?: string[];
+          bluetooth?: boolean;
+          sku?: string | null;
+          whats_in_box?: string[];
           category_id: string;
           stock?: number;
-          images?: string[];
-          is_active?: boolean;
+          status?: ProductStatus;
+          is_featured?: boolean;
+          meta_title?: string | null;
+          meta_description?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -99,11 +119,20 @@ export interface Database {
           slug?: string;
           name?: string;
           description?: string;
-          price?: number;
+          actual_price?: number;
+          special_price?: number | null;
+          brand?: string | null;
+          model?: string | null;
+          compatible_devices?: string[];
+          bluetooth?: boolean;
+          sku?: string | null;
+          whats_in_box?: string[];
           category_id?: string;
           stock?: number;
-          images?: string[];
-          is_active?: boolean;
+          status?: ProductStatus;
+          is_featured?: boolean;
+          meta_title?: string | null;
+          meta_description?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -113,6 +142,79 @@ export interface Database {
             columns: ["category_id"];
             isOneToOne: false;
             referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_images: {
+        Row: {
+          id: string;
+          product_id: string;
+          image_url: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          image_url: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          image_url?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_variants: {
+        Row: {
+          id: string;
+          product_id: string;
+          color_name: string;
+          color_hex: string;
+          stock: number | null;
+          variant_image_url: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          color_name: string;
+          color_hex: string;
+          stock?: number | null;
+          variant_image_url?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          color_name?: string;
+          color_hex?: string;
+          stock?: number | null;
+          variant_image_url?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
         ];

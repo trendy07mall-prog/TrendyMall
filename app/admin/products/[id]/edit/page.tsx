@@ -18,6 +18,19 @@ export default async function EditProductPage({
 
   if (!product) notFound();
 
+  const [{ data: images }, { data: variants }] = await Promise.all([
+    supabase
+      .from("product_images")
+      .select("*")
+      .eq("product_id", product.id)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", product.id)
+      .order("sort_order", { ascending: true }),
+  ]);
+
   const boundUpdate = updateProduct.bind(null, product.id);
   const boundDelete = deleteProduct.bind(null, product.id);
 
@@ -39,6 +52,8 @@ export default async function EditProductPage({
       <ProductForm
         categories={categories ?? []}
         product={product}
+        images={images ?? []}
+        variants={variants ?? []}
         action={boundUpdate}
       />
     </div>

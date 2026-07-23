@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ProductCard } from "./ProductCard";
-import type { Product } from "@/types";
+import type { ProductWithPrimaryImage } from "@/types";
 
 export function ProductGrid({
   products,
   emptyMessage = "No products in this category yet.",
 }: {
-  products: Product[];
+  products: ProductWithPrimaryImage[];
   emptyMessage?: string;
 }) {
   if (products.length === 0) {

@@ -1,59 +1,78 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import type { Product } from "@/types";
+import type { Product, ProductImage, ProductVariant, ProductWithPrimaryImage } from "@/types";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function attachPrimaryImages(
+  supabase: SupabaseServerClient,
+  products: Product[],
+): Promise<ProductWithPrimaryImage[]> {
+  if (products.length === 0) return [];
+
+  const ids = products.map((p) => p.id);
+  const { data: images, error } = await supabase
+    .from("product_images")
+    .select("product_id, image_url, sort_order")
+    .in("product_id", ids)
+    .order("sort_order", { ascending: true });
+
+  if (error) throw error;
+
+  const primaryByProductId = new Map<string, string>();
+  for (const image of images ?? []) {
+    if (!primaryByProductId.has(image.product_id)) {
+      primaryByProductId.set(image.product_id, image.image_url);
+    }
+  }
+
+  return products.map((product) => ({
+    ...product,
+    image: primaryByProductId.get(product.id) ?? null,
+  }));
+}
 
 export async function getProductsByCategory(
   categoryId: string,
-): Promise<Product[]> {
+): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("*")
     .eq("category_id", categoryId)
-    .eq("is_active", true)
+    .eq("status", "published")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return attachPrimaryImages(supabase, data);
 }
 
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  return data;
-}
-
-export async function getAllProducts(): Promise<Product[]> {
+export async function getAllProducts(): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("is_active", true)
+    .eq("status", "published")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return attachPrimaryImages(supabase, data);
 }
 
-export async function getNewArrivals(limit = 8): Promise<Product[]> {
+export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("is_active", true)
+    .eq("status", "published")
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data;
+  return attachPrimaryImages(supabase, data);
 }
 
-export async function searchProducts(query: string): Promise<Product[]> {
+export async function searchProducts(query: string): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const safe = query.replace(/[%_,]/g, " ").trim();
   if (!safe) return [];
@@ -61,12 +80,12 @@ export async function searchProducts(query: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("is_active", true)
+    .eq("status", "published")
     .or(`name.ilike.%${safe}%,description.ilike.%${safe}%`)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;
+  return attachPrimaryImages(supabase, data);
 }
 
 export async function getAllProductSlugs(): Promise<string[]> {
@@ -74,8 +93,50 @@ export async function getAllProductSlugs(): Promise<string[]> {
   const { data, error } = await supabase
     .from("products")
     .select("slug")
-    .eq("is_active", true);
+    .eq("status", "published");
 
   if (error) throw error;
   return data.map((p) => p.slug);
 }
+
+export interface ProductDetail {
+  product: Product;
+  images: ProductImage[];
+  variants: ProductVariant[];
+}
+
+// Wrapped in React's cache() so generateMetadata() and the page body (which
+// both need this) share one set of queries per request instead of doubling
+// them up.
+export const getProductDetailBySlug = cache(
+  async (slug: string): Promise<ProductDetail | null> => {
+    const supabase = await createClient();
+    const { data: product } = await supabase
+      .from("products")
+      .select("*")
+      .eq("slug", slug)
+      .eq("status", "published")
+      .maybeSingle();
+
+    if (!product) return null;
+
+    const [{ data: images, error: imagesError }, { data: variants, error: variantsError }] =
+      await Promise.all([
+        supabase
+          .from("product_images")
+          .select("*")
+          .eq("product_id", product.id)
+          .order("sort_order", { ascending: true }),
+        supabase
+          .from("product_variants")
+          .select("*")
+          .eq("product_id", product.id)
+          .order("sort_order", { ascending: true }),
+      ]);
+
+    if (imagesError) throw imagesError;
+    if (variantsError) throw variantsError;
+
+    return { product, images: images ?? [], variants: variants ?? [] };
+  },
+);

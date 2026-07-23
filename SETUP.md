@@ -27,6 +27,12 @@ previous one having run):
 3. `sql/003_storage.sql` — the `product-images` storage bucket + its policies
 4. `sql/004_seed_data.sql` — the 4 starter categories and products (LKR prices — edit later via `/admin`)
 5. `sql/005_update_seed_content.sql` — updates those 4 products with their real names, prices, stock, and descriptions (run this once, after 004; it's an `UPDATE`, safe to skip if you've already customized these products via `/admin`)
+6. `sql/006_fix_admin_escalation_trigger.sql` — fixes a bug where promoting an admin directly via the SQL editor got silently reverted
+7. `sql/007_update_category_images.sql` — links each category to its photo
+8. `sql/008_product_catalog_schema.sql` — the product catalog upgrade: renames `price`→`actual_price`, adds brand/model/compatible devices/Bluetooth/SKU/what's-in-box/featured/SEO fields, replaces `is_active` with a `status` (draft/published) column, and migrates the old `images` array into a new `product_images` table plus a new `product_variants` table for color variants
+9. `sql/009_product_catalog_rls.sql` — updated row-level security to match (published products are public, drafts are admin-only)
+
+**Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty.
 
 Paste each file's contents into the SQL editor and click **Run**. If a script
 errors partway through, check whether part of it already applied before
@@ -106,13 +112,18 @@ with that account's email.
 
 Once logged in as an admin:
 
-- **Add a product**: `/admin/products/new` — fill in name, description,
-  price (LKR), stock, category, and either upload image files directly
-  (stored in the `product-images` Supabase Storage bucket) or paste image
-  URLs.
-- **Edit a product**: `/admin/products` → click a product → **Edit**. You can
-  uncheck "Keep" under an existing image to remove it, add new images, and
-  toggle **Active** to hide a product from the storefront without deleting it.
+- **Add a product**: `/admin/products/new` — pick a category (or create a new
+  one inline, which requires a category photo), fill in name/brand/model/
+  compatible devices/Bluetooth, price (and an optional special/sale price),
+  stock, SKU, add color variants (each with its own hex swatch, optional
+  stock, optional photo), write the description in the rich-text editor
+  (bold/italic/lists/inline images), list what's in the box, upload gallery
+  photos (reorder with the ↑/↓ buttons), and set **Status** to **Draft**
+  (hidden from the storefront) or **Published** (live). All images upload to
+  the `product-images` Supabase Storage bucket immediately as you add them.
+- **Edit a product**: `/admin/products` → click a product → **Edit**, same
+  form pre-filled. Toggle **Status** back to Draft to pull it off the
+  storefront without deleting it.
 - **Delete a product**: open it for editing and click **Delete**.
 - **Manage orders**: `/admin/orders` lists every order; open one to update
   its status (`pending payment → confirmed → shipped → delivered`, or

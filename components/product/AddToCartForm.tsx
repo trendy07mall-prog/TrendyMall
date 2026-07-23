@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { getEffectivePrice } from "@/lib/utils";
 import type { Product } from "@/types";
 
-export function AddToCartForm({ product }: { product: Product }) {
+export function AddToCartForm({
+  product,
+  image,
+}: {
+  product: Product;
+  image: string | null;
+}) {
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
@@ -46,8 +53,8 @@ export function AddToCartForm({ product }: { product: Product }) {
             productId: product.id,
             slug: product.slug,
             name: product.name,
-            price: product.price,
-            image: product.images[0] ?? null,
+            price: getEffectivePrice(product),
+            image,
             quantity: qty,
           });
           setAdded(true);

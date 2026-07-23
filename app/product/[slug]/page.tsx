@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug } from "@/lib/data/products";
+import { getProductDetailBySlug } from "@/lib/data/products";
 import { getCategoryById } from "@/lib/data/categories";
-import { formatPrice } from "@/lib/utils";
-import { ProductGallery } from "@/components/product/ProductGallery";
+import { PriceDisplay } from "@/components/product/PriceDisplay";
+import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
 import { AddToCartForm } from "@/components/product/AddToCartForm";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { ProductTabs } from "@/components/product/ProductTabs";
+import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 
@@ -17,14 +18,16 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
-  if (!product) return { title: "Product not found" };
+  const detail = await getProductDetailBySlug(slug);
+  if (!detail) return { title: "Product not found" };
 
-  const description = product.description.slice(0, 155);
-  const image = product.images[0];
+  const { product, images } = detail;
+  const description =
+    product.meta_description ?? product.description.replace(/<[^>]+>/g, "").slice(0, 155);
+  const image = images[0]?.image_url;
 
   return {
-    title: product.name,
+    title: product.meta_title ?? product.name,
     description,
     openGraph: {
       title: `${product.name} | TrendyMall`,
@@ -45,10 +48,13 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
-  if (!product) notFound();
+  const detail = await getProductDetailBySlug(slug);
+  if (!detail) notFound();
 
+  const { product, images, variants } = detail;
   const category = await getCategoryById(product.category_id);
+  const imageUrls = images.map((i) => i.image_url);
+  const primaryImage = imageUrls[0] ?? null;
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
@@ -63,26 +69,35 @@ export default async function ProductPage({
       />
 
       <div className="mt-6 grid gap-10 sm:grid-cols-2">
-        <ProductGallery images={product.images} name={product.name} />
+        <ProductGalleryWithVariants
+          images={imageUrls}
+          variants={variants}
+          name={product.name}
+        />
 
         <div>
           <h1 className="font-heading text-2xl font-bold tracking-tight">
             {product.name}
           </h1>
-          <p className="mt-2 text-xl font-semibold">
-            {formatPrice(product.price)}
-          </p>
+          <div className="mt-2">
+            <PriceDisplay
+              actualPrice={product.actual_price}
+              specialPrice={product.special_price}
+            />
+          </div>
           <p className="mt-2 text-sm text-[var(--muted)]">
             {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
           </p>
 
           <div className="mt-8 flex flex-col gap-4">
-            <AddToCartForm product={product} />
+            <AddToCartForm product={product} image={primaryImage} />
             <div className="flex items-center gap-3">
-              <BuyNowButton product={product} />
-              <WishlistButton product={product} />
+              <BuyNowButton product={product} image={primaryImage} />
+              <WishlistButton product={product} image={primaryImage} />
             </div>
           </div>
+
+          <WhatsInBox items={product.whats_in_box} />
 
           <div className="mt-8">
             <TrustBadges compact />

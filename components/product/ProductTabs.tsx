@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { SpecsTable } from "@/components/product/SpecsTable";
 import type { Product } from "@/types";
 
 type Tab = "description" | "specifications" | "shipping";
@@ -49,10 +50,11 @@ export function ProductTabs({
         id="panel-description"
         aria-labelledby="tab-description"
         hidden={active !== "description"}
-        className="py-6 text-sm whitespace-pre-line text-[var(--muted)]"
-      >
-        {product.description}
-      </div>
+        className="prose-editor py-6 text-sm text-[var(--muted)]"
+        // Sanitized server-side (isomorphic-dompurify) before it was ever
+        // stored — see lib/admin/products.ts.
+        dangerouslySetInnerHTML={{ __html: product.description }}
+      />
 
       <div
         role="tabpanel"
@@ -61,18 +63,7 @@ export function ProductTabs({
         hidden={active !== "specifications"}
         className="py-6"
       >
-        <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-          <div className="flex justify-between border-b border-[var(--border)] pb-2">
-            <dt className="text-[var(--muted)]">Category</dt>
-            <dd className="font-medium">{categoryName}</dd>
-          </div>
-          <div className="flex justify-between border-b border-[var(--border)] pb-2">
-            <dt className="text-[var(--muted)]">Availability</dt>
-            <dd className="font-medium">
-              {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
-            </dd>
-          </div>
-        </dl>
+        <SpecsTable product={product} categoryName={categoryName} />
       </div>
 
       <div
