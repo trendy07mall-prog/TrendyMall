@@ -8,13 +8,16 @@ import type { Product } from "@/types";
 export function BuyNowButton({
   product,
   image,
+  quantity,
+  outOfStock = false,
 }: {
   product: Product;
   image: string | null;
+  quantity: number;
+  outOfStock?: boolean;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
-  const outOfStock = product.stock <= 0;
 
   return (
     <button
@@ -27,7 +30,7 @@ export function BuyNowButton({
           name: product.name,
           price: getEffectivePrice(product),
           image,
-          quantity: 1,
+          quantity,
         });
         router.push("/checkout");
       }}

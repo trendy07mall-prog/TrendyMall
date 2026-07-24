@@ -33,6 +33,7 @@ previous one having run):
 9. `sql/009_product_catalog_rls.sql` — updated row-level security to match (published products are public, drafts are admin-only)
 10. `sql/010_product_slug_redirects.sql` — a small table that remembers a product's old slug whenever an admin edit changes it, so old links/shares 301 redirect to the new URL instead of 404ing
 11. `sql/011_fix_lenovo_product_slug.sql` — one-time fix: regenerates the Lenovo product's slug (it was originally generated from the full product name with no length cap) and records the old slug in `product_slug_redirects`
+12. `sql/012_product_stock_notifications.sql` — a table capturing "notify me when back in stock" email requests submitted from an out-of-stock product page
 
 **Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty. `010` must run before `011` (the fix inserts into the table `010` creates).
 

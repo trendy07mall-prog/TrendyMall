@@ -9,10 +9,12 @@ export function ProductGalleryWithVariants({
   images,
   variants,
   name,
+  onVariantChange,
 }: {
   images: string[];
   variants: ProductVariant[];
   name: string;
+  onVariantChange?: (variant: ProductVariant | null) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -34,7 +36,10 @@ export function ProductGalleryWithVariants({
       <VariantSwatches
         variants={variants}
         selectedId={selectedId}
-        onSelect={(variant) => setSelectedId(variant.id)}
+        onSelect={(variant) => {
+          setSelectedId(variant.id);
+          onVariantChange?.(variant);
+        }}
       />
     </div>
   );

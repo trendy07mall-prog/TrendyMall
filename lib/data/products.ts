@@ -88,6 +88,25 @@ export async function searchProducts(query: string): Promise<ProductWithPrimaryI
   return attachPrimaryImages(supabase, data);
 }
 
+export async function getRelatedProducts(
+  categoryId: string,
+  excludeProductId: string,
+  limit = 4,
+): Promise<ProductWithPrimaryImage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("category_id", categoryId)
+    .eq("status", "published")
+    .neq("id", excludeProductId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return attachPrimaryImages(supabase, data);
+}
+
 // Looks up a stale product slug in product_slug_redirects and returns the
 // product's current published slug, or null if there's no redirect (or the
 // product is no longer published). Only called when a direct slug lookup

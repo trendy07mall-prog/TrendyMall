@@ -245,6 +245,38 @@ export interface Database {
           },
         ];
       };
+      product_stock_notifications: {
+        Row: {
+          id: string;
+          product_id: string;
+          email: string;
+          notified: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          email: string;
+          notified?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          email?: string;
+          notified?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_notifications_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           id: string;
