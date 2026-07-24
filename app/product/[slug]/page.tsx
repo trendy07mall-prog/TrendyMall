@@ -13,7 +13,10 @@ import { ProductPurchaseSection } from "@/components/product/ProductPurchaseSect
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { RecordRecentlyViewed } from "@/components/product/RecordRecentlyViewed";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getEffectivePrice } from "@/lib/utils";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function generateMetadata({
   params,
@@ -80,8 +83,36 @@ export default async function ProductPage({
       ? ("already_reviewed" as const)
       : ("can_review" as const);
 
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    image: imageUrls,
+    description: product.description.replace(/<[^>]+>/g, "").slice(0, 500),
+    sku: product.sku ?? undefined,
+    brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
+    offers: {
+      "@type": "Offer",
+      url: `${siteUrl}/product/${product.slug}`,
+      priceCurrency: "LKR",
+      price: getEffectivePrice(product),
+      availability:
+        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    },
+    ...(ratingSummary && ratingSummary.review_count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: ratingSummary.avg_rating,
+            reviewCount: ratingSummary.review_count,
+          },
+        }
+      : {}),
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <JsonLd data={productSchema} />
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },

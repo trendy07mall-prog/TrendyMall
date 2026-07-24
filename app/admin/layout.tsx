@@ -53,6 +53,12 @@ export default async function AdminLayout({
           >
             Banner
           </Link>
+          <Link
+            href="/admin/subscribers"
+            className="text-sm font-medium hover:underline"
+          >
+            Subscribers
+          </Link>
         </aside>
         <div className="flex-1">{children}</div>
       </div>

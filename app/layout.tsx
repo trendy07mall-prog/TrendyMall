@@ -8,6 +8,9 @@ import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { getActiveBanner } from "@/lib/data/banner";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
+import { MetaPixel } from "@/components/analytics/MetaPixel";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -47,6 +50,24 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "TrendyMall",
+  url: siteUrl,
+  logo: `${siteUrl}/icon`,
+  sameAs: [
+    "https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr",
+    "https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr",
+  ],
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+94750187145",
+    contactType: "customer service",
+    email: "trendy07mall@gmail.com",
+  },
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -60,6 +81,9 @@ export default async function RootLayout({
       className={`${manrope.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <JsonLd data={organizationSchema} />
+        <GoogleAnalytics />
+        <MetaPixel />
         <CartProvider>
           <WishlistProvider>
             <RecentlyViewedProvider>

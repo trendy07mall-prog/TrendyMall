@@ -37,6 +37,8 @@ previous one having run):
 13. `sql/013_reviews.sql` — customer reviews (moderated: pending/approved/rejected) plus a `product_rating_summary` view used for star ratings on cards and the product page
 14. `sql/014_site_banner.sql` — an editable, dismissible announcement banner shown at the top of every page
 15. `sql/015_order_tracking.sql` — adds a human-friendly `order_number` (e.g. `TM-000123`) to orders and a guest-safe `track_order` database function, powering the `/track-order` page
+16. `sql/016_subscribers.sql` — a table for newsletter signups, exportable at `/admin/subscribers`
+17. `sql/017_order_shipping_fee.sql` — adds a `shipping_fee` column to orders so the delivery charge is included in the order total, not just mentioned on the Shipping Policy page
 
 **Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty. `010` must run before `011` (the fix inserts into the table `010` creates).
 
@@ -145,6 +147,9 @@ Once logged in as an admin:
   link, and toggle it on/off. Visitors who dismiss a banner won't see that
   exact message again on the same device, but a new message you save will
   reappear even if they'd dismissed an earlier one.
+- **Export newsletter subscribers**: `/admin/subscribers` lists everyone
+  who's signed up via the footer newsletter form, with a button to download
+  them as a CSV.
 
 ## 7. Adding a real payment gateway later
 
@@ -174,7 +179,31 @@ To wire up a real gateway (Stripe, PayHere, Sampath IPG, etc.):
    checkout page if your provider requires one, instead of going straight to
    `/checkout/success`.
 
-## 8. Deploying to Vercel
+## 8. Analytics and order confirmation emails (optional)
+
+These are all no-ops until you set their environment variables — safe to
+skip for now and come back later.
+
+- **Google Analytics 4**: create a GA4 property at
+  [analytics.google.com](https://analytics.google.com) → **Admin → Data
+  Streams** → add a Web stream for your domain → copy the **Measurement ID**
+  (starts with `G-`) into `NEXT_PUBLIC_GA_MEASUREMENT_ID`.
+- **Meta Pixel**: in [Meta Events Manager](https://business.facebook.com/events_manager),
+  create a pixel → copy its **Pixel ID** into `NEXT_PUBLIC_META_PIXEL_ID`.
+- **Order confirmation emails (Resend)**: sign up at
+  [resend.com](https://resend.com) (free tier is enough to start) → **API
+  Keys** → create one → put it in `RESEND_API_KEY`. Set `RESEND_FROM_EMAIL`
+  to the address you want orders to be sent from.
+  - ⚠️ **Domain verification matters here.** Until you verify a domain you
+    own under **Resend → Domains**, Resend's sandbox only delivers to *your
+    own* Resend account email — customer confirmation emails won't actually
+    reach customers yet, even though the code sends them. The order
+    notification to `trendy07mall@gmail.com` will work immediately either
+    way. Once you register a domain (e.g. `trendymall.lk`) and verify it in
+    Resend (a few DNS records), set `RESEND_FROM_EMAIL` to an address on
+    that domain (e.g. `orders@trendymall.lk`) and both emails will go out.
+
+## 9. Deploying to Vercel
 
 1. Push this repo to GitHub (already done if you're reading this after the
    initial setup — see the git remote below).
@@ -191,6 +220,9 @@ To wire up a real gateway (Stripe, PayHere, Sampath IPG, etc.):
    - `NEXT_PUBLIC_SITE_URL` — set this to your real Vercel URL (e.g.
      `https://trendymall.vercel.app`) or custom domain, so SEO metadata,
      `sitemap.xml`, and `robots.txt` point at the right place
+   - Optionally `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
+     `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (see step 8) — leave unset to skip
+     analytics/emails for now
 5. Click **Deploy**.
 6. In the Supabase dashboard, go to **Authentication → URL Configuration**
    and add your Vercel deployment URL (e.g. `https://trendymall.vercel.app`)

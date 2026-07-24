@@ -6,11 +6,23 @@ import { useCart } from "@/context/CartContext";
 import { createOrder } from "@/lib/orders";
 import { formatPrice } from "@/lib/utils";
 
+const DELIVERY_OPTIONS = [
+  { id: "western", label: "Western Province & Colombo", fee: 255 },
+  { id: "other", label: "Outside Western Province", fee: 400 },
+] as const;
+
 export default function CheckoutPage() {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
+  const [deliveryArea, setDeliveryArea] = useState<(typeof DELIVERY_OPTIONS)[number]["id"]>(
+    "western",
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const shippingFee =
+    DELIVERY_OPTIONS.find((option) => option.id === deliveryArea)?.fee ?? 0;
+  const total = subtotal + shippingFee;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -29,6 +41,7 @@ export default function CheckoutPage() {
       customerEmail: String(formData.get("email") ?? ""),
       customerPhone: String(formData.get("phone") ?? ""),
       shippingAddress: String(formData.get("address") ?? ""),
+      shippingFee,
       items: items.map((item) => ({
         productId: item.productId,
         name: item.name,
@@ -76,6 +89,27 @@ export default function CheckoutPage() {
             />
           </div>
 
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">Delivery area</span>
+            {DELIVERY_OPTIONS.map((option) => (
+              <label
+                key={option.id}
+                className="flex items-center justify-between gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="deliveryArea"
+                    checked={deliveryArea === option.id}
+                    onChange={() => setDeliveryArea(option.id)}
+                  />
+                  {option.label}
+                </span>
+                <span className="text-[var(--muted)]">{formatPrice(option.fee)}</span>
+              </label>
+            ))}
+          </div>
+
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <p className="text-xs text-[var(--muted)]">
@@ -89,9 +123,7 @@ export default function CheckoutPage() {
             disabled={pending || items.length === 0}
             className="mt-2 rounded-full bg-[var(--foreground)] px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
           >
-            {pending
-              ? "Placing order…"
-              : `Place order — ${formatPrice(subtotal)}`}
+            {pending ? "Placing order…" : `Place order — ${formatPrice(total)}`}
           </button>
         </form>
       </div>
@@ -111,9 +143,19 @@ export default function CheckoutPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-4 flex justify-between border-t border-[var(--border)] pt-4 text-sm font-medium">
-          <span>Total</span>
-          <span>{formatPrice(subtotal)}</span>
+        <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
+          <div className="flex justify-between">
+            <span>Subtotal</span>
+            <span>{formatPrice(subtotal)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Delivery</span>
+            <span>{formatPrice(shippingFee)}</span>
+          </div>
+          <div className="flex justify-between font-medium">
+            <span>Total</span>
+            <span>{formatPrice(total)}</span>
+          </div>
         </div>
       </div>
     </div>

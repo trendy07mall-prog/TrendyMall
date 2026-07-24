@@ -56,9 +56,15 @@ export default async function CheckoutSuccessPage({
           </li>
         ))}
       </ul>
-      <div className="mt-4 flex justify-between text-sm font-medium">
-        <span>Total</span>
-        <span>{formatPrice(order.total)}</span>
+      <div className="mt-4 flex flex-col gap-1 text-sm">
+        <div className="flex justify-between text-[var(--muted)]">
+          <span>Delivery</span>
+          <span>{formatPrice(order.shipping_fee)}</span>
+        </div>
+        <div className="flex justify-between font-medium">
+          <span>Total</span>
+          <span>{formatPrice(order.total)}</span>
+        </div>
       </div>
 
       <Link href="/account/orders" className="mt-10 inline-block underline">

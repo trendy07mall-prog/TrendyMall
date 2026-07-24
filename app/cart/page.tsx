@@ -37,6 +37,15 @@ export default function CartPage() {
         <span>Subtotal</span>
         <span>{formatPrice(subtotal)}</span>
       </div>
+      <p className="mt-2 text-xs text-[var(--muted)]">
+        Delivery is Rs. 255 for Western Province &amp; Colombo, or Rs. 400
+        elsewhere — you&apos;ll choose your area and see the exact total at
+        checkout. See our{" "}
+        <Link href="/shipping" className="underline">
+          Shipping Policy
+        </Link>
+        .
+      </p>
       <Link
         href="/checkout"
         className="mt-8 block rounded-full bg-[var(--foreground)] px-6 py-3 text-center text-sm font-medium text-white transition-opacity hover:opacity-85"

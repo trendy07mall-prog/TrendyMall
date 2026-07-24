@@ -277,6 +277,24 @@ export interface Database {
           },
         ];
       };
+      subscribers: {
+        Row: {
+          id: string;
+          email: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       site_banner: {
         Row: {
           id: string;
@@ -355,6 +373,7 @@ export interface Database {
           shipping_address: string;
           status: OrderStatus;
           total: number;
+          shipping_fee: number;
           payment_method: string;
           payment_reference: string | null;
           order_number: string;
@@ -370,6 +389,7 @@ export interface Database {
           shipping_address: string;
           status?: OrderStatus;
           total: number;
+          shipping_fee?: number;
           payment_method?: string;
           payment_reference?: string | null;
           order_number?: string;
@@ -385,6 +405,7 @@ export interface Database {
           shipping_address?: string;
           status?: OrderStatus;
           total?: number;
+          shipping_fee?: number;
           payment_method?: string;
           payment_reference?: string | null;
           order_number?: string;

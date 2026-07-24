@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { initiatePayment } from "@/lib/payment";
+import { sendOrderConfirmationEmails } from "@/lib/email";
 
 export interface CreateOrderInput {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   shippingAddress: string;
+  shippingFee: number;
   items: {
     productId: string;
     name: string;
@@ -37,10 +39,11 @@ export async function createOrder(
     return { error: "Your cart is empty." };
   }
 
-  const total = input.items.reduce(
+  const itemsSubtotal = input.items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
+  const total = itemsSubtotal + input.shippingFee;
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -50,6 +53,7 @@ export async function createOrder(
       customer_email: input.customerEmail,
       customer_phone: input.customerPhone,
       shipping_address: input.shippingAddress,
+      shipping_fee: input.shippingFee,
       total,
     })
     .select()
@@ -77,6 +81,19 @@ export async function createOrder(
   }
 
   await initiatePayment({ id: order.id, total });
+
+  await sendOrderConfirmationEmails({
+    orderNumber: order.order_number,
+    customerName: input.customerName,
+    customerEmail: input.customerEmail,
+    items: orderItems.map((item) => ({
+      name: item.product_name,
+      quantity: item.quantity,
+      subtotal: item.subtotal,
+    })),
+    shippingFee: input.shippingFee,
+    total,
+  });
 
   revalidatePath("/account/orders");
   return { orderId: order.id };

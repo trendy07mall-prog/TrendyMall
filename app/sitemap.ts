@@ -13,6 +13,9 @@ const STATIC_ROUTES = [
   "/shipping",
   "/returns",
   "/faq",
+  "/privacy",
+  "/terms",
+  "/track-order",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
