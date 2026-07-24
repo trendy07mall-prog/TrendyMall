@@ -219,6 +219,32 @@ export interface Database {
           },
         ];
       };
+      product_slug_redirects: {
+        Row: {
+          old_slug: string;
+          product_id: string;
+          created_at: string;
+        };
+        Insert: {
+          old_slug: string;
+          product_id: string;
+          created_at?: string;
+        };
+        Update: {
+          old_slug?: string;
+          product_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_slug_redirects_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           id: string;

@@ -9,12 +9,13 @@ export function formatPrice(amount: number): string {
   return priceFormatter.format(amount);
 }
 
-export function slugify(input: string): string {
-  return input
+export function slugify(input: string, maxLength = 60): string {
+  const slug = input
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+  return slug.slice(0, maxLength).replace(/-+$/g, "");
 }
 
 export function getEffectivePrice(product: {

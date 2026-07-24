@@ -88,6 +88,31 @@ export async function searchProducts(query: string): Promise<ProductWithPrimaryI
   return attachPrimaryImages(supabase, data);
 }
 
+// Looks up a stale product slug in product_slug_redirects and returns the
+// product's current published slug, or null if there's no redirect (or the
+// product is no longer published). Only called when a direct slug lookup
+// misses, so a renamed/re-slugged product 301s to its new URL instead of
+// 404ing.
+export async function getProductSlugRedirect(oldSlug: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data: redirect } = await supabase
+    .from("product_slug_redirects")
+    .select("product_id")
+    .eq("old_slug", oldSlug)
+    .maybeSingle();
+
+  if (!redirect) return null;
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("slug")
+    .eq("id", redirect.product_id)
+    .eq("status", "published")
+    .maybeSingle();
+
+  return product?.slug ?? null;
+}
+
 export async function getAllProductSlugs(): Promise<string[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

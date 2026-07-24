@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductDetailBySlug } from "@/lib/data/products";
+import { getProductDetailBySlug, getProductSlugRedirect } from "@/lib/data/products";
 import { getCategoryById } from "@/lib/data/categories";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
@@ -49,7 +49,11 @@ export default async function ProductPage({
 }) {
   const { slug } = await params;
   const detail = await getProductDetailBySlug(slug);
-  if (!detail) notFound();
+  if (!detail) {
+    const redirectSlug = await getProductSlugRedirect(slug);
+    if (redirectSlug) permanentRedirect(`/product/${redirectSlug}`);
+    notFound();
+  }
 
   const { product, images, variants } = detail;
   const category = await getCategoryById(product.category_id);

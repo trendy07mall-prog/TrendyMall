@@ -13,7 +13,7 @@ const COMPANY_LINKS = [
 const TRUST_INDICATORS = [
   "Fast Islandwide Delivery",
   "Cash on Delivery",
-  "Secure Payments",
+  "Secure Checkout",
   "Quality Checked Products",
   "Customer Support",
 ];

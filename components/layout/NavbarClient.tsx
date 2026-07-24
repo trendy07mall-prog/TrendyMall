@@ -277,9 +277,24 @@ export function NavbarClient({
               <Link
                 href="/wishlist"
                 onClick={() => setDrawerOpen(false)}
-                className="rounded-lg px-2 py-2 hover:bg-black/5"
+                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
               >
+                <span className="relative flex h-5 w-5 items-center justify-center">
+                  <HeartIcon className="h-5 w-5" />
+                  <WishlistCount />
+                </span>
                 Wishlist
+              </Link>
+              <Link
+                href="/cart"
+                onClick={() => setDrawerOpen(false)}
+                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
+              >
+                <span className="relative flex h-5 w-5 items-center justify-center">
+                  <CartIcon className="h-5 w-5" />
+                  <CartCount />
+                </span>
+                Cart
               </Link>
               {user ? (
                 <>

@@ -31,8 +31,10 @@ previous one having run):
 7. `sql/007_update_category_images.sql` — links each category to its photo
 8. `sql/008_product_catalog_schema.sql` — the product catalog upgrade: renames `price`→`actual_price`, adds brand/model/compatible devices/Bluetooth/SKU/what's-in-box/featured/SEO fields, replaces `is_active` with a `status` (draft/published) column, and migrates the old `images` array into a new `product_images` table plus a new `product_variants` table for color variants
 9. `sql/009_product_catalog_rls.sql` — updated row-level security to match (published products are public, drafts are admin-only)
+10. `sql/010_product_slug_redirects.sql` — a small table that remembers a product's old slug whenever an admin edit changes it, so old links/shares 301 redirect to the new URL instead of 404ing
+11. `sql/011_fix_lenovo_product_slug.sql` — one-time fix: regenerates the Lenovo product's slug (it was originally generated from the full product name with no length cap) and records the old slug in `product_slug_redirects`
 
-**Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty.
+**Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty. `010` must run before `011` (the fix inserts into the table `010` creates).
 
 Paste each file's contents into the SQL editor and click **Run**. If a script
 errors partway through, check whether part of it already applied before

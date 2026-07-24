@@ -225,6 +225,20 @@ export async function updateProduct(
   const fields = readCommonFields(formData);
   if (!fields.name) return { error: "Name is required." };
 
+  const { data: existing } = await supabase
+    .from("products")
+    .select("slug")
+    .eq("id", productId)
+    .maybeSingle();
+
+  if (existing && existing.slug !== fields.slug) {
+    // Best-effort: an old link continuing to 404 isn't worth failing the
+    // whole product update over.
+    await supabase
+      .from("product_slug_redirects")
+      .insert({ old_slug: existing.slug, product_id: productId });
+  }
+
   const { error } = await supabase
     .from("products")
     .update({

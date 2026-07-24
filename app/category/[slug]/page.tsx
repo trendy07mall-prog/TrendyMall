@@ -14,11 +14,25 @@ export async function generateMetadata({
   const category = await getCategoryBySlug(slug);
   if (!category) return { title: "Category not found" };
 
+  const title = `${category.name} Accessories`;
+  const description =
+    category.description ??
+    `Shop ${category.name.toLowerCase()} accessories at TrendyMall.`;
+  const image = category.image_path;
+
   return {
-    title: `${category.name} Accessories`,
-    description:
-      category.description ??
-      `Shop ${category.name.toLowerCase()} accessories at TrendyMall.`,
+    title,
+    description,
+    openGraph: {
+      title: `${title} | TrendyMall`,
+      description,
+      images: image ? [{ url: image }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | TrendyMall`,
+      description,
+    },
   };
 }
 
