@@ -28,7 +28,7 @@ export default async function AdminOrderDetailPage({
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold tracking-tight">
-          Order #{order.id.slice(0, 8)}
+          Order {order.order_number}
         </h1>
         <OrderStatusSelect orderId={order.id} status={order.status} />
       </div>

@@ -5,6 +5,7 @@ import { Hero } from "@/components/marketing/Hero";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductGrid } from "@/components/product/ProductGrid";
+import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { FadeIn } from "@/components/motion/FadeIn";
 
 export default async function HomePage() {
@@ -51,6 +52,10 @@ export default async function HomePage() {
       </section>
 
       <TrustBadges />
+
+      <div className="mx-auto w-full max-w-6xl px-6 pb-16">
+        <RecentlyViewedSection />
+      </div>
     </div>
   );
 }

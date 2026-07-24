@@ -277,6 +277,74 @@ export interface Database {
           },
         ];
       };
+      site_banner: {
+        Row: {
+          id: string;
+          message: string;
+          link_url: string | null;
+          is_active: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          message: string;
+          link_url?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          message?: string;
+          link_url?: string | null;
+          is_active?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      reviews: {
+        Row: {
+          id: string;
+          product_id: string;
+          user_id: string;
+          rating: number;
+          title: string | null;
+          comment: string | null;
+          verified_purchase: boolean;
+          status: "pending" | "approved" | "rejected";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          user_id: string;
+          rating: number;
+          title?: string | null;
+          comment?: string | null;
+          verified_purchase?: boolean;
+          status?: "pending" | "approved" | "rejected";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          user_id?: string;
+          rating?: number;
+          title?: string | null;
+          comment?: string | null;
+          verified_purchase?: boolean;
+          status?: "pending" | "approved" | "rejected";
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       orders: {
         Row: {
           id: string;
@@ -289,6 +357,7 @@ export interface Database {
           total: number;
           payment_method: string;
           payment_reference: string | null;
+          order_number: string;
           created_at: string;
           updated_at: string;
         };
@@ -303,6 +372,7 @@ export interface Database {
           total: number;
           payment_method?: string;
           payment_reference?: string | null;
+          order_number?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -317,6 +387,7 @@ export interface Database {
           total?: number;
           payment_method?: string;
           payment_reference?: string | null;
+          order_number?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -371,8 +442,35 @@ export interface Database {
         ];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Views: {
+      product_rating_summary: {
+        Row: {
+          product_id: string;
+          avg_rating: number;
+          review_count: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+    };
+    Functions: {
+      track_order: {
+        Args: { p_order_number: string; p_phone: string };
+        Returns: {
+          order_number: string;
+          status: OrderStatus;
+          total: number;
+          created_at: string;
+        }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -8,6 +8,7 @@ const COMPANY_LINKS = [
   { href: "/shipping", label: "Shipping Policy" },
   { href: "/returns", label: "Returns" },
   { href: "/faq", label: "FAQ" },
+  { href: "/track-order", label: "Track Order" },
 ];
 
 const TRUST_INDICATORS = [

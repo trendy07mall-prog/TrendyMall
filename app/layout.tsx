@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { Manrope, Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
+import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
+import { PromoBanner } from "@/components/marketing/PromoBanner";
+import { getActiveBanner } from "@/lib/data/banner";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -44,11 +47,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const banner = await getActiveBanner();
+
   return (
     <html
       lang="en"
@@ -57,10 +62,13 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <CartProvider>
           <WishlistProvider>
-            <Navbar />
-            <main className="flex flex-1 flex-col">{children}</main>
-            <Footer />
-            <WhatsAppButton />
+            <RecentlyViewedProvider>
+              <PromoBanner banner={banner} />
+              <Navbar />
+              <main className="flex flex-1 flex-col">{children}</main>
+              <Footer />
+              <WhatsAppButton />
+            </RecentlyViewedProvider>
           </WishlistProvider>
         </CartProvider>
       </body>

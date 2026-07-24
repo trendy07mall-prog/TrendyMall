@@ -34,6 +34,9 @@ previous one having run):
 10. `sql/010_product_slug_redirects.sql` — a small table that remembers a product's old slug whenever an admin edit changes it, so old links/shares 301 redirect to the new URL instead of 404ing
 11. `sql/011_fix_lenovo_product_slug.sql` — one-time fix: regenerates the Lenovo product's slug (it was originally generated from the full product name with no length cap) and records the old slug in `product_slug_redirects`
 12. `sql/012_product_stock_notifications.sql` — a table capturing "notify me when back in stock" email requests submitted from an out-of-stock product page
+13. `sql/013_reviews.sql` — customer reviews (moderated: pending/approved/rejected) plus a `product_rating_summary` view used for star ratings on cards and the product page
+14. `sql/014_site_banner.sql` — an editable, dismissible announcement banner shown at the top of every page
+15. `sql/015_order_tracking.sql` — adds a human-friendly `order_number` (e.g. `TM-000123`) to orders and a guest-safe `track_order` database function, powering the `/track-order` page
 
 **Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty. `010` must run before `011` (the fix inserts into the table `010` creates).
 
@@ -131,7 +134,17 @@ Once logged in as an admin:
 - **Manage orders**: `/admin/orders` lists every order; open one to update
   its status (`pending payment → confirmed → shipped → delivered`, or
   `cancelled`). Customers see the same status on their `/account/orders`
-  page.
+  page. Each order now has a short customer-facing `order_number` (e.g.
+  `TM-000123`) shown everywhere instead of the raw UUID — customers can look
+  their order up at `/track-order` with this number + their phone number.
+- **Moderate reviews**: `/admin/reviews` lists every submitted review
+  (pending/approved/rejected). New reviews start as `pending` and are hidden
+  from the storefront until you **Approve** them; **Reject** hides a review
+  without deleting it, **Delete** removes it permanently.
+- **Edit the promo banner**: `/admin/banner` — set the message, an optional
+  link, and toggle it on/off. Visitors who dismiss a banner won't see that
+  exact message again on the same device, but a new message you save will
+  reappear even if they'd dismissed an earlier one.
 
 ## 7. Adding a real payment gateway later
 

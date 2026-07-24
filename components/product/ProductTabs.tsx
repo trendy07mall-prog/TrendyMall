@@ -3,29 +3,38 @@
 import { useState } from "react";
 import Link from "next/link";
 import { SpecsTable } from "@/components/product/SpecsTable";
-import type { Product } from "@/types";
+import { ReviewsSection } from "@/components/product/ReviewsSection";
+import type { Product, ProductRatingSummary } from "@/types";
+import type { ReviewWithReviewerName } from "@/lib/reviews";
 
-type Tab = "description" | "specifications" | "shipping";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "description", label: "Description" },
-  { id: "specifications", label: "Specifications" },
-  { id: "shipping", label: "Shipping" },
-];
+type Tab = "description" | "specifications" | "reviews" | "shipping";
 
 export function ProductTabs({
   product,
   categoryName,
+  reviews,
+  ratingSummary,
+  reviewState,
 }: {
   product: Product;
   categoryName: string;
+  reviews: ReviewWithReviewerName[];
+  ratingSummary: ProductRatingSummary | null;
+  reviewState: "can_review" | "already_reviewed" | "not_logged_in";
 }) {
   const [active, setActive] = useState<Tab>("description");
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "description", label: "Description" },
+    { id: "specifications", label: "Specifications" },
+    { id: "reviews", label: `Reviews (${ratingSummary?.review_count ?? 0})` },
+    { id: "shipping", label: "Shipping" },
+  ];
 
   return (
     <div className="mt-12">
       <div role="tablist" aria-label="Product information" className="flex gap-6 border-b border-[var(--border)]">
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -64,6 +73,21 @@ export function ProductTabs({
         className="py-6"
       >
         <SpecsTable product={product} categoryName={categoryName} />
+      </div>
+
+      <div
+        role="tabpanel"
+        id="panel-reviews"
+        aria-labelledby="tab-reviews"
+        hidden={active !== "reviews"}
+        className="py-6"
+      >
+        <ReviewsSection
+          productId={product.id}
+          reviews={reviews}
+          ratingSummary={ratingSummary}
+          reviewState={reviewState}
+        />
       </div>
 
       <div

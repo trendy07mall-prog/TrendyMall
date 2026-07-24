@@ -13,18 +13,25 @@ import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { getEffectivePrice } from "@/lib/utils";
-import type { Product, ProductVariant } from "@/types";
+import type { Product, ProductRatingSummary, ProductVariant } from "@/types";
+import type { ReviewWithReviewerName } from "@/lib/reviews";
 
 export function ProductPurchaseSection({
   product,
   images,
   variants,
   categoryName,
+  reviews,
+  ratingSummary,
+  reviewState,
 }: {
   product: Product;
   images: string[];
   variants: ProductVariant[];
   categoryName: string;
+  reviews: ReviewWithReviewerName[];
+  ratingSummary: ProductRatingSummary | null;
+  reviewState: "can_review" | "already_reviewed" | "not_logged_in";
 }) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -127,7 +134,13 @@ export function ProductPurchaseSection({
           <TrustBadges compact />
         </div>
 
-        <ProductTabs product={product} categoryName={categoryName} />
+        <ProductTabs
+          product={product}
+          categoryName={categoryName}
+          reviews={reviews}
+          ratingSummary={ratingSummary}
+          reviewState={reviewState}
+        />
       </div>
     </div>
   );

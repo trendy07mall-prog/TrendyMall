@@ -34,7 +34,7 @@ export default async function OrdersPage() {
                 className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm transition-colors hover:bg-black/5"
               >
                 <span>
-                  Order #{order.id.slice(0, 8)} —{" "}
+                  Order {order.order_number} —{" "}
                   {new Date(order.created_at).toLocaleDateString()}
                 </span>
                 <span className="flex items-center gap-4">

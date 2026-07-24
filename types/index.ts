@@ -7,13 +7,19 @@ export type ProductVariant = Database["public"]["Tables"]["product_variants"]["R
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Review = Database["public"]["Tables"]["reviews"]["Row"];
+export type SiteBanner = Database["public"]["Tables"]["site_banner"]["Row"];
+export type ProductRatingSummary = Database["public"]["Views"]["product_rating_summary"]["Row"];
 export type { OrderStatus, ProductStatus };
 
 // Product listing/card contexts (category grid, search, new arrivals, shop)
-// need exactly one representative image; the base Product row carries no
-// image reference at all now that images live in product_images.
+// need exactly one representative image plus a rating summary for the card's
+// star display; the base Product row carries neither since images live in
+// product_images and ratings are aggregated from reviews.
 export interface ProductWithPrimaryImage extends Product {
   image: string | null;
+  avgRating: number;
+  reviewCount: number;
 }
 
 export interface CartItem {

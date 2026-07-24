@@ -31,9 +31,16 @@ export default async function CheckoutSuccessPage({
         Thank you — order placed
       </h1>
       <p className="mt-2 text-[var(--muted)]">
-        Order #{order.id.slice(0, 8)} is saved as{" "}
+        Order <strong>{order.order_number}</strong> is saved as{" "}
         <strong>pending payment</strong>. We&apos;ll follow up on payment and
         shipping details shortly.
+      </p>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        Save your order number — you can check its status anytime at{" "}
+        <Link href="/track-order" className="underline">
+          Track Order
+        </Link>{" "}
+        using this number and your phone number.
       </p>
 
       <ul className="mt-8 flex flex-col gap-3 text-left">

@@ -30,7 +30,7 @@ export default async function AdminOrdersPage() {
                 key={order.id}
                 className="border-b border-[var(--border)]"
               >
-                <td className="py-2 pr-4">#{order.id.slice(0, 8)}</td>
+                <td className="py-2 pr-4">{order.order_number}</td>
                 <td className="py-2 pr-4">{order.customer_name}</td>
                 <td className="py-2 pr-4">{formatPrice(order.total)}</td>
                 <td className="py-2 pr-4">

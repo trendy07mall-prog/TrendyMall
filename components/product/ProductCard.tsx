@@ -3,6 +3,7 @@ import Image from "next/image";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
+import { StarRating } from "@/components/product/StarRating";
 import type { ProductWithPrimaryImage } from "@/types";
 
 export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
@@ -37,6 +38,12 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
       <Link href={`/product/${product.slug}`}>
         <h3 className="mt-3 line-clamp-2 text-sm font-medium">{product.name}</h3>
       </Link>
+      {product.reviewCount > 0 && (
+        <div className="mt-1 flex items-center gap-1.5">
+          <StarRating rating={product.avgRating} size="sm" />
+          <span className="text-xs text-[var(--muted)]">({product.reviewCount})</span>
+        </div>
+      )}
       <div className="mt-1 flex items-center justify-between">
         <PriceDisplay
           actualPrice={product.actual_price}

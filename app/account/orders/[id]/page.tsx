@@ -28,7 +28,7 @@ export default async function OrderDetailPage({
     <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold tracking-tight">
-          Order #{order.id.slice(0, 8)}
+          Order {order.order_number}
         </h1>
         <StatusBadge status={order.status} />
       </div>
