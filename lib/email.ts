@@ -1,7 +1,16 @@
 import { Resend } from "resend";
 import { formatPrice } from "@/lib/utils";
+import type { OrderStatus } from "@/types";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending_payment: "Pending payment",
+  confirmed: "Confirmed",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 interface OrderEmailItem {
   name: string;
@@ -75,5 +84,38 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
     ]);
   } catch {
     // Sending is best-effort — order creation already succeeded.
+  }
+}
+
+// Best-effort, same as sendOrderConfirmationEmails — a failed email should
+// never block the status change that triggered it. Customer-facing only
+// (the admin making the change already knows).
+export async function sendOrderStatusUpdateEmail(order: {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  status: OrderStatus;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const statusLabel = STATUS_LABELS[order.status];
+    await resend.emails.send({
+      from: fromEmail,
+      to: order.customerEmail,
+      subject: `Your TrendyMall order ${order.orderNumber} is now ${statusLabel}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          <h2>Order ${order.orderNumber}</h2>
+          <p>Hi ${order.customerName}, your order status has been updated to:</p>
+          <p style="font-size: 18px; font-weight: bold;">${statusLabel}</p>
+        </div>
+      `,
+    });
+  } catch {
+    // Sending is best-effort — the status change already succeeded.
   }
 }

@@ -150,6 +150,24 @@ Once logged in as an admin:
 - **Export newsletter subscribers**: `/admin/subscribers` lists everyone
   who's signed up via the footer newsletter form, with a button to download
   them as a CSV.
+- **Dashboard**: `/admin` shows total revenue (orders that are confirmed,
+  shipped, or delivered — pending/cancelled orders aren't counted as real
+  revenue), orders placed this month, best-selling products, and low-stock
+  items.
+- **View customers**: `/admin/customers` lists everyone who's placed at
+  least one order (name, contact info, order count, total spent, last order
+  date).
+- **Bulk import products**: `/admin/products` → **Import CSV** —
+  `/admin/products/import` has a "Download CSV template" button and a file
+  picker. Covers core fields only (name/brand/model/SKU/pricing/stock/
+  category/status/description/compatible devices/what's-in-box) — photos
+  and color variants still need to be added afterward via **Edit** on each
+  product. Rows with an unrecognized category name, or missing/invalid
+  required fields, are skipped and listed individually rather than failing
+  the whole import.
+- Changing an order's status in `/admin/orders` now emails the customer
+  automatically (subject to the same Resend sandbox restriction as order
+  confirmation emails — see step 8).
 
 ## 7. Adding a real payment gateway later
 
