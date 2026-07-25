@@ -39,6 +39,7 @@ previous one having run):
 15. `sql/015_order_tracking.sql` — adds a human-friendly `order_number` (e.g. `TM-000123`) to orders and a guest-safe `track_order` database function, powering the `/track-order` page
 16. `sql/016_subscribers.sql` — a table for newsletter signups, exportable at `/admin/subscribers`
 17. `sql/017_order_shipping_fee.sql` — adds a `shipping_fee` column to orders so the delivery charge is included in the order total, not just mentioned on the Shipping Policy page
+18. `sql/018_search_filters_sorting.sql` — adds `keywords`/`view_count`/`cod_available`/`free_delivery`/`warranty_available` to products, a full-text `search_vector` column (with a GIN index) powering the search bar, a `product_sales_summary` view for the Best Selling sort, and an `increment_product_view_count` function for the Most Popular sort
 
 **Run `008` before `009`**, and run both before your next deploy — the existing 4 products' photos live in the old `images` array until `008`'s data migration moves them into `product_images`; skipping it (or running out of order) will leave their galleries empty. `010` must run before `011` (the fix inserts into the table `010` creates).
 
@@ -67,7 +68,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
 `.env.local` is gitignored and will never be committed. `NEXT_PUBLIC_SITE_URL`
 is used for SEO metadata, `sitemap.xml`, and `robots.txt` — set it to your
-real production domain once deployed (step 8).
+real production domain once deployed (step 10).
 
 ## 4. Install dependencies and run locally
 
@@ -126,9 +127,13 @@ Once logged in as an admin:
   stock, SKU, add color variants (each with its own hex swatch, optional
   stock, optional photo), write the description in the rich-text editor
   (bold/italic/lists/inline images), list what's in the box, upload gallery
-  photos (reorder with the ↑/↓ buttons), and set **Status** to **Draft**
-  (hidden from the storefront) or **Published** (live). All images upload to
-  the `product-images` Supabase Storage bucket immediately as you add them.
+  photos (reorder with the ↑/↓ buttons), optionally add **Search keywords**
+  (extra terms customers might search for that aren't already in the name/
+  brand/description), tick any of the **Service** flags (Cash on Delivery,
+  Free Delivery, Warranty Available — these power the Service filter on
+  `/shop`), and set **Status** to **Draft** (hidden from the storefront) or
+  **Published** (live). All images upload to the `product-images` Supabase
+  Storage bucket immediately as you add them.
 - **Edit a product**: `/admin/products` → click a product → **Edit**, same
   form pre-filled. Toggle **Status** back to Draft to pull it off the
   storefront without deleting it.
@@ -167,9 +172,31 @@ Once logged in as an admin:
   the whole import.
 - Changing an order's status in `/admin/orders` now emails the customer
   automatically (subject to the same Resend sandbox restriction as order
-  confirmation emails — see step 8).
+  confirmation emails — see step 9).
 
-## 7. Adding a real payment gateway later
+## 7. Homepage hero banner, search, and filters
+
+- **Hero banner slider**: the homepage hero is now an auto-playing image
+  slider (`components/marketing/HeroSlider.tsx`) instead of a static photo.
+  Add 3 images to `public/images/hero/`, exactly named:
+  - `banner-25-off.jpg` (links to `/shop?onSale=1`)
+  - `banner-free-shipping.jpg` (links to `/shop?freeDelivery=1`)
+  - `banner-trending-products.jpg` (links to `/new-arrivals`)
+
+  Recommended size: wide banner format (e.g. 1600×700px or similar 16:7–21:9
+  aspect ratio) — the slider reserves that aspect ratio so there's no layout
+  shift while images load. To change the images, links, or add more slides,
+  edit the `SLIDES` array at the top of `HeroSlider.tsx`.
+- **Site search**: the search bar below the navbar searches product
+  name/brand/SKU/keywords/description (via Postgres full-text search) and
+  category names, with live autocomplete. It's separate from the small
+  search icon still in the navbar itself.
+- **Filters**: `/shop`, category pages, and `/search` all share a filter
+  sidebar (category, brand, price, rating, availability, service, promotion)
+  with mobile filter/sort drawers. The Rating filter and Highest Rated sort
+  only appear once at least one approved review exists anywhere on the site.
+
+## 8. Adding a real payment gateway later
 
 Checkout currently collects order details and saves every order with
 `status = 'pending_payment'` — no payment is actually charged. The single
@@ -197,7 +224,7 @@ To wire up a real gateway (Stripe, PayHere, Sampath IPG, etc.):
    checkout page if your provider requires one, instead of going straight to
    `/checkout/success`.
 
-## 8. Analytics and order confirmation emails (optional)
+## 9. Analytics and order confirmation emails (optional)
 
 These are all no-ops until you set their environment variables — safe to
 skip for now and come back later.
@@ -221,7 +248,7 @@ skip for now and come back later.
     Resend (a few DNS records), set `RESEND_FROM_EMAIL` to an address on
     that domain (e.g. `orders@trendymall.lk`) and both emails will go out.
 
-## 9. Deploying to Vercel
+## 10. Deploying to Vercel
 
 1. Push this repo to GitHub (already done if you're reading this after the
    initial setup — see the git remote below).
@@ -239,7 +266,7 @@ skip for now and come back later.
      `https://trendymall.vercel.app`) or custom domain, so SEO metadata,
      `sitemap.xml`, and `robots.txt` point at the right place
    - Optionally `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
-     `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (see step 8) — leave unset to skip
+     `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (see step 9) — leave unset to skip
      analytics/emails for now
 5. Click **Deploy**.
 6. In the Supabase dashboard, go to **Authentication → URL Configuration**

@@ -93,6 +93,10 @@ function readCommonFields(formData: FormData) {
   const isFeatured = formData.get("isFeatured") === "on";
   const metaTitle = String(formData.get("metaTitle") ?? "").trim() || null;
   const metaDescription = String(formData.get("metaDescription") ?? "").trim() || null;
+  const keywords = String(formData.get("keywords") ?? "").trim() || null;
+  const codAvailable = formData.get("codAvailable") === "on";
+  const freeDelivery = formData.get("freeDelivery") === "on";
+  const warrantyAvailable = formData.get("warrantyAvailable") === "on";
   const compatibleDevices = parseJsonArray<string>(formData.get("compatibleDevices"));
   const whatsInBox = parseJsonArray<string>(formData.get("whatsInBox"));
   const galleryImageUrls = parseJsonArray<string>(formData.get("galleryImageUrls"));
@@ -113,6 +117,10 @@ function readCommonFields(formData: FormData) {
     isFeatured,
     metaTitle,
     metaDescription,
+    keywords,
+    codAvailable,
+    freeDelivery,
+    warrantyAvailable,
     compatibleDevices,
     whatsInBox,
     galleryImageUrls,
@@ -191,6 +199,10 @@ export async function createProduct(
       is_featured: fields.isFeatured,
       meta_title: fields.metaTitle,
       meta_description: fields.metaDescription,
+      keywords: fields.keywords,
+      cod_available: fields.codAvailable,
+      free_delivery: fields.freeDelivery,
+      warranty_available: fields.warrantyAvailable,
     })
     .select("id")
     .single();
@@ -259,6 +271,10 @@ export async function updateProduct(
       is_featured: fields.isFeatured,
       meta_title: fields.metaTitle,
       meta_description: fields.metaDescription,
+      keywords: fields.keywords,
+      cod_available: fields.codAvailable,
+      free_delivery: fields.freeDelivery,
+      warranty_available: fields.warrantyAvailable,
     })
     .eq("id", productId);
 

@@ -4,6 +4,7 @@ import {
   getProductDetailBySlug,
   getProductSlugRedirect,
   getRelatedProducts,
+  incrementProductViewCount,
 } from "@/lib/data/products";
 import { getCategoryById } from "@/lib/data/categories";
 import { getProductRatingSummary, getProductReviews, hasUserReviewed } from "@/lib/reviews";
@@ -64,6 +65,12 @@ export default async function ProductPage({
   const { product, images, variants } = detail;
   const category = await getCategoryById(product.category_id);
   const imageUrls = images.map((i) => i.image_url);
+
+  // Awaited (not fire-and-forget): Vercel's serverless runtime can cut off
+  // un-awaited work once the response is sent, so a detached call risks
+  // silently never running. incrementProductViewCount already swallows its
+  // own errors, so this can't fail the page.
+  await incrementProductViewCount(product.id);
 
   const supabase = await createClient();
   const {

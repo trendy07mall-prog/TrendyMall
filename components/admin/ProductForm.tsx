@@ -171,6 +171,52 @@ export function ProductForm({
         </div>
       </div>
 
+      <div className="flex flex-col gap-1">
+        <label htmlFor="keywords" className="text-sm font-medium">
+          Search keywords (optional)
+        </label>
+        <input
+          id="keywords"
+          name="keywords"
+          type="text"
+          defaultValue={product?.keywords ?? ""}
+          placeholder="e.g. wireless, bluetooth, sports, waterproof"
+          className={inputClass}
+        />
+        <p className="text-xs text-[var(--muted)]">
+          Extra terms customers might search for that aren&apos;t already in the name,
+          brand, or description.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium">Service</span>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="codAvailable"
+            defaultChecked={product?.cod_available ?? true}
+          />
+          Cash on Delivery available
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="freeDelivery"
+            defaultChecked={product?.free_delivery ?? false}
+          />
+          Free delivery
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="warrantyAvailable"
+            defaultChecked={product?.warranty_available ?? false}
+          />
+          Warranty available
+        </label>
+      </div>
+
       <VariantsEditor value={variantDrafts} onChange={setVariantDrafts} />
 
       <RichTextEditor value={description} onChange={setDescription} />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals } from "@/lib/data/products";
-import { Hero } from "@/components/marketing/Hero";
+import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductGrid } from "@/components/product/ProductGrid";
@@ -16,7 +16,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <Hero />
+      <HeroSlider />
 
       {newArrivals.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 py-16">

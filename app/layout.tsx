@@ -7,6 +7,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
+import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -89,6 +90,9 @@ export default async function RootLayout({
             <RecentlyViewedProvider>
               <PromoBanner banner={banner} />
               <Navbar />
+              <div className="border-b border-[var(--border)] bg-white py-3">
+                <SiteSearchBar />
+              </div>
               <main className="flex flex-1 flex-col">{children}</main>
               <Footer />
               <WhatsAppButton />

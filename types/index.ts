@@ -10,6 +10,7 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Review = Database["public"]["Tables"]["reviews"]["Row"];
 export type SiteBanner = Database["public"]["Tables"]["site_banner"]["Row"];
 export type ProductRatingSummary = Database["public"]["Views"]["product_rating_summary"]["Row"];
+export type ProductSalesSummary = Database["public"]["Views"]["product_sales_summary"]["Row"];
 export type { OrderStatus, ProductStatus };
 
 // Product listing/card contexts (category grid, search, new arrivals, shop)

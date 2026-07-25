@@ -1,13 +1,18 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getCategoryBySlug } from "@/lib/data/categories";
+import { getCategories, getCategoryBySlug } from "@/lib/data/categories";
 import {
-  getDistinctBrands,
+  getFacetCounts,
   getProductsByCategory,
-  parseProductSearchParams,
+  getPublishedProductCount,
+  hasAnyApprovedReviews,
 } from "@/lib/data/products";
+import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { ProductGrid } from "@/components/product/ProductGrid";
-import { ProductFilterBar } from "@/components/product/ProductFilterBar";
+import { FilterSidebar } from "@/components/product/FilterSidebar";
+import { MobileFilterSortBar } from "@/components/product/MobileFilterSortBar";
+import { FilterChips } from "@/components/product/FilterChips";
+import { SortBar } from "@/components/product/SortBar";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 
 export async function generateMetadata({
@@ -53,10 +58,16 @@ export default async function CategoryPage({
   if (!category) notFound();
 
   const sp = await searchParams;
-  const parsed = parseProductSearchParams(sp);
-  const [products, brands] = await Promise.all([
-    getProductsByCategory(category.id, parsed.filters),
-    getDistinctBrands(category.id),
+  const state = parseProductFilterState(sp);
+  const allCategories = await getCategories();
+  const filters = toProductListFilters(state, allCategories);
+  const basePath = `/category/${category.slug}`;
+
+  const [products, totalCount, facetCounts, hasReviews] = await Promise.all([
+    getProductsByCategory(category.id, filters),
+    getPublishedProductCount(category.id),
+    getFacetCounts(filters, { categoryId: category.id, includeCategoryFacet: false }),
+    hasAnyApprovedReviews(),
   ]);
 
   return (
@@ -68,19 +79,43 @@ export default async function CategoryPage({
       {category.description && (
         <p className="mt-2 text-[var(--muted)]">{category.description}</p>
       )}
+
       <div className="mt-6">
-        <ProductFilterBar
-          basePath={`/category/${category.slug}`}
-          brands={brands}
-          brand={parsed.brand}
-          minPrice={parsed.minPrice}
-          maxPrice={parsed.maxPrice}
-          inStockOnly={parsed.inStockOnly}
-          sort={parsed.sort}
+        <MobileFilterSortBar
+          basePath={basePath}
+          state={state}
+          categories={facetCounts.categories}
+          brands={facetCounts.brands}
+          showCategoryFacet={false}
+          showRatingFacet={hasReviews}
         />
       </div>
-      <div className="mt-8">
-        <ProductGrid products={products} />
+
+      <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-start">
+        <FilterSidebar
+          basePath={basePath}
+          state={state}
+          categories={facetCounts.categories}
+          brands={facetCounts.brands}
+          showCategoryFacet={false}
+          showRatingFacet={hasReviews}
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-4">
+            <FilterChips basePath={basePath} state={state} categories={facetCounts.categories} />
+            <SortBar
+              basePath={basePath}
+              state={state}
+              resultCount={products.length}
+              totalCount={totalCount}
+              showHighestRated={hasReviews}
+            />
+          </div>
+          <div className="mt-6">
+            <ProductGrid products={products} />
+          </div>
+        </div>
       </div>
     </div>
   );

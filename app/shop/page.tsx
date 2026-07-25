@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
-import { getAllProducts, getDistinctBrands, parseProductSearchParams } from "@/lib/data/products";
+import {
+  getAllProducts,
+  getFacetCounts,
+  getPublishedProductCount,
+  hasAnyApprovedReviews,
+} from "@/lib/data/products";
+import { getCategories } from "@/lib/data/categories";
+import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { ProductGrid } from "@/components/product/ProductGrid";
-import { ProductFilterBar } from "@/components/product/ProductFilterBar";
+import { FilterSidebar } from "@/components/product/FilterSidebar";
+import { MobileFilterSortBar } from "@/components/product/MobileFilterSortBar";
+import { FilterChips } from "@/components/product/FilterChips";
+import { SortBar } from "@/components/product/SortBar";
 
 export const metadata: Metadata = {
   title: "Shop All Accessories",
@@ -15,10 +25,15 @@ export default async function ShopPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const parsed = parseProductSearchParams(sp);
-  const [products, brands] = await Promise.all([
-    getAllProducts(parsed.filters),
-    getDistinctBrands(),
+  const state = parseProductFilterState(sp);
+  const categories = await getCategories();
+  const filters = toProductListFilters(state, categories);
+
+  const [products, totalCount, facetCounts, hasReviews] = await Promise.all([
+    getAllProducts(filters),
+    getPublishedProductCount(),
+    getFacetCounts(filters, { includeCategoryFacet: true }),
+    hasAnyApprovedReviews(),
   ]);
 
   return (
@@ -29,19 +44,43 @@ export default async function ShopPage({
       <p className="mt-2 text-[var(--muted)]">
         Every product we carry, in one place.
       </p>
+
       <div className="mt-6">
-        <ProductFilterBar
+        <MobileFilterSortBar
           basePath="/shop"
-          brands={brands}
-          brand={parsed.brand}
-          minPrice={parsed.minPrice}
-          maxPrice={parsed.maxPrice}
-          inStockOnly={parsed.inStockOnly}
-          sort={parsed.sort}
+          state={state}
+          categories={facetCounts.categories}
+          brands={facetCounts.brands}
+          showCategoryFacet
+          showRatingFacet={hasReviews}
         />
       </div>
-      <div className="mt-8">
-        <ProductGrid products={products} />
+
+      <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-start">
+        <FilterSidebar
+          basePath="/shop"
+          state={state}
+          categories={facetCounts.categories}
+          brands={facetCounts.brands}
+          showCategoryFacet
+          showRatingFacet={hasReviews}
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-col gap-4">
+            <FilterChips basePath="/shop" state={state} categories={facetCounts.categories} />
+            <SortBar
+              basePath="/shop"
+              state={state}
+              resultCount={products.length}
+              totalCount={totalCount}
+              showHighestRated={hasReviews}
+            />
+          </div>
+          <div className="mt-6">
+            <ProductGrid products={products} />
+          </div>
+        </div>
       </div>
     </div>
   );

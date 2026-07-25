@@ -89,6 +89,12 @@ export interface Database {
           is_featured: boolean;
           meta_title: string | null;
           meta_description: string | null;
+          keywords: string | null;
+          view_count: number;
+          cod_available: boolean;
+          free_delivery: boolean;
+          warranty_available: boolean;
+          search_vector: unknown;
           created_at: string;
           updated_at: string;
         };
@@ -111,6 +117,11 @@ export interface Database {
           is_featured?: boolean;
           meta_title?: string | null;
           meta_description?: string | null;
+          keywords?: string | null;
+          view_count?: number;
+          cod_available?: boolean;
+          free_delivery?: boolean;
+          warranty_available?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -133,6 +144,11 @@ export interface Database {
           is_featured?: boolean;
           meta_title?: string | null;
           meta_description?: string | null;
+          keywords?: string | null;
+          view_count?: number;
+          cod_available?: boolean;
+          free_delivery?: boolean;
+          warranty_available?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -480,6 +496,21 @@ export interface Database {
           },
         ];
       };
+      product_sales_summary: {
+        Row: {
+          product_id: string;
+          units_sold: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Functions: {
       track_order: {
@@ -490,6 +521,10 @@ export interface Database {
           total: number;
           created_at: string;
         }[];
+      };
+      increment_product_view_count: {
+        Args: { p_product_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;
