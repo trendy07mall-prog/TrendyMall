@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
 import { FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
 
@@ -27,7 +28,14 @@ export function Footer() {
       <div className="mx-auto w-full max-w-6xl px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="font-heading text-lg font-extrabold tracking-tight">
+            <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight">
+              <Image
+                src="/images/logo/tm_logo_clear_animated.png"
+                alt=""
+                width={32}
+                height={32}
+                className="rounded-md"
+              />
               TrendyMall
             </span>
             <p className="mt-3 text-sm text-[var(--muted)]">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { User } from "@supabase/supabase-js";
 import { signOut } from "@/app/auth/actions";
 import { CartCount } from "@/components/cart/CartCount";
@@ -72,8 +73,15 @@ export function NavbarClient({
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link
           href="/"
-          className="font-heading text-lg font-extrabold tracking-tight"
+          className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight"
         >
+          <Image
+            src="/images/logo/tm_logo_clear_animated.png"
+            alt=""
+            width={32}
+            height={32}
+            className="rounded-md"
+          />
           TrendyMall
         </Link>
 
@@ -229,7 +237,14 @@ export function NavbarClient({
             className="absolute top-0 right-0 flex h-full w-72 flex-col gap-6 bg-white p-6 shadow-xl"
           >
             <div className="flex items-center justify-between">
-              <span className="font-heading text-lg font-extrabold">
+              <span className="flex items-center gap-2 font-heading text-lg font-extrabold">
+                <Image
+                  src="/images/logo/tm_logo_clear_animated.png"
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="rounded-md"
+                />
                 TrendyMall
               </span>
               <button

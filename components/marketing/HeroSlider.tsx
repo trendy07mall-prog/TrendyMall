@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 
 interface Slide {
@@ -25,7 +26,7 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const AUTOPLAY_MS = 5000;
+const AUTOPLAY_MS = 3000;
 
 export function HeroSlider() {
   const [active, setActive] = useState(0);
@@ -112,18 +113,39 @@ export function HeroSlider() {
           href={slide.href}
           aria-hidden={index !== active}
           tabIndex={index === active ? 0 : -1}
-          className={`absolute inset-0 transition-opacity duration-[800ms] ease-in-out ${
-            index === active ? "opacity-100" : "pointer-events-none opacity-0"
+          className={`absolute inset-0 overflow-hidden ${
+            index === active ? "" : "pointer-events-none"
           }`}
         >
-          <Image
-            src={slide.src}
-            alt={slide.alt}
-            fill
-            priority={index === 0}
-            sizes="100vw"
-            className="object-cover"
-          />
+          {/* Crossfade (opacity) is a quick 800ms swap; the zoom is a slow
+              "Ken Burns" pan that runs for the slide's whole time on screen,
+              giving the banner a sense of motion beyond the plain fade. Both
+              collapse to a static, instant swap under reduced-motion. */}
+          <motion.div
+            className="relative h-full w-full"
+            initial={false}
+            animate={{
+              opacity: index === active ? 1 : 0,
+              scale: reducedMotion ? 1 : index === active ? 1.06 : 1,
+            }}
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : {
+                    opacity: { duration: 0.8, ease: "easeInOut" },
+                    scale: { duration: AUTOPLAY_MS / 1000, ease: "easeOut" },
+                  }
+            }
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              priority={index === 0}
+              sizes="100vw"
+              className="object-cover"
+            />
+          </motion.div>
         </Link>
       ))}
 
