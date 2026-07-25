@@ -11,17 +11,15 @@ interface Slide {
   href: string;
 }
 
-// Update these once the real files land in public/images/hero/ — see
-// SETUP.md for the exact filenames expected.
 const SLIDES: Slide[] = [
-  { src: "/images/hero/banner-25-off.jpg", alt: "25% off storewide", href: "/shop?onSale=1" },
+  { src: "/images/hero/banner-25-off.png", alt: "25% off storewide", href: "/shop?onSale=1" },
   {
-    src: "/images/hero/banner-free-shipping.jpg",
+    src: "/images/hero/banner-free-shipping.png",
     alt: "Free delivery on eligible orders",
     href: "/shop?freeDelivery=1",
   },
   {
-    src: "/images/hero/banner-trending-products.jpg",
+    src: "/images/hero/banner-trending-products.png",
     alt: "Trending products",
     href: "/new-arrivals",
   },

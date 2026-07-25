@@ -178,15 +178,15 @@ Once logged in as an admin:
 
 - **Hero banner slider**: the homepage hero is now an auto-playing image
   slider (`components/marketing/HeroSlider.tsx`) instead of a static photo.
-  Add 3 images to `public/images/hero/`, exactly named:
-  - `banner-25-off.jpg` (links to `/shop?onSale=1`)
-  - `banner-free-shipping.jpg` (links to `/shop?freeDelivery=1`)
-  - `banner-trending-products.jpg` (links to `/new-arrivals`)
+  Images live in `public/images/hero/`:
+  - `banner-25-off.png` (links to `/shop?onSale=1`)
+  - `banner-free-shipping.png` (links to `/shop?freeDelivery=1`)
+  - `banner-trending-products.png` (links to `/new-arrivals`)
 
-  Recommended size: wide banner format (e.g. 1600×700px or similar 16:7–21:9
-  aspect ratio) — the slider reserves that aspect ratio so there's no layout
-  shift while images load. To change the images, links, or add more slides,
-  edit the `SLIDES` array at the top of `HeroSlider.tsx`.
+  Wide banner format (~2.4:1, e.g. the current 4840×1960px files) — the
+  slider reserves that aspect ratio so there's no layout shift while images
+  load. To change the images, links, or add more slides, edit the `SLIDES`
+  array at the top of `HeroSlider.tsx`.
 - **Site search**: the search bar below the navbar searches product
   name/brand/SKU/keywords/description (via Postgres full-text search) and
   category names, with live autocomplete. It's separate from the small
