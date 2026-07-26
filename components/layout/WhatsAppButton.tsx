@@ -12,14 +12,14 @@ export function WhatsAppButton() {
         role="tooltip"
         className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 rounded-lg bg-[#111111] px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100"
       >
-        Need help? Chat with us on WhatsApp.
+        Chat with us on WhatsApp
       </span>
       <motion.a
         href={WHATSAPP_URL}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat on WhatsApp"
-        className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg"
+        className="transition-brand relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)]"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >

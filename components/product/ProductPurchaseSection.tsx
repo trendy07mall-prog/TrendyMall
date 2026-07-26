@@ -13,6 +13,7 @@ import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { getEffectivePrice } from "@/lib/utils";
+import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { Product, ProductRatingSummary, ProductVariant } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 
@@ -69,6 +70,11 @@ export function ProductPurchaseSection({
         <p className="mt-2 text-sm text-[var(--muted)]">
           {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
         </p>
+        {!outOfStock && (
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            {getEstimatedDeliveryRange().label}
+          </p>
+        )}
 
         <div className="mt-8 flex flex-col gap-4">
           {!outOfStock && (

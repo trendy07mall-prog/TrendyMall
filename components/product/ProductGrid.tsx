@@ -1,5 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { ProductCard } from "./ProductCard";
+import { ProductListItem } from "./ProductListItem";
+import { useViewMode } from "@/context/ViewModeContext";
 import type { ProductWithPrimaryImage } from "@/types";
 
 export function ProductGrid({
@@ -9,6 +13,8 @@ export function ProductGrid({
   products: ProductWithPrimaryImage[];
   emptyMessage?: string;
 }) {
+  const { view } = useViewMode();
+
   if (products.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] px-6 py-16 text-center">
@@ -19,6 +25,16 @@ export function ProductGrid({
         >
           Continue Shopping
         </Link>
+      </div>
+    );
+  }
+
+  if (view === "list") {
+    return (
+      <div className="flex flex-col gap-4">
+        {products.map((product) => (
+          <ProductListItem key={product.id} product={product} />
+        ))}
       </div>
     );
   }

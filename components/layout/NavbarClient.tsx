@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { signOut } from "@/app/auth/actions";
 import { CartCount } from "@/components/cart/CartCount";
@@ -25,6 +26,28 @@ const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
+function NavLink({
+  href,
+  label,
+  isActive,
+}: {
+  href: string;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <Link href={href} className="group relative py-1">
+      {label}
+      <span
+        className={`transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--foreground)] group-hover:scale-x-100 ${
+          isActive ? "scale-x-100" : ""
+        }`}
+        aria-hidden="true"
+      />
+    </Link>
+  );
+}
+
 export function NavbarClient({
   user,
   isAdmin,
@@ -39,6 +62,7 @@ export function NavbarClient({
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     function onScroll() {
@@ -70,45 +94,52 @@ export function NavbarClient({
         scrolled ? "border-[var(--border)]" : "border-transparent"
       }`}
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-6 py-5">
         <Link
           href="/"
-          className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight"
+          className="flex items-center gap-2.5 font-heading text-xl font-extrabold tracking-tight"
         >
           <Image
             src="/images/logo/tm_logo_clear_animated.png"
             alt=""
-            width={32}
-            height={32}
+            width={40}
+            height={40}
             className="rounded-md"
           />
           TrendyMall
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm font-medium md:flex">
+        <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
           {NAV_LINKS.slice(0, 2).map((link) => (
-            <Link key={link.href} href={link.href} className="hover:opacity-70">
-              {link.label}
-            </Link>
+            <NavLink
+              key={link.href}
+              href={link.href}
+              label={link.label}
+              isActive={pathname === link.href}
+            />
           ))}
 
           <div
-            className="relative"
+            className="group relative"
             onMouseEnter={() => setCategoriesOpen(true)}
             onMouseLeave={() => setCategoriesOpen(false)}
           >
             <button
               type="button"
-              className="flex items-center gap-1 hover:opacity-70"
+              className="relative flex items-center gap-1 py-1"
               aria-haspopup="true"
               aria-expanded={categoriesOpen}
               onClick={() => setCategoriesOpen((v) => !v)}
             >
               Categories
               <ChevronDownIcon className="h-3.5 w-3.5" />
+              <span
+                className="transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--foreground)] group-hover:scale-x-100"
+                aria-hidden="true"
+              />
             </button>
             {categoriesOpen && (
-              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-soft)]">
+              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-card)]">
                 {categories.map((category) => (
                   <Link
                     key={category.id}
@@ -123,9 +154,12 @@ export function NavbarClient({
           </div>
 
           {NAV_LINKS.slice(2).map((link) => (
-            <Link key={link.href} href={link.href} className="hover:opacity-70">
-              {link.label}
-            </Link>
+            <NavLink
+              key={link.href}
+              href={link.href}
+              label={link.label}
+              isActive={pathname === link.href}
+            />
           ))}
         </nav>
 
@@ -137,7 +171,7 @@ export function NavbarClient({
           <Link
             href="/wishlist"
             aria-label="Wishlist"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
           >
             <HeartIcon className="h-5 w-5" />
             <WishlistCount />
@@ -146,7 +180,7 @@ export function NavbarClient({
           <Link
             href="/cart"
             aria-label="Cart"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
           >
             <CartIcon className="h-5 w-5" />
             <CartCount />
@@ -163,12 +197,12 @@ export function NavbarClient({
               aria-haspopup="true"
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((v) => !v)}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+              className="flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
             >
               <UserIcon className="h-5 w-5" />
             </button>
             {accountOpen && (
-              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-soft)]">
+              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-card)]">
                 {user ? (
                   <>
                     <Link
@@ -214,7 +248,7 @@ export function NavbarClient({
             aria-expanded={drawerOpen}
             aria-controls="mobile-drawer"
             onClick={() => setDrawerOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5 md:hidden"
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
           >
             <MenuIcon className="h-5 w-5" />
           </button>

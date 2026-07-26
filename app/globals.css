@@ -1,14 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #111111;
   --muted: #666666;
-  --border: #e5e5e5;
+  --border: #e5e7eb;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --shadow-soft: 0 1px 2px rgba(17, 17, 17, 0.04), 0 8px 24px rgba(17, 17, 17, 0.06);
+
+  /* Premium redesign (v8) tokens — additive, existing tokens above are kept
+     as-is since current components still reference them by name. */
+  --color-card: #ffffff;
+  --color-text-secondary: #6b7280;
+  --color-btn-primary: #000000;
+  --color-btn-hover: #171717;
+  --color-success: #22c55e;
+  --color-discount: #ef4444;
+  --color-warning: #f97316;
+
+  --radius-card: 20px;
+  --radius-btn: 14px;
+  --radius-input: 12px;
+  /* Pill shape (search bar, badges). Not registered under Tailwind's
+     reserved `--radius-full` theme key (rounded-full is a static
+     Tailwind core utility, not theme-derived) — use directly via
+     rounded-[var(--radius-full)], or Tailwind's built-in rounded-full. */
+  --radius-full: 999px;
+
+  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 16px 48px rgba(0, 0, 0, 0.1);
+
+  /* Layout — referenced via arbitrary-value Tailwind classes
+     (max-w-[var(--container-width)] etc), not registered as theme keys. */
+  --container-width: 1280px;
+  --section-padding-y: 80px;
+  --grid-gap: 32px;
+  --card-padding: 20px;
+
+  /* Single shared motion token — see the `transition-brand` utility below. */
+  --transition-duration: 250ms;
+  --transition-easing: ease-in-out;
+
+  /* Type scale (size / line-height pairs) */
+  --text-display: 3rem;
+  --text-display--line-height: 1.1;
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.15;
+  --text-h2: 1.875rem;
+  --text-h2--line-height: 1.2;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.3;
+  --text-h4: 1.25rem;
+  --text-h4--line-height: 1.4;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
 }
 
 @theme inline {
@@ -22,6 +71,45 @@
   --shadow-soft: var(--shadow-soft);
   --font-sans: var(--font-inter);
   --font-heading: var(--font-manrope);
+
+  --color-card: var(--color-card);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-btn-primary: var(--color-btn-primary);
+  --color-btn-hover: var(--color-btn-hover);
+  --color-success: var(--color-success);
+  --color-discount: var(--color-discount);
+  --color-warning: var(--color-warning);
+
+  --radius-card: var(--radius-card);
+  --radius-btn: var(--radius-btn);
+  --radius-input: var(--radius-input);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+
+  --text-display: var(--text-display);
+  --text-display--line-height: var(--text-display--line-height);
+  --text-h1: var(--text-h1);
+  --text-h1--line-height: var(--text-h1--line-height);
+  --text-h2: var(--text-h2);
+  --text-h2--line-height: var(--text-h2--line-height);
+  --text-h3: var(--text-h3);
+  --text-h3--line-height: var(--text-h3--line-height);
+  --text-h4: var(--text-h4);
+  --text-h4--line-height: var(--text-h4--line-height);
+  --text-body: var(--text-body);
+  --text-body--line-height: var(--text-body--line-height);
+  --text-small: var(--text-small);
+  --text-small--line-height: var(--text-small--line-height);
+}
+
+/* Single shared transition utility — 250ms ease-in-out, transform/opacity
+   safe properties only. Adopted by components as they're restyled in later
+   phases rather than retrofitted everywhere in this pass. */
+@utility transition-brand {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-timing-function: var(--transition-easing);
+  transition-duration: var(--transition-duration);
 }
 
 body {
@@ -30,9 +118,42 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
+  font-weight: 800;
+}
+
+/* Available for later phases: a 600-weight subheading style and the shared
+   button weight, per the type-scale spec (headings 800 / subheadings 600 /
+   body 400 / buttons 600). Not retrofitted onto existing markup this phase. */
+.subheading {
+  font-weight: 600;
+}
+
+.btn {
+  font-weight: 600;
+}
+
 :focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+/* View Transitions (app/layout.tsx's <ViewTransition>) don't automatically
+   respect prefers-reduced-motion the way the Framer Motion animations
+   elsewhere in this app do — this override is required, not optional. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* Rich-text product descriptions (Tiptap output, both the live editor and

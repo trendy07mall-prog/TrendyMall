@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ViewTransition } from "react";
 import { Manrope, Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
@@ -6,7 +7,9 @@ import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
+import { TrustSection } from "@/components/marketing/TrustSection";
 import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -23,7 +26,7 @@ const manrope = Manrope({
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600"],
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -88,12 +91,16 @@ export default async function RootLayout({
         <CartProvider>
           <WishlistProvider>
             <RecentlyViewedProvider>
+              <AnnouncementBar />
               <PromoBanner banner={banner} />
               <Navbar />
               <div className="border-b border-[var(--border)] bg-white py-3">
                 <SiteSearchBar />
               </div>
-              <main className="flex flex-1 flex-col">{children}</main>
+              <main className="flex flex-1 flex-col">
+                <ViewTransition>{children}</ViewTransition>
+              </main>
+              <TrustSection />
               <Footer />
               <WhatsAppButton />
             </RecentlyViewedProvider>

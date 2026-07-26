@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ChevronDownIcon } from "@/components/ui/Icon";
 import { SORT_LABELS, filterStateToParams } from "@/lib/product-filters";
 import type { ProductFilterState, SortOption } from "@/lib/product-filters";
 
@@ -11,6 +12,7 @@ export function SortBar({
   totalCount,
   showHighestRated,
   extraQuery,
+  viewToggle,
 }: {
   basePath: string;
   state: ProductFilterState;
@@ -18,6 +20,7 @@ export function SortBar({
   totalCount: number;
   showHighestRated: boolean;
   extraQuery?: Record<string, string>;
+  viewToggle?: React.ReactNode;
 }) {
   const router = useRouter();
 
@@ -35,18 +38,24 @@ export function SortBar({
       <p className="text-sm text-[var(--muted)]">
         Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
       </p>
-      <select
-        value={state.sort}
-        onChange={(e) => setSort(e.target.value as SortOption)}
-        aria-label="Sort products"
-        className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            Sort: {SORT_LABELS[option]}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center gap-3">
+        {viewToggle}
+        <div className="relative">
+          <select
+            value={state.sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            aria-label="Sort products"
+            className="transition-brand appearance-none rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--color-card)] py-2 pr-9 pl-3 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+          >
+            {options.map((option) => (
+              <option key={option} value={option}>
+                Sort: {SORT_LABELS[option]}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon className="pointer-events-none absolute top-1/2 right-3 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" />
+        </div>
+      </div>
     </div>
   );
 }

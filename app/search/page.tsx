@@ -27,7 +27,7 @@ export default async function SearchPage({
 
   if (!q) {
     return (
-      <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+      <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-12">
         <h1 className="font-heading text-2xl font-bold tracking-tight">Search</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Use the search bar above to find products, categories, or brands.
@@ -50,7 +50,7 @@ export default async function SearchPage({
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-12">
       <h1 className="font-heading text-2xl font-bold tracking-tight">
         Search results for &quot;{q}&quot;
       </h1>

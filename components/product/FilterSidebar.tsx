@@ -31,7 +31,9 @@ export function FilterSidebar({
 
   return (
     <aside className="hidden w-64 shrink-0 lg:block">
-      <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2">
+      <div
+        className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] shadow-[var(--shadow-card)]"
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Filters</h2>
           <button

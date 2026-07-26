@@ -19,7 +19,7 @@ export default async function HomePage() {
       <HeroSlider />
 
       {newArrivals.length > 0 && (
-        <section className="mx-auto w-full max-w-6xl px-6 py-16">
+        <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
           <FadeIn>
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-[32px] font-extrabold tracking-tight">
@@ -36,7 +36,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section id="categories" className="mx-auto w-full max-w-6xl px-6 py-16">
+      <section id="categories" className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
         <FadeIn>
           <h2 className="font-heading text-[32px] font-extrabold tracking-tight">
             Shop by Category
@@ -53,7 +53,7 @@ export default async function HomePage() {
 
       <TrustBadges />
 
-      <div className="mx-auto w-full max-w-6xl px-6 pb-16">
+      <div className="mx-auto w-full max-w-[var(--container-width)] px-6 pb-[var(--section-padding-y)] max-sm:pb-12">
         <RecentlyViewedSection />
       </div>
     </div>

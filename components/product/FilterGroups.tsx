@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { StarRating } from "@/components/product/StarRating";
+import { PriceRangeSlider } from "@/components/product/PriceRangeSlider";
+import { ChevronDownIcon, CheckIcon } from "@/components/ui/Icon";
 import type { ProductFilterState } from "@/lib/product-filters";
 
+const PRICE_DOMAIN_MAX = 50000;
+
 const inputClass =
-  "w-full min-w-0 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+  "w-full min-w-0 rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
 interface CategoryFacet {
   slug: string;
@@ -75,7 +80,18 @@ export function FilterGroups({
       )}
 
       <FilterGroup title="Price (LKR)">
-        <div className="flex items-center gap-2">
+        <PriceRangeSlider
+          min={state.minPrice ? Number(state.minPrice) : 0}
+          max={state.maxPrice ? Number(state.maxPrice) : PRICE_DOMAIN_MAX}
+          domainMax={PRICE_DOMAIN_MAX}
+          onCommit={(min, max) =>
+            onChange({
+              minPrice: min > 0 ? String(min) : "",
+              maxPrice: max < PRICE_DOMAIN_MAX ? String(max) : "",
+            })
+          }
+        />
+        <div className="mt-4 flex items-center gap-2">
           <input
             type="number"
             min="0"
@@ -94,24 +110,13 @@ export function FilterGroups({
             className={inputClass}
           />
         </div>
-        <input
-          type="range"
-          min={0}
-          max={50000}
-          step={500}
-          value={state.maxPrice ? Number(state.maxPrice) : 50000}
-          onChange={(e) => onChange({ maxPrice: e.target.value })}
-          className="mt-3 w-full accent-[var(--foreground)]"
-          aria-label="Maximum price"
-        />
       </FilterGroup>
 
       {showRatingFacet && (
         <FilterGroup title="Rating">
           {[4, 3, 2].map((threshold) => (
             <label key={threshold} className="flex items-center gap-2 py-1.5 text-sm">
-              <input
-                type="radio"
+              <Radio
                 name="rating"
                 checked={state.minRating === String(threshold)}
                 onChange={() => onChange({ minRating: String(threshold) })}
@@ -134,18 +139,16 @@ export function FilterGroups({
 
       <FilterGroup title="Availability">
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.inStock}
-            onChange={(e) => onChange({ inStock: e.target.checked })}
+            onChange={(checked) => onChange({ inStock: checked })}
           />
           In Stock
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.outOfStock}
-            onChange={(e) => onChange({ outOfStock: e.target.checked })}
+            onChange={(checked) => onChange({ outOfStock: checked })}
           />
           Out of Stock
         </label>
@@ -153,26 +156,20 @@ export function FilterGroups({
 
       <FilterGroup title="Service">
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={state.cod}
-            onChange={(e) => onChange({ cod: e.target.checked })}
-          />
+          <Checkbox checked={state.cod} onChange={(checked) => onChange({ cod: checked })} />
           Cash on Delivery
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.freeDelivery}
-            onChange={(e) => onChange({ freeDelivery: e.target.checked })}
+            onChange={(checked) => onChange({ freeDelivery: checked })}
           />
           Free Delivery
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.warranty}
-            onChange={(e) => onChange({ warranty: e.target.checked })}
+            onChange={(checked) => onChange({ warranty: checked })}
           />
           Warranty Available
         </label>
@@ -180,26 +177,20 @@ export function FilterGroups({
 
       <FilterGroup title="Promotion">
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
-            checked={state.onSale}
-            onChange={(e) => onChange({ onSale: e.target.checked })}
-          />
+          <Checkbox checked={state.onSale} onChange={(checked) => onChange({ onSale: checked })} />
           On Sale
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.newArrival}
-            onChange={(e) => onChange({ newArrival: e.target.checked })}
+            onChange={(checked) => onChange({ newArrival: checked })}
           />
           New Arrival
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={state.featured}
-            onChange={(e) => onChange({ featured: e.target.checked })}
+            onChange={(checked) => onChange({ featured: checked })}
           />
           Featured
         </label>
@@ -209,11 +200,72 @@ export function FilterGroups({
 }
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
   return (
-    <details open className="py-4 first:pt-0">
-      <summary className="cursor-pointer text-sm font-semibold select-none">{title}</summary>
-      <div className="mt-3 flex flex-col gap-0.5">{children}</div>
-    </details>
+    <div className="py-4 first:pt-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between text-sm font-semibold"
+      >
+        {title}
+        <ChevronDownIcon
+          className={`transition-brand h-4 w-4 text-[var(--muted)] ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      <div className={`transition-brand grid ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="flex flex-col gap-0.5 overflow-hidden">
+          <div className="mt-3">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Checkbox({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer absolute inset-0 h-4 w-4 cursor-pointer appearance-none rounded-[4px] border border-[var(--border)] checked:border-[var(--foreground)] checked:bg-[var(--foreground)] disabled:cursor-not-allowed"
+      />
+      <CheckIcon className="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" />
+    </span>
+  );
+}
+
+function Radio({
+  name,
+  checked,
+  onChange,
+}: {
+  name: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+      <input
+        type="radio"
+        name={name}
+        checked={checked}
+        onChange={onChange}
+        className="peer absolute inset-0 h-4 w-4 cursor-pointer appearance-none rounded-full border border-[var(--border)] checked:border-[var(--foreground)]"
+      />
+      <span className="pointer-events-none absolute hidden h-2 w-2 rounded-full bg-[var(--foreground)] peer-checked:block" />
+    </span>
   );
 }
 
@@ -232,12 +284,7 @@ function CheckboxRow({
   return (
     <label className={`flex items-center justify-between gap-2 py-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
       <span className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
+        <Checkbox checked={checked} disabled={disabled} onChange={onChange} />
         {label}
       </span>
       <span className="text-xs text-[var(--muted)]">{count}</span>

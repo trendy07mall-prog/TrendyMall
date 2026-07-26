@@ -11,7 +11,7 @@ export default async function NewArrivalsPage() {
   const products = await getNewArrivals(24);
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-12">
       <h1 className="font-heading text-3xl font-bold tracking-tight">
         New Arrivals
       </h1>

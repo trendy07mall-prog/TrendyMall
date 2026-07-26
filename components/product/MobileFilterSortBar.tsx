@@ -57,7 +57,7 @@ export function MobileFilterSortBar({
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className="relative flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--border)] py-2 text-sm font-medium"
+          className="transition-brand relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-medium"
         >
           Filter
           {activeCount > 0 && (
@@ -69,7 +69,7 @@ export function MobileFilterSortBar({
         <button
           type="button"
           onClick={() => setSortOpen(true)}
-          className="flex flex-1 items-center justify-center rounded-full border border-[var(--border)] py-2 text-sm font-medium"
+          className="transition-brand flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-medium"
         >
           Sort
         </button>
@@ -109,7 +109,7 @@ export function MobileFilterSortBar({
                   key={option}
                   type="button"
                   onClick={() => setSort(option)}
-                  className={`rounded-lg px-3 py-2.5 text-left text-sm ${
+                  className={`min-h-11 rounded-lg px-3 py-3 text-left text-sm ${
                     state.sort === option ? "font-semibold" : ""
                   }`}
                 >

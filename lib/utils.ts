@@ -24,3 +24,12 @@ export function getEffectivePrice(product: {
 }): number {
   return product.special_price ?? product.actual_price;
 }
+
+export function getDiscountPercent(
+  actualPrice: number,
+  specialPrice: number | null,
+): number | null {
+  if (specialPrice == null) return null;
+  const percent = Math.round((1 - specialPrice / actualPrice) * 100);
+  return percent > 0 ? percent : null;
+}

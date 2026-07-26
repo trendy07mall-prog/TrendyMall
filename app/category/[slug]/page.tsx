@@ -71,7 +71,7 @@ export default async function CategoryPage({
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-12">
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: category.name }]} />
       <h1 className="font-heading mt-4 text-2xl font-bold tracking-tight">
         {category.name}

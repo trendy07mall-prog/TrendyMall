@@ -35,7 +35,7 @@ export function WishlistButton({
       }}
       className={
         className ??
-        "flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white transition-colors hover:bg-black/5"
+        "transition-brand flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-white hover:bg-black/5 group-hover:scale-110"
       }
     >
       <HeartIcon className="h-4 w-4" filled={active} />

@@ -14,18 +14,10 @@ const COMPANY_LINKS = [
   { href: "/terms", label: "Terms & Conditions" },
 ];
 
-const TRUST_INDICATORS = [
-  "Fast Islandwide Delivery",
-  "Cash on Delivery",
-  "Secure Checkout",
-  "Quality Checked Products",
-  "Customer Support",
-];
-
 export function Footer() {
   return (
     <footer className="border-t border-[var(--border)] bg-white">
-      <div className="mx-auto w-full max-w-6xl px-6 py-14">
+      <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight">
@@ -121,16 +113,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-wrap gap-x-6 gap-y-2 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
-          {TRUST_INDICATORS.map((item) => (
-            <span key={item} className="flex items-center gap-1.5">
-              <span aria-hidden="true">✓</span>
-              {item}
-            </span>
-          ))}
-        </div>
-
-        <p className="mt-6 text-xs text-[var(--muted)]">
+        <p className="mt-12 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
           © {new Date().getFullYear()} TrendyMall. All rights reserved.
         </p>
       </div>

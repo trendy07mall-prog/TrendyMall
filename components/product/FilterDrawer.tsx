@@ -92,14 +92,14 @@ export function FilterDrawer({
           <button
             type="button"
             onClick={() => setDraft({ ...EMPTY_FILTER_STATE, sort: draft.sort })}
-            className="flex-1 rounded-full border border-[var(--border)] px-4 py-2.5 text-sm font-medium"
+            className="transition-brand flex-1 rounded-[var(--radius-btn)] border border-[var(--border)] px-4 py-3 text-sm font-semibold"
           >
             Clear all
           </button>
           <button
             type="button"
             onClick={apply}
-            className="flex-1 rounded-full bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white"
+            className="transition-brand flex-1 rounded-[var(--radius-btn)] bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--color-btn-hover)]"
           >
             Apply
           </button>

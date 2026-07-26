@@ -50,7 +50,7 @@ export function TrustBadges({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-16">
+    <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
       <FadeIn>
         <h2 className="font-heading text-center text-[32px] font-extrabold tracking-tight">
           Why Shop With TrendyMall
@@ -59,7 +59,7 @@ export function TrustBadges({ compact = false }: { compact?: boolean }) {
       <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature, index) => (
           <FadeIn key={feature.title} delay={index * 0.05}>
-            <div className="h-full rounded-[var(--radius-lg)] border border-[var(--border)] p-6 transition-transform hover:-translate-y-1 hover:shadow-[var(--shadow-soft)]">
+            <div className="transition-brand h-full rounded-[var(--radius-lg)] border border-[var(--border)] p-6 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
               <span className="text-2xl" aria-hidden="true">
                 {feature.icon}
               </span>
