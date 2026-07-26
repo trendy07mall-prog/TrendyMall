@@ -158,7 +158,8 @@ export function SiteSearchBar() {
         className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10"
       >
         <input
-          type="search"
+          type="text"
+          enterKeyHint="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
@@ -169,12 +170,14 @@ export function SiteSearchBar() {
           aria-expanded={open}
           aria-controls="site-search-listbox"
           autoComplete="off"
-          // The focus ring lives on the wrapper (focus-within above) so it
-          // follows the pill shape — `appearance-none` is required here on
-          // top of `outline-none` because type="search" gets its own native
-          // "searchfield" rendering in WebKit/Blink that ignores plain
-          // `outline: none`.
-          className="h-full flex-1 appearance-none border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0"
+          // type="text" (not "search") deliberately — type="search" gets its
+          // own native rendering in Chrome/Edge on Windows that a stray
+          // rectangular border/outline survives even with appearance-none +
+          // outline-none. text has no native chrome to fight; enterKeyHint
+          // restores the mobile keyboard's "search" button without it. The
+          // visible focus ring lives on the wrapper (focus-within above) so
+          // it follows the pill shape.
+          className="h-full flex-1 border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0"
         />
         <button
           type="submit"

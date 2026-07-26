@@ -44,16 +44,17 @@ export function SearchBox() {
       <SearchIcon className="h-4 w-4 shrink-0 text-[var(--muted)]" />
       <input
         ref={inputRef}
-        type="search"
+        type="text"
+        enterKeyHint="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search products…"
         aria-label="Search products"
-        // Ring lives on the wrapper (focus-within above); appearance-none is
-        // needed alongside outline-none since type="search" gets its own
-        // native rendering in WebKit/Blink that plain outline-none can't
-        // suppress.
-        className="w-36 appearance-none border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0 sm:w-48"
+        // type="text" (not "search") deliberately — type="search" gets its
+        // own native rendering in Chrome/Edge on Windows that survives even
+        // appearance-none + outline-none. Ring lives on the wrapper
+        // (focus-within above).
+        className="w-36 border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0 sm:w-48"
       />
       <button
         type="button"
