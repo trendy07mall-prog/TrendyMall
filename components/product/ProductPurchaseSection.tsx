@@ -74,12 +74,12 @@ export function ProductPurchaseSection({
           {!outOfStock && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Quantity</span>
-              <div className="flex items-center rounded-full border border-[var(--border)]">
+              <div className="flex items-center rounded-full border border-[var(--border)] transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10">
                 <button
                   type="button"
                   aria-label="Decrease quantity"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="flex h-9 w-9 items-center justify-center text-lg"
+                  className="flex h-9 w-9 items-center justify-center text-lg outline-none"
                 >
                   −
                 </button>
@@ -90,7 +90,7 @@ export function ProductPurchaseSection({
                   type="button"
                   aria-label="Increase quantity"
                   onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
-                  className="flex h-9 w-9 items-center justify-center text-lg"
+                  className="flex h-9 w-9 items-center justify-center text-lg outline-none"
                 >
                   +
                 </button>

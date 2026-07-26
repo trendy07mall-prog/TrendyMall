@@ -49,7 +49,7 @@ export function CartLineItem({ item }: { item: CartItem }) {
             onChange={(e) =>
               updateQuantity(item.productId, Number(e.target.value) || 1)
             }
-            className="w-16 rounded-full border border-[var(--border)] bg-transparent px-3 py-1 text-sm"
+            className="w-16 rounded-full border border-[var(--border)] bg-transparent px-3 py-1 text-sm outline-none transition-all duration-200 focus:border-[var(--foreground)] focus:ring-4 focus:ring-[var(--foreground)]/10"
           />
           <button
             type="button"

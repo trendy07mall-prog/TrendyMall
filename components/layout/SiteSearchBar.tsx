@@ -13,6 +13,12 @@ const RECENT_SEARCHES_KEY = "trendymall-recent-searches";
 const MAX_RECENT = 5;
 const EMPTY_SUGGESTIONS: SearchSuggestions = { products: [], categories: [], brands: [] };
 
+// Tab can reach these buttons independently of the arrow-key `activeIndex`
+// highlight below, so they need their own visible (keyboard-only) focus
+// ring — matches their existing rounded-lg, no shape mismatch.
+const LISTBOX_ITEM_FOCUS =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--foreground)] focus-visible:ring-offset-1";
+
 function readRecentSearches(): string[] {
   try {
     const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY);
@@ -149,7 +155,7 @@ export function SiteSearchBar() {
           event.preventDefault();
           goToSearch(query);
         }}
-        className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-shadow focus-within:border-[var(--foreground)] focus-within:shadow-md"
+        className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10"
       >
         <input
           type="search"
@@ -163,7 +169,12 @@ export function SiteSearchBar() {
           aria-expanded={open}
           aria-controls="site-search-listbox"
           autoComplete="off"
-          className="h-full flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--muted)]"
+          // The focus ring lives on the wrapper (focus-within above) so it
+          // follows the pill shape — `appearance-none` is required here on
+          // top of `outline-none` because type="search" gets its own native
+          // "searchfield" rendering in WebKit/Blink that ignores plain
+          // `outline: none`.
+          className="h-full flex-1 appearance-none border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0"
         />
         <button
           type="submit"
@@ -191,7 +202,7 @@ export function SiteSearchBar() {
                     key={term}
                     type="button"
                     onClick={() => selectItem({ type: "recent", value: term })}
-                    className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${
+                    className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${LISTBOX_ITEM_FOCUS} ${
                       activeIndex === i ? "bg-black/5" : "hover:bg-black/5"
                     }`}
                   >
@@ -229,7 +240,7 @@ export function SiteSearchBar() {
                       key={product.id}
                       type="button"
                       onClick={() => selectItem({ type: "product", value: product })}
-                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${
+                      className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left ${LISTBOX_ITEM_FOCUS} ${
                         activeIndex === i ? "bg-black/5" : "hover:bg-black/5"
                       }`}
                     >
@@ -258,7 +269,7 @@ export function SiteSearchBar() {
                         key={category.slug}
                         type="button"
                         onClick={() => selectItem({ type: "category", value: category })}
-                        className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${
+                        className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${LISTBOX_ITEM_FOCUS} ${
                           activeIndex === index ? "bg-black/5" : "hover:bg-black/5"
                         }`}
                       >
@@ -273,7 +284,7 @@ export function SiteSearchBar() {
                         key={brand}
                         type="button"
                         onClick={() => selectItem({ type: "brand", value: brand })}
-                        className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${
+                        className={`block w-full rounded-lg px-2 py-2 text-left text-sm ${LISTBOX_ITEM_FOCUS} ${
                           activeIndex === index ? "bg-black/5" : "hover:bg-black/5"
                         }`}
                       >

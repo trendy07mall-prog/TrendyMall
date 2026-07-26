@@ -39,7 +39,7 @@ export function SearchBox() {
     <form
       onSubmit={handleSubmit}
       role="search"
-      className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3 py-1.5"
+      className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10"
     >
       <SearchIcon className="h-4 w-4 shrink-0 text-[var(--muted)]" />
       <input
@@ -49,7 +49,11 @@ export function SearchBox() {
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search products…"
         aria-label="Search products"
-        className="w-36 bg-transparent text-sm outline-none placeholder:text-[var(--muted)] sm:w-48"
+        // Ring lives on the wrapper (focus-within above); appearance-none is
+        // needed alongside outline-none since type="search" gets its own
+        // native rendering in WebKit/Blink that plain outline-none can't
+        // suppress.
+        className="w-36 appearance-none border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0 sm:w-48"
       />
       <button
         type="button"
