@@ -72,7 +72,7 @@ export function AnnouncementBar() {
   if (!hydrated || dismissed) return null;
 
   return (
-    <div className="relative flex items-center justify-center gap-4 bg-[var(--foreground)] px-10 py-2 text-xs text-white sm:text-sm">
+    <div className="relative z-[var(--z-announcement)] flex items-center justify-center gap-4 bg-[var(--foreground)] px-10 py-2 text-xs text-white sm:text-sm">
       <div className="hidden flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:flex">
         {MESSAGES.map((item, index) => (
           <span

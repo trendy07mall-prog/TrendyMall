@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -48,6 +48,10 @@ function NavLink({
   );
 }
 
+const DRAWER_TRANSITION_MS = 300;
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function NavbarClient({
   user,
   isAdmin,
@@ -58,10 +62,19 @@ export function NavbarClient({
   categories: Category[];
 }) {
   const [scrolled, setScrolled] = useState(false);
+  // Mounted (DOM present) vs. open (visual "shown" state) are tracked
+  // separately so the drawer can play a slide-out/fade-out exit
+  // transition before it's removed, instead of vanishing instantly.
+  const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const drawerRef = useRef<HTMLDivElement>(null);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const drawerWrapperRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -74,23 +87,130 @@ export function NavbarClient({
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = drawerOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [drawerOpen]);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setDrawerOpen(false);
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReducedMotion(mql.matches);
+    function onChange() {
+      setReducedMotion(mql.matches);
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
   }, []);
 
+  const openDrawer = useCallback(() => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    setDrawerMounted(true);
+    if (reducedMotion) {
+      setDrawerOpen(true);
+    } else {
+      requestAnimationFrame(() => setDrawerOpen(true));
+    }
+  }, [reducedMotion]);
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    const delay = reducedMotion ? 0 : DRAWER_TRANSITION_MS;
+    closeTimeoutRef.current = setTimeout(() => setDrawerMounted(false), delay);
+  }, [reducedMotion]);
+
+  useEffect(() => () => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+  }, []);
+
+  // Close automatically on route change (e.g. browser back/forward while
+  // the drawer happens to be open) — link clicks inside the drawer also
+  // call closeDrawer() directly, this is the safety net.
+  useEffect(() => {
+    // Syncing to an external signal (the route changed) — same class of
+    // exception as the localStorage/matchMedia-read effects elsewhere in
+    // this app.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    closeDrawer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Body scroll lock (position:fixed technique, not just overflow:hidden
+  // — plain overflow:hidden doesn't reliably block touch-scroll on iOS
+  // Safari) with exact scroll-position restoration on close, plus focus
+  // trapping and hiding the rest of the page from screen readers while
+  // the drawer is open.
+  useEffect(() => {
+    if (!drawerOpen) return;
+
+    const menuButton = menuButtonRef.current;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.overflow = "hidden";
+
+    // The drawer's overlay+panel are rendered as siblings of <header> (not
+    // nested inside it) specifically so their z-index compares against
+    // other body-level fixed elements (e.g. the WhatsApp button) directly,
+    // instead of being trapped inside <header>'s own stacking context
+    // (position:sticky + z-index create one) where a higher z-index here
+    // would never be able to outrank a fixed sibling outside of it. That
+    // means both <header> and the drawer wrapper need to stay visible/
+    // interactive below, everything else gets hidden.
+    const keep: (Element | null)[] = [headerRef.current, drawerWrapperRef.current];
+    const hiddenSiblings: Element[] = [];
+    Array.from(document.body.children).forEach((el) => {
+      if (!keep.includes(el)) {
+        el.setAttribute("aria-hidden", "true");
+        el.setAttribute("inert", "");
+        hiddenSiblings.push(el);
+      }
+    });
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const firstFocusable = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+    firstFocusable?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeDrawer();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusables = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.overflow = "";
+      window.scrollTo(0, scrollY);
+      hiddenSiblings.forEach((el) => {
+        el.removeAttribute("aria-hidden");
+        el.removeAttribute("inert");
+      });
+      window.removeEventListener("keydown", onKeyDown);
+      (previouslyFocused ?? menuButton)?.focus();
+    };
+  }, [drawerOpen, closeDrawer]);
+
   return (
-    <header
-      className={`sticky top-0 z-50 border-b bg-white/90 backdrop-blur transition-colors duration-200 ${
+    <>
+      <header
+        ref={headerRef}
+        className={`sticky top-0 z-[var(--z-nav)] border-b bg-white/90 backdrop-blur transition-colors duration-200 ${
         scrolled ? "border-[var(--border)]" : "border-transparent"
       }`}
     >
@@ -243,32 +363,39 @@ export function NavbarClient({
           </div>
 
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label="Open menu"
             aria-expanded={drawerOpen}
             aria-controls="mobile-drawer"
-            onClick={() => setDrawerOpen(true)}
+            onClick={openDrawer}
             className="flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
           >
             <MenuIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
+      </header>
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+      {drawerMounted && (
+        <div ref={drawerWrapperRef}>
           <button
             type="button"
             aria-label="Close menu"
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setDrawerOpen(false)}
+            onClick={closeDrawer}
+            className={`fixed inset-0 z-[var(--z-drawer-overlay)] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-in-out md:hidden ${
+              drawerOpen ? "opacity-100" : "opacity-0"
+            }`}
           />
           <div
             id="mobile-drawer"
-            ref={drawerRef}
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
-            className="absolute top-0 right-0 flex h-full w-72 flex-col gap-6 bg-white p-6 shadow-xl"
+            aria-label="Site menu"
+            className={`fixed top-0 left-0 z-[var(--z-drawer-panel)] flex h-full w-[80%] max-w-96 flex-col gap-6 overflow-y-auto bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
+              drawerOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
           >
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2 font-heading text-lg font-extrabold">
@@ -284,7 +411,7 @@ export function NavbarClient({
               <button
                 type="button"
                 aria-label="Close menu"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-black/5"
               >
                 <CloseIcon className="h-5 w-5" />
@@ -296,7 +423,7 @@ export function NavbarClient({
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setDrawerOpen(false)}
+                  onClick={closeDrawer}
                   className="rounded-lg px-2 py-2 hover:bg-black/5"
                 >
                   {link.label}
@@ -313,7 +440,7 @@ export function NavbarClient({
                   <Link
                     key={category.id}
                     href={`/category/${category.slug}`}
-                    onClick={() => setDrawerOpen(false)}
+                    onClick={closeDrawer}
                     className="rounded-lg px-2 py-2 text-sm hover:bg-black/5"
                   >
                     {category.name}
@@ -325,7 +452,7 @@ export function NavbarClient({
             <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border)] pt-4 text-sm">
               <Link
                 href="/wishlist"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
               >
                 <span className="relative flex h-5 w-5 items-center justify-center">
@@ -336,7 +463,7 @@ export function NavbarClient({
               </Link>
               <Link
                 href="/cart"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
               >
                 <span className="relative flex h-5 w-5 items-center justify-center">
@@ -349,7 +476,7 @@ export function NavbarClient({
                 <>
                   <Link
                     href="/account/orders"
-                    onClick={() => setDrawerOpen(false)}
+                    onClick={closeDrawer}
                     className="rounded-lg px-2 py-2 hover:bg-black/5"
                   >
                     Your orders
@@ -357,7 +484,7 @@ export function NavbarClient({
                   {isAdmin && (
                     <Link
                       href="/admin"
-                      onClick={() => setDrawerOpen(false)}
+                      onClick={closeDrawer}
                       className="rounded-lg px-2 py-2 hover:bg-black/5"
                     >
                       Admin
@@ -376,14 +503,14 @@ export function NavbarClient({
                 <>
                   <Link
                     href="/login"
-                    onClick={() => setDrawerOpen(false)}
+                    onClick={closeDrawer}
                     className="rounded-lg px-2 py-2 hover:bg-black/5"
                   >
                     Log in
                   </Link>
                   <Link
                     href="/signup"
-                    onClick={() => setDrawerOpen(false)}
+                    onClick={closeDrawer}
                     className="rounded-lg px-2 py-2 hover:bg-black/5"
                   >
                     Sign up
@@ -394,6 +521,6 @@ export function NavbarClient({
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

@@ -32,6 +32,21 @@
   --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.06);
   --shadow-card-hover: 0 16px 48px rgba(0, 0, 0, 0.1);
 
+  /* Shared z-index scale — every fixed/sticky/overlay element's stacking
+     order lives here instead of ad-hoc z-40/z-50 guesses drifting out of
+     sync across files (that drift is exactly what caused the mobile nav
+     drawer to render behind other fixed elements). Applied via arbitrary
+     value syntax (z-[var(--z-nav)]) rather than registered as bare
+     Tailwind utilities, matching this file's existing token pattern
+     (rounded-[var(--radius-card)], shadow-[var(--shadow-card)], etc.). */
+  --z-announcement: 20;
+  --z-nav: 30;
+  --z-whatsapp: 35;
+  --z-drawer-overlay: 40;
+  --z-drawer-panel: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+
   /* Layout — referenced via arbitrary-value Tailwind classes
      (max-w-[var(--container-width)] etc), not registered as theme keys. */
   --container-width: 1280px;

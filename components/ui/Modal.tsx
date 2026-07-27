@@ -55,7 +55,7 @@ export function Modal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50">
+    <div className="fixed inset-0 z-[var(--z-modal)]">
       <button
         type="button"
         aria-label="Close"

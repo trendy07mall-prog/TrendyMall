@@ -7,7 +7,7 @@ const WHATSAPP_URL = "https://wa.me/94775312484";
 
 export function WhatsAppButton() {
   return (
-    <div className="group fixed right-5 bottom-5 z-40 sm:right-8 sm:bottom-8">
+    <div className="group fixed right-5 bottom-5 z-[var(--z-whatsapp)] sm:right-8 sm:bottom-8">
       <span
         role="tooltip"
         className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 rounded-lg bg-[#111111] px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100"
