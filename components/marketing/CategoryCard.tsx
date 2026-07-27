@@ -6,7 +6,7 @@ export function CategoryCard({ category }: { category: Category }) {
   return (
     <Link
       href={`/category/${category.slug}`}
-      className="group transition-brand relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-black/5 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]"
+      className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-black/5 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]"
     >
       {category.image_path ? (
         <Image

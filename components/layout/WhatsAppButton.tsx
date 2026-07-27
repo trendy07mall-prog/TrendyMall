@@ -19,7 +19,11 @@ export function WhatsAppButton() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat on WhatsApp"
-        className="transition-brand relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)]"
+        // Deliberately not using the shared --shadow-card/--shadow-card-hover
+        // tokens — those are now flattened for inline content cards, but a
+        // floating action button still needs real elevation to read as
+        // floating above the page, so its shadow is set explicitly here.
+        className="transition-brand relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_48px_rgba(0,0,0,0.1)]"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >

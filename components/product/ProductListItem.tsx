@@ -10,7 +10,7 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
   const inStock = product.stock > 0;
 
   return (
-    <div className="group transition-brand flex gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] p-3 hover:shadow-[var(--shadow-card-hover)]">
+    <div className="group flex gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-3 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative shrink-0">
         <Link
           href={`/product/${product.slug}`}

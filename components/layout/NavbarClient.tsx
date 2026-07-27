@@ -259,7 +259,7 @@ export function NavbarClient({
               />
             </button>
             {categoriesOpen && (
-              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-card)]">
+              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
                 {categories.map((category) => (
                   <Link
                     key={category.id}
@@ -322,7 +322,7 @@ export function NavbarClient({
               <UserIcon className="h-5 w-5" />
             </button>
             {accountOpen && (
-              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[var(--shadow-card)]">
+              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
                 {user ? (
                   <>
                     <Link

@@ -30,7 +30,7 @@ export function TrustSection() {
         {CLAIMS.map((claim) => (
           <div
             key={claim.title}
-            className="flex flex-col items-center gap-2 rounded-[var(--radius-card)] bg-[var(--color-card)] p-[var(--card-padding)] text-center shadow-[var(--shadow-card)]"
+            className="flex flex-col items-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] text-center shadow-[var(--shadow-card)]"
           >
             <claim.icon className="h-7 w-7 shrink-0 stroke-[1.5] text-[var(--foreground)]" />
             <h3 className="text-sm font-semibold">{claim.title}</h3>

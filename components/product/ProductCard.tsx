@@ -3,7 +3,6 @@ import Image from "next/image";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
-import { QuickViewButton } from "@/components/product/QuickViewButton";
 import { StarRating } from "@/components/product/StarRating";
 import { getDiscountPercent } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
@@ -20,7 +19,7 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
         : { color: "bg-[var(--color-success)]", label: "In Stock" };
 
   return (
-    <div className="group transition-brand flex h-full flex-col rounded-[var(--radius-lg)] border border-[var(--border)] p-[var(--card-padding)] hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
+    <div className="group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative">
         <Link
           href={`/product/${product.slug}`}
@@ -48,7 +47,6 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
         <div className="absolute top-2 right-2">
           <WishlistButton product={product} image={product.image} />
         </div>
-        <QuickViewButton slug={product.slug} />
       </div>
 
       <div className="flex flex-1 flex-col">

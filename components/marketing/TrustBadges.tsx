@@ -59,7 +59,7 @@ export function TrustBadges({ compact = false }: { compact?: boolean }) {
       <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((feature, index) => (
           <FadeIn key={feature.title} delay={index * 0.05}>
-            <div className="transition-brand h-full rounded-[var(--radius-lg)] border border-[var(--border)] p-6 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
+            <div className="h-full rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-6 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
               <span className="text-2xl" aria-hidden="true">
                 {feature.icon}
               </span>

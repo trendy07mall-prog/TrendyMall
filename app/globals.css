@@ -20,7 +20,7 @@
   --color-discount: #ef4444;
   --color-warning: #f97316;
 
-  --radius-card: 20px;
+  --radius-card: 12px;
   --radius-btn: 14px;
   --radius-input: 12px;
   /* Pill shape (search bar, badges). Not registered under Tailwind's
@@ -29,8 +29,16 @@
      rounded-[var(--radius-full)], or Tailwind's built-in rounded-full. */
   --radius-full: 999px;
 
-  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 16px 48px rgba(0, 0, 0, 0.1);
+  /* Flat-card treatment: no shadow at rest, a very subtle one on hover —
+     the border (--border, and --border-hover below) does the visual
+     separation from the #FAFAFA page background instead of elevation.
+     Elements that genuinely need to read as "floating" above the page
+     (the WhatsApp button, nav dropdown panels) intentionally do NOT use
+     these two tokens — they'd otherwise go flat as an unwanted side
+     effect of this change, so they carry their own explicit shadow. */
+  --shadow-card: none;
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --border-hover: #d1d5db;
 
   /* Shared z-index scale — every fixed/sticky/overlay element's stacking
      order lives here instead of ad-hoc z-40/z-50 guesses drifting out of
