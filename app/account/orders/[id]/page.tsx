@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
@@ -47,12 +48,19 @@ export default async function OrderDetailPage({
         {(items ?? []).map((item) => (
           <li
             key={item.id}
-            className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
+            className="flex items-center gap-3 border-b border-[var(--border)] pb-3 text-sm"
           >
-            <span>
-              {item.product_name} × {item.quantity}
-            </span>
-            <span>{formatPrice(item.subtotal)}</span>
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+              {item.product_image_url && (
+                <Image src={item.product_image_url} alt="" fill sizes="48px" className="object-cover" />
+              )}
+            </div>
+            <div className="flex flex-1 items-center justify-between">
+              <span>
+                {item.product_name} × {item.quantity}
+              </span>
+              <span>{formatPrice(item.subtotal)}</span>
+            </div>
           </li>
         ))}
       </ul>

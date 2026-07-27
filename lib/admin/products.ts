@@ -293,9 +293,20 @@ export async function updateProduct(
   redirect("/admin/products");
 }
 
+// Soft delete only — never a hard DELETE. order_items.product_name/
+// unit_price/product_image_url are already snapshotted at order time, but
+// product_id stays a live FK, and product_sales_summary/product_rating_summary
+// join on it — a hard delete would null that out and silently drop the
+// product from those aggregates for every past order.
 export async function deleteProduct(productId: string) {
   const supabase = await requireAdminClient();
-  await supabase.from("products").delete().eq("id", productId);
+  const { error } = await supabase
+    .from("products")
+    .update({ is_deleted: true })
+    .eq("id", productId);
+
+  if (error) throw new Error(error.message);
+
   revalidatePath("/admin/products");
   redirect("/admin/products");
 }

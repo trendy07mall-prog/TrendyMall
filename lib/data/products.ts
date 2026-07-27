@@ -135,7 +135,7 @@ export async function getProductsByCategory(
       .from("products")
       .select("*")
       .eq("category_id", categoryId)
-      .eq("status", "published"),
+      .eq("status", "published").eq("is_deleted", false),
     filters,
   );
 
@@ -149,7 +149,7 @@ export async function getAllProducts(
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const { data, error } = await applyDbFilters(
-    supabase.from("products").select("*").eq("status", "published"),
+    supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false),
     filters,
   );
 
@@ -184,7 +184,7 @@ export async function getFacetCounts(
 
   let categories: FacetCounts["categories"] = [];
   if (options.includeCategoryFacet !== false) {
-    let categoryCountQuery = supabase.from("products").select("category_id").eq("status", "published");
+    let categoryCountQuery = supabase.from("products").select("category_id").eq("status", "published").eq("is_deleted", false);
     if (options.restrictToIds) categoryCountQuery = categoryCountQuery.in("id", options.restrictToIds);
 
     const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
@@ -206,7 +206,7 @@ export async function getFacetCounts(
   let brandQuery = supabase
     .from("products")
     .select("brand")
-    .eq("status", "published")
+    .eq("status", "published").eq("is_deleted", false)
     .not("brand", "is", null);
   if (options.categoryId) brandQuery = brandQuery.eq("category_id", options.categoryId);
   if (options.restrictToIds) brandQuery = brandQuery.in("id", options.restrictToIds);
@@ -228,7 +228,7 @@ export async function getPublishedProductCount(categoryId?: string): Promise<num
   let query = supabase
     .from("products")
     .select("*", { count: "exact", head: true })
-    .eq("status", "published");
+    .eq("status", "published").eq("is_deleted", false);
   if (categoryId) query = query.eq("category_id", categoryId);
 
   const { count } = await query;
@@ -257,7 +257,7 @@ export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("status", "published")
+    .eq("status", "published").eq("is_deleted", false)
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -281,7 +281,7 @@ export async function getSearchMatchIds(query: string): Promise<string[]> {
     supabase
       .from("products")
       .select("id")
-      .eq("status", "published")
+      .eq("status", "published").eq("is_deleted", false)
       .textSearch("search_vector", tsQuery, { type: "plain", config: "english" }),
     supabase.from("categories").select("id").ilike("name", `%${safe}%`),
   ]);
@@ -293,7 +293,7 @@ export async function getSearchMatchIds(query: string): Promise<string[]> {
     const { data: categoryMatches } = await supabase
       .from("products")
       .select("id")
-      .eq("status", "published")
+      .eq("status", "published").eq("is_deleted", false)
       .in("category_id", categoryIds);
     for (const p of categoryMatches ?? []) ids.add(p.id);
   }
@@ -314,7 +314,7 @@ export async function searchProducts(
   if (matchIds.length === 0) return [];
 
   const { data, error } = await applyDbFilters(
-    supabase.from("products").select("*").eq("status", "published").in("id", matchIds),
+    supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false).in("id", matchIds),
     filters,
   );
   if (error) throw error;
@@ -333,7 +333,7 @@ export async function getRelatedProducts(
     .from("products")
     .select("*")
     .eq("category_id", categoryId)
-    .eq("status", "published")
+    .eq("status", "published").eq("is_deleted", false)
     .neq("id", excludeProductId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -361,7 +361,7 @@ export async function getProductSlugRedirect(oldSlug: string): Promise<string | 
     .from("products")
     .select("slug")
     .eq("id", redirect.product_id)
-    .eq("status", "published")
+    .eq("status", "published").eq("is_deleted", false)
     .maybeSingle();
 
   return product?.slug ?? null;
@@ -372,7 +372,7 @@ export async function getAllProductSlugs(): Promise<string[]> {
   const { data, error } = await supabase
     .from("products")
     .select("slug")
-    .eq("status", "published");
+    .eq("status", "published").eq("is_deleted", false);
 
   if (error) throw error;
   return data.map((p) => p.slug);
@@ -394,7 +394,7 @@ export const getProductDetailBySlug = cache(
       .from("products")
       .select("*")
       .eq("slug", slug)
-      .eq("status", "published")
+      .eq("status", "published").eq("is_deleted", false)
       .maybeSingle();
 
     if (!product) return null;

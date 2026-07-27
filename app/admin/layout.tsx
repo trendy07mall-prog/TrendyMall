@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { ToastProvider } from "@/components/admin/ToastProvider";
 
 export default async function AdminLayout({
   children,
@@ -23,51 +24,13 @@ export default async function AdminLayout({
   if (!profile?.is_admin) redirect("/");
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-      <div className="flex flex-col gap-8 sm:flex-row">
-        <aside className="flex shrink-0 flex-row gap-4 border-b border-[var(--border)] pb-4 sm:w-48 sm:flex-col sm:border-r sm:border-b-0 sm:pr-6 sm:pb-0">
-          <Link href="/admin" className="text-sm font-medium hover:underline">
-            Dashboard
-          </Link>
-          <Link
-            href="/admin/products"
-            className="text-sm font-medium hover:underline"
-          >
-            Products
-          </Link>
-          <Link
-            href="/admin/orders"
-            className="text-sm font-medium hover:underline"
-          >
-            Orders
-          </Link>
-          <Link
-            href="/admin/customers"
-            className="text-sm font-medium hover:underline"
-          >
-            Customers
-          </Link>
-          <Link
-            href="/admin/reviews"
-            className="text-sm font-medium hover:underline"
-          >
-            Reviews
-          </Link>
-          <Link
-            href="/admin/banner"
-            className="text-sm font-medium hover:underline"
-          >
-            Banner
-          </Link>
-          <Link
-            href="/admin/subscribers"
-            className="text-sm font-medium hover:underline"
-          >
-            Subscribers
-          </Link>
-        </aside>
-        <div className="flex-1">{children}</div>
+    <ToastProvider>
+      <div className="flex min-h-full flex-1 flex-col lg:flex-row">
+        <AdminSidebar />
+        <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-8">
+          {children}
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

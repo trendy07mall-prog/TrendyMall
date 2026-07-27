@@ -16,7 +16,10 @@ export default async function AdminDashboardPage() {
     { count: ordersThisMonth },
     { data: orderItems },
   ] = await Promise.all([
-    supabase.from("products").select("*", { count: "exact", head: true }),
+    supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("is_deleted", false),
     supabase
       .from("orders")
       .select("*", { count: "exact", head: true })
@@ -24,6 +27,7 @@ export default async function AdminDashboardPage() {
     supabase
       .from("products")
       .select("id, name, stock")
+      .eq("is_deleted", false)
       .lt("stock", 5)
       .order("stock", { ascending: true }),
     supabase

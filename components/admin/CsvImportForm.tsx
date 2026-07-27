@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { bulkImportProducts, type BulkImportResult, type ImportRow } from "@/lib/admin/products-import";
-
-const TEMPLATE_CSV = `name,brand,model,sku,category,actual_price,special_price,stock,status,bluetooth,is_featured,description,compatible_devices,whats_in_box
-Sample Earbuds,Acme,X100,SKU-001,Earbuds,2500,,50,draft,true,false,"Comfortable wireless earbuds with long battery life.",iPhone;Android,Earbuds;USB-C cable;Manual
-`;
+import { DownloadTemplateButton } from "@/components/admin/DownloadTemplateButton";
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -61,16 +58,6 @@ function csvToRows(text: string): ImportRow[] {
   });
 }
 
-function downloadBlob(content: string, filename: string, type: string) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 export function CsvImportForm() {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [fileName, setFileName] = useState("");
@@ -102,13 +89,9 @@ export function CsvImportForm() {
 
   return (
     <div className="flex flex-col gap-4">
-      <button
-        type="button"
-        onClick={() => downloadBlob(TEMPLATE_CSV, "trendymall-products-template.csv", "text/csv")}
-        className="self-start rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
-      >
-        Download CSV template
-      </button>
+      <div className="self-start">
+        <DownloadTemplateButton />
+      </div>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="csv-file" className="text-sm font-medium">

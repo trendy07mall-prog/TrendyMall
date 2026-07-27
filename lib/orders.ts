@@ -16,6 +16,7 @@ export interface CreateOrderInput {
     name: string;
     price: number;
     quantity: number;
+    image: string | null;
   }[];
 }
 
@@ -70,6 +71,7 @@ export async function createOrder(
     unit_price: item.price,
     quantity: item.quantity,
     subtotal: item.price * item.quantity,
+    product_image_url: item.image,
   }));
 
   const { error: itemsError } = await supabase

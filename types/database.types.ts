@@ -95,6 +95,7 @@ export interface Database {
           free_delivery: boolean;
           warranty_available: boolean;
           search_vector: unknown;
+          is_deleted: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -122,6 +123,7 @@ export interface Database {
           cod_available?: boolean;
           free_delivery?: boolean;
           warranty_available?: boolean;
+          is_deleted?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -149,6 +151,7 @@ export interface Database {
           cod_available?: boolean;
           free_delivery?: boolean;
           warranty_available?: boolean;
+          is_deleted?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -439,6 +442,7 @@ export interface Database {
           unit_price: number;
           quantity: number;
           subtotal: number;
+          product_image_url: string | null;
           created_at: string;
         };
         Insert: {
@@ -449,6 +453,7 @@ export interface Database {
           unit_price: number;
           quantity: number;
           subtotal: number;
+          product_image_url?: string | null;
           created_at?: string;
         };
         Update: {
@@ -459,6 +464,7 @@ export interface Database {
           unit_price?: number;
           quantity?: number;
           subtotal?: number;
+          product_image_url?: string | null;
           created_at?: string;
         };
         Relationships: [

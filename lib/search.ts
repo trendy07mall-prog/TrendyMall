@@ -35,14 +35,14 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
     supabase
       .from("products")
       .select("id, slug, name, actual_price, special_price")
-      .eq("status", "published")
+      .eq("status", "published").eq("is_deleted", false)
       .textSearch("search_vector", tsQuery, { type: "plain", config: "english" })
       .limit(6),
     supabase.from("categories").select("slug, name").ilike("name", `%${safe}%`).limit(4),
     supabase
       .from("products")
       .select("brand")
-      .eq("status", "published")
+      .eq("status", "published").eq("is_deleted", false)
       .not("brand", "is", null)
       .ilike("brand", `%${safe}%`)
       .limit(20),
