@@ -155,7 +155,7 @@ export function SiteSearchBar() {
           event.preventDefault();
           goToSearch(query);
         }}
-        className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10"
+        className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]"
       >
         <input
           type="text"
@@ -176,8 +176,12 @@ export function SiteSearchBar() {
           // outline-none. text has no native chrome to fight; enterKeyHint
           // restores the mobile keyboard's "search" button without it. The
           // visible focus ring lives on the wrapper (focus-within above) so
-          // it follows the pill shape.
-          className="h-full flex-1 border-none bg-transparent text-sm outline-none placeholder:text-[var(--muted)] focus:outline-none focus:ring-0"
+          // it follows the pill shape — every focus state is explicitly
+          // cleared here (see the global :focus-visible fix in globals.css
+          // for why plain focus:/focus-visible: utilities alone weren't
+          // enough) plus appearance-none for Safari's default text-field
+          // chrome.
+          className="h-full flex-1 appearance-none border-none bg-transparent text-sm shadow-none outline-none focus:border-none focus:shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-within:outline-none placeholder:text-[var(--muted)] [-webkit-tap-highlight-color:transparent]"
         />
         <button
           type="submit"

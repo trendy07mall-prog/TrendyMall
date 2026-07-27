@@ -37,7 +37,7 @@ export function NotifyMeForm({ productId }: { productId: string }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Your email address"
-          className="min-w-0 flex-1 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm outline-none transition-all duration-200 placeholder:text-[var(--muted)] focus-visible:border-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[var(--foreground)]/10"
+          className="min-w-0 flex-1 rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm outline-none transition-[border-color,box-shadow] duration-200 ease-in-out placeholder:text-[var(--muted)] focus-visible:border-[var(--foreground)] focus-visible:ring-4 focus-visible:ring-[rgba(0,0,0,0.08)]"
         />
         <button
           type="submit"

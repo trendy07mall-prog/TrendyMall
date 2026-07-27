@@ -80,7 +80,7 @@ export function ProductPurchaseSection({
           {!outOfStock && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Quantity</span>
-              <div className="flex items-center rounded-full border border-[var(--border)] transition-all duration-200 focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[var(--foreground)]/10">
+              <div className="flex items-center rounded-full border border-[var(--border)] transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]">
                 <button
                   type="button"
                   aria-label="Decrease quantity"

@@ -139,9 +139,37 @@ h6 {
   font-weight: 600;
 }
 
-:focus-visible {
+/* Excludes input/textarea: every text field in this app draws its own
+   focus indicator (a ring on the field itself, or on its rounded wrapper
+   via :focus-within) that follows its actual shape — this generic
+   rectangular outline is for buttons/links that don't have one, and was
+   the real cause of the square box that survived on rounded/pill inputs
+   no matter what Tailwind focus:/focus-visible: utility classes were
+   added to them: this rule is unlayered (plain CSS below Tailwind's
+   @import, not inside an explicit @layer), and unlayered CSS always beats
+   layered CSS (which is where every Tailwind utility class lives) in the
+   cascade, regardless of specificity or source order. */
+:focus-visible:not(input, textarea) {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
+}
+
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chrome/Edge autofill: replace the forced yellow/blue fill + its own
+   box-shadow with an inset shadow matching our own card background, and
+   push the background-color transition Chrome forces on autofilled
+   fields far enough out that it never visibly plays. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-card) inset;
+  -webkit-text-fill-color: var(--foreground);
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* View Transitions (app/layout.tsx's <ViewTransition>) don't automatically
