@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { SearchIcon, ImageIcon, TrashIcon } from "@/components/ui/Icon";
 import { StockBadge } from "@/components/admin/StockBadge";
 import { ProductStatusBadge } from "@/components/admin/ProductStatusBadge";
 import { QuickEditPrice } from "@/components/admin/QuickEditPrice";
@@ -22,6 +24,7 @@ export function ProductsTable({
   searchParams,
   categoryNames,
   isDeletedView,
+  hasActiveFilters,
 }: {
   products: AdminProductRow[];
   totalCount: number;
@@ -31,6 +34,7 @@ export function ProductsTable({
   searchParams: Record<string, string | string[] | undefined>;
   categoryNames: Map<string, string>;
   isDeletedView: boolean;
+  hasActiveFilters: boolean;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -48,6 +52,27 @@ export function ProductsTable({
       return next;
     });
   }
+
+  const emptyState = isDeletedView
+    ? {
+        Icon: TrashIcon,
+        title: "Nothing in the Deleted filter.",
+        description: "Products you soft-delete show up here and can be restored.",
+        cta: null,
+      }
+    : hasActiveFilters
+      ? {
+          Icon: SearchIcon,
+          title: "No products match the current filters.",
+          description: null,
+          cta: { label: "Clear filters", href: basePath },
+        }
+      : {
+          Icon: ImageIcon,
+          title: "No products yet.",
+          description: null,
+          cta: { label: "+ Add Product", href: "/admin/products/new" },
+        };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -158,8 +183,22 @@ export function ProductsTable({
             })}
             {products.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-[var(--muted)]">
-                  No products match the current filters.
+                <td colSpan={9} className="py-16">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <emptyState.Icon className="h-8 w-8 text-[var(--muted)]" />
+                    <p className="text-sm text-[var(--muted)]">{emptyState.title}</p>
+                    {emptyState.description && (
+                      <p className="text-xs text-[var(--muted)]">{emptyState.description}</p>
+                    )}
+                    {emptyState.cta && (
+                      <Link
+                        href={emptyState.cta.href}
+                        className="rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85"
+                      >
+                        {emptyState.cta.label}
+                      </Link>
+                    )}
+                  </div>
                 </td>
               </tr>
             )}
@@ -239,9 +278,18 @@ export function ProductsTable({
           );
         })}
         {products.length === 0 && (
-          <p className="py-8 text-center text-sm text-[var(--muted)]">
-            No products match the current filters.
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--border)] px-6 py-16 text-center">
+            <emptyState.Icon className="h-8 w-8 text-[var(--muted)]" />
+            <p className="text-sm text-[var(--muted)]">{emptyState.title}</p>
+            {emptyState.cta && (
+              <Link
+                href={emptyState.cta.href}
+                className="rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-85"
+              >
+                {emptyState.cta.label}
+              </Link>
+            )}
+          </div>
         )}
       </div>
 

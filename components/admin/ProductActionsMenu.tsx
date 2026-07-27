@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EyeIcon, PencilIcon, CopyIcon, TrashIcon, DotsIcon } from "@/components/ui/Icon";
@@ -29,6 +29,26 @@ export function ProductActionsMenu({
   const [restoring, setRestoring] = useState(false);
   const { showToast } = useToast();
   const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function onPointerDown(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   async function handleRestore() {
     setRestoring(true);
@@ -119,7 +139,7 @@ export function ProductActionsMenu({
         </button>
       </div>
 
-      <div className="relative lg:hidden">
+      <div ref={menuRef} className="relative lg:hidden">
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}

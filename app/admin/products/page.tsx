@@ -5,7 +5,7 @@ import {
   getDistinctBrands,
   ADMIN_PRODUCTS_PAGE_SIZE,
 } from "@/lib/admin/products-query";
-import { parseAdminProductFilterState } from "@/lib/admin/product-filters";
+import { parseAdminProductFilterState, countActiveAdminFilters } from "@/lib/admin/product-filters";
 import { getCategories } from "@/lib/data/categories";
 import { ProductSummaryCards } from "@/components/admin/ProductSummaryCards";
 import { ProductSearchBar } from "@/components/admin/ProductSearchBar";
@@ -80,6 +80,7 @@ export default async function AdminProductsPage({
           searchParams={sp}
           categoryNames={categoryNames}
           isDeletedView={isDeletedView}
+          hasActiveFilters={countActiveAdminFilters(state) > 0}
         />
       </div>
     </div>
