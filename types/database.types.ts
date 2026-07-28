@@ -869,6 +869,14 @@ export interface Database {
         Args: { p_product_id: string; p_quantity: number };
         Returns: undefined;
       };
+      cancel_order_atomic: {
+        Args: {
+          p_order_id: string;
+          p_new_order_status: string;
+          p_new_payment_status?: string | null;
+        };
+        Returns: boolean;
+      };
       create_order_atomic: {
         Args: {
           p_customer_name: string;

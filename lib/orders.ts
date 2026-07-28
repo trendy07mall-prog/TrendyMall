@@ -84,7 +84,22 @@ export async function createOrder(
 
   const row = data?.[0];
   if (error || !row) {
-    return { error: error?.message ?? "Could not place order." };
+    if (error) {
+      // create_order_atomic's own deliberate, customer-facing messages
+      // (cart empty, out of stock, price changed, etc.) all use plain
+      // `raise exception 'message'`, which Postgres tags with SQLSTATE
+      // P0001 — safe to show verbatim. Anything else is an unexpected
+      // database error (a bug, a constraint violation, a connectivity
+      // blip) and must never reach the customer as raw Postgres text;
+      // log it server-side and show a generic, friendly message instead.
+      if (error.code === "P0001") {
+        return { error: error.message };
+      }
+      console.error("createOrder: unexpected database error", error);
+    }
+    return {
+      error: "Something went wrong placing your order. Please try again or contact us on WhatsApp.",
+    };
   }
 
   const { data: items } = await supabase

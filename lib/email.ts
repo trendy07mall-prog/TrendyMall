@@ -125,6 +125,43 @@ export async function sendPaymentVerifiedEmail(order: {
   }
 }
 
+// Best-effort, same as the others. Generic replacement for
+// sendOrderStatusUpdateEmail's new call sites (lib/admin/orderActions.ts)
+// — takes a pre-resolved human label rather than the legacy OrderStatus
+// union, since Phase 4's admin actions key off order_status/payment_status
+// instead. sendOrderStatusUpdateEmail itself is kept below, unused by new
+// code but not deleted (nothing requires removing it this phase).
+export async function sendOrderStatusEmail(order: {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+  label: string;
+  detail?: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: fromEmail,
+      to: order.customerEmail,
+      subject: `Your TrendyMall order ${order.orderNumber} is now ${order.label}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          <h2>Order ${order.orderNumber}</h2>
+          <p>Hi ${order.customerName}, your order status has been updated to:</p>
+          <p style="font-size: 18px; font-weight: bold;">${order.label}</p>
+          ${order.detail ? `<p>${order.detail}</p>` : ""}
+        </div>
+      `,
+    });
+  } catch {
+    // Sending is best-effort — the status change already succeeded.
+  }
+}
+
 // Best-effort, same as sendOrderConfirmationEmails — a failed email should
 // never block the status change that triggered it. Customer-facing only
 // (the admin making the change already knows).

@@ -2,8 +2,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
-import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
+import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
+import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
+import { OrderActionPanel } from "@/components/admin/OrderActionPanel";
+import { AddTrackingForm } from "@/components/admin/AddTrackingForm";
+import { WhatsAppOrderLink } from "@/components/admin/WhatsAppOrderLink";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -34,23 +38,47 @@ export default async function AdminOrderDetailPage({
     slipSignedUrl = data?.signedUrl ?? null;
   }
 
+  const showTracking = order.order_status !== "pending";
+
   return (
     <div>
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold tracking-tight">
           Order {order.order_number}
         </h1>
-        <OrderStatusSelect orderId={order.id} status={order.status} />
+        <div className="flex items-center gap-2">
+          <PaymentStatusBadge status={order.payment_status} />
+          <OrderStatusBadge status={order.order_status} />
+        </div>
       </div>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Placed {new Date(order.created_at).toLocaleString()}
       </p>
+
+      <div className="mt-6">
+        <OrderActionPanel
+          orderId={order.id}
+          orderStatus={order.order_status}
+          paymentStatus={order.payment_status}
+          paymentMethod={order.payment_method as "cod" | "bank_transfer" | "payhere"}
+        />
+      </div>
 
       <div className="mt-8 grid gap-1 text-sm text-[var(--muted)]">
         <p>{order.customer_name}</p>
         <p>{order.customer_email}</p>
         <p>{order.customer_phone}</p>
         <p className="whitespace-pre-line">{order.shipping_address}</p>
+        {order.notes && <p>Notes: {order.notes}</p>}
+      </div>
+
+      <div className="mt-4">
+        <WhatsAppOrderLink
+          phone={order.customer_phone}
+          orderNumber={order.order_number}
+          orderStatus={order.order_status}
+          customerName={order.customer_name}
+        />
       </div>
 
       {payment && payment.gateway === "bank_transfer" && (
@@ -74,6 +102,17 @@ export default async function AdminOrderDetailPage({
               <VerifyPaymentButton orderId={order.id} />
             </div>
           )}
+        </div>
+      )}
+
+      {showTracking && (
+        <div className="mt-6">
+          <AddTrackingForm
+            orderId={order.id}
+            courier={order.courier}
+            trackingNumber={order.tracking_number}
+            trackingUrl={order.tracking_url}
+          />
         </div>
       )}
 

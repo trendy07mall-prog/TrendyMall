@@ -29,6 +29,13 @@ export function isValidSriLankanPhone(phone: string): boolean {
   return /^(?:\+94|0)[1-9][0-9]{8}$/.test(phone.replace(/[\s-]/g, ""));
 }
 
+// wa.me links need the number in international format with no leading
+// "+" or "0" — e.g. "0771234567" -> "94771234567".
+export function toWhatsAppNumber(phone: string): string {
+  const digits = phone.replace(/[\s-]/g, "").replace(/^\+/, "");
+  return digits.startsWith("0") ? `94${digits.slice(1)}` : digits;
+}
+
 export function getDiscountPercent(
   actualPrice: number,
   specialPrice: number | null,
