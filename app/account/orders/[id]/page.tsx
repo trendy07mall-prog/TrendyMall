@@ -105,6 +105,13 @@ export default async function OrderDetailPage({
           )}
         </div>
       )}
+
+      <a
+        href={`/invoices/${order.id}`}
+        className="mt-8 inline-block rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
+      >
+        Download Invoice
+      </a>
     </div>
   );
 }
