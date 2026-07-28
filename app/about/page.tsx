@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "About TrendyMall",
   description:
     "TrendyMall is Sri Lanka's trusted destination for premium mobile phone accessories.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

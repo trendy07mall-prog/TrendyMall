@@ -16,8 +16,7 @@ import { RecordRecentlyViewed } from "@/components/product/RecordRecentlyViewed"
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getEffectivePrice } from "@/lib/utils";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL as siteUrl } from "@/lib/site";
 
 export async function generateMetadata({
   params,
@@ -36,15 +35,20 @@ export async function generateMetadata({
   return {
     title: product.meta_title ?? product.name,
     description,
+    alternates: {
+      canonical: `/product/${product.slug}`,
+    },
     openGraph: {
       title: `${product.name} | TrendyMall`,
       description,
+      url: `/product/${product.slug}`,
       images: image ? [{ url: image }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: `${product.name} | TrendyMall`,
       description,
+      images: image ? [image] : undefined,
     },
   };
 }

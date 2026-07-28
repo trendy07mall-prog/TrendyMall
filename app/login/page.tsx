@@ -4,6 +4,7 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
   title: "Log in — TrendyMall",
+  alternates: { canonical: "/login" },
 };
 
 export default function LoginPage() {

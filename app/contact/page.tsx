@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Contact TrendyMall",
   description:
     "Get in touch with TrendyMall via WhatsApp, phone, or email. Salawatta Road, Wellampitiya, Sri Lanka.",
+  alternates: { canonical: "/contact" },
 };
 
 const CONTACT_ITEMS = [

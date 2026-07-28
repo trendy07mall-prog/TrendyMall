@@ -67,8 +67,9 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 `.env.local` is gitignored and will never be committed. `NEXT_PUBLIC_SITE_URL`
-is used for SEO metadata, `sitemap.xml`, and `robots.txt` — set it to your
-real production domain once deployed (step 10).
+is used for SEO metadata, `sitemap.xml`, `robots.txt`, and canonical tags —
+set it to your real production domain once deployed (step 10). Production is
+`https://www.trendymall.online`.
 
 ## 4. Install dependencies and run locally
 
@@ -262,17 +263,27 @@ skip for now and come back later.
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (mark it as a server-only/secret variable —
      never expose it with a `NEXT_PUBLIC_` prefix)
-   - `NEXT_PUBLIC_SITE_URL` — set this to your real Vercel URL (e.g.
-     `https://trendymall.vercel.app`) or custom domain, so SEO metadata,
-     `sitemap.xml`, and `robots.txt` point at the right place
+   - `NEXT_PUBLIC_SITE_URL` — `https://www.trendymall.online` (the www
+     subdomain is canonical; the apex `trendymall.online` 308-redirects to
+     it in Vercel's domain settings). Used for SEO metadata, `sitemap.xml`,
+     `robots.txt`, and canonical tags.
    - Optionally `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
      `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (see step 9) — leave unset to skip
      analytics/emails for now
 5. Click **Deploy**.
-6. In the Supabase dashboard, go to **Authentication → URL Configuration**
-   and add your Vercel deployment URL (e.g. `https://trendymall.vercel.app`)
-   to **Site URL** and **Redirect URLs** — otherwise email confirmation
-   links will redirect back to `localhost`.
+6. In the Supabase dashboard, go to **Authentication → URL Configuration**:
+   - **Site URL**: `https://www.trendymall.online`
+   - **Redirect URLs**: add both
+     `https://www.trendymall.online/auth/callback` and
+     `https://www.trendymall.online/**` (the wildcard covers any `?next=`
+     redirect target used after auth). If you still need the old
+     `trendy-mall-nine.vercel.app` deployment reachable for any reason, keep
+     its `/auth/callback` URL in this list too — Redirect URLs is an
+     allowlist, not a single value, so old entries don't need to be removed
+     for the new one to work, but the **Site URL** field itself only takes
+     one value and must be the new domain.
+   - Skipping this step means email confirmation and password reset links
+     sent to real customers will point at the old domain and break.
 
 Once deployed, redo step 5 (create/promote an admin) against the production
 database if you haven't already — local and production point at the same

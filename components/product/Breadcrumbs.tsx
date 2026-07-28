@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE_URL as siteUrl } from "@/lib/site";
 
 export interface Crumb {
   label: string;
   href?: string;
 }
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   const breadcrumbSchema = {

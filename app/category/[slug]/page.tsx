@@ -33,15 +33,20 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `/category/${category.slug}`,
+    },
     openGraph: {
       title: `${title} | TrendyMall`,
       description,
+      url: `/category/${category.slug}`,
       images: image ? [{ url: image }] : undefined,
     },
     twitter: {
       card: "summary_large_image",
       title: `${title} | TrendyMall`,
       description,
+      images: image ? [image] : undefined,
     },
   };
 }

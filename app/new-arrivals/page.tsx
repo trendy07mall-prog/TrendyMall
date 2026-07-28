@@ -5,6 +5,7 @@ import { ProductGrid } from "@/components/product/ProductGrid";
 export const metadata: Metadata = {
   title: "New Arrivals",
   description: "The latest mobile phone accessories added to TrendyMall.",
+  alternates: { canonical: "/new-arrivals" },
 };
 
 export default async function NewArrivalsPage() {

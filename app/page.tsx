@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals } from "@/lib/data/products";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
@@ -7,6 +8,10 @@ import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { FadeIn } from "@/components/motion/FadeIn";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function HomePage() {
   const [categories, newArrivals] = await Promise.all([

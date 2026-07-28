@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getCategories } from "@/lib/data/categories";
 import { getAllProductSlugs } from "@/lib/data/products";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { SITE_URL as siteUrl } from "@/lib/site";
 
 const STATIC_ROUTES = [
   "",

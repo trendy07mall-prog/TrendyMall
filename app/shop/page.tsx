@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   title: "Shop All Accessories",
   description:
     "Browse the full TrendyMall catalogue of mobile phone accessories — earbuds, speakers, power banks, and headphones.",
+  // Static, not per-filter — every filter/sort combination on this page
+  // canonicalizes back to the clean base URL, so Google doesn't index each
+  // query-param combination as a separate page.
+  alternates: { canonical: "/shop" },
 };
 
 const PAGE_SIZE = 24;

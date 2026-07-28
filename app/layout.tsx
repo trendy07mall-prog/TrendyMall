@@ -16,6 +16,7 @@ import { getActiveBanner } from "@/lib/data/banner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -30,28 +31,40 @@ const inter = Inter({
   weight: ["400", "500", "600"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
     template: "%s | TrendyMall",
   },
   description:
     "Shop premium mobile phone accessories in Sri Lanka including chargers, earphones, power banks, phone cases, and more. Fast islandwide delivery and Cash on Delivery available.",
+  // Deliberately no `alternates.canonical` here: Next.js metadata cascades
+  // to every child page that doesn't set its own, and a root-level "/"
+  // canonical would wrongly tell Google every page on the site is a
+  // duplicate of the homepage. Each indexable page sets its own instead
+  // (see app/page.tsx, app/shop/page.tsx, etc.) — pages that don't set one
+  // simply emit no canonical tag, which is safe (the current, pre-existing
+  // default), not wrong.
+  // No manual `images` here for either openGraph or twitter — the
+  // opengraph-image.tsx file convention (app/opengraph-image.tsx) already
+  // auto-generates and injects og:image/twitter:image tags for any route
+  // that doesn't define its own; adding one manually risks a duplicate tag
+  // rather than a missing one.
   openGraph: {
     type: "website",
     siteName: "TrendyMall",
     title: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
     description:
       "Shop premium mobile phone accessories in Sri Lanka including chargers, earphones, power banks, phone cases, and more. Fast islandwide delivery and Cash on Delivery available.",
+    url: "/",
   },
   twitter: {
     card: "summary_large_image",
     title: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
     description:
       "Shop premium mobile phone accessories in Sri Lanka. Fast islandwide delivery and Cash on Delivery available.",
+    images: ["/opengraph-image"],
   },
 };
 
@@ -59,8 +72,8 @@ const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "TrendyMall",
-  url: siteUrl,
-  logo: `${siteUrl}/icon`,
+  url: SITE_URL,
+  logo: `${SITE_URL}/icon`,
   sameAs: [
     "https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr",
     "https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr",

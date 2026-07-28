@@ -4,6 +4,7 @@ import { TrackOrderForm } from "@/components/order/TrackOrderForm";
 export const metadata: Metadata = {
   title: "Track Your Order",
   description: "Check the status of your TrendyMall order using your order number and phone number.",
+  alternates: { canonical: "/track-order" },
 };
 
 export default function TrackOrderPage() {

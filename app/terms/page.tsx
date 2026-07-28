@@ -4,6 +4,7 @@ import { PageShell } from "@/components/content/PageShell";
 export const metadata: Metadata = {
   title: "Terms & Conditions",
   description: "The terms and conditions for shopping with TrendyMall.",
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

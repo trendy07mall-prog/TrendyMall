@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Returns & Refunds Policy",
   description:
     "TrendyMall returns and refunds policy — eligibility, conditions, and how replacements or refunds are handled.",
+  alternates: { canonical: "/returns" },
 };
 
 export default function ReturnsPage() {

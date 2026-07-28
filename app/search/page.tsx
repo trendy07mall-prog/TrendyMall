@@ -15,6 +15,7 @@ import { SortBar } from "@/components/product/SortBar";
 
 export const metadata: Metadata = {
   title: "Search Results",
+  alternates: { canonical: "/search" },
 };
 
 export default async function SearchPage({

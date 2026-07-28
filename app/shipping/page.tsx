@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Shipping Policy",
   description:
     "TrendyMall shipping policy — delivery times, charges, Cash on Delivery, and order tracking across Sri Lanka.",
+  alternates: { canonical: "/shipping" },
 };
 
 export default function ShippingPage() {

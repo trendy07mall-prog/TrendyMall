@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Frequently Asked Questions",
   description:
     "Answers to common questions about TrendyMall delivery, payment, returns, and support.",
+  alternates: { canonical: "/faq" },
 };
 
 const FAQ_ITEMS = [
