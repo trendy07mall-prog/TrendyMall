@@ -248,6 +248,25 @@ skip for now and come back later.
     way. Once you register a domain (e.g. `trendymall.lk`) and verify it in
     Resend (a few DNS records), set `RESEND_FROM_EMAIL` to an address on
     that domain (e.g. `orders@trendymall.lk`) and both emails will go out.
+- **Card payments (PayHere)**: log in to your existing PayHere account →
+  **Integrations → Add Domain/App** → set Domain/App as "Domain", enter the
+  domain you're integrating on (`localhost`/`127.0.0.1` for local dev, your
+  real domain for production — each domain gets its **own** Merchant
+  Secret, so you'll add a second Domain/App entry when you deploy) → save →
+  the integration screen shows your **Merchant ID** and **Merchant
+  Secret**. Put these in `PAYHERE_MERCHANT_ID` and `PAYHERE_MERCHANT_SECRET`.
+  Leave `PAYHERE_MODE=sandbox` for testing — checkout requests go to
+  `sandbox.payhere.lk` and only PayHere's documented test cards work there
+  (real cards won't). Switch to `PAYHERE_MODE=live` only once you're ready
+  to accept real payments; no separate live credentials are needed, the
+  same Merchant ID/Secret pair works for both, only the checkout URL
+  changes.
+  - The Card option only appears at checkout once both
+    `PAYHERE_MERCHANT_ID` and `PAYHERE_MERCHANT_SECRET` are set — Cash on
+    Delivery and Bank Transfer work regardless.
+  - PayHere's `notify_url` (the server-to-server payment confirmation) is
+    sent automatically with every checkout request — nothing to register
+    separately in the PayHere dashboard.
 
 ## 10. Deploying to Vercel
 
@@ -268,8 +287,9 @@ skip for now and come back later.
      it in Vercel's domain settings). Used for SEO metadata, `sitemap.xml`,
      `robots.txt`, and canonical tags.
    - Optionally `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_META_PIXEL_ID`,
-     `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (see step 9) — leave unset to skip
-     analytics/emails for now
+     `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `PAYHERE_MERCHANT_ID`,
+     `PAYHERE_MERCHANT_SECRET`, `PAYHERE_MODE` (see step 9) — leave unset to
+     skip analytics/emails/card payments for now
 5. Click **Deploy**.
 6. In the Supabase dashboard, go to **Authentication → URL Configuration**:
    - **Site URL**: `https://www.trendymall.online`

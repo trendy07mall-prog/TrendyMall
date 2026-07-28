@@ -25,7 +25,7 @@ interface OrderEmailData {
   items: OrderEmailItem[];
   shippingFee: number;
   deliveryMethod: "standard" | "pickup";
-  paymentMethod: "cod" | "bank_transfer";
+  paymentMethod: "cod" | "bank_transfer" | "payhere";
   total: number;
 }
 
@@ -40,7 +40,9 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
   const customerIntro =
     order.paymentMethod === "bank_transfer"
       ? `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is awaiting payment verification. We'll email you once it's confirmed.</p>`
-      : `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is saved as pending payment. We'll follow up on payment and delivery separately.</p>`;
+      : order.paymentMethod === "payhere"
+        ? `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and your card payment is being processed. We'll email you once it's confirmed.</p>`
+        : `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is saved as pending payment. We'll follow up on payment and delivery separately.</p>`;
 
   const intro = forOwner
     ? `<p>New order from ${order.customerName} (${order.customerEmail}).</p>`

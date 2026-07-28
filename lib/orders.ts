@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendOrderConfirmationEmails } from "@/lib/email";
 import { isValidSriLankanPhone } from "@/lib/utils";
+import { SITE_URL } from "@/lib/site";
+import { isPayHereEnabled, getCheckoutUrl, generateCheckoutHash } from "@/lib/payhere";
 import type { DeliveryMethod, PaymentGateway } from "@/types";
 
 export interface CreateOrderInput {
@@ -17,7 +19,7 @@ export interface CreateOrderInput {
   shippingDistrict: string;
   shippingPostalCode: string | null;
   deliveryMethod: DeliveryMethod;
-  paymentMethod: Extract<PaymentGateway, "cod" | "bank_transfer">;
+  paymentMethod: PaymentGateway;
   paymentReference: string | null;
   slipPath: string | null;
   notes: string | null;
@@ -132,4 +134,82 @@ export async function createOrder(
 
   revalidatePath("/account/orders");
   return { orderId: row.order_id };
+}
+
+export interface PayHereCheckoutParams {
+  merchant_id: string;
+  return_url: string;
+  cancel_url: string;
+  notify_url: string;
+  order_id: string;
+  items: string;
+  currency: string;
+  amount: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  country: string;
+  hash: string;
+}
+
+export interface PayHereCheckoutResult {
+  checkoutUrl?: string;
+  params?: PayHereCheckoutParams;
+  error?: string;
+}
+
+// Called after createOrder() succeeds for a payhere order — the order
+// already exists (stock already reduced, same as COD/bank transfer; see
+// the Phase 6 plan for why). Re-fetches the order with the normal
+// RLS-scoped client (owner-only, same access pattern as everywhere else)
+// and computes the checkout hash server-side; merchant_secret never
+// leaves generateCheckoutHash.
+export async function getPayHereCheckoutParams(orderId: string): Promise<PayHereCheckoutResult> {
+  if (!isPayHereEnabled()) return { error: "Card payment is not available." };
+
+  const supabase = await createClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (!order) return { error: "Order not found." };
+  if (order.payment_method !== "payhere") return { error: "This order isn't a card payment." };
+
+  const [{ data: address }, { data: items }] = await Promise.all([
+    supabase.from("shipping_addresses").select("*").eq("order_id", orderId).maybeSingle(),
+    supabase.from("order_items").select("product_name, quantity").eq("order_id", orderId),
+  ]);
+
+  const itemsSummary =
+    (items ?? []).map((item) => `${item.product_name} x${item.quantity}`).join(", ").slice(0, 255) ||
+    order.order_number;
+
+  const [fallbackFirstName, ...fallbackRest] = order.customer_name.trim().split(" ");
+
+  return {
+    checkoutUrl: getCheckoutUrl(),
+    params: {
+      merchant_id: process.env.PAYHERE_MERCHANT_ID!,
+      return_url: `${SITE_URL}/checkout/success?orderId=${order.id}`,
+      cancel_url: `${SITE_URL}/checkout/success?orderId=${order.id}`,
+      notify_url: `${SITE_URL}/api/webhooks/payhere`,
+      order_id: order.order_number,
+      items: itemsSummary,
+      currency: "LKR",
+      amount: order.total.toFixed(2),
+      first_name: address?.first_name ?? fallbackFirstName ?? order.customer_name,
+      last_name: address?.last_name ?? fallbackRest.join(" ") ?? "",
+      email: order.customer_email,
+      phone: order.customer_phone,
+      address: address?.street ?? order.shipping_address,
+      city: address?.city ?? "Colombo",
+      country: "Sri Lanka",
+      hash: generateCheckoutHash(order.order_number, order.total),
+    },
+  };
 }

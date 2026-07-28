@@ -3,10 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { createOrder } from "@/lib/orders";
+import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice, isValidSriLankanPhone } from "@/lib/utils";
+import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import type { BankTransferSettings, DeliveryMethod } from "@/types";
+import type { PayHereCheckoutParams } from "@/lib/orders";
 
 const DISTRICTS = [
   "Colombo", "Gampaha", "Kalutara", "Kandy", "Matale", "Nuwara Eliya",
@@ -24,7 +26,7 @@ const WESTERN_PROVINCE_DISTRICTS = new Set(["Colombo", "Gampaha", "Kalutara"]);
 const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
 const PICKUP_HOURS = "Daily, 10am – 4pm";
 
-type PaymentMethod = "cod" | "bank_transfer";
+type PaymentMethod = "cod" | "bank_transfer" | "payhere";
 
 interface FormState {
   firstName: string;
@@ -84,7 +86,13 @@ function validateField(
   }
 }
 
-export function CheckoutForm({ bankDetails }: { bankDetails: BankTransferSettings | null }) {
+export function CheckoutForm({
+  bankDetails,
+  payHereEnabled,
+}: {
+  bankDetails: BankTransferSettings | null;
+  payHereEnabled: boolean;
+}) {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -93,6 +101,10 @@ export function CheckoutForm({ bankDetails }: { bankDetails: BankTransferSetting
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [payHereRedirect, setPayHereRedirect] = useState<{
+    checkoutUrl: string;
+    params: PayHereCheckoutParams;
+  } | null>(null);
 
   const [slipPath, setSlipPath] = useState<string | null>(null);
   const [slipFileName, setSlipFileName] = useState<string | null>(null);
@@ -196,15 +208,35 @@ export function CheckoutForm({ bankDetails }: { bankDetails: BankTransferSetting
       clientTotal: total,
     });
 
-    setPending(false);
-
     if (result.error || !result.orderId) {
+      setPending(false);
       setSubmitError(result.error ?? "Could not place order.");
       return;
     }
 
+    if (paymentMethod === "payhere") {
+      const checkout = await getPayHereCheckoutParams(result.orderId);
+      setPending(false);
+
+      if (checkout.error || !checkout.params || !checkout.checkoutUrl) {
+        setSubmitError(checkout.error ?? "Could not start card payment.");
+        return;
+      }
+
+      clear();
+      setPayHereRedirect({ checkoutUrl: checkout.checkoutUrl, params: checkout.params });
+      return;
+    }
+
+    setPending(false);
     clear();
     router.push(`/checkout/success?orderId=${result.orderId}`);
+  }
+
+  if (payHereRedirect) {
+    return (
+      <PayHereRedirectForm checkoutUrl={payHereRedirect.checkoutUrl} params={payHereRedirect.params} />
+    );
   }
 
   return (
@@ -364,6 +396,17 @@ export function CheckoutForm({ bankDetails }: { bankDetails: BankTransferSetting
               />
               Bank Transfer
             </label>
+            {payHereEnabled && (
+              <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  checked={paymentMethod === "payhere"}
+                  onChange={() => setPaymentMethod("payhere")}
+                />
+                Card (Visa / Mastercard / Amex)
+              </label>
+            )}
           </div>
 
           {paymentMethod === "bank_transfer" && (
