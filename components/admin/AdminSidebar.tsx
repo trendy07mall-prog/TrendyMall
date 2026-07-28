@@ -62,7 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Marketing",
     items: [
       { href: "/admin/reviews", label: "Reviews", icon: StarIcon },
-      { href: "/admin/coupons", label: "Coupons", icon: PercentIcon, soon: true },
+      { href: "/admin/coupons", label: "Coupons", icon: PercentIcon },
       { href: "/admin/subscribers", label: "Subscribers", icon: MailIcon },
       { href: "/admin/banner", label: "Banner", icon: ImageIcon },
     ],

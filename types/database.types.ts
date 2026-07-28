@@ -895,6 +895,7 @@ export interface Database {
           p_client_total: number | null;
           p_payment_reference?: string | null;
           p_slip_url?: string | null;
+          p_coupon_code?: string | null;
         };
         Returns: { order_id: string; order_number: string }[];
       };

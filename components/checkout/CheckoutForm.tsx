@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
+import { previewCoupon } from "@/lib/coupons";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice, isValidSriLankanPhone } from "@/lib/utils";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
@@ -113,13 +114,50 @@ export function CheckoutForm({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [couponInput, setCouponInput] = useState("");
+  const [couponChecking, setCouponChecking] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    label: string;
+  } | null>(null);
+
   const shippingFee =
     deliveryMethod === "pickup"
       ? 0
       : WESTERN_PROVINCE_DISTRICTS.has(form.district)
         ? 255
         : 400;
-  const total = subtotal + shippingFee;
+  const discount = appliedCoupon?.discount ?? 0;
+  const total = Math.max(0, subtotal + shippingFee - discount);
+
+  // A preview only — create_order_atomic re-validates the code and
+  // recomputes the real discount from scratch at submit time regardless
+  // of what this shows (Rule #1: the server is the only source of truth).
+  async function handleApplyCoupon() {
+    if (!couponInput.trim()) return;
+    setCouponChecking(true);
+    setCouponError(null);
+
+    const result = await previewCoupon(couponInput.trim(), subtotal, shippingFee);
+
+    setCouponChecking(false);
+
+    if (result.error || result.discount == null) {
+      setCouponError(result.error ?? "Invalid coupon code.");
+      setAppliedCoupon(null);
+      return;
+    }
+
+    setAppliedCoupon({ code: couponInput.trim(), discount: result.discount, label: result.label ?? "" });
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
 
   function setField(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -203,6 +241,7 @@ export function CheckoutForm({
       paymentMethod,
       paymentReference: form.paymentReference.trim() || null,
       slipPath,
+      couponCode: appliedCoupon?.code ?? null,
       notes: form.notes.trim() || null,
       items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
       clientTotal: total,
@@ -479,6 +518,40 @@ export function CheckoutForm({
             </li>
           ))}
         </ul>
+        <div className="mt-4 flex flex-col gap-2">
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm">
+              <span>
+                Coupon <strong>{appliedCoupon.code}</strong> — {appliedCoupon.label}
+              </span>
+              <button type="button" onClick={handleRemoveCoupon} className="text-xs underline">
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder="Coupon code"
+                  className="flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={couponChecking || !couponInput.trim()}
+                  className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
+                >
+                  {couponChecking ? "Checking…" : "Apply"}
+                </button>
+              </div>
+              {couponError && <p className="text-xs text-red-600">{couponError}</p>}
+            </div>
+          )}
+        </div>
+
         <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
           <div className="flex justify-between">
             <span>Subtotal</span>
@@ -488,6 +561,12 @@ export function CheckoutForm({
             <span>Delivery</span>
             <span>{deliveryMethod === "pickup" ? "Free" : formatPrice(shippingFee)}</span>
           </div>
+          {discount > 0 && (
+            <div className="flex justify-between text-[var(--color-discount)]">
+              <span>Discount</span>
+              <span>-{formatPrice(discount)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-medium">
             <span>Total</span>
             <span>{formatPrice(total)}</span>

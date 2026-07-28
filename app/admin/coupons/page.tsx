@@ -1,12 +1,23 @@
-import { ComingSoon } from "@/components/admin/ComingSoon";
-import { PercentIcon } from "@/components/ui/Icon";
+import { createClient } from "@/lib/supabase/server";
+import { CouponsManager } from "@/components/admin/CouponsManager";
 
-export default function AdminCouponsPage() {
+export default async function AdminCouponsPage() {
+  const supabase = await createClient();
+  const { data: coupons } = await supabase
+    .from("coupons")
+    .select("*")
+    .order("created_at", { ascending: false });
+
   return (
-    <ComingSoon
-      icon={PercentIcon}
-      title="Coupons"
-      description="Discount codes aren't built yet — sale pricing today is set per-product via the special price field."
-    />
+    <div>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Coupons</h1>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        Percentage, fixed-amount, or free-shipping discount codes. Validation and the
+        actual discount are always computed server-side at checkout.
+      </p>
+      <div className="mt-6">
+        <CouponsManager coupons={coupons ?? []} />
+      </div>
+    </div>
   );
 }

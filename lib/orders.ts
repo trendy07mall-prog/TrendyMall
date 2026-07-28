@@ -22,6 +22,7 @@ export interface CreateOrderInput {
   paymentMethod: PaymentGateway;
   paymentReference: string | null;
   slipPath: string | null;
+  couponCode: string | null;
   notes: string | null;
   items: { productId: string; quantity: number }[];
   // The checkout page's own last-rendered total — used only as a
@@ -82,6 +83,7 @@ export async function createOrder(
     p_client_total: input.clientTotal,
     p_payment_reference: input.paymentReference,
     p_slip_url: input.slipPath,
+    p_coupon_code: input.couponCode,
   });
 
   const row = data?.[0];
