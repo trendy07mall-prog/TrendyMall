@@ -19,6 +19,7 @@ export default async function AdminCustomersPage() {
 
   const customersByUserId = new Map<string, CustomerSummary>();
   for (const order of orders ?? []) {
+    if (!order.user_id) continue;
     const existing = customersByUserId.get(order.user_id);
     if (existing) {
       existing.orderCount += 1;

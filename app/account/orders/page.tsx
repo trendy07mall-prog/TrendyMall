@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
-import { StatusBadge } from "@/components/order/StatusBadge";
+import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
+import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 
 export const metadata: Metadata = { title: "Your orders — TrendyMall" };
 
@@ -37,8 +38,9 @@ export default async function OrdersPage() {
                   Order {order.order_number} —{" "}
                   {new Date(order.created_at).toLocaleDateString()}
                 </span>
-                <span className="flex items-center gap-4">
-                  <StatusBadge status={order.status} />
+                <span className="flex items-center gap-2">
+                  <PaymentStatusBadge status={order.payment_status} />
+                  <OrderStatusBadge status={order.order_status} />
                   {formatPrice(order.total)}
                 </span>
               </Link>

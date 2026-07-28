@@ -3,6 +3,9 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
+import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
+import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
+import { OrderSuccessCheck } from "@/components/order/OrderSuccessCheck";
 
 export default async function CheckoutSuccessPage({
   searchParams,
@@ -28,15 +31,23 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-16 text-center">
-      <h1 className="font-heading text-2xl font-bold tracking-tight">
+      <OrderSuccessCheck />
+      <h1 className="mt-4 font-heading text-2xl font-bold tracking-tight">
         Thank you — order placed
       </h1>
       <p className="mt-2 text-[var(--muted)]">
-        Order <strong>{order.order_number}</strong> is saved as{" "}
-        <strong>pending payment</strong>. We&apos;ll follow up on payment and
-        shipping details shortly.
+        Order <strong>{order.order_number}</strong> has been received.
+        {order.payment_status === "awaiting_verification"
+          ? " We'll verify your payment and confirm shortly."
+          : order.delivery_method === "pickup"
+            ? " We'll let you know when it's ready for pickup."
+            : " We'll follow up on payment and shipping details shortly."}
       </p>
-      <p className="mt-2 text-sm text-[var(--muted)]">
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <PaymentStatusBadge status={order.payment_status} />
+        <OrderStatusBadge status={order.order_status} />
+      </div>
+      <p className="mt-3 text-sm text-[var(--muted)]">
         Save your order number — you can check its status anytime at{" "}
         <Link href="/track-order" className="underline">
           Track Order
@@ -67,13 +78,30 @@ export default async function CheckoutSuccessPage({
       <div className="mt-4 flex flex-col gap-1 text-sm">
         <div className="flex justify-between text-[var(--muted)]">
           <span>Delivery</span>
-          <span>{formatPrice(order.shipping_fee)}</span>
+          <span>
+            {order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}
+          </span>
         </div>
         <div className="flex justify-between font-medium">
           <span>Total</span>
           <span>{formatPrice(order.total)}</span>
         </div>
       </div>
+
+      {(order.courier || order.tracking_number || order.tracking_url) && (
+        <div className="mt-6 rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-left text-sm">
+          <p className="font-medium">Tracking</p>
+          {order.courier && <p className="mt-1 text-[var(--muted)]">Courier: {order.courier}</p>}
+          {order.tracking_number && (
+            <p className="text-[var(--muted)]">Tracking number: {order.tracking_number}</p>
+          )}
+          {order.tracking_url && (
+            <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="underline">
+              Track shipment
+            </a>
+          )}
+        </div>
+      )}
 
       <Link href="/account/orders" className="mt-10 inline-block underline">
         View order history

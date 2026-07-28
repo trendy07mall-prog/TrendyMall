@@ -2,7 +2,8 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
-import { StatusBadge } from "@/components/order/StatusBadge";
+import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
+import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 
 export default async function OrderDetailPage({
   params,
@@ -20,10 +21,10 @@ export default async function OrderDetailPage({
 
   if (!order) notFound();
 
-  const { data: items } = await supabase
-    .from("order_items")
-    .select("*")
-    .eq("order_id", id);
+  const [{ data: items }, { data: shippingAddress }] = await Promise.all([
+    supabase.from("order_items").select("*").eq("order_id", id),
+    supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
@@ -31,7 +32,10 @@ export default async function OrderDetailPage({
         <h1 className="font-heading text-xl font-bold tracking-tight">
           Order {order.order_number}
         </h1>
-        <StatusBadge status={order.status} />
+        <div className="flex items-center gap-2">
+          <PaymentStatusBadge status={order.payment_status} />
+          <OrderStatusBadge status={order.order_status} />
+        </div>
       </div>
       <p className="mt-2 text-sm text-[var(--muted)]">
         Placed {new Date(order.created_at).toLocaleString()}
@@ -41,7 +45,17 @@ export default async function OrderDetailPage({
         <p>{order.customer_name}</p>
         <p>{order.customer_email}</p>
         <p>{order.customer_phone}</p>
-        <p className="whitespace-pre-line">{order.shipping_address}</p>
+        {order.delivery_method === "pickup" ? (
+          <p>Store Pickup — {order.shipping_address}</p>
+        ) : shippingAddress ? (
+          <p>
+            {shippingAddress.street}, {shippingAddress.city}, {shippingAddress.district}
+            {shippingAddress.postal_code ? ` ${shippingAddress.postal_code}` : ""}
+          </p>
+        ) : (
+          <p className="whitespace-pre-line">{order.shipping_address}</p>
+        )}
+        {order.notes && <p>Notes: {order.notes}</p>}
       </div>
 
       <ul className="mt-8 flex flex-col gap-3">
@@ -67,13 +81,30 @@ export default async function OrderDetailPage({
       <div className="mt-4 flex flex-col gap-1 text-sm">
         <div className="flex justify-between text-[var(--muted)]">
           <span>Delivery</span>
-          <span>{formatPrice(order.shipping_fee)}</span>
+          <span>
+            {order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}
+          </span>
         </div>
         <div className="flex justify-between font-medium">
           <span>Total</span>
           <span>{formatPrice(order.total)}</span>
         </div>
       </div>
+
+      {(order.courier || order.tracking_number || order.tracking_url) && (
+        <div className="mt-6 rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm">
+          <p className="font-medium">Tracking</p>
+          {order.courier && <p className="mt-1 text-[var(--muted)]">Courier: {order.courier}</p>}
+          {order.tracking_number && (
+            <p className="text-[var(--muted)]">Tracking number: {order.tracking_number}</p>
+          )}
+          {order.tracking_url && (
+            <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="underline">
+              Track shipment
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }

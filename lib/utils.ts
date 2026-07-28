@@ -25,6 +25,10 @@ export function getEffectivePrice(product: {
   return product.special_price ?? product.actual_price;
 }
 
+export function isValidSriLankanPhone(phone: string): boolean {
+  return /^(?:\+94|0)[1-9][0-9]{8}$/.test(phone.replace(/[\s-]/g, ""));
+}
+
 export function getDiscountPercent(
   actualPrice: number,
   specialPrice: number | null,

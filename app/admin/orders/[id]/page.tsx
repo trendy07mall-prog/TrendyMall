@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
 import { OrderStatusSelect } from "@/components/admin/OrderStatusSelect";
+import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -20,10 +21,18 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
-  const { data: items } = await supabase
-    .from("order_items")
-    .select("*")
-    .eq("order_id", id);
+  const [{ data: items }, { data: payment }] = await Promise.all([
+    supabase.from("order_items").select("*").eq("order_id", id),
+    supabase.from("payments").select("*").eq("order_id", id).maybeSingle(),
+  ]);
+
+  let slipSignedUrl: string | null = null;
+  if (payment?.slip_url) {
+    const { data } = await supabase.storage
+      .from("payment-slips")
+      .createSignedUrl(payment.slip_url, 3600);
+    slipSignedUrl = data?.signedUrl ?? null;
+  }
 
   return (
     <div>
@@ -43,6 +52,30 @@ export default async function AdminOrderDetailPage({
         <p>{order.customer_phone}</p>
         <p className="whitespace-pre-line">{order.shipping_address}</p>
       </div>
+
+      {payment && payment.gateway === "bank_transfer" && (
+        <div className="mt-6 rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm">
+          <p className="font-medium">Bank transfer payment</p>
+          {payment.reference_number && (
+            <p className="mt-1 text-[var(--muted)]">Reference: {payment.reference_number}</p>
+          )}
+          {slipSignedUrl && (
+            <a
+              href={slipSignedUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 inline-block underline"
+            >
+              View uploaded slip
+            </a>
+          )}
+          {payment.status === "awaiting_verification" && (
+            <div className="mt-3">
+              <VerifyPaymentButton orderId={order.id} />
+            </div>
+          )}
+        </div>
+      )}
 
       <ul className="mt-8 flex flex-col gap-3">
         {(items ?? []).map((item) => (

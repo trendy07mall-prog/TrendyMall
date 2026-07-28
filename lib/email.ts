@@ -24,6 +24,8 @@ interface OrderEmailData {
   customerEmail: string;
   items: OrderEmailItem[];
   shippingFee: number;
+  deliveryMethod: "standard" | "pickup";
+  paymentMethod: "cod" | "bank_transfer";
   total: number;
 }
 
@@ -35,9 +37,19 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
     )
     .join("");
 
+  const customerIntro =
+    order.paymentMethod === "bank_transfer"
+      ? `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is awaiting payment verification. We'll email you once it's confirmed.</p>`
+      : `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is saved as pending payment. We'll follow up on payment and delivery separately.</p>`;
+
   const intro = forOwner
     ? `<p>New order from ${order.customerName} (${order.customerEmail}).</p>`
-    : `<p>Thanks for your order, ${order.customerName}! Order <strong>${order.orderNumber}</strong> has been received and is saved as pending payment. We'll follow up on payment and delivery separately.</p>`;
+    : customerIntro;
+
+  const deliveryRow =
+    order.deliveryMethod === "pickup"
+      ? `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">Store Pickup</td></tr>`
+      : `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.shippingFee)}</td></tr>`;
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
@@ -45,10 +57,7 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
       ${intro}
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
         ${itemsHtml}
-        <tr>
-          <td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td>
-          <td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.shippingFee)}</td>
-        </tr>
+        ${deliveryRow}
         <tr style="font-weight: bold;">
           <td style="padding: 4px 0;">Total</td>
           <td style="padding: 4px 0; text-align: right;">${formatPrice(order.total)}</td>
@@ -84,6 +93,35 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
     ]);
   } catch {
     // Sending is best-effort — order creation already succeeded.
+  }
+}
+
+// Best-effort, same as the others — a failed email should never block the
+// verification action that triggered it.
+export async function sendPaymentVerifiedEmail(order: {
+  orderNumber: string;
+  customerName: string;
+  customerEmail: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: fromEmail,
+      to: order.customerEmail,
+      subject: `Payment verified — order ${order.orderNumber}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          <h2>Order ${order.orderNumber}</h2>
+          <p>Hi ${order.customerName}, we've verified your bank transfer payment. Your order is now confirmed and will be processed shortly.</p>
+        </div>
+      `,
+    });
+  } catch {
+    // Sending is best-effort — the verification already succeeded.
   }
 }
 
