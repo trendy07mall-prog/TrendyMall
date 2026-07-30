@@ -5,6 +5,7 @@ import { saveAddress } from "@/lib/addresses";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SRI_LANKAN_CITIES } from "@/lib/cities";
 import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
+import { FieldError } from "@/components/ui/FieldError";
 import type { CustomerAddress } from "@/types";
 
 export interface CheckoutAddressFields {
@@ -85,8 +86,15 @@ export const CheckoutAddress = forwardRef<
     // district stay hidden and unvalidated, matching the original
     // pre-redesign checkout's requiresAddress gating).
     requireFullAddress: boolean;
+    // false for guest checkout (v12 Phase 4) — a guest has no address
+    // book to save into, so "Save this information..."/the edit-scope
+    // choice never render, and resolveForSubmit never calls saveAddress
+    // regardless of state (addresses is always empty for a guest anyway,
+    // so selectedAddressId/editScope paths are already unreachable — this
+    // only guards the "brand-new address" save-for-next-time path).
+    isLoggedIn: boolean;
   }
->(function CheckoutAddress({ addresses, onFieldsChange, requireFullAddress }, ref) {
+>(function CheckoutAddress({ addresses, onFieldsChange, requireFullAddress, isLoggedIn }, ref) {
   const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
 
   const [mode, setMode] = useState<Mode>(defaultAddress ? "card" : "form");
@@ -142,7 +150,7 @@ export const CheckoutAddress = forwardRef<
       }
 
       // A brand-new address.
-      if (saveForNextTime) {
+      if (isLoggedIn && saveForNextTime) {
         const formData = buildFormData(fields, null);
         const result = await saveAddress(undefined, formData);
         if (result?.error) return { fields, sourceAddressId: null, error: result.error };
@@ -222,7 +230,7 @@ export const CheckoutAddress = forwardRef<
         <button
           type="button"
           onClick={startAddNew}
-          className="mt-3 text-sm underline"
+          className="mt-3 inline-flex min-h-11 items-center text-sm underline"
         >
           + Add New Address
         </button>
@@ -236,7 +244,7 @@ export const CheckoutAddress = forwardRef<
       <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
         {isEditingExisting ? (
           <div className="mb-4 flex flex-col gap-2 text-sm">
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input
                 type="radio"
                 name="edit-scope"
@@ -245,7 +253,7 @@ export const CheckoutAddress = forwardRef<
               />
               Update just this order
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input
                 type="radio"
                 name="edit-scope"
@@ -255,8 +263,8 @@ export const CheckoutAddress = forwardRef<
               Also update my saved address
             </label>
           </div>
-        ) : (
-          <label className="mb-4 flex items-center gap-2 text-sm font-medium">
+        ) : isLoggedIn ? (
+          <label className="mb-4 flex min-h-11 items-center gap-2 text-sm font-medium">
             <input
               type="checkbox"
               checked={saveForNextTime}
@@ -264,6 +272,10 @@ export const CheckoutAddress = forwardRef<
             />
             Save this information for faster checkout next time
           </label>
+        ) : (
+          <p className="mb-4 text-xs text-[var(--muted)]">
+            Create an account after checkout to save this address for next time.
+          </p>
         )}
 
         <div className="grid grid-cols-2 gap-4">
@@ -321,6 +333,8 @@ export const CheckoutAddress = forwardRef<
                   value={fields.city}
                   onChange={(e) => updateField("city", e.target.value)}
                   onBlur={() => handleBlur("city")}
+                  aria-invalid={Boolean(errors.city)}
+                  aria-describedby={errors.city ? "checkout-city-error" : undefined}
                   className={inputClass(Boolean(errors.city))}
                 />
                 <datalist id="checkout-city-options">
@@ -328,7 +342,7 @@ export const CheckoutAddress = forwardRef<
                     <option key={city} value={city} />
                   ))}
                 </datalist>
-                {errors.city && <p className="text-xs text-red-600">{errors.city}</p>}
+                {errors.city && <FieldError id="checkout-city-error" message={errors.city} />}
               </div>
               <div className="flex flex-col gap-1">
                 <label htmlFor="checkout-district" className="text-sm font-medium">
@@ -339,6 +353,8 @@ export const CheckoutAddress = forwardRef<
                   value={fields.district}
                   onChange={(e) => updateField("district", e.target.value)}
                   onBlur={() => handleBlur("district")}
+                  aria-invalid={Boolean(errors.district)}
+                  aria-describedby={errors.district ? "checkout-district-error" : undefined}
                   className={inputClass(Boolean(errors.district))}
                 >
                   <option value="">Select…</option>
@@ -348,7 +364,7 @@ export const CheckoutAddress = forwardRef<
                     </option>
                   ))}
                 </select>
-                {errors.district && <p className="text-xs text-red-600">{errors.district}</p>}
+                {errors.district && <FieldError id="checkout-district-error" message={errors.district} />}
               </div>
             </div>
             <div className="mt-4">
@@ -366,7 +382,7 @@ export const CheckoutAddress = forwardRef<
           <button
             type="button"
             onClick={handleUseThisAddress}
-            className="transition-brand rounded-full bg-[var(--foreground)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
+            className="transition-brand inline-flex min-h-11 items-center rounded-full bg-[var(--foreground)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
           >
             Use This Address
           </button>
@@ -383,7 +399,7 @@ export const CheckoutAddress = forwardRef<
                   setMode("picker");
                 }
               }}
-              className="text-sm text-[var(--muted)] underline"
+              className="inline-flex min-h-11 items-center text-sm text-[var(--muted)] underline"
             >
               Cancel
             </button>
@@ -407,15 +423,27 @@ export const CheckoutAddress = forwardRef<
         </p>
       )}
       <div className="mt-3 flex items-center gap-4">
-        <button type="button" onClick={startEdit} className="text-sm underline">
+        <button
+          type="button"
+          onClick={startEdit}
+          className="inline-flex min-h-11 items-center text-sm underline"
+        >
           Edit
         </button>
         {addresses.length > 1 && (
-          <button type="button" onClick={() => setMode("picker")} className="text-sm underline">
+          <button
+            type="button"
+            onClick={() => setMode("picker")}
+            className="inline-flex min-h-11 items-center text-sm underline"
+          >
             Change
           </button>
         )}
-        <button type="button" onClick={startAddNew} className="text-sm underline">
+        <button
+          type="button"
+          onClick={startAddNew}
+          className="inline-flex min-h-11 items-center text-sm underline"
+        >
           Add New
         </button>
       </div>
@@ -460,6 +488,7 @@ function AddrField({
   type?: string;
   placeholder?: string;
 }) {
+  const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
@@ -472,9 +501,11 @@ function AddrField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         className={inputClass(Boolean(error))}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <FieldError id={errorId} message={error} />}
     </div>
   );
 }

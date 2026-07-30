@@ -3,7 +3,7 @@ import { TrackOrderForm } from "@/components/order/TrackOrderForm";
 
 export const metadata: Metadata = {
   title: "Track Your Order",
-  description: "Check the status of your TrendyMall order using your order number and phone number.",
+  description: "Check your TrendyMall order using your order number and the phone or email you used.",
   alternates: { canonical: "/track-order" },
 };
 
@@ -14,7 +14,7 @@ export default function TrackOrderPage() {
         Track Your Order
       </h1>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Enter your order number and the phone number you used at checkout.
+        Enter your order number and the phone or email you used at checkout.
       </p>
       <div className="mt-8">
         <TrackOrderForm />

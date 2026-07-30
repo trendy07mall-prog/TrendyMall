@@ -13,6 +13,7 @@ import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
 import { CheckoutAddress } from "@/components/checkout/CheckoutAddress";
 import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
 import { CashIcon, BankIcon, CreditCardIcon, LockIcon } from "@/components/ui/Icon";
+import { FieldError } from "@/components/ui/FieldError";
 import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
 import type { BankTransferSettings, CustomerAddress, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
@@ -46,6 +47,7 @@ export function CheckoutForm({
   payHereEnabled,
   addresses,
   preferredPaymentMethod,
+  isLoggedIn,
 }: {
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
@@ -54,6 +56,10 @@ export function CheckoutForm({
   // never defaults to something currently unselectable (payhere while
   // the feature flag is off).
   preferredPaymentMethod: PaymentMethod | null;
+  // Guest checkout (v12 Phase 4) — addresses is always empty for a guest
+  // anyway, but this also governs whether CheckoutAddress shows the
+  // "save for next time"/edit-scope UI at all.
+  isLoggedIn: boolean;
 }) {
   const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes } = useCart();
   const router = useRouter();
@@ -374,7 +380,7 @@ export function CheckoutForm({
           <section>
             <h2 className="text-sm font-semibold">Delivery</h2>
             <div className="mt-3 flex flex-col gap-2">
-              <label className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2 text-sm">
+              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
                 <input
                   type="radio"
                   name="deliveryMethod"
@@ -383,7 +389,7 @@ export function CheckoutForm({
                 />
                 Standard delivery
               </label>
-              <label className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2 text-sm">
+              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
                 <input
                   type="radio"
                   name="deliveryMethod"
@@ -408,6 +414,7 @@ export function CheckoutForm({
                 addresses={addresses}
                 onFieldsChange={setAddressFields}
                 requireFullAddress={deliveryMethod === "standard"}
+                isLoggedIn={isLoggedIn}
               />
             </div>
           </section>
@@ -488,10 +495,10 @@ export function CheckoutForm({
                   {slipFileName && !slipUploading && (
                     <p className="text-xs text-[var(--muted)]">Attached: {slipFileName}</p>
                   )}
-                  {slipError && <p className="text-xs text-red-600">{slipError}</p>}
+                  {slipError && <FieldError message={slipError} />}
                 </div>
 
-                {paymentError && <p className="text-xs text-red-600">{paymentError}</p>}
+                {paymentError && <FieldError message={paymentError} />}
               </div>
             )}
           </section>
@@ -508,7 +515,11 @@ export function CheckoutForm({
             />
           </section>
 
-          {submitError && <p className="text-sm text-[var(--color-discount)]">{submitError}</p>}
+          {submitError && (
+            <p role="alert" className="text-sm text-[var(--color-discount)]">
+              {submitError}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -560,7 +571,7 @@ export function CheckoutForm({
                     {couponChecking ? "Checking…" : "Apply"}
                   </button>
                 </div>
-                {couponError && <p className="text-xs text-red-600">{couponError}</p>}
+                {couponError && <FieldError message={couponError} />}
               </div>
             )}
           </div>
@@ -637,6 +648,7 @@ function Field({
   placeholder?: string;
   required?: boolean;
 }) {
+  const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
@@ -651,13 +663,15 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? errorId : undefined}
         className={`rounded-[var(--radius-input)] border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
           error
             ? "border-red-600 focus:ring-red-600"
             : "border-[var(--border)] focus:ring-[var(--foreground)]"
         }`}
       />
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <FieldError id={errorId} message={error} />}
     </div>
   );
 }

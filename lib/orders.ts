@@ -6,7 +6,7 @@ import { sendOrderConfirmationEmails } from "@/lib/email";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 import { isPayHereEnabled, getCheckoutUrl, generateCheckoutHash } from "@/lib/payhere";
-import type { DeliveryMethod, PaymentGateway } from "@/types";
+import type { DeliveryMethod, GuestOrderDetail, PaymentGateway } from "@/types";
 
 export interface CreateOrderInput {
   customerName: string;
@@ -54,6 +54,12 @@ export interface CreateOrderResult {
 // atomically inside the create_order_atomic Postgres function (sql/022)
 // — this Server Action only validates input shape and forwards to the
 // RPC, it never computes a price itself.
+//
+// `user` is optional — guest checkout (v12 Phase 4). A guest's own order
+// still can't be read back through the normal RLS-scoped client (RLS is
+// `auth.uid() = user_id`, and both sides are null for a guest, which
+// isn't a match) — the get_guest_order_by_id branches below exist for
+// exactly that reason, not as an oversight.
 export async function createOrder(
   input: CreateOrderInput,
 ): Promise<CreateOrderResult> {
@@ -62,7 +68,6 @@ export async function createOrder(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "You must be logged in to place an order." };
   if (input.items.length === 0) return { error: "Your cart is empty." };
   if (!input.customerEmail.includes("@")) return { error: "Enter a valid email address." };
   if (!isValidSriLankanPhone(input.customerPhone)) {
@@ -119,41 +124,65 @@ export async function createOrder(
     };
   }
 
-  const { data: items } = await supabase
-    .from("order_items")
-    .select("product_name, quantity, subtotal")
-    .eq("order_id", row.order_id);
+  if (user) {
+    const { data: items } = await supabase
+      .from("order_items")
+      .select("product_name, quantity, subtotal")
+      .eq("order_id", row.order_id);
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("shipping_fee, total")
-    .eq("id", row.order_id)
-    .maybeSingle();
+    const { data: order } = await supabase
+      .from("orders")
+      .select("shipping_fee, total")
+      .eq("id", row.order_id)
+      .maybeSingle();
 
-  if (order) {
-    await sendOrderConfirmationEmails({
-      orderNumber: row.order_number,
-      customerName: input.customerName,
-      customerEmail: input.customerEmail,
-      items: (items ?? []).map((item) => ({
-        name: item.product_name,
-        quantity: item.quantity,
-        subtotal: item.subtotal,
-      })),
-      shippingFee: order.shipping_fee,
-      deliveryMethod: input.deliveryMethod,
-      paymentMethod: input.paymentMethod,
-      total: order.total,
+    if (order) {
+      await sendOrderConfirmationEmails({
+        orderNumber: row.order_number,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        items: (items ?? []).map((item) => ({
+          name: item.product_name,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+        })),
+        shippingFee: order.shipping_fee,
+        deliveryMethod: input.deliveryMethod,
+        paymentMethod: input.paymentMethod,
+        total: order.total,
+      });
+    }
+
+    // Best-effort — "remembers last-used method" (Phase 1's Payment
+    // Preference field) is a convenience, never worth failing an
+    // already-placed order over.
+    await supabase.from("profiles").update({ preferred_payment_method: input.paymentMethod }).eq("id", user.id);
+
+    revalidatePath("/account/orders");
+    revalidatePath("/account/preferences");
+  } else {
+    const { data: guestOrderRaw } = await supabase.rpc("get_guest_order_by_id", {
+      p_order_id: row.order_id,
     });
+    const guestOrder = guestOrderRaw as GuestOrderDetail | null;
+    if (guestOrder) {
+      await sendOrderConfirmationEmails({
+        orderNumber: row.order_number,
+        customerName: input.customerName,
+        customerEmail: input.customerEmail,
+        items: guestOrder.items.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+        })),
+        shippingFee: guestOrder.shippingFee,
+        deliveryMethod: input.deliveryMethod,
+        paymentMethod: input.paymentMethod,
+        total: guestOrder.total,
+      });
+    }
   }
 
-  // Best-effort — "remembers last-used method" (Phase 1's Payment
-  // Preference field) is a convenience, never worth failing an
-  // already-placed order over.
-  await supabase.from("profiles").update({ preferred_payment_method: input.paymentMethod }).eq("id", user.id);
-
-  revalidatePath("/account/orders");
-  revalidatePath("/account/preferences");
   return { orderId: row.order_id };
 }
 
@@ -184,14 +213,52 @@ export interface PayHereCheckoutResult {
 
 // Called after createOrder() succeeds for a payhere order — the order
 // already exists (stock already reduced, same as COD/bank transfer; see
-// the Phase 6 plan for why). Re-fetches the order with the normal
-// RLS-scoped client (owner-only, same access pattern as everywhere else)
-// and computes the checkout hash server-side; merchant_secret never
-// leaves generateCheckoutHash.
+// the Phase 6 plan for why). Re-fetches the order and computes the
+// checkout hash server-side; merchant_secret never leaves
+// generateCheckoutHash. Branches on session the same way createOrder does
+// — a guest's order can't be read via the normal RLS-scoped client.
 export async function getPayHereCheckoutParams(orderId: string): Promise<PayHereCheckoutResult> {
   if (!isPayHereEnabled()) return { error: "Card payment is not available." };
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const { data: guestOrderRaw } = await supabase.rpc("get_guest_order_by_id", { p_order_id: orderId });
+    const order = guestOrderRaw as GuestOrderDetail | null;
+    if (!order || !order.orderId) return { error: "Order not found." };
+    if (order.paymentMethod !== "payhere") return { error: "This order isn't a card payment." };
+
+    const itemsSummary =
+      order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ").slice(0, 255) ||
+      order.orderNumber;
+    const [fallbackFirstName, ...fallbackRest] = (order.customerName ?? "").trim().split(" ");
+
+    return {
+      checkoutUrl: getCheckoutUrl(),
+      params: {
+        merchant_id: process.env.PAYHERE_MERCHANT_ID!,
+        return_url: `${SITE_URL}/checkout/success?orderId=${order.orderId}`,
+        cancel_url: `${SITE_URL}/checkout/success?orderId=${order.orderId}`,
+        notify_url: `${SITE_URL}/api/webhooks/payhere`,
+        order_id: order.orderNumber,
+        items: itemsSummary,
+        currency: "LKR",
+        amount: order.total.toFixed(2),
+        first_name: fallbackFirstName || order.customerName || "",
+        last_name: fallbackRest.join(" "),
+        email: order.customerEmail ?? "",
+        phone: order.customerPhone ?? "",
+        address: order.shippingAddressDetail?.street ?? order.shippingAddress,
+        city: order.shippingAddressDetail?.city ?? "Colombo",
+        country: "Sri Lanka",
+        hash: generateCheckoutHash(order.orderNumber, order.total),
+      },
+    };
+  }
+
   const { data: order } = await supabase
     .from("orders")
     .select("*")

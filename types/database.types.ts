@@ -947,13 +947,16 @@ export interface Database {
     };
     Functions: {
       track_order: {
-        Args: { p_order_number: string; p_phone: string };
-        Returns: {
-          order_number: string;
-          status: OrderStatus;
-          total: number;
-          created_at: string;
-        }[];
+        Args: { p_order_number: string; p_contact: string };
+        Returns: unknown;
+      };
+      get_guest_order_by_id: {
+        Args: { p_order_id: string };
+        Returns: unknown;
+      };
+      check_guest_lookup_rate_limit: {
+        Args: { p_ip: string; p_max_attempts?: number; p_window_minutes?: number };
+        Returns: boolean;
       };
       increment_product_view_count: {
         Args: { p_product_id: string };

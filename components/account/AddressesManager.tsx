@@ -42,7 +42,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
         <button
           type="button"
           onClick={() => setEditing(null)}
-          className="mb-4 text-sm text-[var(--muted)] underline"
+          className="mb-4 inline-flex min-h-11 items-center text-sm text-[var(--muted)] underline"
         >
           ← Back to addresses
         </button>
@@ -62,7 +62,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
       <button
         type="button"
         onClick={() => setEditing("new")}
-        className="transition-brand rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
+        className="transition-brand inline-flex min-h-11 items-center rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
       >
         + Add New Address
       </button>
@@ -96,7 +96,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
               <button
                 type="button"
                 onClick={() => setEditing(address)}
-                className="text-sm underline"
+                className="inline-flex min-h-11 items-center text-sm underline"
               >
                 Edit
               </button>
@@ -105,7 +105,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
                   type="button"
                   disabled={pending}
                   onClick={() => handleSetDefault(address)}
-                  className="text-sm underline disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center text-sm underline disabled:opacity-50"
                 >
                   Set Default
                 </button>
@@ -114,7 +114,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
                 type="button"
                 disabled={pending}
                 onClick={() => handleDelete(address)}
-                className="text-sm text-[var(--color-discount)] underline disabled:opacity-50"
+                className="inline-flex min-h-11 items-center text-sm text-[var(--color-discount)] underline disabled:opacity-50"
               >
                 Delete
               </button>

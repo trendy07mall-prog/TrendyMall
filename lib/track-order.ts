@@ -1,47 +1,53 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import type { OrderStatus } from "@/types";
-
-export interface TrackedOrder {
-  orderNumber: string;
-  status: OrderStatus;
-  total: number;
-  createdAt: string;
-}
+import type { GuestOrderDetail } from "@/types";
 
 export interface TrackOrderResult {
-  order?: TrackedOrder;
+  order?: GuestOrderDetail;
   error?: string;
 }
 
-export async function trackOrder(
-  orderNumber: string,
-  phone: string,
-): Promise<TrackOrderResult> {
+async function getRequestIp(): Promise<string> {
+  const hdrs = await headers();
+  const forwardedFor = hdrs.get("x-forwarded-for");
+  if (forwardedFor) return forwardedFor.split(",")[0].trim();
+  return hdrs.get("x-real-ip") ?? "unknown";
+}
+
+// order_number alone is short and human-readable ("TM-000123") — pairing
+// it with the phone or email used at checkout (never order_number alone)
+// is what stops anyone from enumerating other customers' orders. Rate
+// limited by IP (check_guest_lookup_rate_limit, sql/033) before the real
+// lookup ever runs, so a rejected attempt can't itself be used to probe
+// how close a guess was.
+export async function trackOrder(orderNumber: string, contact: string): Promise<TrackOrderResult> {
   const trimmedNumber = orderNumber.trim();
-  const trimmedPhone = phone.trim();
-  if (!trimmedNumber || !trimmedPhone) {
-    return { error: "Enter both your order number and phone number." };
+  const trimmedContact = contact.trim();
+  if (!trimmedNumber || !trimmedContact) {
+    return { error: "Enter both your order number and the phone or email you used." };
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("track_order", {
-    p_order_number: trimmedNumber,
-    p_phone: trimmedPhone,
-  });
+  const ip = await getRequestIp();
 
-  const row = data?.[0];
-  if (error || !row) {
-    return { error: "We couldn't find an order matching that number and phone." };
+  const { data: allowed, error: rateLimitError } = await supabase.rpc("check_guest_lookup_rate_limit", {
+    p_ip: ip,
+  });
+  if (rateLimitError || !allowed) {
+    return { error: "Too many attempts. Please try again in a few minutes." };
   }
 
-  return {
-    order: {
-      orderNumber: row.order_number,
-      status: row.status,
-      total: row.total,
-      createdAt: row.created_at,
-    },
-  };
+  const { data, error } = await supabase.rpc("track_order", {
+    p_order_number: trimmedNumber,
+    p_contact: trimmedContact,
+  });
+
+  const order = data as GuestOrderDetail | null;
+  if (error || !order) {
+    return { error: "We couldn't find an order matching that number and phone/email." };
+  }
+
+  return { order };
 }

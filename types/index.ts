@@ -55,3 +55,47 @@ export interface CartItem {
   image: string | null;
   quantity: number;
 }
+
+// The jsonb shape returned by both track_order and get_guest_order_by_id
+// (sql/033) — a guest has no session, so both bypass RLS via a narrow,
+// single-order-scoped security-definer function rather than a table read.
+// get_guest_order_by_id's result is a strict superset of track_order's
+// (adds orderId/customerName/customerEmail/customerPhone), hence those
+// fields being optional here rather than two near-identical interfaces.
+export interface GuestOrderItem {
+  productName: string;
+  quantity: number;
+  subtotal: number;
+  imageUrl: string | null;
+}
+
+export interface GuestOrderAddressDetail {
+  street: string;
+  city: string;
+  district: string;
+  postalCode: string | null;
+}
+
+export interface GuestOrderDetail {
+  orderId?: string;
+  orderNumber: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  paymentStatus: PaymentStatus;
+  orderStatus: OrderFulfillmentStatus;
+  paymentMethod: string;
+  deliveryMethod: DeliveryMethod;
+  subtotal: number;
+  shippingFee: number;
+  discount: number;
+  total: number;
+  notes?: string | null;
+  courier: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  createdAt: string;
+  shippingAddress: string;
+  shippingAddressDetail: GuestOrderAddressDetail | null;
+  items: GuestOrderItem[];
+}

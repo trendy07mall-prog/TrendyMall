@@ -8,7 +8,11 @@ import { NextResponse, type NextRequest } from "next/server";
 // (that would mean a DB round trip on every request) — the real admin gate
 // lives in app/admin/layout.tsx, backed by RLS as the actual security
 // boundary.
-const PROTECTED_PREFIXES = ["/admin", "/account", "/checkout"];
+// /checkout is deliberately not protected — guest checkout (v12 Phase 4)
+// needs it reachable without a session; auth-awareness lives inside the
+// checkout UI/logic itself instead (CheckoutForm/CheckoutAddress branch on
+// whether a session exists, they don't require one).
+const PROTECTED_PREFIXES = ["/admin", "/account"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
