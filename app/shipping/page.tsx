@@ -37,12 +37,12 @@ export default function ShippingPage() {
           <tbody>
             <tr className="border-b border-[var(--border)]">
               <td className="py-2 pr-4">
-                Western Province &amp; Colombo 01–15 (including Colombo Fort)
+                Colombo 01–15 (including Colombo Fort)
               </td>
               <td className="py-2">Rs. 255</td>
             </tr>
             <tr>
-              <td className="py-2 pr-4">Outside Colombo &amp; Western Province</td>
+              <td className="py-2 pr-4">Outside Colombo</td>
               <td className="py-2">Rs. 400</td>
             </tr>
           </tbody>

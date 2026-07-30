@@ -9,7 +9,10 @@ const CLAIMS = [
   {
     icon: LockIcon,
     title: "Secure Checkout",
-    description: "Safe & Protected",
+    // Deliberately not "Payment Protected" — no online payment processing
+    // is live yet (PayHere is feature-flagged and sandboxed). This claim
+    // only asserts what's actually true: the site runs on HTTPS.
+    description: "Your data is encrypted",
   },
   {
     icon: HeadsetIcon,

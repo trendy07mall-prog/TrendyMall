@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice, isValidSriLankanPhone } from "@/lib/utils";
+import { getDeliveryFee } from "@/lib/shipping-rates";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import type { BankTransferSettings, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
@@ -18,11 +19,6 @@ const DISTRICTS = [
   "Kurunegala", "Puttalam", "Anuradhapura", "Polonnaruwa", "Badulla",
   "Monaragala", "Ratnapura", "Kegalle",
 ] as const;
-
-// Mirrors the server-side fee logic in sql/022's create_order_atomic — a
-// client-side preview only. The RPC recomputes this itself and is the
-// only number that's actually charged.
-const WESTERN_PROVINCE_DISTRICTS = new Set(["Colombo", "Gampaha", "Kalutara"]);
 
 const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
 const PICKUP_HOURS = "Daily, 10am – 4pm";
@@ -94,9 +90,11 @@ export function CheckoutForm({
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
 }) {
-  const { items, subtotal, clear } = useCart();
+  const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes } = useCart();
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  // Pre-filled from a note already added on the cart page, so the
+  // customer doesn't have to re-type it here — still fully editable.
+  const [form, setForm] = useState<FormState>(() => ({ ...EMPTY_FORM, notes: cartNotes }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("standard");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
@@ -114,7 +112,10 @@ export function CheckoutForm({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [couponInput, setCouponInput] = useState("");
+  // Pre-filled from a coupon already applied on the cart page, so the
+  // customer doesn't have to re-type it here — still just a preview,
+  // re-validated from scratch by the server at submit time regardless.
+  const [couponInput, setCouponInput] = useState(cartCouponCode ?? "");
   const [couponChecking, setCouponChecking] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -123,12 +124,7 @@ export function CheckoutForm({
     label: string;
   } | null>(null);
 
-  const shippingFee =
-    deliveryMethod === "pickup"
-      ? 0
-      : WESTERN_PROVINCE_DISTRICTS.has(form.district)
-        ? 255
-        : 400;
+  const shippingFee = getDeliveryFee(form.district, deliveryMethod);
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shippingFee - discount);
 
@@ -152,6 +148,17 @@ export function CheckoutForm({
 
     setAppliedCoupon({ code: couponInput.trim(), discount: result.discount, label: result.label ?? "" });
   }
+
+  // Auto-preview a coupon already applied on the cart page, once, on
+  // mount — so its discount shows here without an extra click. Submit
+  // time still re-validates from scratch regardless (see above).
+  useEffect(() => {
+    if (cartCouponCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to an external signal (the cart's saved coupon), same class of exception as the localStorage-read effects elsewhere in this app.
+      void handleApplyCoupon();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleRemoveCoupon() {
     setAppliedCoupon(null);

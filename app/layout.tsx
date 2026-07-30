@@ -4,6 +4,7 @@ import { Manrope, Inter } from "next/font/google";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
@@ -102,28 +103,30 @@ export default async function RootLayout({
         <JsonLd data={organizationSchema} />
         <GoogleAnalytics />
         <MetaPixel />
-        <CartProvider>
-          <WishlistProvider>
-            <RecentlyViewedProvider>
-              <ConditionalChrome>
-                <AnnouncementBar />
-                <PromoBanner banner={banner} />
-                <Navbar />
-                <div className="border-b border-[var(--border)] bg-white py-3">
-                  <SiteSearchBar />
-                </div>
-              </ConditionalChrome>
-              <main className="flex flex-1 flex-col">
-                <ViewTransition>{children}</ViewTransition>
-              </main>
-              <ConditionalChrome>
-                <TrustSection />
-                <Footer />
-                <WhatsAppButton />
-              </ConditionalChrome>
-            </RecentlyViewedProvider>
-          </WishlistProvider>
-        </CartProvider>
+        <ToastProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <RecentlyViewedProvider>
+                <ConditionalChrome>
+                  <AnnouncementBar />
+                  <PromoBanner banner={banner} />
+                  <Navbar />
+                  <div className="border-b border-[var(--border)] bg-white py-3">
+                    <SiteSearchBar />
+                  </div>
+                </ConditionalChrome>
+                <main className="flex flex-1 flex-col">
+                  <ViewTransition>{children}</ViewTransition>
+                </main>
+                <ConditionalChrome>
+                  <TrustSection />
+                  <Footer />
+                  <WhatsAppButton />
+                </ConditionalChrome>
+              </RecentlyViewedProvider>
+            </WishlistProvider>
+          </CartProvider>
+        </ToastProvider>
       </body>
     </html>
   );
