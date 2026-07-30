@@ -125,6 +125,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      order_error_log: {
+        Row: {
+          id: string;
+          reference_code: string;
+          error_code: string | null;
+          error_message: string | null;
+          error_detail: string | null;
+          error_hint: string | null;
+          context: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          reference_code: string;
+          error_code?: string | null;
+          error_message?: string | null;
+          error_detail?: string | null;
+          error_hint?: string | null;
+          context?: unknown;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          reference_code?: string;
+          error_code?: string | null;
+          error_message?: string | null;
+          error_detail?: string | null;
+          error_hint?: string | null;
+          context?: unknown;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;

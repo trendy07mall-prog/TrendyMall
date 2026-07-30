@@ -18,6 +18,7 @@ import {
   TruckIcon,
   CreditCardIcon,
   GearIcon,
+  AlertTriangleIcon,
   MenuIcon,
   CloseIcon,
   ChevronLeftIcon,
@@ -77,6 +78,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/shipping", label: "Shipping", icon: TruckIcon, soon: true },
       { href: "/admin/payments", label: "Payments", icon: CreditCardIcon, soon: true },
       { href: "/admin/settings", label: "Settings", icon: GearIcon, soon: true },
+      { href: "/admin/debug", label: "Error Log", icon: AlertTriangleIcon },
     ],
   },
 ];

@@ -47,6 +47,16 @@ export interface CreateOrderResult {
   error?: string;
 }
 
+// A short, greppable, customer-quotable id for an unexpected order-creation
+// failure — paired with a full server-side log line and an
+// order_error_log row (sql/036) carrying the same code, so "the customer
+// says it's broken" turns into a direct lookup instead of guesswork.
+function generateErrorReferenceCode(): string {
+  const time = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `ERR-${time}-${rand}`;
+}
+
 // Card/cash data never touches this function or the database — COD and
 // Bank Transfer are the only payment methods this app supports so far.
 // Pricing, delivery-fee calculation, stock reduction, and the
@@ -117,18 +127,49 @@ export async function createOrder(
       if (error.code === "P0001") {
         return { error: error.message };
       }
+
+      // A short code the customer can quote, so "it's broken" turns into
+      // "look up ERR-XYZ" instead of needing screen-recordings or DevTools.
+      const referenceCode = generateErrorReferenceCode();
+
       // Deliberately logged as separate fields, not just the error object
       // — Postgres's detail/hint often carry the actual root cause (e.g.
       // "column reference X is ambiguous" errors put the ambiguous column
       // in `message` but the candidate matches in `detail`), and some log
       // pipelines flatten/truncate a nested object differently than
       // top-level fields.
-      console.error("createOrder: unexpected database error", {
+      console.error(`createOrder: unexpected database error [${referenceCode}]`, {
         code: error.code,
         message: error.message,
         details: error.details,
         hint: error.hint,
       });
+
+      // Best-effort, mirrored into a table (not just console) so it's
+      // checkable on /admin/debug without Vercel log access. No customer
+      // PII beyond what's already non-sensitive/aggregate — never the
+      // email/phone/address that were being submitted.
+      const { error: logError } = await supabase.from("order_error_log").insert({
+        reference_code: referenceCode,
+        error_code: error.code,
+        error_message: error.message,
+        error_detail: error.details,
+        error_hint: error.hint,
+        context: {
+          paymentMethod: input.paymentMethod,
+          deliveryMethod: input.deliveryMethod,
+          itemCount: input.items.length,
+          hasCoupon: Boolean(input.couponCode),
+          loggedIn: Boolean(user),
+        },
+      });
+      if (logError) {
+        console.error(`createOrder: failed to write order_error_log for [${referenceCode}]`, logError);
+      }
+
+      return {
+        error: `Something went wrong placing your order. Please try again or message us on WhatsApp — reference: ${referenceCode}`,
+      };
     }
     return {
       error: "Something went wrong placing your order. Please try again or contact us on WhatsApp.",
