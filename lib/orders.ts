@@ -24,6 +24,17 @@ export interface CreateOrderInput {
   slipPath: string | null;
   couponCode: string | null;
   notes: string | null;
+  // Traceability only (decision #1, v12) — which saved customer_addresses
+  // row (if any) this shipment came from. Never authoritative: the RPC
+  // always snapshots the actual submitted fields into shipping_addresses
+  // regardless of this value.
+  sourceAddressId: string | null;
+  // Generated once client-side per checkout attempt and persisted across
+  // a page reload (CheckoutForm.tsx) — lets create_order_atomic treat a
+  // retried submission (lost response, reload mid-request) as a safe
+  // replay that returns the existing order instead of creating a
+  // duplicate or double-reducing stock.
+  idempotencyKey: string;
   items: { productId: string; quantity: number }[];
   // The checkout page's own last-rendered total — used only as a
   // staleness check (Rule #1: never trusted as the actual price source).
@@ -84,6 +95,8 @@ export async function createOrder(
     p_payment_reference: input.paymentReference,
     p_slip_url: input.slipPath,
     p_coupon_code: input.couponCode,
+    p_source_address_id: input.sourceAddressId,
+    p_idempotency_key: input.idempotencyKey,
   });
 
   const row = data?.[0];
@@ -134,7 +147,13 @@ export async function createOrder(
     });
   }
 
+  // Best-effort — "remembers last-used method" (Phase 1's Payment
+  // Preference field) is a convenience, never worth failing an
+  // already-placed order over.
+  await supabase.from("profiles").update({ preferred_payment_method: input.paymentMethod }).eq("id", user.id);
+
   revalidatePath("/account/orders");
+  revalidatePath("/account/preferences");
   return { orderId: row.order_id };
 }
 

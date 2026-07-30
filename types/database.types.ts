@@ -50,6 +50,8 @@ export interface Database {
           full_name: string | null;
           phone: string | null;
           is_admin: boolean;
+          email_notifications: boolean;
+          preferred_payment_method: string | null;
           created_at: string;
         };
         Insert: {
@@ -57,6 +59,8 @@ export interface Database {
           full_name?: string | null;
           phone?: string | null;
           is_admin?: boolean;
+          email_notifications?: boolean;
+          preferred_payment_method?: string | null;
           created_at?: string;
         };
         Update: {
@@ -64,7 +68,60 @@ export interface Database {
           full_name?: string | null;
           phone?: string | null;
           is_admin?: boolean;
+          email_notifications?: boolean;
+          preferred_payment_method?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      customer_addresses: {
+        Row: {
+          id: string;
+          customer_id: string;
+          address_label: string | null;
+          first_name: string;
+          last_name: string;
+          phone: string;
+          street: string;
+          city: string;
+          district: string;
+          postal_code: string | null;
+          is_default: boolean;
+          is_deleted: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          address_label?: string | null;
+          first_name: string;
+          last_name: string;
+          phone: string;
+          street: string;
+          city: string;
+          district: string;
+          postal_code?: string | null;
+          is_default?: boolean;
+          is_deleted?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          customer_id?: string;
+          address_label?: string | null;
+          first_name?: string;
+          last_name?: string;
+          phone?: string;
+          street?: string;
+          city?: string;
+          district?: string;
+          postal_code?: string | null;
+          is_default?: boolean;
+          is_deleted?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -465,6 +522,7 @@ export interface Database {
           tracking_url: string | null;
           notes: string | null;
           deleted_at: string | null;
+          idempotency_key: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -491,6 +549,7 @@ export interface Database {
           tracking_url?: string | null;
           notes?: string | null;
           deleted_at?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -517,6 +576,7 @@ export interface Database {
           tracking_url?: string | null;
           notes?: string | null;
           deleted_at?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -644,6 +704,7 @@ export interface Database {
           city: string;
           district: string;
           postal_code: string | null;
+          source_address_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -657,6 +718,7 @@ export interface Database {
           city: string;
           district: string;
           postal_code?: string | null;
+          source_address_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -670,6 +732,7 @@ export interface Database {
           city?: string;
           district?: string;
           postal_code?: string | null;
+          source_address_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -931,8 +994,14 @@ export interface Database {
           p_payment_reference?: string | null;
           p_slip_url?: string | null;
           p_coupon_code?: string | null;
+          p_source_address_id?: string | null;
+          p_idempotency_key?: string | null;
         };
         Returns: { order_id: string; order_number: string }[];
+      };
+      set_default_address: {
+        Args: { p_address_id: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

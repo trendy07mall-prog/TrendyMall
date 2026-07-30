@@ -6,104 +6,77 @@ import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
-import { formatPrice, isValidSriLankanPhone } from "@/lib/utils";
-import { getDeliveryFee } from "@/lib/shipping-rates";
+import { formatPrice } from "@/lib/utils";
+import { getDeliveryFee, isColomboZone } from "@/lib/shipping-rates";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
-import type { BankTransferSettings, DeliveryMethod } from "@/types";
+import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
+import { CheckoutAddress } from "@/components/checkout/CheckoutAddress";
+import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
+import { CashIcon, BankIcon, CreditCardIcon, LockIcon } from "@/components/ui/Icon";
+import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
+import type { BankTransferSettings, CustomerAddress, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
-
-const DISTRICTS = [
-  "Colombo", "Gampaha", "Kalutara", "Kandy", "Matale", "Nuwara Eliya",
-  "Galle", "Matara", "Hambantota", "Jaffna", "Kilinochchi", "Mannar",
-  "Vavuniya", "Mullaitivu", "Batticaloa", "Ampara", "Trincomalee",
-  "Kurunegala", "Puttalam", "Anuradhapura", "Polonnaruwa", "Badulla",
-  "Monaragala", "Ratnapura", "Kegalle",
-] as const;
 
 const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
 const PICKUP_HOURS = "Daily, 10am – 4pm";
+const DRAFT_STORAGE_KEY = "trendymall-checkout-draft";
 
 type PaymentMethod = "cod" | "bank_transfer" | "payhere";
 
 interface FormState {
-  firstName: string;
-  lastName: string;
   email: string;
-  phone: string;
-  street: string;
-  city: string;
-  district: string;
-  postalCode: string;
   notes: string;
   paymentReference: string;
 }
 
-const EMPTY_FORM: FormState = {
+const EMPTY_ADDRESS_FIELDS: CheckoutAddressFields = {
   firstName: "",
   lastName: "",
-  email: "",
   phone: "",
   street: "",
   city: "",
   district: "",
   postalCode: "",
-  notes: "",
-  paymentReference: "",
 };
 
-type FieldErrors = Partial<Record<keyof FormState, string>>;
-
-function validateField(
-  field: keyof FormState,
-  form: FormState,
-  deliveryMethod: DeliveryMethod,
-): string | undefined {
-  const value = form[field].trim();
-  const requiresAddress = deliveryMethod === "standard";
-
-  switch (field) {
-    case "firstName":
-    case "lastName":
-      return value ? undefined : "Required.";
-    case "email":
-      if (!value) return "Required.";
-      return value.includes("@") ? undefined : "Enter a valid email.";
-    case "phone":
-      if (!value) return "Required.";
-      return isValidSriLankanPhone(value) ? undefined : "Enter a valid Sri Lankan number.";
-    case "street":
-    case "city":
-      if (!requiresAddress) return undefined;
-      return value ? undefined : "Required.";
-    case "district":
-      if (!requiresAddress) return undefined;
-      return value ? undefined : "Select a district.";
-    default:
-      return undefined;
-  }
-}
+type FieldErrors = Partial<Record<"email", string>>;
 
 export function CheckoutForm({
   bankDetails,
   payHereEnabled,
+  addresses,
+  preferredPaymentMethod,
 }: {
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
+  addresses: CustomerAddress[];
+  // "Remembers last-used method" (Phase 1's Payment Preference field) —
+  // never defaults to something currently unselectable (payhere while
+  // the feature flag is off).
+  preferredPaymentMethod: PaymentMethod | null;
 }) {
   const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes } = useCart();
   const router = useRouter();
-  // Pre-filled from a note already added on the cart page, so the
-  // customer doesn't have to re-type it here — still fully editable.
-  const [form, setForm] = useState<FormState>(() => ({ ...EMPTY_FORM, notes: cartNotes }));
+
+  const [form, setForm] = useState<FormState>(() => ({ email: "", notes: cartNotes, paymentReference: "" }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("standard");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cod");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
+    if (preferredPaymentMethod === "payhere" && !payHereEnabled) return "cod";
+    return preferredPaymentMethod ?? "cod";
+  });
+  const [idempotencyKey, setIdempotencyKey] = useState("");
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [payHereRedirect, setPayHereRedirect] = useState<{
     checkoutUrl: string;
     params: PayHereCheckoutParams;
   } | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  const [addressFields, setAddressFields] = useState<CheckoutAddressFields>(EMPTY_ADDRESS_FIELDS);
+  const addressRef = useRef<CheckoutAddressHandle>(null);
+  const stickyBarRef = useRef<HTMLDivElement>(null);
 
   const [slipPath, setSlipPath] = useState<string | null>(null);
   const [slipFileName, setSlipFileName] = useState<string | null>(null);
@@ -124,9 +97,80 @@ export function CheckoutForm({
     label: string;
   } | null>(null);
 
-  const shippingFee = getDeliveryFee(form.district, deliveryMethod);
+  // Pricing keys off the city (a specific Colombo 01-15 postal zone), not
+  // the district — the district dropdown is address completeness only.
+  const shippingFee = getDeliveryFee(addressFields.city, deliveryMethod);
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shippingFee - discount);
+
+  // Restores a mid-checkout draft (contact/notes/payment reference/delivery
+  // method — not payment method or the file upload, which can't be
+  // serialized) after a refresh. Same hydration-safe "read after mount"
+  // shape as CartContext.tsx, swapping localStorage for sessionStorage
+  // since a checkout draft shouldn't outlive the browser tab.
+  useEffect(() => {
+    let existingKey: string | null = null;
+    try {
+      const raw = window.sessionStorage.getItem(DRAFT_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setForm((prev) => ({
+          email: parsed.email ?? prev.email,
+          notes: parsed.notes ?? prev.notes,
+          paymentReference: parsed.paymentReference ?? prev.paymentReference,
+        }));
+        if (parsed.deliveryMethod === "standard" || parsed.deliveryMethod === "pickup") {
+          setDeliveryMethod(parsed.deliveryMethod);
+        }
+        if (typeof parsed.idempotencyKey === "string" && parsed.idempotencyKey) {
+          existingKey = parsed.idempotencyKey;
+        }
+      }
+    } catch {
+      // ignore corrupted draft data
+    }
+    // Reused across a page reload mid-checkout (rather than minting a new
+    // one every mount) so a retried submission after a lost response is
+    // recognized server-side as the same attempt, not a fresh order.
+    setIdempotencyKey(existingKey ?? crypto.randomUUID());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    window.sessionStorage.setItem(
+      DRAFT_STORAGE_KEY,
+      JSON.stringify({
+        email: form.email,
+        notes: form.notes,
+        paymentReference: form.paymentReference,
+        deliveryMethod,
+        idempotencyKey,
+      }),
+    );
+  }, [form.email, form.notes, form.paymentReference, deliveryMethod, idempotencyKey, hydrated]);
+
+  // Announces the mobile sticky bar's height to the global ToastProvider
+  // (same --mobile-toast-offset handshake as app/cart/page.tsx) so toasts
+  // shift up above it instead of being covered.
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    if (!el) return;
+    const updateOffset = () => {
+      document.documentElement.style.setProperty(
+        "--mobile-toast-offset",
+        `${el.getBoundingClientRect().height + 16}px`,
+      );
+    };
+    updateOffset();
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--mobile-toast-offset");
+    };
+  }, []);
 
   // A preview only — create_order_atomic re-validates the code and
   // recomputes the real discount from scratch at submit time regardless
@@ -170,20 +214,13 @@ export function CheckoutForm({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleBlur(field: keyof FormState) {
-    setErrors((prev) => ({ ...prev, [field]: validateField(field, form, deliveryMethod) }));
-  }
-
   function validateAll(): boolean {
-    const fields: (keyof FormState)[] = [
-      "firstName", "lastName", "email", "phone", "street", "city", "district",
-    ];
-    const next: FieldErrors = {};
-    for (const field of fields) {
-      const fieldError = validateField(field, form, deliveryMethod);
-      if (fieldError) next[field] = fieldError;
-    }
-    setErrors(next);
+    const emailError = !form.email.trim()
+      ? "Required."
+      : form.email.includes("@")
+        ? undefined
+        : "Enter a valid email.";
+    setErrors({ email: emailError });
 
     let paymentValid = true;
     if (paymentMethod === "bank_transfer" && !form.paymentReference.trim() && !slipPath) {
@@ -193,7 +230,7 @@ export function CheckoutForm({
       setPaymentError(null);
     }
 
-    return Object.keys(next).length === 0 && paymentValid;
+    return !emailError && paymentValid;
   }
 
   async function handleSlipChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -234,22 +271,32 @@ export function CheckoutForm({
 
     setPending(true);
 
+    const resolvedAddress = await addressRef.current!.resolveForSubmit();
+    if (resolvedAddress.error) {
+      setPending(false);
+      setSubmitError(resolvedAddress.error);
+      return;
+    }
+    const shipping = resolvedAddress.fields;
+
     const result = await createOrder({
-      customerName: `${form.firstName.trim()} ${form.lastName.trim()}`.trim(),
+      customerName: `${shipping.firstName.trim()} ${shipping.lastName.trim()}`.trim(),
       customerEmail: form.email.trim(),
-      customerPhone: form.phone.trim(),
-      shippingFirstName: form.firstName.trim(),
-      shippingLastName: form.lastName.trim(),
-      shippingStreet: form.street.trim(),
-      shippingCity: form.city.trim(),
-      shippingDistrict: form.district,
-      shippingPostalCode: form.postalCode.trim() || null,
+      customerPhone: shipping.phone.trim(),
+      shippingFirstName: shipping.firstName.trim(),
+      shippingLastName: shipping.lastName.trim(),
+      shippingStreet: shipping.street.trim(),
+      shippingCity: shipping.city.trim(),
+      shippingDistrict: shipping.district,
+      shippingPostalCode: shipping.postalCode.trim() || null,
       deliveryMethod,
       paymentMethod,
       paymentReference: form.paymentReference.trim() || null,
       slipPath,
       couponCode: appliedCoupon?.code ?? null,
       notes: form.notes.trim() || null,
+      sourceAddressId: resolvedAddress.sourceAddressId,
+      idempotencyKey,
       items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
       clientTotal: total,
     });
@@ -259,6 +306,8 @@ export function CheckoutForm({
       setSubmitError(result.error ?? "Could not place order.");
       return;
     }
+
+    window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
 
     if (paymentMethod === "payhere") {
       const checkout = await getPayHereCheckoutParams(result.orderId);
@@ -286,299 +335,282 @@ export function CheckoutForm({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-4xl flex-1 gap-10 px-6 py-12 sm:grid-cols-2">
-      <div>
-        <h1 className="font-heading text-2xl font-bold tracking-tight">Checkout</h1>
-        <form onSubmit={handleSubmit} noValidate className="mt-8 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field
-              id="firstName"
-              label="First name"
-              value={form.firstName}
-              onChange={(v) => setField("firstName", v)}
-              onBlur={() => handleBlur("firstName")}
-              error={errors.firstName}
-              required
-            />
-            <Field
-              id="lastName"
-              label="Last name"
-              value={form.lastName}
-              onChange={(v) => setField("lastName", v)}
-              onBlur={() => handleBlur("lastName")}
-              error={errors.lastName}
-              required
-            />
-          </div>
-          <Field
-            id="email"
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(v) => setField("email", v)}
-            onBlur={() => handleBlur("email")}
-            error={errors.email}
-            required
-          />
-          <Field
-            id="phone"
-            label="Phone"
-            type="tel"
-            placeholder="07XXXXXXXX"
-            value={form.phone}
-            onChange={(v) => setField("phone", v)}
-            onBlur={() => handleBlur("phone")}
-            error={errors.phone}
-            required
-          />
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12 max-sm:pb-28">
+      <CheckoutSteps />
+      <h1 className="font-heading mt-4 text-3xl font-bold tracking-tight">Checkout</h1>
 
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Delivery method</span>
-            <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
-              <input
-                type="radio"
-                name="deliveryMethod"
-                checked={deliveryMethod === "standard"}
-                onChange={() => setDeliveryMethod("standard")}
-              />
-              Standard delivery
-            </label>
-            <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
-              <input
-                type="radio"
-                name="deliveryMethod"
-                checked={deliveryMethod === "pickup"}
-                onChange={() => setDeliveryMethod("pickup")}
-              />
-              Store Pickup — Free
-            </label>
-          </div>
-
-          {deliveryMethod === "pickup" ? (
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm text-[var(--muted)]">
-              <p className="font-medium text-[var(--foreground)]">Pickup location</p>
-              <p className="mt-1">{PICKUP_ADDRESS}</p>
-              <p>{PICKUP_HOURS}</p>
-            </div>
-          ) : (
-            <>
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_400px]">
+        <form
+          id="checkout-form"
+          onSubmit={handleSubmit}
+          noValidate
+          className="flex flex-col gap-6"
+        >
+          <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+            <h2 className="text-sm font-semibold">Contact</h2>
+            <div className="mt-3">
               <Field
-                id="street"
-                label="Street address"
-                value={form.street}
-                onChange={(v) => setField("street", v)}
-                onBlur={() => handleBlur("street")}
-                error={errors.street}
+                id="email"
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(v) => setField("email", v)}
+                onBlur={() =>
+                  setErrors((prev) => ({
+                    ...prev,
+                    email: !form.email.trim()
+                      ? "Required."
+                      : form.email.includes("@")
+                        ? undefined
+                        : "Enter a valid email.",
+                  }))
+                }
+                error={errors.email}
                 required
               />
-              <div className="grid grid-cols-2 gap-4">
-                <Field
-                  id="city"
-                  label="City"
-                  value={form.city}
-                  onChange={(v) => setField("city", v)}
-                  onBlur={() => handleBlur("city")}
-                  error={errors.city}
-                  required
-                />
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="district" className="text-sm font-medium">
-                    District
-                  </label>
-                  <select
-                    id="district"
-                    value={form.district}
-                    onChange={(e) => setField("district", e.target.value)}
-                    onBlur={() => handleBlur("district")}
-                    className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-                  >
-                    <option value="">Select…</option>
-                    {DISTRICTS.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                  {errors.district && <p className="text-xs text-red-600">{errors.district}</p>}
-                </div>
-              </div>
-              <Field
-                id="postalCode"
-                label="Postal code (optional)"
-                value={form.postalCode}
-                onChange={(v) => setField("postalCode", v)}
-              />
-            </>
-          )}
+            </div>
+          </section>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor="notes" className="text-sm font-medium">
-              Order notes (optional)
-            </label>
+          <section>
+            <h2 className="text-sm font-semibold">Delivery</h2>
+            <div className="mt-3 flex flex-col gap-2">
+              <label className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  name="deliveryMethod"
+                  checked={deliveryMethod === "standard"}
+                  onChange={() => setDeliveryMethod("standard")}
+                />
+                Standard delivery
+              </label>
+              <label className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2 text-sm">
+                <input
+                  type="radio"
+                  name="deliveryMethod"
+                  checked={deliveryMethod === "pickup"}
+                  onChange={() => setDeliveryMethod("pickup")}
+                />
+                Store Pickup — Free
+              </label>
+            </div>
+
+            {deliveryMethod === "pickup" && (
+              <div className="mt-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm text-[var(--muted)]">
+                <p className="font-medium text-[var(--foreground)]">Pickup location</p>
+                <p className="mt-1">{PICKUP_ADDRESS}</p>
+                <p>{PICKUP_HOURS}</p>
+              </div>
+            )}
+
+            <div className="mt-3">
+              <CheckoutAddress
+                ref={addressRef}
+                addresses={addresses}
+                onFieldsChange={setAddressFields}
+                requireFullAddress={deliveryMethod === "standard"}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold">Payment method</h2>
+            <div className="mt-3 flex flex-col gap-3">
+              <PaymentMethodCard
+                icon={CashIcon}
+                title="Cash on Delivery"
+                description="Pay in cash when your order arrives"
+                selected={paymentMethod === "cod"}
+                onSelect={() => setPaymentMethod("cod")}
+              />
+              <PaymentMethodCard
+                icon={BankIcon}
+                title="Bank Transfer"
+                description="Transfer to our account, then upload your slip"
+                selected={paymentMethod === "bank_transfer"}
+                onSelect={() => setPaymentMethod("bank_transfer")}
+              />
+              <PaymentMethodCard
+                icon={CreditCardIcon}
+                title="Card Payment"
+                description="Visa · Mastercard · American Express — via PayHere"
+                selected={paymentMethod === "payhere"}
+                disabled={!payHereEnabled}
+                comingSoon={!payHereEnabled}
+                onSelect={() => setPaymentMethod("payhere")}
+              />
+            </div>
+
+            <div className="mt-3 flex items-center gap-4 text-xs text-[var(--muted)]">
+              <span className="flex items-center gap-1">
+                <LockIcon className="h-3.5 w-3.5" /> SSL Protected
+              </span>
+              <span className="flex items-center gap-1">
+                <LockIcon className="h-3.5 w-3.5" /> 256-bit Encryption
+              </span>
+            </div>
+
+            {paymentMethod === "bank_transfer" && (
+              <div className="mt-3 flex flex-col gap-3">
+                {bankDetails && (
+                  <div className="rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm">
+                    <p className="font-medium text-[var(--foreground)]">Transfer to</p>
+                    <p className="mt-1 text-[var(--muted)]">{bankDetails.bank_name}</p>
+                    <p className="text-[var(--muted)]">{bankDetails.account_name}</p>
+                    <p className="text-[var(--muted)]">{bankDetails.account_number}</p>
+                    <p className="text-[var(--muted)]">{bankDetails.branch}</p>
+                    {bankDetails.instructions && (
+                      <p className="mt-2 text-[var(--muted)]">{bankDetails.instructions}</p>
+                    )}
+                  </div>
+                )}
+
+                <Field
+                  id="paymentReference"
+                  label="Bank reference number (optional if uploading a slip)"
+                  value={form.paymentReference}
+                  onChange={(v) => setField("paymentReference", v)}
+                />
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="slip" className="text-sm font-medium">
+                    Upload bank slip (optional if entering a reference number)
+                  </label>
+                  <input
+                    ref={fileInputRef}
+                    id="slip"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleSlipChange}
+                    disabled={slipUploading}
+                    className="text-sm"
+                  />
+                  {slipUploading && <p className="text-xs text-[var(--muted)]">Uploading…</p>}
+                  {slipFileName && !slipUploading && (
+                    <p className="text-xs text-[var(--muted)]">Attached: {slipFileName}</p>
+                  )}
+                  {slipError && <p className="text-xs text-red-600">{slipError}</p>}
+                </div>
+
+                {paymentError && <p className="text-xs text-red-600">{paymentError}</p>}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-sm font-semibold">Order notes</h2>
             <textarea
               id="notes"
               rows={2}
               value={form.notes}
               onChange={(e) => setField("notes", e.target.value)}
-              className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+              placeholder="Optional"
+              className="mt-3 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
             />
-          </div>
+          </section>
 
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Payment method</span>
-            <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
-              <input
-                type="radio"
-                name="paymentMethod"
-                checked={paymentMethod === "cod"}
-                onChange={() => setPaymentMethod("cod")}
-              />
-              Cash on Delivery
-            </label>
-            <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
-              <input
-                type="radio"
-                name="paymentMethod"
-                checked={paymentMethod === "bank_transfer"}
-                onChange={() => setPaymentMethod("bank_transfer")}
-              />
-              Bank Transfer
-            </label>
-            {payHereEnabled && (
-              <label className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-2 text-sm">
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  checked={paymentMethod === "payhere"}
-                  onChange={() => setPaymentMethod("payhere")}
-                />
-                Card (Visa / Mastercard / Amex)
-              </label>
-            )}
-          </div>
-
-          {paymentMethod === "bank_transfer" && (
-            <div className="flex flex-col gap-3">
-              {bankDetails && (
-                <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm">
-                  <p className="font-medium text-[var(--foreground)]">Transfer to</p>
-                  <p className="mt-1 text-[var(--muted)]">{bankDetails.bank_name}</p>
-                  <p className="text-[var(--muted)]">{bankDetails.account_name}</p>
-                  <p className="text-[var(--muted)]">{bankDetails.account_number}</p>
-                  <p className="text-[var(--muted)]">{bankDetails.branch}</p>
-                  {bankDetails.instructions && (
-                    <p className="mt-2 text-[var(--muted)]">{bankDetails.instructions}</p>
-                  )}
-                </div>
-              )}
-
-              <Field
-                id="paymentReference"
-                label="Bank reference number (optional if uploading a slip)"
-                value={form.paymentReference}
-                onChange={(v) => setField("paymentReference", v)}
-              />
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="slip" className="text-sm font-medium">
-                  Upload bank slip (optional if entering a reference number)
-                </label>
-                <input
-                  ref={fileInputRef}
-                  id="slip"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleSlipChange}
-                  disabled={slipUploading}
-                  className="text-sm"
-                />
-                {slipUploading && <p className="text-xs text-[var(--muted)]">Uploading…</p>}
-                {slipFileName && !slipUploading && (
-                  <p className="text-xs text-[var(--muted)]">Attached: {slipFileName}</p>
-                )}
-                {slipError && <p className="text-xs text-red-600">{slipError}</p>}
-              </div>
-
-              {paymentError && <p className="text-xs text-red-600">{paymentError}</p>}
-            </div>
-          )}
-
-          {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+          {submitError && <p className="text-sm text-[var(--color-discount)]">{submitError}</p>}
 
           <button
             type="submit"
-            disabled={pending || slipUploading || items.length === 0}
-            className="mt-2 rounded-full bg-[var(--foreground)] px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
+            disabled={pending || slipUploading || items.length === 0 || !hydrated}
+            className="transition-brand hidden w-full items-center justify-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
             {pending ? "Placing order…" : `Place order — ${formatPrice(total)}`}
           </button>
         </form>
-      </div>
 
-      <div>
-        <h2 className="text-lg font-medium">Order summary</h2>
-        <ul className="mt-4 flex flex-col gap-3">
-          {items.map((item) => (
-            <li key={item.productId} className="flex justify-between text-sm">
-              <span>
-                {item.name} × {item.quantity}
-              </span>
-              <span>{formatPrice(item.price * item.quantity)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-4 flex flex-col gap-2">
-          {appliedCoupon ? (
-            <div className="flex items-center justify-between rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm">
-              <span>
-                Coupon <strong>{appliedCoupon.code}</strong> — {appliedCoupon.label}
-              </span>
-              <button type="button" onClick={handleRemoveCoupon} className="text-xs underline">
-                Remove
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value)}
-                  placeholder="Coupon code"
-                  className="flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyCoupon}
-                  disabled={couponChecking || !couponInput.trim()}
-                  className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
-                >
-                  {couponChecking ? "Checking…" : "Apply"}
+        <div className="h-fit rounded-[20px] border border-[var(--border)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-card)] lg:sticky lg:top-24">
+          <h2 className="text-lg font-medium">Order summary</h2>
+          <ul className="mt-4 flex flex-col gap-3">
+            {items.map((item) => (
+              <li key={item.productId} className="flex justify-between text-sm">
+                <span>
+                  {item.name} × {item.quantity}
+                </span>
+                <span>{formatPrice(item.price * item.quantity)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex flex-col gap-2">
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm">
+                <span>
+                  Coupon <strong>{appliedCoupon.code}</strong> — {appliedCoupon.label}
+                </span>
+                <button type="button" onClick={handleRemoveCoupon} className="text-xs underline">
+                  Remove
                 </button>
               </div>
-              {couponError && <p className="text-xs text-red-600">{couponError}</p>}
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    placeholder="Coupon code"
+                    className="flex-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={couponChecking || !couponInput.trim()}
+                    className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
+                  >
+                    {couponChecking ? "Checking…" : "Apply"}
+                  </button>
+                </div>
+                {couponError && <p className="text-xs text-red-600">{couponError}</p>}
+              </div>
+            )}
+          </div>
 
-        <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatPrice(subtotal)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Delivery</span>
-            <span>{deliveryMethod === "pickup" ? "Free" : formatPrice(shippingFee)}</span>
-          </div>
-          {discount > 0 && (
-            <div className="flex justify-between text-[var(--color-discount)]">
-              <span>Discount</span>
-              <span>-{formatPrice(discount)}</span>
+          <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
             </div>
-          )}
-          <div className="flex justify-between font-medium">
-            <span>Total</span>
-            <span>{formatPrice(total)}</span>
+            <div className="flex justify-between">
+              <span>
+                Delivery
+                {deliveryMethod === "standard" && addressFields.city.trim() && (
+                  <span className="block text-xs text-[var(--muted)]">
+                    {addressFields.city.trim()} — {isColomboZone(addressFields.city) ? "Colombo zone rate" : "standard rate"}
+                  </span>
+                )}
+              </span>
+              <span>{deliveryMethod === "pickup" ? "Free" : formatPrice(shippingFee)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between text-[var(--color-discount)]">
+                <span>Discount</span>
+                <span>-{formatPrice(discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-medium">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div
+        ref={stickyBarRef}
+        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card-hover)] lg:hidden"
+      >
+        <div className="flex flex-col">
+          <span className="text-xs text-[var(--muted)]">Total</span>
+          <span className="text-base font-medium">{formatPrice(total)}</span>
+        </div>
+        <button
+          type="submit"
+          form="checkout-form"
+          disabled={pending || slipUploading || items.length === 0}
+          className="transition-brand rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {pending ? "Placing…" : "Place Order"}
+        </button>
       </div>
     </div>
   );
@@ -619,7 +651,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className={`rounded-[var(--radius-sm)] border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
+        className={`rounded-[var(--radius-input)] border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
           error
             ? "border-red-600 focus:ring-red-600"
             : "border-[var(--border)] focus:ring-[var(--foreground)]"

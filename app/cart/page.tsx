@@ -100,8 +100,13 @@ export default function CartPage() {
   const hasBlockingIssue = unavailableItems.length > 0;
   const recommendationsLoading = recommendationsKey !== itemsKey;
 
+  // "Colombo 01" is a representative zone purely for this preview estimate
+  // — the real fee is always recalculated server-side from the actual
+  // submitted city at checkout.
   const deliveryFee =
-    deliveryArea === null ? null : getDeliveryFee(deliveryArea === "colombo" ? "Colombo" : "Other", "standard");
+    deliveryArea === null
+      ? null
+      : getDeliveryFee(deliveryArea === "colombo" ? "Colombo 01" : "Other", "standard");
   const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discount);
 
   function handleCheckout() {
@@ -185,7 +190,7 @@ export default function CartPage() {
               <span>Delivery</span>
               {deliveryFee === null ? (
                 <span>
-                  {formatPrice(getDeliveryFee("Colombo", "standard"))} –{" "}
+                  {formatPrice(getDeliveryFee("Colombo 01", "standard"))} –{" "}
                   {formatPrice(getDeliveryFee("Other", "standard"))}
                 </span>
               ) : (

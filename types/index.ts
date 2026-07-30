@@ -21,6 +21,7 @@ export type Coupon = Database["public"]["Tables"]["coupons"]["Row"];
 export type CouponRedemption = Database["public"]["Tables"]["coupon_redemptions"]["Row"];
 export type OrderStatusHistoryEntry = Database["public"]["Tables"]["order_status_history"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type CustomerAddress = Database["public"]["Tables"]["customer_addresses"]["Row"];
 export type Review = Database["public"]["Tables"]["reviews"]["Row"];
 export type SiteBanner = Database["public"]["Tables"]["site_banner"]["Row"];
 export type BankTransferSettings = Database["public"]["Tables"]["bank_transfer_settings"]["Row"];
