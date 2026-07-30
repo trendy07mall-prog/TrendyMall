@@ -48,6 +48,7 @@
      Tailwind utilities, matching this file's existing token pattern
      (rounded-[var(--radius-card)], shadow-[var(--shadow-card)], etc.). */
   --z-announcement: 20;
+  --z-sticky-bar: 25;
   --z-nav: 30;
   --z-whatsapp: 35;
   --z-drawer-overlay: 40;
@@ -204,6 +205,20 @@ input:-webkit-autofill:focus {
   ::view-transition-group(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/* Zeroes the single shared motion token (defangs every transition-brand
+   use sitewide) and stops the Skeleton component's pulse shimmer — both
+   are plain CSS transitions/animations that, unlike the View Transitions
+   above and the Framer Motion animations elsewhere, don't respect this
+   setting on their own. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-duration: 0ms;
+  }
+  .animate-pulse {
+    animation: none;
   }
 }
 

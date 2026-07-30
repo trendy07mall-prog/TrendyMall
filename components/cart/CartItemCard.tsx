@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatPrice } from "@/lib/utils";
 import { CartStockBadge } from "@/components/cart/CartStockBadge";
-import { TrashIcon } from "@/components/ui/Icon";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { TrashIcon, HeartIcon } from "@/components/ui/Icon";
 import type { CartItem } from "@/types";
 import type { CartItemValidation } from "@/lib/cart-validation";
 
@@ -18,6 +20,7 @@ export function CartItemCard({
   validation?: CartItemValidation;
 }) {
   const { updateQuantity, removeItem, addItem } = useCart();
+  const { add: addToWishlist, remove: removeFromWishlist } = useWishlist();
   const { showToast } = useToast();
 
   // validation is undefined only for the brief window before the batched
@@ -31,6 +34,26 @@ export function CartItemCard({
     removeItem(item.productId);
     showToast(`${item.name} removed`, {
       action: { label: "Undo", onClick: () => addItem(item) },
+    });
+  }
+
+  function handleSaveForLater() {
+    addToWishlist({
+      productId: item.productId,
+      slug: item.slug,
+      name: item.name,
+      price: item.price,
+      image: item.image,
+    });
+    removeItem(item.productId);
+    showToast(`${item.name} moved to Wishlist`, {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          addItem(item);
+          removeFromWishlist(item.productId);
+        },
+      },
     });
   }
 
@@ -67,8 +90,10 @@ export function CartItemCard({
                 <span className="text-xs font-medium text-[var(--color-discount)]">
                   No longer available
                 </span>
+              ) : stock !== null ? (
+                <CartStockBadge stock={stock} />
               ) : (
-                stock !== null && <CartStockBadge stock={stock} />
+                <Skeleton className="h-4 w-20" />
               )}
             </div>
           </div>
@@ -104,6 +129,15 @@ export function CartItemCard({
 
           <div className="flex items-center gap-4">
             <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
+            <button
+              type="button"
+              onClick={handleSaveForLater}
+              aria-label={`Save ${item.name} for later`}
+              className="transition-brand flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              <HeartIcon className="h-4 w-4" />
+              Save for later
+            </button>
             <button
               type="button"
               onClick={handleRemove}

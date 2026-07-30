@@ -5,9 +5,14 @@ import Image from "next/image";
 import { useRecentlyViewed } from "@/context/RecentlyViewedContext";
 import { formatPrice } from "@/lib/utils";
 
-export function RecentlyViewedSection({ excludeProductId }: { excludeProductId?: string }) {
+export function RecentlyViewedSection({
+  excludeProductIds,
+}: {
+  excludeProductIds?: string[];
+}) {
   const { items } = useRecentlyViewed();
-  const visible = items.filter((item) => item.productId !== excludeProductId);
+  const excluded = new Set(excludeProductIds ?? []);
+  const visible = items.filter((item) => !excluded.has(item.productId));
 
   if (visible.length === 0) return null;
 

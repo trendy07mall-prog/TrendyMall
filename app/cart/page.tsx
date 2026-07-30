@@ -1,27 +1,39 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
 import { getDeliveryFee } from "@/lib/shipping-rates";
 import { getCartValidation } from "@/lib/cart-validation";
+import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { CartItemCard } from "@/components/cart/CartItemCard";
 import { CouponForm } from "@/components/cart/CouponForm";
 import { DeliveryAreaToggle } from "@/components/cart/DeliveryAreaToggle";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
+import { RelatedProducts } from "@/components/product/RelatedProducts";
+import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ShoppingBagIcon, LockIcon } from "@/components/ui/Icon";
 import type { CartItemValidation } from "@/lib/cart-validation";
 import type { DeliveryArea } from "@/components/cart/DeliveryAreaToggle";
+import type { ProductWithPrimaryImage } from "@/types";
 
 export default function CartPage() {
   const { items, subtotal, notes, setNotes } = useCart();
   const router = useRouter();
   const [validation, setValidation] = useState<Map<string, CartItemValidation>>(new Map());
+  const [recommendations, setRecommendations] = useState<ProductWithPrimaryImage[]>([]);
+  // Compared against `itemsKey` at render time (rather than a separate
+  // `loading` boolean flipped inside the effect) so nothing needs to call
+  // setState synchronously in the effect body — only inside the async
+  // `.then()` below, once results actually arrive for that key.
+  const [recommendationsKey, setRecommendationsKey] = useState<string | null>(null);
   const [deliveryArea, setDeliveryArea] = useState<DeliveryArea>(null);
   const [discount, setDiscount] = useState(0);
   const [redirecting, startRedirect] = useTransition();
+  const stickyBarRef = useRef<HTMLDivElement>(null);
 
   // Keyed by the item-id/quantity list (not on every render) — re-checks
   // live stock/availability whenever the cart's contents change. This is
@@ -46,8 +58,47 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsKey]);
 
+  useEffect(() => {
+    // No setState needed when the cart is empty — that branch renders the
+    // empty-cart state below and never reads `recommendations`.
+    if (items.length === 0) return;
+    let cancelled = false;
+    getCartRecommendations(items.map((i) => i.productId)).then((results) => {
+      if (cancelled) return;
+      setRecommendations(results);
+      setRecommendationsKey(itemsKey);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
+
+  // Announces the mobile sticky checkout bar's rendered height to the
+  // global ToastProvider (mounted in app/layout.tsx) via a CSS variable,
+  // so cart-page toasts shift up above it instead of being covered. Every
+  // other page falls back to the variable's default of 0px.
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    if (!el) return;
+    const updateOffset = () => {
+      document.documentElement.style.setProperty(
+        "--mobile-toast-offset",
+        `${el.getBoundingClientRect().height + 16}px`,
+      );
+    };
+    updateOffset();
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--mobile-toast-offset");
+    };
+  }, [items.length]);
+
   const unavailableItems = items.filter((item) => validation.get(item.productId)?.available === false);
   const hasBlockingIssue = unavailableItems.length > 0;
+  const recommendationsLoading = recommendationsKey !== itemsKey;
 
   const deliveryFee =
     deliveryArea === null ? null : getDeliveryFee(deliveryArea === "colombo" ? "Colombo" : "Other", "standard");
@@ -76,17 +127,23 @@ export default function CartPage() {
         >
           Continue Shopping
         </Link>
+        <div className="mt-12 w-full text-left">
+          <RecentlyViewedSection excludeProductIds={[]} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12 max-sm:pb-28">
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Cart" }]} />
       <h1 className="font-heading mt-4 text-3xl font-bold tracking-tight">Your Cart</h1>
 
       {hasBlockingIssue && (
-        <div className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-discount)] bg-[var(--color-discount)]/5 px-4 py-3 text-sm">
+        <div
+          role="alert"
+          className="mt-6 rounded-[var(--radius-card)] border border-[var(--color-discount)] bg-[var(--color-discount)]/5 px-4 py-3 text-sm"
+        >
           <p className="font-medium text-[var(--color-discount)]">
             {unavailableItems.length === 1
               ? "One item in your cart is no longer available."
@@ -183,7 +240,7 @@ export default function CartPage() {
             type="button"
             onClick={handleCheckout}
             disabled={hasBlockingIssue || redirecting}
-            className="transition-brand mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+            className="transition-brand mt-6 hidden w-full items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
             <LockIcon className="h-4 w-4" />
             {redirecting ? "Redirecting…" : "Proceed to Checkout"}
@@ -195,6 +252,39 @@ export default function CartPage() {
             ← Continue Shopping
           </Link>
         </div>
+      </div>
+
+      {recommendationsLoading ? (
+        <div className="mt-16">
+          <Skeleton className="h-6 w-48" />
+          <div className="mt-4 flex gap-4 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-square w-44 shrink-0 sm:w-56" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <RelatedProducts products={recommendations} />
+      )}
+      <RecentlyViewedSection excludeProductIds={items.map((i) => i.productId)} />
+
+      <div
+        ref={stickyBarRef}
+        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card-hover)] lg:hidden"
+      >
+        <div className="flex flex-col">
+          <span className="text-xs text-[var(--muted)]">Total</span>
+          <span className="text-base font-medium">{formatPrice(total)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCheckout}
+          disabled={hasBlockingIssue || redirecting}
+          className="transition-brand flex items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <LockIcon className="h-4 w-4" />
+          {redirecting ? "Redirecting…" : "Checkout"}
+        </button>
       </div>
     </div>
   );

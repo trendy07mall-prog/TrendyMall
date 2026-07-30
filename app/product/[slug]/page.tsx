@@ -145,7 +145,7 @@ export default async function ProductPage({
       />
 
       <RelatedProducts products={relatedProducts} />
-      <RecentlyViewedSection excludeProductId={product.id} />
+      <RecentlyViewedSection excludeProductIds={[product.id]} />
 
       <RecordRecentlyViewed
         productId={product.id}
