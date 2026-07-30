@@ -12,8 +12,9 @@ import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
 import { CheckoutAddress } from "@/components/checkout/CheckoutAddress";
 import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
-import { CashIcon, BankIcon, CreditCardIcon, LockIcon } from "@/components/ui/Icon";
+import { CashIcon, BankIcon, CreditCardIcon, LockIcon, WhatsAppIcon } from "@/components/ui/Icon";
 import { FieldError } from "@/components/ui/FieldError";
+import { getWhatsAppUrl } from "@/lib/site";
 import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
 import type { BankTransferSettings, CustomerAddress, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
@@ -516,9 +517,18 @@ export function CheckoutForm({
           </section>
 
           {submitError && (
-            <p role="alert" className="text-sm text-[var(--color-discount)]">
-              {submitError}
-            </p>
+            <div role="alert" className="flex flex-col gap-1">
+              <p className="text-sm text-[var(--color-discount)]">{submitError}</p>
+              <a
+                href={getWhatsAppUrl("Hi, I'm having trouble placing an order on trendymall.online")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm underline"
+              >
+                <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+                Message us on WhatsApp
+              </a>
+            </div>
           )}
 
           <button

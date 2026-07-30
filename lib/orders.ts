@@ -117,7 +117,18 @@ export async function createOrder(
       if (error.code === "P0001") {
         return { error: error.message };
       }
-      console.error("createOrder: unexpected database error", error);
+      // Deliberately logged as separate fields, not just the error object
+      // — Postgres's detail/hint often carry the actual root cause (e.g.
+      // "column reference X is ambiguous" errors put the ambiguous column
+      // in `message` but the candidate matches in `detail`), and some log
+      // pipelines flatten/truncate a nested object differently than
+      // top-level fields.
+      console.error("createOrder: unexpected database error", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
     }
     return {
       error: "Something went wrong placing your order. Please try again or contact us on WhatsApp.",

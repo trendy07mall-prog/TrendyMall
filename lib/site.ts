@@ -9,3 +9,16 @@ export const SITE_URL =
   (process.env.NODE_ENV === "production"
     ? "https://www.trendymall.online"
     : "http://localhost:3000");
+
+// The store's WhatsApp number (already used, as the same literal, by
+// components/layout/WhatsAppButton.tsx and components/product/
+// WhatsAppOrderButton.tsx — exported here too since a checkout-failure
+// contact link needed a third copy and duplicating the literal a third
+// time wasn't worth it).
+export const WHATSAPP_NUMBER = "94775312484";
+
+export function getWhatsAppUrl(message?: string): string {
+  return message
+    ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/${WHATSAPP_NUMBER}`;
+}
