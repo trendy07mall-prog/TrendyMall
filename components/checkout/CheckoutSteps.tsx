@@ -3,7 +3,7 @@ import { CheckIcon } from "@/components/ui/Icon";
 // Presentational only — this is a genuine one-page checkout (contact,
 // delivery, payment, notes all on one page), not a router between
 // separate steps. "Payment" is the payment section further down this
-// same page; "Confirmation" is /checkout/success.
+// same page; "Confirmation" is /order-confirmation/[orderNumber].
 const STEPS = ["Cart", "Checkout", "Payment", "Confirmation"];
 const CURRENT_STEP_INDEX = 1;
 

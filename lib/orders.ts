@@ -40,10 +40,17 @@ export interface CreateOrderInput {
   // staleness check (Rule #1: never trusted as the actual price source).
   // The server/RPC recomputes everything itself regardless of this value.
   clientTotal: number;
+  // The checkout page's own computed delivery fee (lib/delivery-fee.ts)
+  // — never used to set the charged amount (the RPC always recomputes
+  // its own fee from the submitted address and ignores this), only
+  // compared server-side so a disagreement gets logged instead of
+  // silently passing unnoticed.
+  clientShippingFee: number;
 }
 
 export interface CreateOrderResult {
   orderId?: string;
+  orderNumber?: string;
   error?: string;
 }
 
@@ -112,6 +119,7 @@ export async function createOrder(
     p_coupon_code: input.couponCode,
     p_source_address_id: input.sourceAddressId,
     p_idempotency_key: input.idempotencyKey,
+    p_client_shipping_fee: input.clientShippingFee,
   });
 
   const row = data?.[0];
@@ -176,66 +184,84 @@ export async function createOrder(
     };
   }
 
-  if (user) {
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("product_name, quantity, subtotal")
-      .eq("order_id", row.order_id);
+  // Everything below is a side effect of an order that already, definitely,
+  // exists (the RPC above returned successfully) — email sending, the
+  // preferred-payment-method write-back, cache revalidation. None of it may
+  // ever prevent createOrder() from returning a success result: if the
+  // Server Action itself threw here, the client's `await createOrder(...)`
+  // would reject, and — since CheckoutForm.tsx's handleSubmit has no
+  // matching try/catch of its own around that call — the customer would be
+  // left on a stuck, pending checkout page with no visible error, despite
+  // the order having already saved. This is exactly the bug this try/catch
+  // closes off.
+  try {
+    if (user) {
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("product_name, quantity, subtotal")
+        .eq("order_id", row.order_id);
 
-    const { data: order } = await supabase
-      .from("orders")
-      .select("shipping_fee, total")
-      .eq("id", row.order_id)
-      .maybeSingle();
+      const { data: order } = await supabase
+        .from("orders")
+        .select("shipping_fee, total")
+        .eq("id", row.order_id)
+        .maybeSingle();
 
-    if (order) {
-      await sendOrderConfirmationEmails({
-        orderNumber: row.order_number,
-        customerName: input.customerName,
-        customerEmail: input.customerEmail,
-        items: (items ?? []).map((item) => ({
-          name: item.product_name,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-        })),
-        shippingFee: order.shipping_fee,
-        deliveryMethod: input.deliveryMethod,
-        paymentMethod: input.paymentMethod,
-        total: order.total,
+      if (order) {
+        await sendOrderConfirmationEmails({
+          orderNumber: row.order_number,
+          customerName: input.customerName,
+          customerEmail: input.customerEmail,
+          items: (items ?? []).map((item) => ({
+            name: item.product_name,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+          })),
+          shippingFee: order.shipping_fee,
+          shippingDistrict: input.shippingDistrict,
+          shippingPostalCode: input.shippingPostalCode,
+          deliveryMethod: input.deliveryMethod,
+          paymentMethod: input.paymentMethod,
+          total: order.total,
+        });
+      }
+
+      // Best-effort — "remembers last-used method" (Phase 1's Payment
+      // Preference field) is a convenience, never worth failing an
+      // already-placed order over.
+      await supabase.from("profiles").update({ preferred_payment_method: input.paymentMethod }).eq("id", user.id);
+
+      revalidatePath("/account/orders");
+      revalidatePath("/account/preferences");
+    } else {
+      const { data: guestOrderRaw } = await supabase.rpc("get_guest_order_by_id", {
+        p_order_id: row.order_id,
       });
+      const guestOrder = guestOrderRaw as GuestOrderDetail | null;
+      if (guestOrder) {
+        await sendOrderConfirmationEmails({
+          orderNumber: row.order_number,
+          customerName: input.customerName,
+          customerEmail: input.customerEmail,
+          items: guestOrder.items.map((item) => ({
+            name: item.productName,
+            quantity: item.quantity,
+            subtotal: item.subtotal,
+          })),
+          shippingFee: guestOrder.shippingFee,
+          shippingDistrict: input.shippingDistrict,
+          shippingPostalCode: input.shippingPostalCode,
+          deliveryMethod: input.deliveryMethod,
+          paymentMethod: input.paymentMethod,
+          total: guestOrder.total,
+        });
+      }
     }
-
-    // Best-effort — "remembers last-used method" (Phase 1's Payment
-    // Preference field) is a convenience, never worth failing an
-    // already-placed order over.
-    await supabase.from("profiles").update({ preferred_payment_method: input.paymentMethod }).eq("id", user.id);
-
-    revalidatePath("/account/orders");
-    revalidatePath("/account/preferences");
-  } else {
-    const { data: guestOrderRaw } = await supabase.rpc("get_guest_order_by_id", {
-      p_order_id: row.order_id,
-    });
-    const guestOrder = guestOrderRaw as GuestOrderDetail | null;
-    if (guestOrder) {
-      await sendOrderConfirmationEmails({
-        orderNumber: row.order_number,
-        customerName: input.customerName,
-        customerEmail: input.customerEmail,
-        items: guestOrder.items.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          subtotal: item.subtotal,
-        })),
-        shippingFee: guestOrder.shippingFee,
-        deliveryMethod: input.deliveryMethod,
-        paymentMethod: input.paymentMethod,
-        total: guestOrder.total,
-      });
-    }
+  } catch (sideEffectError) {
+    console.error("createOrder: post-creation side effect failed (order itself already saved)", sideEffectError);
   }
 
-  return { orderId: row.order_id };
+  return { orderId: row.order_id, orderNumber: row.order_number };
 }
 
 export interface PayHereCheckoutParams {
@@ -292,8 +318,8 @@ export async function getPayHereCheckoutParams(orderId: string): Promise<PayHere
       checkoutUrl: getCheckoutUrl(),
       params: {
         merchant_id: process.env.PAYHERE_MERCHANT_ID!,
-        return_url: `${SITE_URL}/checkout/success?orderId=${order.orderId}`,
-        cancel_url: `${SITE_URL}/checkout/success?orderId=${order.orderId}`,
+        return_url: `${SITE_URL}/order-confirmation/${order.orderNumber}?t=${order.orderId}`,
+        cancel_url: `${SITE_URL}/order-confirmation/${order.orderNumber}?t=${order.orderId}`,
         notify_url: `${SITE_URL}/api/webhooks/payhere`,
         order_id: order.orderNumber,
         items: itemsSummary,
@@ -335,8 +361,8 @@ export async function getPayHereCheckoutParams(orderId: string): Promise<PayHere
     checkoutUrl: getCheckoutUrl(),
     params: {
       merchant_id: process.env.PAYHERE_MERCHANT_ID!,
-      return_url: `${SITE_URL}/checkout/success?orderId=${order.id}`,
-      cancel_url: `${SITE_URL}/checkout/success?orderId=${order.id}`,
+      return_url: `${SITE_URL}/order-confirmation/${order.order_number}`,
+      cancel_url: `${SITE_URL}/order-confirmation/${order.order_number}`,
       notify_url: `${SITE_URL}/api/webhooks/payhere`,
       order_id: order.order_number,
       items: itemsSummary,

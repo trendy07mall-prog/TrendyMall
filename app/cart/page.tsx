@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
-import { getDeliveryFee } from "@/lib/shipping-rates";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee } from "@/lib/delivery-fee";
+import { getMyDefaultAddress } from "@/lib/addresses";
 import { getCartValidation } from "@/lib/cart-validation";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { CartItemCard } from "@/components/cart/CartItemCard";
@@ -18,7 +19,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ShoppingBagIcon, LockIcon } from "@/components/ui/Icon";
 import type { CartItemValidation } from "@/lib/cart-validation";
 import type { DeliveryArea } from "@/components/cart/DeliveryAreaToggle";
-import type { ProductWithPrimaryImage } from "@/types";
+import type { CustomerAddress, ProductWithPrimaryImage } from "@/types";
 
 export default function CartPage() {
   const { items, subtotal, notes, setNotes } = useCart();
@@ -31,6 +32,7 @@ export default function CartPage() {
   // `.then()` below, once results actually arrive for that key.
   const [recommendationsKey, setRecommendationsKey] = useState<string | null>(null);
   const [deliveryArea, setDeliveryArea] = useState<DeliveryArea>(null);
+  const [defaultAddress, setDefaultAddress] = useState<CustomerAddress | null>(null);
   const [discount, setDiscount] = useState(0);
   const [redirecting, startRedirect] = useTransition();
   const stickyBarRef = useRef<HTMLDivElement>(null);
@@ -96,17 +98,47 @@ export default function CartPage() {
     };
   }, [items.length]);
 
+  // A logged-in customer with a saved default address gets a real,
+  // address-based estimate instead of the area toggle's guess — fetched
+  // once, client-side (this page has no server-rendered data fetch of its
+  // own). Resolves to null for a guest or a customer with no addresses
+  // saved yet, both of which fall back to the toggle below.
+  useEffect(() => {
+    let cancelled = false;
+    getMyDefaultAddress().then((address) => {
+      if (!cancelled) setDefaultAddress(address);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const unavailableItems = items.filter((item) => validation.get(item.productId)?.available === false);
   const hasBlockingIssue = unavailableItems.length > 0;
   const recommendationsLoading = recommendationsKey !== itemsKey;
 
-  // "Colombo 01" is a representative zone purely for this preview estimate
-  // — the real fee is always recalculated server-side from the actual
-  // submitted city at checkout.
-  const deliveryFee =
-    deliveryArea === null
-      ? null
-      : getDeliveryFee(deliveryArea === "colombo" ? "Colombo 01" : "Other", "standard");
+  // The cart has no delivery address of its own to price from — the real
+  // fee always requires the postal code entered at checkout
+  // (lib/delivery-fee.ts). "Outside Colombo" has no ambiguity (always
+  // Rs.400), but a bare "Colombo" toggle selection could still resolve to
+  // either rate depending on the exact zone, so it's shown as a floor
+  // ("from Rs.255"), never a firm figure — a firm number here is what
+  // created the reported mismatch. Once a default address is known, its
+  // real district/postal code replaces the guess entirely.
+  const defaultAddressFee = defaultAddress
+    ? calculateDeliveryFee({
+        district: defaultAddress.district,
+        postalCode: defaultAddress.postal_code,
+        deliveryMethod: "standard",
+      })
+    : null;
+  const deliveryFee = defaultAddress
+    ? defaultAddressFee
+    : deliveryArea === "outside"
+      ? RATE_OUTSIDE_ZONE
+      : deliveryArea === "colombo"
+        ? RATE_IN_ZONE
+        : null;
   const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discount);
 
   function handleCheckout() {
@@ -178,7 +210,16 @@ export default function CartPage() {
           <h2 className="text-lg font-medium">Order Summary</h2>
 
           <div className="mt-4">
-            <DeliveryAreaToggle value={deliveryArea} onChange={setDeliveryArea} />
+            {defaultAddress ? (
+              <p className="text-xs text-[var(--muted)]">
+                Delivery to your default address — {defaultAddress.city}, {defaultAddress.district}.{" "}
+                <Link href="/account/addresses" className="underline">
+                  Change
+                </Link>
+              </p>
+            ) : (
+              <DeliveryAreaToggle value={deliveryArea} onChange={setDeliveryArea} />
+            )}
           </div>
 
           <div className="mt-4 flex flex-col gap-2 text-sm">
@@ -188,13 +229,16 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between text-[var(--muted)]">
               <span>Delivery</span>
-              {deliveryFee === null ? (
+              {defaultAddress ? (
+                <span>{formatPrice(defaultAddressFee ?? 0)}</span>
+              ) : deliveryArea === null ? (
                 <span>
-                  {formatPrice(getDeliveryFee("Colombo 01", "standard"))} –{" "}
-                  {formatPrice(getDeliveryFee("Other", "standard"))}
+                  {formatPrice(RATE_IN_ZONE)} – {formatPrice(RATE_OUTSIDE_ZONE)}
                 </span>
+              ) : deliveryArea === "colombo" ? (
+                <span>from {formatPrice(RATE_IN_ZONE)} — calculated at checkout</span>
               ) : (
-                <span>{formatPrice(deliveryFee)}</span>
+                <span>{formatPrice(RATE_OUTSIDE_ZONE)}</span>
               )}
             </div>
             {discount > 0 && (
@@ -217,9 +261,12 @@ export default function CartPage() {
             <span>Total</span>
             <span>{formatPrice(total)}</span>
           </div>
-          {deliveryFee === null && (
+          {!defaultAddress && deliveryArea !== "outside" && (
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Select a delivery area above for an exact total, or see our{" "}
+              {deliveryArea === "colombo"
+                ? "Your exact delivery fee is calculated at checkout from your postal code"
+                : "Select a delivery area above for an exact total"}
+              , or see our{" "}
               <Link href="/shipping" className="underline">
                 Shipping Policy
               </Link>

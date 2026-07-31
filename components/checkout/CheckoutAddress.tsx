@@ -5,8 +5,16 @@ import { saveAddress } from "@/lib/addresses";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SRI_LANKAN_CITIES } from "@/lib/cities";
 import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
+import { COLOMBO_ZONE_POSTAL_CODES, normalizePostalCode } from "@/lib/delivery-fee";
 import { FieldError } from "@/components/ui/FieldError";
 import type { CustomerAddress } from "@/types";
+
+// Sentinel stored in fields.postalCode when the customer explicitly picks
+// "Other" from the Colombo-zone dropdown — distinguishes "deliberately not
+// a specific zone" (valid, prices at the outside-zone rate) from "hasn't
+// chosen yet" (empty string, invalid). Converted back to a real value
+// before it reaches the server (CheckoutForm.tsx's handleSubmit).
+export const OTHER_COLOMBO_ZONE_VALUE = "OTHER";
 
 export interface CheckoutAddressFields {
   firstName: string;
@@ -29,6 +37,16 @@ const EMPTY_FIELDS: CheckoutAddressFields = {
 };
 
 function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
+  const rawPostalCode = address.postal_code ?? "";
+  // A saved address's postal_code may predate this normalization (a bare
+  // "12", a synonym, or genuinely nothing) — resolve it to the dropdown's
+  // canonical value so the right zone is preselected, falling back to the
+  // explicit "Other" choice (never a raw, unmatched value the <select>
+  // can't represent) when it doesn't resolve to a known 1-15 zone.
+  const postalCode =
+    address.district === "Colombo"
+      ? (normalizePostalCode(rawPostalCode) ?? (rawPostalCode ? OTHER_COLOMBO_ZONE_VALUE : ""))
+      : rawPostalCode;
   return {
     firstName: address.first_name,
     lastName: address.last_name,
@@ -36,8 +54,15 @@ function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
     street: address.street,
     city: address.city,
     district: address.district,
-    postalCode: address.postal_code ?? "",
+    postalCode,
   };
+}
+
+// "Other" and unresolved dropdown states never look right printed next to
+// an address (e.g. "...Colombo OTHER") — anything other than a genuine
+// value collapses to nothing.
+function displayPostalCode(fields: CheckoutAddressFields): string {
+  return fields.postalCode === OTHER_COLOMBO_ZONE_VALUE ? "" : fields.postalCode;
 }
 
 type Mode = "card" | "picker" | "form";
@@ -55,6 +80,11 @@ function validateAddressFields(
     if (!fields.street.trim()) errors.street = "Required.";
     if (!fields.city.trim()) errors.city = "Required.";
     if (!fields.district.trim()) errors.district = "Select a district.";
+    if (!fields.postalCode.trim()) {
+      errors.postalCode = fields.district === "Colombo" ? "Select a zone." : "Required.";
+    } else if (fields.district !== "Colombo" && !/^\d{3,5}$/.test(fields.postalCode.trim())) {
+      errors.postalCode = "Enter a valid postal code.";
+    }
   }
   return errors;
 }
@@ -351,7 +381,14 @@ export const CheckoutAddress = forwardRef<
                 <select
                   id="checkout-district"
                   value={fields.district}
-                  onChange={(e) => updateField("district", e.target.value)}
+                  onChange={(e) => {
+                    // Postal code entry mode differs between Colombo (a
+                    // dropdown of canonical codes/"Other") and every other
+                    // district (free text) — a value from one mode is
+                    // meaningless (or literally the "Other" sentinel) in
+                    // the other, so switching resets it.
+                    setFields((prev) => ({ ...prev, district: e.target.value, postalCode: "" }));
+                  }}
                   onBlur={() => handleBlur("district")}
                   aria-invalid={Boolean(errors.district)}
                   aria-describedby={errors.district ? "checkout-district-error" : undefined}
@@ -368,12 +405,42 @@ export const CheckoutAddress = forwardRef<
               </div>
             </div>
             <div className="mt-4">
-              <AddrField
-                id="checkout-postalCode"
-                label="Postal code (optional)"
-                value={fields.postalCode}
-                onChange={(v) => updateField("postalCode", v)}
-              />
+              {fields.district === "Colombo" ? (
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="checkout-postalCode" className="text-sm font-medium">
+                    Colombo zone
+                  </label>
+                  <select
+                    id="checkout-postalCode"
+                    value={fields.postalCode}
+                    onChange={(e) => updateField("postalCode", e.target.value)}
+                    onBlur={() => handleBlur("postalCode")}
+                    aria-invalid={Boolean(errors.postalCode)}
+                    aria-describedby={errors.postalCode ? "checkout-postalCode-error" : undefined}
+                    className={inputClass(Boolean(errors.postalCode))}
+                  >
+                    <option value="">Select…</option>
+                    {COLOMBO_ZONE_POSTAL_CODES.map((z) => (
+                      <option key={z.code} value={z.code}>
+                        {z.label}
+                      </option>
+                    ))}
+                    <option value={OTHER_COLOMBO_ZONE_VALUE}>Other (outside Colombo city)</option>
+                  </select>
+                  {errors.postalCode && (
+                    <FieldError id="checkout-postalCode-error" message={errors.postalCode} />
+                  )}
+                </div>
+              ) : (
+                <AddrField
+                  id="checkout-postalCode"
+                  label="Postal code"
+                  value={fields.postalCode}
+                  onChange={(v) => updateField("postalCode", v)}
+                  onBlur={() => handleBlur("postalCode")}
+                  error={errors.postalCode}
+                />
+              )}
             </div>
           </>
         )}
@@ -419,7 +486,7 @@ export const CheckoutAddress = forwardRef<
       {requireFullAddress && (
         <p className="text-[var(--muted)]">
           {fields.street}, {fields.city}, {fields.district}
-          {fields.postalCode ? ` ${fields.postalCode}` : ""}
+          {displayPostalCode(fields) ? ` ${displayPostalCode(fields)}` : ""}
         </p>
       )}
       <div className="mt-3 flex items-center gap-4">

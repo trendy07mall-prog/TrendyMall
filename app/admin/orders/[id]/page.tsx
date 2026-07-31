@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
+import { describeDeliveryFee } from "@/lib/delivery-fee";
 import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
@@ -25,10 +26,22 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
-  const [{ data: items }, { data: payment }] = await Promise.all([
+  const [{ data: items }, { data: payment }, { data: address }] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id),
     supabase.from("payments").select("*").eq("order_id", id).maybeSingle(),
+    supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
   ]);
+
+  const deliveryLabel =
+    order.delivery_method === "pickup"
+      ? "Store Pickup"
+      : address
+        ? describeDeliveryFee({
+            district: address.district,
+            postalCode: address.postal_code,
+            deliveryMethod: "standard",
+          }).reason
+        : null;
 
   let slipSignedUrl: string | null = null;
   if (payment?.slip_url) {
@@ -138,8 +151,8 @@ export default async function AdminOrderDetailPage({
       </ul>
       <div className="mt-4 flex flex-col gap-1 text-sm">
         <div className="flex justify-between text-[var(--muted)]">
-          <span>Delivery</span>
-          <span>{formatPrice(order.shipping_fee)}</span>
+          <span>Delivery{deliveryLabel ? ` (${deliveryLabel})` : ""}</span>
+          <span>{order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}</span>
         </div>
         <div className="flex justify-between font-medium">
           <span>Total</span>

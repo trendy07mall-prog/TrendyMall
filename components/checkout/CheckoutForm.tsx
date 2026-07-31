@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice } from "@/lib/utils";
-import { getDeliveryFee, isColomboZone } from "@/lib/shipping-rates";
+import { describeDeliveryFee } from "@/lib/delivery-fee";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
-import { CheckoutAddress } from "@/components/checkout/CheckoutAddress";
+import { CheckoutAddress, OTHER_COLOMBO_ZONE_VALUE } from "@/components/checkout/CheckoutAddress";
 import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
 import { CashIcon, BankIcon, CreditCardIcon, LockIcon, WhatsAppIcon } from "@/components/ui/Icon";
 import { FieldError } from "@/components/ui/FieldError";
@@ -24,6 +25,16 @@ const PICKUP_HOURS = "Daily, 10am – 4pm";
 const DRAFT_STORAGE_KEY = "trendymall-checkout-draft";
 
 type PaymentMethod = "cod" | "bank_transfer" | "payhere";
+
+// Guests need an unguessable token (the order's own id) to view their
+// confirmation page — order_number alone is sequential/guessable. A
+// logged-in customer's ownership is enforced by RLS instead, so no token
+// is needed on that URL (see sql/037's get_order_confirmation).
+function confirmationUrl(orderNumber: string, orderId: string, isLoggedIn: boolean): string {
+  return isLoggedIn
+    ? `/order-confirmation/${orderNumber}`
+    : `/order-confirmation/${orderNumber}?t=${orderId}`;
+}
 
 interface FormState {
   email: string;
@@ -80,6 +91,10 @@ export function CheckoutForm({
     params: PayHereCheckoutParams;
   } | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  // Set the instant order creation succeeds, before the redirect is even
+  // attempted — the order number is on screen immediately and stays
+  // there if router.replace fails for any reason (see handleSubmit).
+  const [placedOrder, setPlacedOrder] = useState<{ orderNumber: string; orderId: string } | null>(null);
 
   const [addressFields, setAddressFields] = useState<CheckoutAddressFields>(EMPTY_ADDRESS_FIELDS);
   const addressRef = useRef<CheckoutAddressHandle>(null);
@@ -104,9 +119,15 @@ export function CheckoutForm({
     label: string;
   } | null>(null);
 
-  // Pricing keys off the city (a specific Colombo 01-15 postal zone), not
-  // the district — the district dropdown is address completeness only.
-  const shippingFee = getDeliveryFee(addressFields.city, deliveryMethod);
+  // Pricing keys off the normalized postal code within the Colombo
+  // district — see lib/delivery-fee.ts for why (the city text field is
+  // typo/synonym-prone; the postal code is Sri Lanka's real, unambiguous
+  // system).
+  const { fee: shippingFee, reason: deliveryReason } = describeDeliveryFee({
+    district: addressFields.district,
+    postalCode: addressFields.postalCode,
+    deliveryMethod,
+  });
   const discount = appliedCoupon?.discount ?? 0;
   const total = Math.max(0, subtotal + shippingFee - discount);
 
@@ -295,7 +316,8 @@ export function CheckoutForm({
       shippingStreet: shipping.street.trim(),
       shippingCity: shipping.city.trim(),
       shippingDistrict: shipping.district,
-      shippingPostalCode: shipping.postalCode.trim() || null,
+      shippingPostalCode:
+        shipping.postalCode.trim() === OTHER_COLOMBO_ZONE_VALUE ? null : shipping.postalCode.trim() || null,
       deliveryMethod,
       paymentMethod,
       paymentReference: form.paymentReference.trim() || null,
@@ -306,15 +328,22 @@ export function CheckoutForm({
       idempotencyKey,
       items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
       clientTotal: total,
+      clientShippingFee: shippingFee,
     });
 
-    if (result.error || !result.orderId) {
+    if (result.error || !result.orderId || !result.orderNumber) {
       setPending(false);
       setSubmitError(result.error ?? "Could not place order.");
       return;
     }
 
     window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+
+    // The order is confirmed created from this point on — nothing below
+    // (cart-clearing, PayHere setup, navigation itself) may ever hide
+    // that fact from the customer. This renders immediately and stays on
+    // screen even if the redirect below silently fails.
+    setPlacedOrder({ orderNumber: result.orderNumber, orderId: result.orderId });
 
     if (paymentMethod === "payhere") {
       const checkout = await getPayHereCheckoutParams(result.orderId);
@@ -325,19 +354,57 @@ export function CheckoutForm({
         return;
       }
 
-      clear();
+      await clear().catch(() => {});
       setPayHereRedirect({ checkoutUrl: checkout.checkoutUrl, params: checkout.params });
       return;
     }
 
     setPending(false);
-    clear();
-    router.push(`/checkout/success?orderId=${result.orderId}`);
+    await clear().catch(() => {});
+    try {
+      router.replace(confirmationUrl(result.orderNumber, result.orderId, isLoggedIn));
+    } catch {
+      // placedOrder (rendered below) already shows the order number and a
+      // manual link to the same URL — the customer is never stranded.
+    }
   }
 
   if (payHereRedirect) {
     return (
       <PayHereRedirectForm checkoutUrl={payHereRedirect.checkoutUrl} params={payHereRedirect.params} />
+    );
+  }
+
+  if (placedOrder) {
+    const url = confirmationUrl(placedOrder.orderNumber, placedOrder.orderId, isLoggedIn);
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-20 text-center">
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Order placed</h1>
+        <p className="mt-2 text-[var(--muted)]">
+          Order <strong>{placedOrder.orderNumber}</strong> has been received.
+        </p>
+        {submitError ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <p role="alert" className="text-sm text-[var(--color-discount)]">
+              {submitError}
+            </p>
+            <a
+              href={getWhatsAppUrl("Hi, I'm having trouble finishing my card payment on trendymall.online")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 text-sm underline"
+            >
+              <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+              Message us on WhatsApp
+            </a>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-[var(--muted)]">Taking you to your confirmation page…</p>
+        )}
+        <Link href={url} className="mt-6 inline-flex min-h-11 items-center underline">
+          View order confirmation
+        </Link>
+      </div>
     );
   }
 
@@ -594,9 +661,10 @@ export function CheckoutForm({
             <div className="flex justify-between">
               <span>
                 Delivery
-                {deliveryMethod === "standard" && addressFields.city.trim() && (
+                {deliveryMethod === "standard" && addressFields.district.trim() && (
                   <span className="block text-xs text-[var(--muted)]">
-                    {addressFields.city.trim()} — {isColomboZone(addressFields.city) ? "Colombo zone rate" : "standard rate"}
+                    {deliveryReason.startsWith("Colombo") ? `Delivery to ${deliveryReason}` : deliveryReason} —{" "}
+                    {formatPrice(shippingFee)}
                   </span>
                 )}
               </span>

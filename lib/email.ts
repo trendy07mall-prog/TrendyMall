@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { formatPrice } from "@/lib/utils";
+import { describeDeliveryFee } from "@/lib/delivery-fee";
 import type { OrderStatus } from "@/types";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
@@ -24,6 +25,11 @@ interface OrderEmailData {
   customerEmail: string;
   items: OrderEmailItem[];
   shippingFee: number;
+  // Used only to derive the "why" label below the fee (describeDeliveryFee)
+  // — the fee itself is always shippingFee above, the order's own stored,
+  // server-computed value, never recomputed from these.
+  shippingDistrict: string;
+  shippingPostalCode: string | null;
   deliveryMethod: "standard" | "pickup";
   paymentMethod: "cod" | "bank_transfer" | "payhere";
   total: number;
@@ -48,10 +54,16 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
     ? `<p>New order from ${order.customerName} (${order.customerEmail}).</p>`
     : customerIntro;
 
+  const deliveryReason = describeDeliveryFee({
+    district: order.shippingDistrict,
+    postalCode: order.shippingPostalCode,
+    deliveryMethod: order.deliveryMethod,
+  }).reason;
+
   const deliveryRow =
     order.deliveryMethod === "pickup"
       ? `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">Store Pickup</td></tr>`
-      : `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.shippingFee)}</td></tr>`;
+      : `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery (${deliveryReason})</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.shippingFee)}</td></tr>`;
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">

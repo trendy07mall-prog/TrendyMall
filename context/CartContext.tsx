@@ -42,7 +42,11 @@ interface CartContextValue {
   addItem: (item: CartItem) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
-  clear: () => void;
+  // Resolves once the server-side clear has finished for a logged-in
+  // customer (immediately for a guest) — never rejects, so callers that
+  // await it (e.g. checkout's post-order-success flow) can rely on the
+  // clear having been attempted without needing their own try/catch.
+  clear: () => Promise<void>;
   subtotal: number;
   count: number;
   couponCode: string | null;
@@ -179,12 +183,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [isLoggedIn],
   );
 
-  const clear = useCallback(() => {
+  const clear = useCallback(async () => {
     setItems([]);
     setCouponCode(null);
     setNotes("");
     if (isLoggedIn) {
-      clearServerCart().catch((error) => console.error("Cart sync failed:", error));
+      try {
+        await clearServerCart();
+      } catch (error) {
+        console.error("Cart sync failed:", error);
+      }
     }
   }, [isLoggedIn]);
 

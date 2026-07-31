@@ -987,6 +987,10 @@ export interface Database {
         Args: { p_order_id: string };
         Returns: unknown;
       };
+      get_order_confirmation: {
+        Args: { p_order_number: string; p_token?: string | null };
+        Returns: unknown;
+      };
       check_guest_lookup_rate_limit: {
         Args: { p_ip: string; p_max_attempts?: number; p_window_minutes?: number };
         Returns: boolean;
@@ -1032,6 +1036,7 @@ export interface Database {
           p_coupon_code?: string | null;
           p_source_address_id?: string | null;
           p_idempotency_key?: string | null;
+          p_client_shipping_fee?: number | null;
         };
         Returns: { order_id: string; order_number: string }[];
       };

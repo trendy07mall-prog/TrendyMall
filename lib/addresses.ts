@@ -24,6 +24,29 @@ export async function getMyAddresses(): Promise<CustomerAddress[]> {
   return data ?? [];
 }
 
+// Backs the cart page's delivery estimate — once a logged-in customer has
+// a default address, the cart can show its real fee instead of a range
+// (app/cart/page.tsx). Returns null for a guest (no session) or a
+// logged-in customer with no saved addresses yet, both of which fall back
+// to the plain area-toggle estimate.
+export async function getMyDefaultAddress(): Promise<CustomerAddress | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("customer_addresses")
+    .select("*")
+    .eq("is_deleted", false)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
 // Create-or-update via a hidden `id` field, same shape as
 // lib/admin/coupons.ts's saveCoupon. Never writes is_default = true
 // directly — that's set_default_address's job alone (see sql/030's

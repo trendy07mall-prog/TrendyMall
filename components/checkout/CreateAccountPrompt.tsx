@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-// Shown only on a guest order's own /checkout/success page. Links to
-// /signup with email/name prefilled (app/signup/page.tsx reads these as
-// search params) rather than duplicating a second signup form here.
+// Shown only on a guest order's own /order-confirmation/[orderNumber]
+// page. Links to /signup with email/name prefilled (app/signup/page.tsx
+// reads these as search params) rather than duplicating a second signup
+// form here.
 export function CreateAccountPrompt({
   email,
   fullName,

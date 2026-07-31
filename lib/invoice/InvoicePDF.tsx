@@ -3,6 +3,7 @@ import "server-only";
 import path from "node:path";
 import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { formatPrice } from "@/lib/utils";
+import { describeDeliveryFee } from "@/lib/delivery-fee";
 import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import type { Order, OrderItem, ShippingAddress } from "@/types";
@@ -58,6 +59,13 @@ export interface InvoiceProps {
 }
 
 function InvoiceDocument({ order, items, address }: InvoiceProps) {
+  const deliveryLabel =
+    order.delivery_method === "pickup"
+      ? "Store Pickup"
+      : address
+        ? `Delivery (${describeDeliveryFee({ district: address.district, postalCode: address.postal_code, deliveryMethod: "standard" }).reason})`
+        : "Delivery";
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -136,7 +144,7 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
             <Text>{formatPrice(order.subtotal)}</Text>
           </View>
           <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Delivery</Text>
+            <Text style={styles.totalsLabel}>{deliveryLabel}</Text>
             <Text>
               {order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}
             </Text>

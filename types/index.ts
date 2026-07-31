@@ -79,6 +79,7 @@ export interface GuestOrderAddressDetail {
 
 export interface GuestOrderDetail {
   orderId?: string;
+  isGuest?: boolean;
   orderNumber: string;
   customerName?: string;
   customerEmail?: string;
