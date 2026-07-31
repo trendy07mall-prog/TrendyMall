@@ -1,13 +1,32 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import { WhatsAppIcon } from "@/components/ui/Icon";
 
 const WHATSAPP_URL = "https://wa.me/94775312484";
 
 export function WhatsAppButton() {
+  // Nothing should compete with the primary CTA on checkout — every
+  // checkout error state already has its own "Message us on WhatsApp"
+  // link, so the FAB adds no value there and only risks covering the
+  // Place Order button. Every other storefront page keeps it.
+  const pathname = usePathname();
+  if (pathname?.startsWith("/checkout")) return null;
+
   return (
-    <div className="group fixed right-5 bottom-5 z-[var(--z-whatsapp)] sm:right-8 sm:bottom-8">
+    <div
+      className="group fixed right-5 z-[var(--z-whatsapp)] sm:right-8"
+      // Shifts up above whatever sticky bottom bar the current page has
+      // (--mobile-bottom-bar-offset, published by that page — see
+      // app/cart/page.tsx / CheckoutForm.tsx), and respects the iPhone
+      // home-indicator safe area — same calc() pattern already used by
+      // ToastProvider.tsx for the same reason.
+      style={{
+        bottom:
+          "calc(var(--whatsapp-fab-bottom-base) + env(safe-area-inset-bottom) + var(--mobile-bottom-bar-offset, 0px))",
+      }}
+    >
       <span
         role="tooltip"
         className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 rounded-lg bg-[#111111] px-3 py-2 text-xs whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100"

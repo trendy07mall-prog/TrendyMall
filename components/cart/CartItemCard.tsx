@@ -127,27 +127,30 @@ export function CartItemCard({
             </button>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
-            <button
-              type="button"
-              onClick={handleSaveForLater}
-              aria-label={`Save ${item.name} for later`}
-              className="transition-brand flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-            >
-              <HeartIcon className="h-4 w-4" />
-              Save for later
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              aria-label={`Remove ${item.name} from cart`}
-              className="transition-brand flex items-center gap-1 text-xs text-[var(--muted)] hover:text-[var(--color-discount)]"
-            >
-              <TrashIcon className="h-4 w-4" />
-              Remove
-            </button>
-          </div>
+          <span className="font-medium">{formatPrice(item.price * item.quantity)}</span>
+        </div>
+
+        {/* Own row, not squeezed next to the price/stepper above — that's
+            what made these wrap to three lines on narrow phones. */}
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleSaveForLater}
+            aria-label={`Save ${item.name} for later`}
+            className="transition-brand inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border)] px-4 text-xs font-medium text-[var(--muted)] hover:bg-black/5 hover:text-[var(--foreground)]"
+          >
+            <HeartIcon className="h-4 w-4" />
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            aria-label={`Remove ${item.name} from cart`}
+            className="transition-brand inline-flex min-h-11 items-center gap-1.5 rounded-full border border-[var(--border)] px-4 text-xs font-medium text-[var(--muted)] hover:bg-black/5 hover:text-[var(--color-discount)]"
+          >
+            <TrashIcon className="h-4 w-4" />
+            Remove
+          </button>
         </div>
       </div>
     </div>

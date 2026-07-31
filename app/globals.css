@@ -56,6 +56,13 @@
   --z-modal: 60;
   --z-toast: 70;
 
+  /* WhatsAppButton.tsx's base bottom offset (its `bottom-5`/`sm:bottom-8`
+     equivalent) — expressed as a variable so it can be combined with
+     env(safe-area-inset-bottom) and --mobile-bottom-bar-offset in one
+     calc() via inline style, the same way ToastProvider.tsx already
+     combines its own base offset with that variable. */
+  --whatsapp-fab-bottom-base: 1.25rem;
+
   /* Layout — referenced via arbitrary-value Tailwind classes
      (max-w-[var(--container-width)] etc), not registered as theme keys. */
   --container-width: 1280px;
@@ -219,6 +226,16 @@ input:-webkit-autofill:focus {
   }
   .animate-pulse {
     animation: none;
+  }
+}
+
+/* Matches Tailwind's `sm:` breakpoint (640px) — WhatsAppButton.tsx's
+   `sm:bottom-8` equivalent, expressed as a variable (see
+   --whatsapp-fab-bottom-base above) instead of a bare Tailwind utility so
+   it can be combined with the dynamic offsets in one calc(). */
+@media (min-width: 640px) {
+  :root {
+    --whatsapp-fab-bottom-base: 2rem;
   }
 }
 

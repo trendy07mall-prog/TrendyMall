@@ -77,16 +77,20 @@ export default function CartPage() {
   }, [itemsKey]);
 
   // Announces the mobile sticky checkout bar's rendered height to the
-  // global ToastProvider (mounted in app/layout.tsx) via a CSS variable,
-  // so cart-page toasts shift up above it instead of being covered. Every
-  // other page falls back to the variable's default of 0px.
+  // global ToastProvider and WhatsAppButton (mounted in app/layout.tsx)
+  // via a CSS variable, so cart-page toasts and the FAB shift up above it
+  // instead of being covered. Every other page falls back to the
+  // variable's default of 0px. Guarded on height > 0 so this bar being
+  // `display:none` at desktop widths (lg:hidden) publishes 0px instead of
+  // a stray 16px — a real height, not an assumption, drives the offset.
   useEffect(() => {
     const el = stickyBarRef.current;
     if (!el) return;
     const updateOffset = () => {
+      const height = el.getBoundingClientRect().height;
       document.documentElement.style.setProperty(
-        "--mobile-toast-offset",
-        `${el.getBoundingClientRect().height + 16}px`,
+        "--mobile-bottom-bar-offset",
+        height > 0 ? `${height + 16}px` : "0px",
       );
     };
     updateOffset();
@@ -94,7 +98,7 @@ export default function CartPage() {
     observer.observe(el);
     return () => {
       observer.disconnect();
-      document.documentElement.style.removeProperty("--mobile-toast-offset");
+      document.documentElement.style.removeProperty("--mobile-bottom-bar-offset");
     };
   }, [items.length]);
 
@@ -140,6 +144,16 @@ export default function CartPage() {
         ? RATE_IN_ZONE
         : null;
   const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discount);
+  // A bare total with no delivery area selected would silently omit a
+  // real Rs.255-400 charge — read as "delivery is free" and then surprise
+  // the customer at checkout. Both the desktop summary and the mobile
+  // sticky bar render this exact string (never their own separately
+  // computed formatPrice(total)) so they're structurally incapable of
+  // disagreeing, not just carefully kept in sync by hand.
+  const totalDisplay =
+    deliveryFee === null
+      ? `${formatPrice(Math.max(0, subtotal - discount))} + delivery`
+      : formatPrice(total);
 
   function handleCheckout() {
     if (hasBlockingIssue) return;
@@ -259,7 +273,7 @@ export default function CartPage() {
 
           <div className="mt-4 flex justify-between border-t border-[var(--border)] pt-4 text-base font-medium">
             <span>Total</span>
-            <span>{formatPrice(total)}</span>
+            <span>{totalDisplay}</span>
           </div>
           {!defaultAddress && deliveryArea !== "outside" && (
             <p className="mt-1 text-xs text-[var(--muted)]">
@@ -322,11 +336,11 @@ export default function CartPage() {
 
       <div
         ref={stickyBarRef}
-        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card-hover)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-card-hover)] lg:hidden"
       >
         <div className="flex flex-col">
           <span className="text-xs text-[var(--muted)]">Total</span>
-          <span className="text-base font-medium">{formatPrice(total)}</span>
+          <span className="text-base font-medium">{totalDisplay}</span>
         </div>
         <button
           type="button"

@@ -180,15 +180,18 @@ export function CheckoutForm({
   }, [form.email, form.notes, form.paymentReference, deliveryMethod, idempotencyKey, hydrated]);
 
   // Announces the mobile sticky bar's height to the global ToastProvider
-  // (same --mobile-toast-offset handshake as app/cart/page.tsx) so toasts
-  // shift up above it instead of being covered.
+  // and WhatsAppButton (same --mobile-bottom-bar-offset handshake as
+  // app/cart/page.tsx) so toasts and the FAB shift up above it instead of
+  // being covered. Guarded on height > 0 so a `lg:hidden` bar (display:
+  // none at desktop widths) publishes 0px, not a stray 16px.
   useEffect(() => {
     const el = stickyBarRef.current;
     if (!el) return;
     const updateOffset = () => {
+      const height = el.getBoundingClientRect().height;
       document.documentElement.style.setProperty(
-        "--mobile-toast-offset",
-        `${el.getBoundingClientRect().height + 16}px`,
+        "--mobile-bottom-bar-offset",
+        height > 0 ? `${height + 16}px` : "0px",
       );
     };
     updateOffset();
@@ -196,7 +199,7 @@ export function CheckoutForm({
     observer.observe(el);
     return () => {
       observer.disconnect();
-      document.documentElement.style.removeProperty("--mobile-toast-offset");
+      document.documentElement.style.removeProperty("--mobile-bottom-bar-offset");
     };
   }, []);
 
@@ -686,7 +689,7 @@ export function CheckoutForm({
 
       <div
         ref={stickyBarRef}
-        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 py-3 shadow-[var(--shadow-card-hover)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-card-hover)] lg:hidden"
       >
         <div className="flex flex-col">
           <span className="text-xs text-[var(--muted)]">Total</span>
