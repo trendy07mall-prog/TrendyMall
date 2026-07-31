@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { trackOrder } from "@/lib/track-order";
-import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
-import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
+import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FieldError } from "@/components/ui/FieldError";
 import { formatPrice } from "@/lib/utils";
@@ -90,14 +89,13 @@ export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: st
         <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4 text-sm">
           <div className="flex items-center justify-between">
             <p className="font-medium">{order.orderNumber}</p>
-            <div className="flex items-center gap-2">
-              <PaymentStatusBadge status={order.paymentStatus} />
-              <OrderStatusBadge status={order.orderStatus} />
-            </div>
+            <p className="text-[var(--muted)]">
+              Placed {new Date(order.createdAt).toLocaleDateString()}
+            </p>
           </div>
-          <p className="mt-2 text-[var(--muted)]">
-            Placed {new Date(order.createdAt).toLocaleDateString()}
-          </p>
+          <div className="mt-3">
+            <OrderStatusSection order={order} />
+          </div>
 
           <ul className="mt-4 flex flex-col gap-3">
             {order.items.map((item, index) => (

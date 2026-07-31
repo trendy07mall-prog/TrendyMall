@@ -95,6 +95,10 @@ export interface GuestOrderDetail {
   // reference number the customer already gave at checkout, if any.
   paymentReference?: string | null;
   deliveryMethod: DeliveryMethod;
+  // Populated by all three RPCs (sql/040) — "how many times has this
+  // failed" and "why is it currently in failed_delivery," if it is.
+  deliveryAttemptCount?: number;
+  failureReason?: string | null;
   subtotal: number;
   shippingFee: number;
   discount: number;
@@ -107,4 +111,8 @@ export interface GuestOrderDetail {
   shippingAddress: string;
   shippingAddressDetail: GuestOrderAddressDetail | null;
   items: GuestOrderItem[];
+  // Every order_status transition (sql/040) — the "pending" step itself
+  // has no entry here (it's the column's INSERT default, not an UPDATE),
+  // its timestamp is this order's own createdAt instead.
+  statusHistory?: { status: OrderFulfillmentStatus; changedAt: string; note: string | null }[];
 }

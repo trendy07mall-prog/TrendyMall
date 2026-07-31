@@ -5,12 +5,20 @@
 
 import type { OrderFulfillmentStatus } from "@/types";
 
+// "pending" is step 1 ("Order Placed") — it belongs in the linear
+// progression now, not collapsed into "confirmed" by the customer-facing
+// timeline (see OrderTimeline.tsx's history: that collapsing hack was
+// the bug — the badge showed "Pending" while the stepper showed
+// "Confirmed" reached, two views of the same status disagreeing).
+// failed_delivery is deliberately excluded, same as cancelled/returned —
+// an exception branch off "out_for_delivery," never a linear/appended
+// step.
 export const ORDER_STATUS_PROGRESSION: OrderFulfillmentStatus[] = [
-  "confirmed", "packing", "shipped", "out_for_delivery", "delivered",
+  "pending", "confirmed", "packing", "shipped", "out_for_delivery", "delivered",
 ];
 
 export const ORDER_STATUS_LABELS: Record<OrderFulfillmentStatus, string> = {
-  pending: "Pending",
+  pending: "Order Placed",
   confirmed: "Confirmed",
   packing: "Packing",
   shipped: "Shipped",
@@ -18,6 +26,7 @@ export const ORDER_STATUS_LABELS: Record<OrderFulfillmentStatus, string> = {
   delivered: "Delivered",
   cancelled: "Cancelled",
   returned: "Returned",
+  failed_delivery: "Delivery Failed",
 };
 
 export function getNextOrderStatus(

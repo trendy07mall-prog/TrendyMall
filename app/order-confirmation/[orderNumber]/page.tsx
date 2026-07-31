@@ -5,12 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getBankTransferSettings } from "@/lib/bankTransferSettings";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
-import { getPaymentDisplay } from "@/lib/order-display";
 import { getWhatsAppUrl } from "@/lib/site";
-import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { OrderSuccessCheck } from "@/components/order/OrderSuccessCheck";
-import { PendingPaymentPoller } from "@/components/order/PendingPaymentPoller";
-import { OrderTimeline } from "@/components/order/OrderTimeline";
+import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { OrderSummaryCard } from "@/components/order/OrderSummaryCard";
 import { CopyOrderNumber } from "@/components/order/CopyOrderNumber";
 import { CreateAccountPrompt } from "@/components/checkout/CreateAccountPrompt";
@@ -89,12 +86,6 @@ export default async function OrderConfirmationPage({
 
   if (!order) notFound();
 
-  const payment = getPaymentDisplay({
-    paymentMethod: order.paymentMethod,
-    paymentStatus: order.paymentStatus,
-    total: order.total,
-  });
-
   const [bankDetails, recommendations] = await Promise.all([
     order.paymentMethod === "bank_transfer" && order.paymentStatus === "awaiting_verification"
       ? getBankTransferSettings()
@@ -125,21 +116,8 @@ export default async function OrderConfirmationPage({
             <div className="mt-3 flex justify-center lg:justify-start">
               <CopyOrderNumber orderNumber={order.orderNumber} />
             </div>
-            {order.paymentMethod === "payhere" && order.paymentStatus === "pending" && <PendingPaymentPoller />}
-            <div className="mt-3 flex flex-col items-center gap-2 lg:items-start">
-              <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                <span
-                  className="border border-current px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide"
-                  title={payment.message}
-                >
-                  {payment.badge}
-                </span>
-                <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
-                  Order status:
-                  <OrderStatusBadge status={order.orderStatus} />
-                </span>
-              </div>
-              <p className="text-center text-sm text-[var(--muted)] lg:text-left">{payment.message}</p>
+            <div className="mt-3">
+              <OrderStatusSection order={order} />
             </div>
           </section>
 
@@ -157,14 +135,6 @@ export default async function OrderConfirmationPage({
                 <p className="mt-1 text-sm text-[var(--muted)]">{PICKUP_HOURS}</p>
               </>
             )}
-          </section>
-
-          {/* 3. Order timeline */}
-          <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
-            <h2 className="text-sm font-semibold">Order status</h2>
-            <div className="mt-4">
-              <OrderTimeline status={order.orderStatus} />
-            </div>
           </section>
 
           {/* 4. What happens next */}

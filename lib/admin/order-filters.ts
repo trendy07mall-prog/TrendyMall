@@ -7,7 +7,7 @@ import type { OrderFulfillmentStatus, PaymentGateway } from "@/types";
 
 const ORDER_STATUSES: OrderFulfillmentStatus[] = [
   "pending", "confirmed", "packing", "shipped", "out_for_delivery",
-  "delivered", "cancelled", "returned",
+  "delivered", "cancelled", "returned", "failed_delivery",
 ];
 const PAYMENT_METHODS: PaymentGateway[] = ["cod", "bank_transfer", "payhere"];
 

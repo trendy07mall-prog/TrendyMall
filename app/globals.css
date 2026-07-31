@@ -19,6 +19,11 @@
   --color-success: #22c55e;
   --color-discount: #ef4444;
   --color-warning: #f97316;
+  /* Darker/higher-contrast than --color-discount — the failed-delivery
+     exception step on the order timeline (OrderTimeline.tsx) specifically
+     needs enough contrast against --color-card's white to read as an
+     alert, not just a tint. */
+  --color-error: #dc2626;
 
   --radius-card: 12px;
   --radius-btn: 14px;
@@ -110,6 +115,7 @@
   --color-success: var(--color-success);
   --color-discount: var(--color-discount);
   --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
 
   --radius-card: var(--radius-card);
   --radius-btn: var(--radius-btn);

@@ -8,13 +8,16 @@ import {
   advanceOrderStatus,
   cancelOrder,
   refundOrder,
+  reattemptDelivery,
+  markOrderReturned,
 } from "@/lib/admin/orderActions";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { useToast } from "@/components/admin/ToastProvider";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { MarkFailedDeliveryForm } from "@/components/admin/MarkFailedDeliveryForm";
 import type { OrderFulfillmentStatus, PaymentGateway, PaymentStatus } from "@/types";
 
-type Action = "cancel" | "refund" | null;
+type Action = "cancel" | "refund" | "return" | null;
 
 export function OrderActionPanel({
   orderId,
@@ -85,6 +88,26 @@ export function OrderActionPanel({
             Mark as {ORDER_STATUS_LABELS[nextStatus]}
           </button>
         )}
+        {orderStatus === "failed_delivery" && (
+          <>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => reattemptDelivery(orderId), "Marked as out for delivery")}
+              className={primaryButtonClass}
+            >
+              Reattempt Delivery
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConfirmAction("return")}
+              className={`${buttonClass} border-[var(--color-discount)] text-[var(--color-discount)]`}
+            >
+              Mark Returned
+            </button>
+          </>
+        )}
         {canCancel && (
           <button
             type="button"
@@ -107,6 +130,12 @@ export function OrderActionPanel({
         )}
       </div>
 
+      {orderStatus === "out_for_delivery" && (
+        <div className="mt-3">
+          <MarkFailedDeliveryForm orderId={orderId} />
+        </div>
+      )}
+
       {confirmAction === "cancel" && (
         <ConfirmDialog
           title="Cancel Order?"
@@ -126,6 +155,17 @@ export function OrderActionPanel({
           destructive
           pending={pending}
           onConfirm={() => run(() => refundOrder(orderId), "Order refunded")}
+          onClose={() => setConfirmAction(null)}
+        />
+      )}
+      {confirmAction === "return" && (
+        <ConfirmDialog
+          title="Mark Returned?"
+          message="Stock for every item will be restored and the customer will be emailed. Payment status is left as-is — refund separately if this order was paid."
+          confirmLabel="Mark Returned"
+          destructive
+          pending={pending}
+          onConfirm={() => run(() => markOrderReturned(orderId), "Order marked returned")}
           onClose={() => setConfirmAction(null)}
         />
       )}

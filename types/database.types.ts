@@ -31,7 +31,8 @@ export type OrderFulfillmentStatus =
   | "out_for_delivery"
   | "delivered"
   | "cancelled"
-  | "returned";
+  | "returned"
+  | "failed_delivery";
 
 export type DeliveryMethod = "standard" | "pickup";
 
@@ -553,6 +554,8 @@ export interface Database {
           courier: string | null;
           tracking_number: string | null;
           tracking_url: string | null;
+          delivery_attempt_count: number;
+          delivery_failure_reason: string | null;
           notes: string | null;
           deleted_at: string | null;
           idempotency_key: string | null;
@@ -580,6 +583,8 @@ export interface Database {
           courier?: string | null;
           tracking_number?: string | null;
           tracking_url?: string | null;
+          delivery_attempt_count?: number;
+          delivery_failure_reason?: string | null;
           notes?: string | null;
           deleted_at?: string | null;
           idempotency_key?: string | null;
@@ -607,6 +612,8 @@ export interface Database {
           courier?: string | null;
           tracking_number?: string | null;
           tracking_url?: string | null;
+          delivery_attempt_count?: number;
+          delivery_failure_reason?: string | null;
           notes?: string | null;
           deleted_at?: string | null;
           idempotency_key?: string | null;
@@ -1012,7 +1019,16 @@ export interface Database {
           p_order_id: string;
           p_new_order_status: string;
           p_new_payment_status?: string | null;
+          p_note?: string | null;
         };
+        Returns: boolean;
+      };
+      mark_delivery_failed: {
+        Args: { p_order_id: string; p_reason: string };
+        Returns: boolean;
+      };
+      reattempt_delivery: {
+        Args: { p_order_id: string };
         Returns: boolean;
       };
       create_order_atomic: {

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { sendOrderStatusEmail } from "@/lib/email";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
+import { getWhatsAppUrl } from "@/lib/site";
 
 export type OrderActionResult = { success: true } | { error: string };
 
@@ -237,6 +238,116 @@ export async function refundOrder(orderId: string): Promise<OrderActionResult> {
       customerName: order.customer_name,
       customerEmail: order.customer_email,
       label: "Refunded",
+    });
+  }
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Only reachable from "out_for_delivery" (mark_delivery_failed enforces
+// this server-side too, not just via the UI gate) — failed_delivery is
+// an exception branch off that one step, never a linear/appended one.
+export async function markDeliveryFailed(orderId: string, reason: string): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) return { error: "A failure reason is required." };
+
+  const { data: ok, error: rpcError } = await supabase.rpc("mark_delivery_failed", {
+    p_order_id: orderId,
+    p_reason: trimmedReason,
+  });
+
+  if (rpcError) return { error: rpcError.message };
+  if (!ok) return { error: "This order is not out for delivery." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, customer_name, customer_email")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (order) {
+    const isAddressIssue = trimmedReason.toLowerCase().includes("address");
+    const whatsappLink = getWhatsAppUrl(`Hi, delivery of my order ${order.order_number} failed — I'd like to sort this out.`);
+    await sendOrderStatusEmail({
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      label: "Delivery Attempt Failed",
+      detail: `Reason: ${trimmedReason}. This isn't the end of the road — we'll re-attempt delivery once this is resolved.${
+        isAddressIssue ? " Please confirm or correct your delivery address so we can try again." : ""
+      } <a href="${whatsappLink}">Message us on WhatsApp</a> to resolve it quickly.`,
+    });
+  }
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Resolution path #1 from failed_delivery: try again. Only reachable
+// from "failed_delivery" (reattempt_delivery enforces this server-side).
+export async function reattemptDelivery(orderId: string): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const { data: ok, error: rpcError } = await supabase.rpc("reattempt_delivery", {
+    p_order_id: orderId,
+  });
+
+  if (rpcError) return { error: rpcError.message };
+  if (!ok) return { error: "This order is not marked as a failed delivery." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, customer_name, customer_email")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (order) {
+    await sendOrderStatusEmail({
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      label: "Out for Delivery",
+      detail: "We're re-attempting delivery of your order.",
+    });
+  }
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Resolution path #2 from failed_delivery: the order won't be
+// re-attempted, so it comes back to us — stock restored, same
+// cancel_order_atomic primitive cancelOrder/refundOrder already use.
+// Deliberately distinct from refundOrder: this doesn't touch
+// payment_status (a COD order that never collected payment has nothing
+// to refund; a paid order can still be refunded separately afterward).
+export async function markOrderReturned(orderId: string): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const { data: ok, error: rpcError } = await supabase.rpc("cancel_order_atomic", {
+    p_order_id: orderId,
+    p_new_order_status: "returned",
+    p_note: "Returned after failed delivery",
+  });
+
+  if (rpcError) return { error: rpcError.message };
+  if (!ok) return { error: "This order can no longer be marked returned." };
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, customer_name, customer_email")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (order) {
+    await sendOrderStatusEmail({
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerEmail: order.customer_email,
+      label: "Returned",
     });
   }
 
