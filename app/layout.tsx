@@ -111,7 +111,7 @@ export default async function RootLayout({
                   <AnnouncementBar />
                   <PromoBanner banner={banner} />
                   <Navbar />
-                  <div className="border-b border-[var(--border)] bg-white py-3">
+                  <div className="border-b border-[var(--border)] bg-white py-3 print:hidden">
                     <SiteSearchBar />
                   </div>
                 </ConditionalChrome>

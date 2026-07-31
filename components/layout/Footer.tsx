@@ -16,7 +16,7 @@ const COMPANY_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-[var(--border)] bg-white">
+    <footer className="border-t border-[var(--border)] bg-white print:hidden">
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>

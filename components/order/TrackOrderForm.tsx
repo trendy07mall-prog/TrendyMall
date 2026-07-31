@@ -13,8 +13,8 @@ import type { GuestOrderDetail } from "@/types";
 const inputClass =
   "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
-export function TrackOrderForm() {
-  const [orderNumber, setOrderNumber] = useState("");
+export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: string }) {
+  const [orderNumber, setOrderNumber] = useState(defaultOrderNumber ?? "");
   const [contact, setContact] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");

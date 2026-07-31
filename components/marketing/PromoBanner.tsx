@@ -31,7 +31,7 @@ export function PromoBanner({ banner }: { banner: SiteBanner | null }) {
   if (!banner || !hydrated || dismissed) return null;
 
   return (
-    <div className="flex items-center justify-center gap-3 bg-[var(--foreground)] px-4 py-2 text-center text-sm text-white">
+    <div className="flex items-center justify-center gap-3 bg-[var(--foreground)] px-4 py-2 text-center text-sm text-white print:hidden">
       {banner.link_url ? (
         <Link href={banner.link_url} className="underline underline-offset-2">
           {banner.message}

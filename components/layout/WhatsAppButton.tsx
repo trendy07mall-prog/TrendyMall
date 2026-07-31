@@ -16,7 +16,7 @@ export function WhatsAppButton() {
 
   return (
     <div
-      className="group fixed right-5 z-[var(--z-whatsapp)] sm:right-8"
+      className="group fixed right-5 z-[var(--z-whatsapp)] print:hidden sm:right-8"
       // Shifts up above whatever sticky bottom bar the current page has
       // (--mobile-bottom-bar-offset, published by that page — see
       // app/cart/page.tsx / CheckoutForm.tsx), and respects the iPhone

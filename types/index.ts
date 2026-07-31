@@ -64,6 +64,10 @@ export interface CartItem {
 // (adds orderId/customerName/customerEmail/customerPhone), hence those
 // fields being optional here rather than two near-identical interfaces.
 export interface GuestOrderItem {
+  // Only populated by get_order_confirmation (sql/039) — track_order and
+  // get_guest_order_by_id don't select it, so it's optional rather than
+  // widening every consumer of this shared shape.
+  productId?: string;
   productName: string;
   quantity: number;
   subtotal: number;
@@ -87,6 +91,9 @@ export interface GuestOrderDetail {
   paymentStatus: PaymentStatus;
   orderStatus: OrderFulfillmentStatus;
   paymentMethod: string;
+  // Only populated by get_order_confirmation (sql/039) — the bank-transfer
+  // reference number the customer already gave at checkout, if any.
+  paymentReference?: string | null;
   deliveryMethod: DeliveryMethod;
   subtotal: number;
   shippingFee: number;

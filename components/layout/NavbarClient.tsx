@@ -210,7 +210,7 @@ export function NavbarClient({
     <>
       <header
         ref={headerRef}
-        className={`sticky top-0 z-[var(--z-nav)] border-b bg-white/90 backdrop-blur transition-colors duration-200 ${
+        className={`sticky top-0 z-[var(--z-nav)] border-b bg-white/90 backdrop-blur transition-colors duration-200 print:hidden ${
         scrolled ? "border-[var(--border)]" : "border-transparent"
       }`}
     >

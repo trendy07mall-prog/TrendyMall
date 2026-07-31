@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { renderInvoicePdf } from "@/lib/invoice/InvoicePDF";
+import type { GuestOrderDetail, Order, OrderItem, ShippingAddress } from "@/types";
 
 // @react-pdf/renderer needs Node APIs (reads the logo file from disk) —
 // not edge-compatible. 'nodejs' is already the default, set explicitly
@@ -25,17 +27,50 @@ export async function GET(
     .eq("id", orderId)
     .maybeSingle();
 
-  if (!order) {
+  let invoiceOrder: Order | null = order;
+  let items: OrderItem[] | null = null;
+  let address: ShippingAddress | null = null;
+
+  if (order) {
+    const [itemsResult, addressResult] = await Promise.all([
+      supabase.from("order_items").select("*").eq("order_id", orderId),
+      supabase.from("shipping_addresses").select("*").eq("order_id", orderId).maybeSingle(),
+    ]);
+    items = itemsResult.data;
+    address = addressResult.data;
+  } else {
+    // A guest order never matches orders_select_own_or_admin above
+    // (user_id is null, and an anonymous caller's auth.uid() is also
+    // null — null = null isn't true in SQL) — get_guest_order_by_id
+    // (sql/033, security definer, scoped to `user_id is null`) is the
+    // authorization *decision*; only once it confirms this exact id is a
+    // real guest order does the already-existing admin client (service
+    // role, lib/supabase/admin.ts — "only for privileged server-side
+    // operations" once authorization is separately decided) fetch the
+    // real rows this route needs.
+    const { data: guestOrderRaw } = await supabase.rpc("get_guest_order_by_id", { p_order_id: orderId });
+    const guestOrder = guestOrderRaw as GuestOrderDetail | null;
+    if (!guestOrder) {
+      return new Response("Not found", { status: 404 });
+    }
+
+    const admin = createAdminClient();
+    const [orderResult, itemsResult, addressResult] = await Promise.all([
+      admin.from("orders").select("*").eq("id", orderId).maybeSingle(),
+      admin.from("order_items").select("*").eq("order_id", orderId),
+      admin.from("shipping_addresses").select("*").eq("order_id", orderId).maybeSingle(),
+    ]);
+    invoiceOrder = orderResult.data;
+    items = itemsResult.data;
+    address = addressResult.data;
+  }
+
+  if (!invoiceOrder) {
     return new Response("Not found", { status: 404 });
   }
 
-  const [{ data: items }, { data: address }] = await Promise.all([
-    supabase.from("order_items").select("*").eq("order_id", orderId),
-    supabase.from("shipping_addresses").select("*").eq("order_id", orderId).maybeSingle(),
-  ]);
-
   const pdfBuffer = await renderInvoicePdf({
-    order,
+    order: invoiceOrder,
     items: items ?? [],
     address: address ?? null,
   });
@@ -43,7 +78,7 @@ export async function GET(
   return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${order.order_number}.pdf"`,
+      "Content-Disposition": `attachment; filename="invoice-${invoiceOrder.order_number}.pdf"`,
     },
   });
 }
