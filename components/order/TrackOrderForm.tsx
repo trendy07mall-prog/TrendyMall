@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { trackOrder } from "@/lib/track-order";
 import { OrderStatusSection } from "@/components/order/OrderStatusSection";
+import { DeliveryAddressCard } from "@/components/order/DeliveryAddressCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FieldError } from "@/components/ui/FieldError";
 import { formatPrice } from "@/lib/utils";
@@ -131,18 +132,12 @@ export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: st
             </div>
           </div>
 
-          <div className="mt-4 text-[var(--muted)]">
-            {order.deliveryMethod === "pickup" ? (
-              <p>Store Pickup — {order.shippingAddress}</p>
-            ) : order.shippingAddressDetail ? (
-              <p>
-                {order.shippingAddressDetail.street}, {order.shippingAddressDetail.city},{" "}
-                {order.shippingAddressDetail.district}
-                {order.shippingAddressDetail.postalCode ? ` ${order.shippingAddressDetail.postalCode}` : ""}
-              </p>
-            ) : (
-              <p className="whitespace-pre-line">{order.shippingAddress}</p>
-            )}
+          <div className="mt-4">
+            <DeliveryAddressCard
+              deliveryMethod={order.deliveryMethod}
+              addressDetail={order.shippingAddressDetail}
+              shippingAddress={order.shippingAddress}
+            />
           </div>
 
           {(order.courier || order.trackingNumber || order.trackingUrl) && (

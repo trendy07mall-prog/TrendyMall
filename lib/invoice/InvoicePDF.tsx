@@ -6,15 +6,10 @@ import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
 import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { Order, OrderItem, ShippingAddress } from "@/types";
 
 const LOGO_PATH = path.join(process.cwd(), "public/images/logo/tm_logo_clear_animated.png");
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cod: "Cash on Delivery",
-  bank_transfer: "Bank Transfer",
-  payhere: "Card (PayHere)",
-};
 
 // order_number → invoice number is a deterministic derivation, not a
 // separately-issued sequence — see the Phase 5 plan for why.

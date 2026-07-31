@@ -5,6 +5,7 @@ import { requireAdminClient } from "@/lib/admin/guard";
 import { sendOrderStatusEmail } from "@/lib/email";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { getWhatsAppUrl } from "@/lib/site";
+import type { OrderFulfillmentStatus, PaymentStatus } from "@/types";
 
 export type OrderActionResult = { success: true } | { error: string };
 
@@ -123,12 +124,20 @@ export async function addOrderTracking(
 // No client-supplied target status — the next step is always computed
 // server-side from the order's current status, so a manipulated request
 // can't skip a step in the packing→delivered progression.
+//
+// Marking a COD order delivered also marks it paid, in the same update
+// — a delivered COD order with payment still "pending" is a contradiction
+// (sql/041's one-time backfill fixes existing rows in this state; this
+// is what stops new ones from happening). Automatic rather than a
+// confirm-every-time prompt: the courier already collected the cash
+// before this button gets clicked in the overwhelming common case, and
+// "Flag Unpaid" (below) exists for the rare exception.
 export async function advanceOrderStatus(orderId: string): Promise<OrderActionResult> {
   const supabase = await requireAdminClient();
 
   const { data: current } = await supabase
     .from("orders")
-    .select("order_status")
+    .select("order_status, payment_method, payment_status")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -137,9 +146,16 @@ export async function advanceOrderStatus(orderId: string): Promise<OrderActionRe
   const next = getNextOrderStatus(current.order_status);
   if (!next) return { error: "This order has no further status to advance to." };
 
+  const updates: { order_status: OrderFulfillmentStatus; payment_status?: PaymentStatus } = {
+    order_status: next,
+  };
+  if (next === "delivered" && current.payment_method === "cod" && current.payment_status !== "paid") {
+    updates.payment_status = "paid";
+  }
+
   const { data: order, error } = await supabase
     .from("orders")
-    .update({ order_status: next })
+    .update(updates)
     .eq("id", orderId)
     .eq("order_status", current.order_status)
     .select("order_number, customer_name, customer_email")
@@ -154,6 +170,40 @@ export async function advanceOrderStatus(orderId: string): Promise<OrderActionRe
     customerEmail: order.customer_email,
     label: ORDER_STATUS_LABELS[next],
   });
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Corrective path for the rare case a COD delivery's auto-assumed
+// payment wasn't actually collected. Sets payment_status back to
+// 'pending' (still owed), never touches order_status.
+export async function flagOrderUnpaid(orderId: string): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("payment_method, order_status, payment_status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (!current) return { error: "Order not found." };
+  if (current.payment_method !== "cod") {
+    return { error: "Only Cash on Delivery orders can be flagged this way." };
+  }
+  if (current.order_status !== "delivered" || current.payment_status !== "paid") {
+    return { error: "Only a delivered, paid COD order can be flagged unpaid." };
+  }
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update({ payment_status: "pending" })
+    .eq("id", orderId)
+    .select("order_number, customer_name, customer_email")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!order) return { error: "Order not found." };
 
   revalidateOrderPaths(orderId);
   return { success: true };

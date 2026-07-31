@@ -1,5 +1,5 @@
 import { formatPrice } from "@/lib/utils";
-import type { PaymentStatus } from "@/types";
+import type { OrderFulfillmentStatus, PaymentStatus } from "@/types";
 
 // The order-confirmation page previously showed PaymentStatusBadge's
 // generic label ("Payment pending") verbatim for every payment method —
@@ -11,12 +11,20 @@ import type { PaymentStatus } from "@/types";
 export function getPaymentDisplay(input: {
   paymentMethod: string;
   paymentStatus: PaymentStatus;
+  orderStatus: OrderFulfillmentStatus;
   total: number;
 }): { badge: string; message: string } {
-  const { paymentMethod, paymentStatus, total } = input;
+  const { paymentMethod, paymentStatus, orderStatus, total } = input;
 
   if (paymentStatus === "paid") {
     return { badge: "Paid", message: "Payment received." };
+  }
+  // Defensive: a COD order that's already delivered should never say
+  // "pay in cash when it arrives" regardless of what payment_status
+  // happens to say (the data-consistency fix, sql/041, means this
+  // shouldn't occur going forward, but the display logic guards it too).
+  if (orderStatus === "delivered" && paymentMethod === "cod") {
+    return { badge: "Cash on Delivery", message: "Payment collected on delivery." };
   }
   if (paymentStatus === "failed") {
     return {

@@ -1,117 +1,148 @@
+import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getMyOrderDetail } from "@/lib/orders/order-detail";
 import { formatPrice } from "@/lib/utils";
-import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
-import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
+import { getWhatsAppUrl } from "@/lib/site";
+import { OrderStatusBadges } from "@/components/order/OrderStatusBadges";
+import { OrderTimeline } from "@/components/order/OrderTimeline";
+import { DeliveryAddressCard } from "@/components/order/DeliveryAddressCard";
+import { OrderSummaryCard } from "@/components/order/OrderSummaryCard";
+import { PendingPaymentPoller } from "@/components/order/PendingPaymentPoller";
+import { ReorderButton } from "@/components/order/ReorderButton";
+import { CancelOrderButton } from "@/components/order/CancelOrderButton";
+import { WhatsAppIcon } from "@/components/ui/Icon";
 
-export default async function OrderDetailPage({
+const actionClass =
+  "transition-brand inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] px-5 text-sm font-medium hover:bg-black/5";
+
+// Status-first, repeatedly-visited view — distinct from /order-confirmation
+// (one-time, celebratory, keyed by the guessable order number + token).
+// Keyed by UUID, protected purely by RLS (orders_select_own_or_admin and
+// friends already scope every table involved to the caller's own rows —
+// no extra ownership check needed here, confirmed empirically in
+// verification, not just by reading policy text).
+export default async function AccountOrderDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const { data: order } = await supabase
-    .from("orders")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-
+  const order = await getMyOrderDetail(id);
   if (!order) notFound();
 
-  const [{ data: items }, { data: shippingAddress }] = await Promise.all([
-    supabase.from("order_items").select("*").eq("order_id", id),
-    supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
-  ]);
+  // A product slug per item, for "link back to the product" — a small,
+  // page-specific lookup rather than widening GuestOrderItem (shared
+  // across 4 RPCs/pages that have no other reason to carry a slug).
+  const supabase = await createClient();
+  const productIds = order.items.map((item) => item.productId).filter((v): v is string => Boolean(v));
+  const { data: products } =
+    productIds.length > 0
+      ? await supabase.from("products").select("id, slug").in("id", productIds)
+      : { data: [] };
+  const slugById = new Map((products ?? []).map((p) => [p.id, p.slug]));
+
+  const canCancel = order.orderStatus === "pending" || order.orderStatus === "confirmed";
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-xl font-bold tracking-tight">
-          Order {order.order_number}
-        </h1>
-        <div className="flex items-center gap-2">
-          <PaymentStatusBadge status={order.payment_status} />
-          <OrderStatusBadge status={order.order_status} />
-        </div>
-      </div>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        Placed {new Date(order.created_at).toLocaleString()}
-      </p>
-
-      <div className="mt-8 grid gap-1 text-sm text-[var(--muted)]">
-        <p>{order.customer_name}</p>
-        <p>{order.customer_email}</p>
-        <p>{order.customer_phone}</p>
-        {order.delivery_method === "pickup" ? (
-          <p>Store Pickup — {order.shipping_address}</p>
-        ) : shippingAddress ? (
-          <p>
-            {shippingAddress.street}, {shippingAddress.city}, {shippingAddress.district}
-            {shippingAddress.postal_code ? ` ${shippingAddress.postal_code}` : ""}
-          </p>
-        ) : (
-          <p className="whitespace-pre-line">{order.shipping_address}</p>
-        )}
-        {order.notes && <p>Notes: {order.notes}</p>}
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Order {order.orderNumber}</h1>
+        <p className="mt-1 text-sm text-[var(--muted)]">Placed {new Date(order.createdAt).toLocaleString()}</p>
       </div>
 
-      <ul className="mt-8 flex flex-col gap-3">
-        {(items ?? []).map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center gap-3 border-b border-[var(--border)] pb-3 text-sm"
-          >
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
-              {item.product_image_url && (
-                <Image src={item.product_image_url} alt="" fill sizes="48px" className="object-cover" />
-              )}
-            </div>
-            <div className="flex flex-1 items-center justify-between">
-              <span>
-                {item.product_name} × {item.quantity}
-              </span>
-              <span>{formatPrice(item.subtotal)}</span>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-4 flex flex-col gap-1 text-sm">
-        <div className="flex justify-between text-[var(--muted)]">
-          <span>Delivery</span>
-          <span>
-            {order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}
-          </span>
-        </div>
-        <div className="flex justify-between font-medium">
-          <span>Total</span>
-          <span>{formatPrice(order.total)}</span>
-        </div>
-      </div>
+      {order.paymentMethod === "payhere" && order.paymentStatus === "pending" && <PendingPaymentPoller />}
+      <OrderStatusBadges order={order} />
 
-      {(order.courier || order.tracking_number || order.tracking_url) && (
-        <div className="mt-6 rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm">
+      <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+        <h2 className="text-sm font-semibold">Order status</h2>
+        <div className="mt-4">
+          <OrderTimeline
+            status={order.orderStatus}
+            failureReason={order.failureReason}
+            deliveryAttemptCount={order.deliveryAttemptCount}
+            statusHistory={order.statusHistory}
+            createdAt={order.createdAt}
+            orderNumber={order.orderNumber}
+          />
+        </div>
+      </section>
+
+      <DeliveryAddressCard
+        deliveryMethod={order.deliveryMethod}
+        addressDetail={order.shippingAddressDetail}
+        shippingAddress={order.shippingAddress}
+      />
+
+      <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+        <h2 className="text-sm font-semibold">Items</h2>
+        <ul className="mt-3 flex flex-col gap-3">
+          {order.items.map((item, index) => {
+            const slug = item.productId ? slugById.get(item.productId) : undefined;
+            const row = (
+              <div className="flex flex-1 items-center gap-3 text-sm">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+                  {item.imageUrl && (
+                    <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                  )}
+                </div>
+                <div className="flex flex-1 items-center justify-between">
+                  <span>
+                    {item.productName} × {item.quantity}
+                  </span>
+                  <span>{formatPrice(item.subtotal)}</span>
+                </div>
+              </div>
+            );
+            return (
+              <li key={index} className="border-b border-[var(--border)] pb-3 last:border-0 last:pb-0">
+                {slug ? (
+                  <Link href={`/product/${slug}`} className="flex transition-opacity hover:opacity-80">
+                    {row}
+                  </Link>
+                ) : (
+                  row
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {(order.courier || order.trackingNumber || order.trackingUrl) && (
+        <section className="rounded-[var(--radius-card)] border border-[var(--border)] p-4 text-sm">
           <p className="font-medium">Tracking</p>
           {order.courier && <p className="mt-1 text-[var(--muted)]">Courier: {order.courier}</p>}
-          {order.tracking_number && (
-            <p className="text-[var(--muted)]">Tracking number: {order.tracking_number}</p>
+          {order.trackingNumber && (
+            <p className="text-[var(--muted)]">Tracking number: {order.trackingNumber}</p>
           )}
-          {order.tracking_url && (
-            <a href={order.tracking_url} target="_blank" rel="noopener noreferrer" className="underline">
+          {order.trackingUrl && (
+            <a href={order.trackingUrl} target="_blank" rel="noopener noreferrer" className="underline">
               Track shipment
             </a>
           )}
-        </div>
+        </section>
       )}
 
-      <a
-        href={`/invoices/${order.id}`}
-        className="mt-8 inline-block rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
-      >
-        Download Invoice
-      </a>
+      <OrderSummaryCard order={order} />
+
+      <div className="flex flex-wrap gap-3">
+        <a href={`/invoices/${id}`} className={actionClass}>
+          Download Invoice
+        </a>
+        <ReorderButton orderId={id} className={actionClass} />
+        <a
+          href={getWhatsAppUrl(`Hi, I have a question about my order ${order.orderNumber}`)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={actionClass}
+        >
+          <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+          Message us on WhatsApp
+        </a>
+        {canCancel && <CancelOrderButton orderId={id} />}
+      </div>
     </div>
   );
 }

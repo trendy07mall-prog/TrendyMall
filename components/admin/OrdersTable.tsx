@@ -4,13 +4,8 @@ import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { OrderActionsMenu } from "@/components/admin/OrderActionsMenu";
 import { Pagination } from "@/components/product/Pagination";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { AdminOrderRow } from "@/lib/admin/orders-query";
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cod: "Cash on Delivery",
-  bank_transfer: "Bank Transfer",
-  payhere: "Card (PayHere)",
-};
 
 export function OrdersTable({
   orders,

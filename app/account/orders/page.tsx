@@ -1,53 +1,42 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/utils";
-import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
-import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
+import { getMyOrders, ACCOUNT_ORDERS_PAGE_SIZE } from "@/lib/account/orders-query";
+import { parseAccountOrderFilterState } from "@/lib/account/order-filters";
+import { OrderSearchBar } from "@/components/account/OrderSearchBar";
+import { OrderFilterTabs } from "@/components/account/OrderFilterTabs";
+import { OrdersList } from "@/components/account/OrdersList";
 
 export const metadata: Metadata = { title: "Your orders — TrendyMall" };
 
-export default async function OrdersPage() {
-  const supabase = await createClient();
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false });
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const filters = parseAccountOrderFilterState(sp);
+  const requestedPage = Number(sp.page);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+
+  const { orders, totalCount } = await getMyOrders(filters, page, ACCOUNT_ORDERS_PAGE_SIZE);
 
   return (
-    <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
+    <div>
       <h1 className="font-heading text-2xl font-bold tracking-tight">Your orders</h1>
 
-      {!orders || orders.length === 0 ? (
-        <p className="mt-8 text-sm text-[var(--muted)]">
-          You haven&apos;t placed any orders yet.{" "}
-          <Link href="/shop" className="underline">
-            Start shopping
-          </Link>
-          .
-        </p>
-      ) : (
-        <ul className="mt-8 flex flex-col gap-4">
-          {orders.map((order) => (
-            <li key={order.id}>
-              <Link
-                href={`/account/orders/${order.id}`}
-                className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] px-4 py-3 text-sm transition-colors hover:bg-black/5"
-              >
-                <span>
-                  Order {order.order_number} —{" "}
-                  {new Date(order.created_at).toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-2">
-                  <PaymentStatusBadge status={order.payment_status} />
-                  <OrderStatusBadge status={order.order_status} />
-                  {formatPrice(order.total)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <OrderFilterTabs basePath="/account/orders" state={filters} />
+        <OrderSearchBar basePath="/account/orders" state={filters} />
+      </div>
+
+      <OrdersList
+        orders={orders}
+        totalCount={totalCount}
+        page={page}
+        pageSize={ACCOUNT_ORDERS_PAGE_SIZE}
+        basePath="/account/orders"
+        searchParams={sp}
+        filters={filters}
+      />
     </div>
   );
 }

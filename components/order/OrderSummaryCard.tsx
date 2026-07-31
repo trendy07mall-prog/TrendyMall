@@ -1,13 +1,8 @@
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { GuestOrderDetail } from "@/types";
-
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cod: "Cash on Delivery",
-  bank_transfer: "Bank Transfer",
-  payhere: "Card (PayHere)",
-};
 
 // The sticky right-column card on /order-confirmation — same shell as
 // the checkout/cart order-summary sidebar (rounded-[20px], --shadow-card,

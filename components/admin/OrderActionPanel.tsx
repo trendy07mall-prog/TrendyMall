@@ -10,14 +10,15 @@ import {
   refundOrder,
   reattemptDelivery,
   markOrderReturned,
+  flagOrderUnpaid,
 } from "@/lib/admin/orderActions";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { useToast } from "@/components/admin/ToastProvider";
-import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { MarkFailedDeliveryForm } from "@/components/admin/MarkFailedDeliveryForm";
 import type { OrderFulfillmentStatus, PaymentGateway, PaymentStatus } from "@/types";
 
-type Action = "cancel" | "refund" | "return" | null;
+type Action = "cancel" | "refund" | "return" | "unpaid" | null;
 
 export function OrderActionPanel({
   orderId,
@@ -128,6 +129,16 @@ export function OrderActionPanel({
             Refund
           </button>
         )}
+        {orderStatus === "delivered" && paymentMethod === "cod" && paymentStatus === "paid" && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => setConfirmAction("unpaid")}
+            className={buttonClass}
+          >
+            Flag Unpaid
+          </button>
+        )}
       </div>
 
       {orderStatus === "out_for_delivery" && (
@@ -166,6 +177,17 @@ export function OrderActionPanel({
           destructive
           pending={pending}
           onConfirm={() => run(() => markOrderReturned(orderId), "Order marked returned")}
+          onClose={() => setConfirmAction(null)}
+        />
+      )}
+      {confirmAction === "unpaid" && (
+        <ConfirmDialog
+          title="Flag as Unpaid?"
+          message="Marking a delivered COD order paid is automatic — use this only if the cash actually wasn't collected. Payment status reverts to pending."
+          confirmLabel="Flag Unpaid"
+          destructive
+          pending={pending}
+          onConfirm={() => run(() => flagOrderUnpaid(orderId), "Marked unpaid")}
           onClose={() => setConfirmAction(null)}
         />
       )}

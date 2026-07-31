@@ -6,7 +6,10 @@ import type { OrderFulfillmentStatus } from "@/types";
 type StatusHistoryEntry = { status: OrderFulfillmentStatus; changedAt: string; note: string | null };
 type StepState = "done" | "current" | "future" | "failed";
 
-function formatStepDate(iso: string): string {
+// Exported so pages needing the same "Jul 31, 5:40 PM" formatting for a
+// single timestamp (e.g. "Delivered on ...") don't hand-roll a second
+// date formatter with different options.
+export function formatStepDate(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -45,6 +48,10 @@ export function OrderTimeline({
   }
 
   const isFailedDelivery = status === "failed_delivery";
+  // "delivered" is a terminal, fully-complete state, not "in progress
+  // toward the next step" — the step at currentIndex must be checkmarked
+  // like every step before it, not left showing a bare number.
+  const isDelivered = status === "delivered";
   const lastIndex = ORDER_STATUS_PROGRESSION.length - 1;
   // failed_delivery is an exception branch off "out_for_delivery" (the
   // step just before "delivered") — never a linear 7th step appended to
@@ -74,7 +81,7 @@ export function OrderTimeline({
               : index < currentIndex
                 ? "done"
                 : index === currentIndex
-                  ? isFailedDelivery
+                  ? isFailedDelivery || isDelivered
                     ? "done"
                     : "current"
                   : "future";

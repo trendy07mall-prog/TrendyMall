@@ -9,11 +9,13 @@ import { getWhatsAppUrl } from "@/lib/site";
 import { OrderSuccessCheck } from "@/components/order/OrderSuccessCheck";
 import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { OrderSummaryCard } from "@/components/order/OrderSummaryCard";
+import { DeliveryAddressCard } from "@/components/order/DeliveryAddressCard";
 import { CopyOrderNumber } from "@/components/order/CopyOrderNumber";
+import { formatStepDate } from "@/components/order/OrderTimeline";
 import { CreateAccountPrompt } from "@/components/checkout/CreateAccountPrompt";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { TruckIcon, ShoppingBagIcon, WhatsAppIcon } from "@/components/ui/Icon";
-import type { GuestOrderDetail } from "@/types";
+import type { GuestOrderDetail, OrderFulfillmentStatus } from "@/types";
 
 // Store pickup's fixed location — same copy as CheckoutForm.tsx's
 // PICKUP_ADDRESS/PICKUP_HOURS. Duplicated, not extracted: this is only
@@ -22,6 +24,24 @@ import type { GuestOrderDetail } from "@/types";
 // use, not the second.
 const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
 const PICKUP_HOURS = "Daily, 10am – 4pm";
+
+// This page is reached at every stage of an order's life, not just right
+// after checkout — a delivered or cancelled order must never still say
+// "Thank you — order placed" (the bug this whole page was rebuilt to
+// close off).
+const CONFIRMATION_HEADINGS: Record<OrderFulfillmentStatus, string> = {
+  pending: "Thank you — order placed",
+  confirmed: "Thank you — order placed",
+  packing: "Your order is being packed",
+  shipped: "Your order has shipped",
+  out_for_delivery: "Your order is out for delivery",
+  delivered: "Order delivered",
+  failed_delivery: "Delivery attempt failed",
+  cancelled: "Order cancelled",
+  returned: "Order returned",
+};
+
+const TERMINAL_STATUSES: OrderFulfillmentStatus[] = ["delivered", "cancelled", "returned", "failed_delivery"];
 
 export async function generateMetadata({
   params,
@@ -39,7 +59,12 @@ export async function generateMetadata({
   };
 }
 
-function whatsNextSteps(order: GuestOrderDetail): string[] {
+function whatsNextSteps(order: GuestOrderDetail): string[] | null {
+  // Once the order is delivered/cancelled/returned/failed there's no
+  // "next" to describe — the timeline's own failed-delivery panel
+  // already explains that last one — so the whole section hides rather
+  // than showing a stale, forward-looking step list for a finished order.
+  if (TERMINAL_STATUSES.includes(order.orderStatus)) return null;
   if (order.deliveryMethod === "pickup") {
     return [
       "We're preparing your order",
@@ -96,12 +121,22 @@ export default async function OrderConfirmationPage({
     ),
   ]);
 
+  const isDelivered = order.orderStatus === "delivered";
+  // Delivered still shows this block (as a completed fact, not an
+  // estimate) — only the truly "nothing more to say here" statuses
+  // (their own panels already explain) hide it entirely.
+  const showDeliveryEstimate =
+    order.orderStatus !== "cancelled" && order.orderStatus !== "returned" && order.orderStatus !== "failed_delivery";
   const delivery =
-    order.deliveryMethod === "pickup" ? null : getEstimatedDeliveryRange(new Date(order.createdAt));
+    !isDelivered && order.deliveryMethod !== "pickup"
+      ? getEstimatedDeliveryRange(new Date(order.createdAt))
+      : null;
+  const deliveredAt = order.statusHistory?.find((h) => h.status === "delivered")?.changedAt ?? null;
 
   const whatsappOrderMessage = `Hi, I have a question about my order ${order.orderNumber}`;
   const trackOrderHref = `/track-order?orderNumber=${encodeURIComponent(order.orderNumber)}`;
   const invoiceHref = order.orderId ? `/invoices/${order.orderId}` : undefined;
+  const nextSteps = whatsNextSteps(order);
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
@@ -111,7 +146,7 @@ export default async function OrderConfirmationPage({
           <section>
             <OrderSuccessCheck />
             <h1 className="mt-4 text-center font-heading text-2xl font-bold tracking-tight lg:text-left">
-              Thank you — order placed
+              {CONFIRMATION_HEADINGS[order.orderStatus]}
             </h1>
             <div className="mt-3 flex justify-center lg:justify-start">
               <CopyOrderNumber orderNumber={order.orderNumber} />
@@ -121,87 +156,105 @@ export default async function OrderConfirmationPage({
             </div>
           </section>
 
-          {/* 2. Estimated delivery */}
-          <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
-            {delivery ? (
-              <>
-                <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Estimated delivery</p>
-                <p className="mt-1 text-xl font-semibold tracking-tight">{delivery.label.replace(/^Get it by /, "Arriving ")}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Store pickup</p>
-                <p className="mt-1 text-xl font-semibold tracking-tight">{PICKUP_ADDRESS}</p>
-                <p className="mt-1 text-sm text-[var(--muted)]">{PICKUP_HOURS}</p>
-              </>
-            )}
-          </section>
+          {/* 2. Estimated delivery / delivery outcome */}
+          {showDeliveryEstimate && (
+            <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+              {isDelivered ? (
+                <>
+                  <p className="text-xs text-[var(--muted)] uppercase tracking-wide">
+                    {order.deliveryMethod === "pickup" ? "Picked up" : "Delivered"}
+                  </p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight">
+                    {deliveredAt
+                      ? `${order.deliveryMethod === "pickup" ? "Picked up" : "Delivered"} on ${formatStepDate(deliveredAt)}`
+                      : order.deliveryMethod === "pickup"
+                        ? "Picked up"
+                        : "Delivered"}
+                  </p>
+                </>
+              ) : delivery ? (
+                <>
+                  <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Estimated delivery</p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight">{delivery.label.replace(/^Get it by /, "Arriving ")}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Store pickup</p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight">{PICKUP_ADDRESS}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{PICKUP_HOURS}</p>
+                </>
+              )}
+            </section>
+          )}
 
           {/* 4. What happens next */}
-          <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
-            <h2 className="text-sm font-semibold">What happens next</h2>
-            <ol className="mt-3 flex flex-col gap-2 text-sm text-[var(--muted)]">
-              {whatsNextSteps(order).map((step, index) => (
-                <li key={index} className="flex gap-2">
-                  <span className="font-medium text-[var(--foreground)]">{index + 1}.</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
+          {nextSteps && (
+            <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+              <h2 className="text-sm font-semibold">What happens next</h2>
+              <ol className="mt-3 flex flex-col gap-2 text-sm text-[var(--muted)]">
+                {nextSteps.map((step, index) => (
+                  <li key={index} className="flex gap-2">
+                    <span className="font-medium text-[var(--foreground)]">{index + 1}.</span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
 
-            {bankDetails && (
-              <div className="mt-4 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm">
-                <p className="font-medium text-[var(--foreground)]">Transfer to</p>
-                <p className="mt-1 text-[var(--muted)]">{bankDetails.bank_name}</p>
-                <p className="text-[var(--muted)]">{bankDetails.account_name}</p>
-                <p className="text-[var(--muted)]">{bankDetails.account_number}</p>
-                <p className="text-[var(--muted)]">{bankDetails.branch}</p>
-                {order.paymentReference && (
-                  <p className="mt-2 text-[var(--muted)]">Your reference: {order.paymentReference}</p>
-                )}
-                <p className="mt-2 text-[var(--muted)]">
-                  Already sent the transfer?{" "}
+              {bankDetails && (
+                <div className="mt-4 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm">
+                  <p className="font-medium text-[var(--foreground)]">Transfer to</p>
+                  <p className="mt-1 text-[var(--muted)]">{bankDetails.bank_name}</p>
+                  <p className="text-[var(--muted)]">{bankDetails.account_name}</p>
+                  <p className="text-[var(--muted)]">{bankDetails.account_number}</p>
+                  <p className="text-[var(--muted)]">{bankDetails.branch}</p>
+                  {order.paymentReference && (
+                    <p className="mt-2 text-[var(--muted)]">Your reference: {order.paymentReference}</p>
+                  )}
+                  <p className="mt-2 text-[var(--muted)]">
+                    Already sent the transfer?{" "}
+                    <a
+                      href={getWhatsAppUrl(
+                        `Hi, I've sent the bank transfer for order ${order.orderNumber} — here's my slip.`,
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Message us your slip on WhatsApp
+                    </a>{" "}
+                    for faster verification.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 5. Delivery address */}
+          {order.deliveryMethod !== "pickup" && order.shippingAddressDetail && (
+            <div>
+              <DeliveryAddressCard
+                deliveryMethod={order.deliveryMethod}
+                addressDetail={order.shippingAddressDetail}
+                shippingAddress={order.shippingAddress}
+              />
+              {!TERMINAL_STATUSES.includes(order.orderStatus) && (
+                <p className="mt-3 text-xs text-[var(--muted)] print:hidden">
+                  Need to change something? Message us on WhatsApp within 2 hours of ordering and we&apos;ll
+                  do our best to update it before it ships —{" "}
                   <a
                     href={getWhatsAppUrl(
-                      `Hi, I've sent the bank transfer for order ${order.orderNumber} — here's my slip.`,
+                      `Hi, I need to change something about my order ${order.orderNumber}`,
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline"
                   >
-                    Message us your slip on WhatsApp
-                  </a>{" "}
-                  for faster verification.
+                    message us now
+                  </a>
+                  .
                 </p>
-              </div>
-            )}
-          </section>
-
-          {/* 5. Delivery address */}
-          {order.deliveryMethod !== "pickup" && order.shippingAddressDetail && (
-            <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 text-sm">
-              <h2 className="text-sm font-semibold">Delivery address</h2>
-              <p className="mt-2 text-[var(--muted)]">
-                {order.shippingAddressDetail.street}, {order.shippingAddressDetail.city},{" "}
-                {order.shippingAddressDetail.district}
-                {order.shippingAddressDetail.postalCode ? ` ${order.shippingAddressDetail.postalCode}` : ""}
-              </p>
-              <p className="mt-3 text-xs text-[var(--muted)] print:hidden">
-                Need to change something? Message us on WhatsApp within 2 hours of ordering and we&apos;ll
-                do our best to update it before it ships —{" "}
-                <a
-                  href={getWhatsAppUrl(
-                    `Hi, I need to change something about my order ${order.orderNumber}`,
-                  )}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  message us now
-                </a>
-                .
-              </p>
-            </section>
+              )}
+            </div>
           )}
 
           {(order.courier || order.trackingNumber || order.trackingUrl) && (

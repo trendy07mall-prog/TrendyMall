@@ -1031,6 +1031,10 @@ export interface Database {
         Args: { p_order_id: string };
         Returns: boolean;
       };
+      cancel_own_order: {
+        Args: { p_order_id: string };
+        Returns: boolean;
+      };
       create_order_atomic: {
         Args: {
           p_customer_name: string;
