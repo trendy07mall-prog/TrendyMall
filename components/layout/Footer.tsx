@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
-import { FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
+import { BankIcon, CashIcon, CreditCardIcon, FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
 
 const COMPANY_LINKS = [
   { href: "/about", label: "About Us" },
@@ -85,7 +85,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TrendyMall on Facebook"
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
               >
                 <FacebookIcon className="h-4 w-4" />
               </a>
@@ -94,7 +94,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TrendyMall on Instagram"
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
               >
                 <InstagramIcon className="h-4 w-4" />
               </a>
@@ -113,9 +113,27 @@ export function Footer() {
           </div>
         </div>
 
-        <p className="mt-12 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
-          © {new Date().getFullYear()} TrendyMall. All rights reserved.
-        </p>
+        <div className="mt-12 flex flex-col gap-4 border-t border-[var(--border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-[var(--muted)]">
+            © {new Date().getFullYear()} TrendyMall. All rights reserved.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-[var(--muted)]">We accept:</span>
+            <span className="flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs">
+              <CashIcon className="h-3.5 w-3.5" />
+              Cash on Delivery
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs">
+              <BankIcon className="h-3.5 w-3.5" />
+              Bank Transfer
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)]">
+              <CreditCardIcon className="h-3.5 w-3.5" />
+              Card — Coming Soon
+            </span>
+          </div>
+        </div>
       </div>
     </footer>
   );

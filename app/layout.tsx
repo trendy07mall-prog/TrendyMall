@@ -12,7 +12,7 @@ import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
-import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
+import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -111,9 +111,7 @@ export default async function RootLayout({
                   <AnnouncementBar />
                   <PromoBanner banner={banner} />
                   <Navbar />
-                  <div className="border-b border-[var(--border)] bg-white py-3 print:hidden">
-                    <SiteSearchBar />
-                  </div>
+                  <HomeSearchBar />
                 </ConditionalChrome>
                 <main className="flex flex-1 flex-col">
                   <ViewTransition>{children}</ViewTransition>

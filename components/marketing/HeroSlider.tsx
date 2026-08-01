@@ -15,49 +15,44 @@ interface Slide {
 
 const SLIDES: Slide[] = [
   {
-    src: "/images/hero/banner-25-off.jpg",
-    alt: "25% off storewide",
-    href: "/shop?onSale=1",
+    src: "/images/hero/hero-1.jpg",
+    alt: "TrendyMall — Sri Lanka's online shop for mobile phone accessories",
+    href: "/shop",
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAFAAwDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAMG/8QAGRABAQEBAQEAAAAAAAAAAAAAAQIAEQNx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAf/EABURAQEAAAAAAAAAAAAAAAAAAAAB/9oADAMBAAIRAxEAPwDLejMkhB1ke907sp6SHzMxC//Z",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAFABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAQG/8QAHRAAAgMAAgMAAAAAAAAAAAAAAQIAAxEFEjEy0f/EABQBAQAAAAAAAAAAAAAAAAAAAAL/xAAWEQEBAQAAAAAAAAAAAAAAAAAAQQH/2gAMAwEAAhEDEQA/AM1acSvc9QfErutrfi1RKQnVydB3SfmREcwa/9k=",
   },
   {
-    src: "/images/hero/banner-free-shipping.jpg",
-    alt: "Free delivery on eligible orders",
-    href: "/shop?freeDelivery=1",
+    src: "/images/hero/hero-2.jpg",
+    alt: "Get 5% off your order — limited-time discount, use code 1ST ORDER",
+    href: "/cart",
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAFAAwDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAIG/8QAFxABAQEBAAAAAAAAAAAAAAAAAQIAEf/EABQBAQAAAAAAAAAAAAAAAAAAAAH/xAAVEQEBAAAAAAAAAAAAAAAAAAAAAf/aAAwDAQACEQMRAD8Ay11EEhB1kerouuvSQzMQv//Z",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAEF/8QAHBAAAgMBAAMAAAAAAAAAAAAAAQIAAxEEEzGh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEUH/2gAMAwEAAhEDEQA/AM/iZV02Vl1zAAZOzxsWesGvfSEE/YiEX7r/2Q==",
   },
   {
-    src: "/images/hero/banner-trending-products.jpg",
-    alt: "Trending products",
-    href: "/new-arrivals",
+    src: "/images/hero/hero-3.jpg",
+    alt: "TrendyMall islandwide delivery",
+    href: "/shop",
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAFAAwDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAIG/8QAGBABAQEBAQAAAAAAAAAAAAAAAQIAESH/xAAUAQEAAAAAAAAAAAAAAAAAAAAB/8QAFREBAQAAAAAAAAAAAAAAAAAAAAH/2gAMAwEAAhEDEQA/AMvbEEhArI9V0VQvkhmYhf/Z",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAMF/8QAIRAAAgIBAgcAAAAAAAAAAAAAAQIAAwQRIRITIkJRYXH/xAAUAQEAAAAAAAAAAAAAAAAAAAAD/8QAGREAAwADAAAAAAAAAAAAAAAAAAERAhIy/9oADAMBAAIRAxEAPwDbdso5QelFNO3cOr3KG+1bnLo/K4goJ02Hn5EQeoI8daz/2Q==",
   },
 ];
 
-// Tunable — try 2000-4000 to compare a snappier feel against the current 5s.
-const SLIDE_DURATION = 5000; // ms each slide is visible
-const TRANSITION_DURATION = 800; // ms crossfade/slide transition
-const PARALLAX_MAX = 10; // px, desktop mouse-parallax clamp
+// Fade-only per this project's hero spec — no zoom, scale, parallax, or
+// bounce. Kept shorter than the old Ken-Burns build's transition so the
+// crossfade still feels snappy at this shorter 4s interval.
+const SLIDE_DURATION = 4000; // ms each slide is visible
+const TRANSITION_DURATION = 600; // ms crossfade transition
 
 export function HeroSlider() {
   const [active, setActive] = useState(0);
-  const [previousActive, setPreviousActive] = useState<number | null>(null);
-  const [direction, setDirection] = useState<1 | -1>(1);
   const [hovering, setHovering] = useState(false);
   const [focused, setFocused] = useState(false);
   const [tabHidden, setTabHidden] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [transitioning, setTransitioning] = useState(false);
 
   const paused = hovering || focused || tabHidden;
-
   const touchStartX = useRef<number | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const parallaxRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -73,34 +68,16 @@ export function HeroSlider() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  // Applies will-change only for the transition's own duration, then clears
-  // it — this "flag true, then false after a timer" shape is inherently
-  // effect-only (it can't be derived during render), same class of
-  // exception as the localStorage-read effects elsewhere in this app.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTransitioning(true);
-    const timeout = setTimeout(() => setTransitioning(false), TRANSITION_DURATION);
-    return () => clearTimeout(timeout);
-  }, [active]);
-
-  const goTo = useCallback(
-    (targetIndex: number, dir: 1 | -1) => {
-      const normalized = ((targetIndex % SLIDES.length) + SLIDES.length) % SLIDES.length;
-      if (normalized === active) return;
-      setPreviousActive(active);
-      setDirection(dir);
-      setActive(normalized);
-    },
-    [active],
-  );
+  const goTo = useCallback((targetIndex: number) => {
+    setActive(((targetIndex % SLIDES.length) + SLIDES.length) % SLIDES.length);
+  }, []);
 
   function next() {
-    goTo(active + 1, 1);
+    goTo(active + 1);
   }
 
   function prev() {
-    goTo(active - 1, -1);
+    goTo(active - 1);
   }
 
   // Reruns (tearing down + restarting the interval) whenever `active`
@@ -110,7 +87,7 @@ export function HeroSlider() {
   useEffect(() => {
     if (paused || reducedMotion) return;
     const id = setInterval(() => {
-      goTo(active + 1, 1);
+      goTo(active + 1);
     }, SLIDE_DURATION);
     return () => clearInterval(id);
   }, [active, paused, reducedMotion, goTo]);
@@ -122,50 +99,6 @@ export function HeroSlider() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
-
-  // Desktop-only mouse parallax: written straight to each layer's style via
-  // a ref (not React state) so rapid mousemove events don't force re-renders
-  // for a purely cosmetic ±10px shift. Combined with the hover-driven
-  // will-change toggle in the same effect — every mutation of the
-  // `parallaxRefs` DOM nodes has to live in one place once any of it does,
-  // per the hooks linter's ref-mutation-ownership rule.
-  useEffect(() => {
-    if (reducedMotion) return;
-    if (window.matchMedia("(pointer: coarse)").matches) return;
-
-    const section = sectionRef.current;
-    if (!section) return;
-
-    for (const el of parallaxRefs.current) {
-      if (!el) continue;
-      if (hovering) {
-        el.style.willChange = "transform";
-      } else {
-        el.style.willChange = "auto";
-        el.style.transform = "translate(0px, 0px)";
-      }
-    }
-
-    function onMouseMove(event: MouseEvent) {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        const rect = section!.getBoundingClientRect();
-        const relX = (event.clientX - rect.left) / rect.width - 0.5;
-        const relY = (event.clientY - rect.top) / rect.height - 0.5;
-        const px = Math.max(-0.5, Math.min(0.5, -relX)) * 2 * PARALLAX_MAX;
-        const py = Math.max(-0.5, Math.min(0.5, -relY)) * 2 * PARALLAX_MAX;
-        for (const el of parallaxRefs.current) {
-          if (el) el.style.transform = `translate(${px}px, ${py}px)`;
-        }
-      });
-    }
-
-    section.addEventListener("mousemove", onMouseMove);
-    return () => {
-      section.removeEventListener("mousemove", onMouseMove);
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [reducedMotion, hovering]);
 
   function onMouseEnter() {
     setHovering(true);
@@ -218,12 +151,10 @@ export function HeroSlider() {
         onKeyDown={onKeyDown}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
-        className="group relative aspect-[15/4] w-full overflow-hidden rounded-[var(--radius-lg)] bg-black/5 outline-none"
+        className="group relative aspect-[15/4] w-full overflow-hidden rounded-[24px] bg-black/5 shadow-[0_15px_35px_rgba(0,0,0,0.10)] outline-none"
       >
         {SLIDES.map((slide, index) => {
           const isActive = index === active;
-          const isPrev = index === previousActive;
-          const slideX = isActive ? 0 : isPrev ? -direction * 30 : direction * 30;
 
           return (
             <Link
@@ -235,47 +166,26 @@ export function HeroSlider() {
             >
               <motion.div
                 className="relative h-full w-full"
-                style={{ willChange: transitioning ? "transform, opacity" : "auto" }}
                 initial={false}
-                animate={{ opacity: isActive ? 1 : 0, x: slideX }}
+                animate={{ opacity: isActive ? 1 : 0 }}
                 transition={
                   reducedMotion
                     ? { duration: 0 }
                     : { duration: TRANSITION_DURATION / 1000, ease: "easeInOut" }
                 }
               >
-                <motion.div
-                  className="relative h-full w-full"
-                  initial={false}
-                  animate={{
-                    scale: reducedMotion ? 1 : isActive ? 1.08 : 1,
-                    x: reducedMotion ? 0 : isActive ? -14 : 0,
-                  }}
-                  transition={
-                    reducedMotion
-                      ? { duration: 0 }
-                      : { duration: SLIDE_DURATION / 1000, ease: "easeOut" }
-                  }
-                >
-                  <div
-                    ref={(el) => {
-                      parallaxRefs.current[index] = el;
-                    }}
-                    className="relative h-full w-full"
-                  >
-                    <Image
-                      src={slide.src}
-                      alt={slide.alt}
-                      fill
-                      priority={index === 0}
-                      quality={90}
-                      placeholder="blur"
-                      blurDataURL={slide.blurDataURL}
-                      sizes="(min-width: 1730px) 1730px, 100vw"
-                      className="object-cover"
-                    />
-                  </div>
-                </motion.div>
+                <Image
+                  src={slide.src}
+                  alt={slide.alt}
+                  fill
+                  priority={index === 0}
+                  loading={index === 0 ? undefined : "lazy"}
+                  quality={78}
+                  placeholder="blur"
+                  blurDataURL={slide.blurDataURL}
+                  sizes="(min-width: 1730px) 1730px, 100vw"
+                  className="object-cover"
+                />
               </motion.div>
             </Link>
           );
@@ -298,39 +208,51 @@ export function HeroSlider() {
           <ChevronRightIcon className="h-5 w-5" />
         </button>
 
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+        <div className="absolute bottom-0 left-1/2 flex h-11 -translate-x-1/2 items-center gap-1">
           {SLIDES.map((slide, index) => (
+            // The visible pill stays small (h-2) — the button itself is a
+            // full 44px touch target (this project's mobile touch-target
+            // rule) so the hit area doesn't shrink to match the graphic.
             <button
               key={slide.src}
               type="button"
               aria-label={`Go to slide ${index + 1}`}
               aria-current={index === active}
-              onClick={() => goTo(index, index > active ? 1 : -1)}
-              className={`relative h-2 overflow-hidden rounded-full border border-white transition-all duration-300 ${
-                index === active ? "w-8 bg-white/30" : "w-2 bg-transparent"
-              }`}
+              onClick={() => goTo(index)}
+              className="flex h-11 w-11 items-center justify-center"
             >
-              {index === active && (
-                <span
-                  key={active}
-                  className="absolute inset-y-0 left-0 block h-full w-full origin-left rounded-full bg-white"
-                  style={
-                    reducedMotion
-                      ? { transform: "scaleX(1)" }
-                      : {
-                          animationName: "hero-progress-fill",
-                          animationDuration: `${SLIDE_DURATION}ms`,
-                          animationTimingFunction: "linear",
-                          animationFillMode: "forwards",
-                          animationPlayState: paused ? "paused" : "running",
-                        }
-                  }
-                />
-              )}
+              <span
+                className={`relative block h-2 overflow-hidden rounded-full border border-white transition-all duration-300 ${
+                  index === active ? "w-8 bg-white/30" : "w-2 bg-transparent"
+                }`}
+              >
+                {index === active && (
+                  <span
+                    key={active}
+                    className="absolute inset-y-0 left-0 block h-full w-full origin-left rounded-full bg-white"
+                    style={
+                      reducedMotion
+                        ? { transform: "scaleX(1)" }
+                        : {
+                            animationName: "hero-progress-fill",
+                            animationDuration: `${SLIDE_DURATION}ms`,
+                            animationTimingFunction: "linear",
+                            animationFillMode: "forwards",
+                            animationPlayState: paused ? "paused" : "running",
+                          }
+                    }
+                  />
+                )}
+              </span>
             </button>
           ))}
         </div>
       </section>
+
+      {/* Watched by the homepage's sticky search bar (see
+          components/layout/HomeSearchBar.tsx) to know when the user has
+          scrolled past the hero — not visible, not part of the carousel. */}
+      <div id="hero-sentinel" aria-hidden="true" />
     </div>
   );
 }

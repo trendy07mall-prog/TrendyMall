@@ -46,7 +46,7 @@ export function StarRating({
   const percent = Math.max(0, Math.min(100, (rating / 5) * 100));
 
   return (
-    <div className="relative inline-flex" aria-label={`Rated ${rating} out of 5`}>
+    <div className="relative inline-flex" role="img" aria-label={`Rated ${rating} out of 5`}>
       <div className="flex gap-0.5 text-[var(--border)]">
         {STARS.map((star) => (
           <StarIcon key={star} className={sizeClass} />

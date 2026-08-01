@@ -25,6 +25,16 @@
      alert, not just a tint. */
   --color-error: #dc2626;
 
+  /* Homepage marketing accents (v9) — additive, used only by
+     components/marketing/*. Never used as text on a light background:
+     --color-accent fails WCAG AA as text (~3.3:1) and --color-accent-secondary
+     fails badly (~1.6:1) — both are safe only as icon fills or badge/button
+     backgrounds with white or black text on top. Red TEXT (prices, discount
+     labels) uses the existing --color-error instead, which already is the
+     darker red this rule requires. */
+  --color-accent: #ff3b30;
+  --color-accent-secondary: #ffd43b;
+
   --radius-card: 12px;
   --radius-btn: 14px;
   --radius-input: 12px;
@@ -116,6 +126,8 @@
   --color-discount: var(--color-discount);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
+  --color-accent: var(--color-accent);
+  --color-accent-secondary: var(--color-accent-secondary);
 
   --radius-card: var(--radius-card);
   --radius-btn: var(--radius-btn);
@@ -243,6 +255,20 @@ input:-webkit-autofill:focus {
   :root {
     --whatsapp-fab-bottom-base: 2rem;
   }
+}
+
+/* Homepage-only heading font override (v9) — Poppins per the homepage
+   spec, without touching every other page's Manrope headings. Scoped by
+   the .home-fonts wrapper class (app/page.tsx) rather than changing the
+   bare h1-h6 rule above; higher specificity here wins without !important,
+   and nothing renders differently outside that wrapper. */
+.home-fonts h1,
+.home-fonts h2,
+.home-fonts h3,
+.home-fonts h4,
+.home-fonts h5,
+.home-fonts h6 {
+  font-family: var(--font-poppins), var(--font-manrope), var(--font-inter), system-ui, sans-serif;
 }
 
 /* Rich-text product descriptions (Tiptap output, both the live editor and

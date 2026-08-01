@@ -265,6 +265,33 @@ export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage
   return attachPrimaryImages(supabase, data);
 }
 
+// Real ceiling for the homepage's "Up to X% Off" promotion — never a
+// hardcoded figure. Rounded DOWN to the nearest 5 so the card never claims
+// more than what's actually live (round-to-nearest could round a true 24%
+// up to 25%). Returns null when nothing currently qualifies, so the caller
+// can skip rendering the promotion entirely rather than showing "Up to 0%".
+export async function getMaxDiscountPercent(): Promise<number | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("actual_price, special_price")
+    .eq("status", "published")
+    .eq("is_deleted", false)
+    .not("special_price", "is", null);
+
+  if (error) throw error;
+
+  let max = 0;
+  for (const { actual_price, special_price } of data) {
+    if (special_price == null || special_price >= actual_price || actual_price <= 0) continue;
+    const percent = ((actual_price - special_price) / actual_price) * 100;
+    if (percent > max) max = percent;
+  }
+
+  const rounded = Math.floor(max / 5) * 5;
+  return rounded > 0 ? rounded : null;
+}
+
 // Full-text search (search_vector, a generated tsvector covering
 // name/brand/sku/keywords/description — see sql/018) plus a separate
 // category-name match, since a generated column can't join across tables to

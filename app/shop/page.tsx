@@ -63,9 +63,11 @@ export default async function ShopPage({
       <p className="mt-4 text-xs font-semibold tracking-widest text-[var(--color-text-secondary)] uppercase">
         Shop
       </p>
-      <h1 className="text-h1">Shop All</h1>
+      <h1 className="text-h1">{state.onSale ? "Special Price Sale" : "Shop All"}</h1>
       <p className="mt-2 text-[var(--muted)]">
-        Every product we carry, in one place.
+        {state.onSale
+          ? `Showing ${products.length} product${products.length === 1 ? "" : "s"} with special pricing.`
+          : "Every product we carry, in one place."}
       </p>
 
       <ShopTrustStrip />
@@ -105,7 +107,14 @@ export default async function ShopPage({
               />
             </div>
             <div className="mt-6">
-              <ProductGrid products={pagedProducts} />
+              <ProductGrid
+                products={pagedProducts}
+                emptyMessage={
+                  state.onSale
+                    ? "No special offers right now — check back soon."
+                    : undefined
+                }
+              />
             </div>
             <Pagination
               basePath="/shop"
