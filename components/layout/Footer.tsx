@@ -20,16 +20,7 @@ export function Footer() {
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight">
-              <Image
-                src="/images/logo/tm_logo_clear_animated.png"
-                alt=""
-                width={32}
-                height={32}
-                className="rounded-md"
-              />
-              TrendyMall
-            </span>
+            <Image src="/images/logo/trendymall-logo.png" alt="TrendyMall" width={67} height={40} />
             <p className="mt-3 text-sm text-[var(--muted)]">
               Sri Lanka&apos;s trusted destination for premium mobile phone
               accessories.

@@ -215,18 +215,17 @@ export function NavbarClient({
       }`}
     >
       <div className="mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-6 py-5">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 font-heading text-xl font-extrabold tracking-tight"
-        >
+        <Link href="/" className="flex items-center">
+          {/* The wordmark is baked into this logo image (unlike the old
+              icon-only mark) — no adjacent "TrendyMall" text needed, the
+              alt text carries that for accessibility instead. */}
           <Image
-            src="/images/logo/tm_logo_clear_animated.png"
-            alt=""
-            width={40}
+            src="/images/logo/trendymall-logo.png"
+            alt="TrendyMall"
+            width={67}
             height={40}
-            className="rounded-md"
+            priority
           />
-          TrendyMall
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium md:flex">
@@ -398,16 +397,12 @@ export function NavbarClient({
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 font-heading text-lg font-extrabold">
-                <Image
-                  src="/images/logo/tm_logo_clear_animated.png"
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="rounded-md"
-                />
-                TrendyMall
-              </span>
+              <Image
+                src="/images/logo/trendymall-logo.png"
+                alt="TrendyMall"
+                width={47}
+                height={28}
+              />
               <button
                 type="button"
                 aria-label="Close menu"

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   DashboardIcon,
@@ -274,7 +275,10 @@ export function AdminSidebar() {
         >
           <MenuIcon className="h-5 w-5" />
         </button>
-        <span className="font-heading text-sm font-bold tracking-tight">Admin</span>
+        <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
+          <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+          Admin
+        </span>
       </div>
 
       {/* Desktop collapsible rail */}
@@ -284,7 +288,12 @@ export function AdminSidebar() {
         }`}
       >
         <div className="flex items-center justify-between px-1">
-          {!collapsed && <span className="font-heading text-sm font-bold tracking-tight">Admin</span>}
+          {!collapsed && (
+            <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
+              <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+              Admin
+            </span>
+          )}
           <button
             type="button"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -331,7 +340,10 @@ export function AdminSidebar() {
             }`}
           >
             <div className="flex items-center justify-between px-1">
-              <span className="font-heading text-sm font-bold tracking-tight">Admin</span>
+              <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
+                <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+                Admin
+              </span>
               <button
                 type="button"
                 aria-label="Close admin menu"

@@ -9,7 +9,7 @@ import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { Order, OrderItem, ShippingAddress } from "@/types";
 
-const LOGO_PATH = path.join(process.cwd(), "public/images/logo/tm_logo_clear_animated.png");
+const LOGO_PATH = path.join(process.cwd(), "public/images/logo/trendymall-logo.png");
 
 // order_number → invoice number is a deterministic derivation, not a
 // separately-issued sequence — see the Phase 5 plan for why.
@@ -21,8 +21,7 @@ const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#111111", fontFamily: "Helvetica" },
   headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logo: { width: 32, height: 32 },
-  brandName: { fontSize: 16, fontWeight: 700 },
+  logo: { width: 64, height: 38 },
   metaBlock: { alignItems: "flex-end" },
   metaLine: { fontSize: 10, marginBottom: 2 },
   section: { marginTop: 24 },
@@ -66,11 +65,12 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={styles.brandRow}>
-            {/* @react-pdf/renderer's <Image>, not next/image or <img> —
+            {/* The wordmark is baked into this logo image — no separate
+              "TrendyMall" text needed alongside it.
+              @react-pdf/renderer's <Image>, not next/image or <img> —
               its Image has no alt prop; jsx-a11y can't tell the two apart. */}
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={LOGO_PATH} style={styles.logo} />
-            <Text style={styles.brandName}>TrendyMall</Text>
           </View>
           <View style={styles.metaBlock}>
             <Text style={styles.metaLine}>Invoice {invoiceNumberFor(order.order_number)}</Text>

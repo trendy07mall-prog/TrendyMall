@@ -1,9 +1,17 @@
 import { Resend } from "resend";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { SITE_URL } from "@/lib/site";
 import type { OrderStatus } from "@/types";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
+
+// No logo appeared in any email before this — this is a new addition, not
+// a swap. Most email clients (Outlook, Gmail's image-proxy, etc.) strip
+// SVG and often data URIs too, so this has to be a PNG at an absolute,
+// publicly-fetchable URL — the same static file Next.js already serves
+// for the header/footer, not a separate asset.
+const EMAIL_LOGO_HTML = `<img src="${SITE_URL}/images/logo/trendymall-logo.png" alt="TrendyMall" width="120" height="71" style="display:block; margin-bottom: 16px;" />`;
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending_payment: "Pending payment",
@@ -67,6 +75,7 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+      ${EMAIL_LOGO_HTML}
       <h2>${forOwner ? `New order ${order.orderNumber}` : `Order ${order.orderNumber} confirmed`}</h2>
       ${intro}
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
@@ -129,6 +138,7 @@ export async function sendPaymentVerifiedEmail(order: {
       subject: `Payment verified — order ${order.orderNumber}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
           <h2>Order ${order.orderNumber}</h2>
           <p>Hi ${order.customerName}, we've verified your bank transfer payment. Your order is now confirmed and will be processed shortly.</p>
         </div>
@@ -164,6 +174,7 @@ export async function sendOrderStatusEmail(order: {
       subject: `Your TrendyMall order ${order.orderNumber} is now ${order.label}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
           <h2>Order ${order.orderNumber}</h2>
           <p>Hi ${order.customerName}, your order status has been updated to:</p>
           <p style="font-size: 18px; font-weight: bold;">${order.label}</p>
@@ -198,6 +209,7 @@ export async function sendOrderStatusUpdateEmail(order: {
       subject: `Your TrendyMall order ${order.orderNumber} is now ${statusLabel}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
           <h2>Order ${order.orderNumber}</h2>
           <p>Hi ${order.customerName}, your order status has been updated to:</p>
           <p style="font-size: 18px; font-weight: bold;">${statusLabel}</p>
