@@ -10,12 +10,20 @@ export interface CouponPreviewResult {
 }
 
 // A preview only — the coupons_select_valid_or_admin RLS policy (sql/020)
-// already restricts this to currently-active, in-date coupons, so this
-// re-implements the same discount math as create_order_atomic (sql/026)
-// purely to show the customer an estimate before they submit. It is never
+// already restricts this to currently-active, in-date coupons. It is never
 // the source of truth: the RPC re-validates and recomputes the real
 // discount from scratch at order-creation time regardless of what this
-// returns, including usage limits this function doesn't check at all.
+// returns (sql/043).
+//
+// Usage-limit checks here are best-effort, not authoritative:
+// - Total usage_limit: checked directly against coupons.usage_count.
+// - Per-customer limit: checked for logged-in customers only, against
+//   their own coupon_redemptions (RLS-scoped to their own rows). Guests
+//   haven't entered an email/phone yet at this point in the flow — the
+//   cart doesn't collect it, checkout does — so there's no identity to
+//   check against here. A guest can still see "Applied" in the cart for
+//   a coupon they've already used; the RPC is what actually rejects it,
+//   at order submission, before anything is created.
 export async function previewCoupon(
   code: string,
   subtotal: number,
@@ -34,6 +42,26 @@ export async function previewCoupon(
   if (!coupon) return { error: "Invalid coupon code." };
   if (subtotal < coupon.min_order_value) {
     return { error: `This coupon requires a minimum order of ${formatPrice(coupon.min_order_value)}.` };
+  }
+  if (coupon.usage_limit != null && coupon.usage_count >= coupon.usage_limit) {
+    return { error: "This coupon has reached its usage limit." };
+  }
+
+  if (coupon.usage_limit_per_customer != null) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { count } = await supabase
+        .from("coupon_redemptions")
+        .select("id", { count: "exact", head: true })
+        .eq("coupon_id", coupon.id)
+        .eq("user_id", user.id);
+      if ((count ?? 0) >= coupon.usage_limit_per_customer) {
+        return { error: "You've already used this coupon." };
+      }
+    }
   }
 
   if (coupon.type === "percentage") {
