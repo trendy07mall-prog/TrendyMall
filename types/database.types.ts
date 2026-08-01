@@ -789,9 +789,12 @@ export interface Database {
         Row: {
           id: string;
           code: string;
+          title: string | null;
+          description: string | null;
           type: CouponType;
           value: number;
           min_order_value: number;
+          max_discount_amount: number | null;
           usage_limit: number | null;
           usage_limit_per_customer: number | null;
           usage_count: number;
@@ -804,9 +807,12 @@ export interface Database {
         Insert: {
           id?: string;
           code: string;
+          title?: string | null;
+          description?: string | null;
           type: CouponType;
           value?: number;
           min_order_value?: number;
+          max_discount_amount?: number | null;
           usage_limit?: number | null;
           usage_limit_per_customer?: number | null;
           usage_count?: number;
@@ -819,9 +825,12 @@ export interface Database {
         Update: {
           id?: string;
           code?: string;
+          title?: string | null;
+          description?: string | null;
           type?: CouponType;
           value?: number;
           min_order_value?: number;
+          max_discount_amount?: number | null;
           usage_limit?: number | null;
           usage_limit_per_customer?: number | null;
           usage_count?: number;

@@ -85,7 +85,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TrendyMall on Facebook"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
+                className="transition-brand flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] hover:-translate-y-0.5 hover:bg-black/5"
               >
                 <FacebookIcon className="h-4 w-4" />
               </a>
@@ -94,7 +94,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TrendyMall on Instagram"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
+                className="transition-brand flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] hover:-translate-y-0.5 hover:bg-black/5"
               >
                 <InstagramIcon className="h-4 w-4" />
               </a>

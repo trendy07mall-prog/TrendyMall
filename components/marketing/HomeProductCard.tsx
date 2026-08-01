@@ -44,7 +44,7 @@ export function HomeProductCard({ product }: { product: ProductWithPrimaryImage 
   }
 
   return (
-    <div className="group flex h-full flex-col rounded-[18px] border border-[var(--border)] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-in-out hover:-translate-y-1">
+    <div className="group flex h-full flex-col rounded-[18px] border border-[var(--border)] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-[transform,box-shadow] duration-200 ease-in-out hover:-translate-y-1.5 hover:shadow-[0_16px_36px_rgba(0,0,0,0.14)]">
       <div className="relative">
         <Link
           href={`/product/${product.slug}`}
@@ -65,8 +65,11 @@ export function HomeProductCard({ product }: { product: ProductWithPrimaryImage 
             </div>
           )}
         </Link>
+        {/* --color-error, not --color-accent — white text at this size
+            on #FF3B30 only hits 3.54:1 (needs 4.5:1); the darker red
+            this project already reserves for text passes comfortably. */}
         {discountPercent != null && (
-          <span className="absolute top-2 left-2 rounded-full bg-[var(--color-accent)] px-2 py-0.5 text-[10px] font-semibold text-white">
+          <span className="absolute top-2 left-2 rounded-full bg-[var(--color-error)] px-2 py-0.5 text-[10px] font-semibold text-white">
             -{discountPercent}%
           </span>
         )}
@@ -82,7 +85,7 @@ export function HomeProductCard({ product }: { product: ProductWithPrimaryImage 
           </p>
         )}
         <Link href={`/product/${product.slug}`}>
-          <h3 className={`line-clamp-2 min-h-10 text-sm font-medium ${product.brand ? "mt-1" : "mt-3"}`}>
+          <h3 className={`line-clamp-2 min-h-10 text-[15px] font-semibold ${product.brand ? "mt-1" : "mt-3"}`}>
             {product.name}
           </h3>
         </Link>
@@ -129,7 +132,7 @@ export function HomeProductCard({ product }: { product: ProductWithPrimaryImage 
             type="button"
             disabled={outOfStock || status !== "idle"}
             onClick={handleAddToCart}
-            className="transition-brand flex w-full items-center justify-center gap-1.5 rounded-[12px] bg-[var(--color-btn-primary)] py-2 text-xs font-semibold text-white hover:bg-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-40"
+            className="transition-brand flex min-h-11 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[var(--color-btn-primary)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-error)] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {outOfStock ? (
               "Out of stock"

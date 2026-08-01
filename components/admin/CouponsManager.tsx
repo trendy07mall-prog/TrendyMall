@@ -73,6 +73,7 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
           <thead>
             <tr className="border-b border-[var(--border)] text-left">
               <th className="py-2 pr-4">Code</th>
+              <th className="py-2 pr-4">Title</th>
               <th className="py-2 pr-4">Type</th>
               <th className="py-2 pr-4">Value</th>
               <th className="py-2 pr-4">Min. order</th>
@@ -86,6 +87,7 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
             {coupons.map((coupon) => (
               <tr key={coupon.id} className="border-b border-[var(--border)]">
                 <td className="py-2 pr-4 font-medium">{coupon.code}</td>
+                <td className="py-2 pr-4 text-[var(--muted)]">{coupon.title || "—"}</td>
                 <td className="py-2 pr-4">{TYPE_LABELS[coupon.type] ?? coupon.type}</td>
                 <td className="py-2 pr-4">{formatValue(coupon)}</td>
                 <td className="py-2 pr-4">{formatPrice(coupon.min_order_value)}</td>
@@ -128,7 +130,7 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
             ))}
             {coupons.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-[var(--muted)]">
+                <td colSpan={9} className="py-8 text-center text-[var(--muted)]">
                   No coupons yet.
                 </td>
               </tr>

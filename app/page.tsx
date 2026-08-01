@@ -7,6 +7,7 @@ import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { HomeProductCard } from "@/components/marketing/HomeProductCard";
+import { Carousel } from "@/components/marketing/Carousel";
 import { WhyShopWithUs } from "@/components/marketing/WhyShopWithUs";
 import { CustomerReviews } from "@/components/marketing/CustomerReviews";
 import { HomeNewsletter } from "@/components/marketing/HomeNewsletter";
@@ -25,10 +26,23 @@ const poppins = Poppins({
   weight: ["700", "800"],
 });
 
+function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: string }) {
+  return (
+    <FadeIn>
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-[32px] font-extrabold tracking-tight">{title}</h2>
+        <Link href={viewAllHref} className="text-sm font-semibold underline-offset-2 hover:underline">
+          View All →
+        </Link>
+      </div>
+    </FadeIn>
+  );
+}
+
 export default async function HomePage() {
   const [categories, newArrivals] = await Promise.all([
     getCategories(),
-    getNewArrivals(4),
+    getNewArrivals(10),
   ]);
 
   return (
@@ -38,39 +52,31 @@ export default async function HomePage() {
       <ServiceCards />
 
       {newArrivals.length > 0 && (
-        <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
-          <FadeIn>
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-[32px] font-extrabold tracking-tight">
-                New Arrivals
-              </h2>
-              <Link href="/new-arrivals" className="text-sm underline">
-                View all
-              </Link>
-            </div>
-          </FadeIn>
-          <div className="mt-8 grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-            {newArrivals.map((product, index) => (
-              <FadeIn key={product.id} delay={index * 0.05}>
-                <HomeProductCard product={product} />
-              </FadeIn>
-            ))}
+        <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
+          <SectionHeader title="New Arrivals" viewAllHref="/new-arrivals" />
+          <div className="mt-6">
+            <Carousel
+              ariaLabel="New arrivals"
+              itemClassName="w-1/2 sm:w-1/3 lg:w-1/5"
+              autoAdvanceMs={5000}
+              showArrows={newArrivals.length > 5}
+            >
+              {newArrivals.map((product) => (
+                <HomeProductCard key={product.id} product={product} />
+              ))}
+            </Carousel>
           </div>
         </section>
       )}
 
-      <section id="categories" className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
-        <FadeIn>
-          <h2 className="font-heading text-[32px] font-extrabold tracking-tight">
-            Explore by Category
-          </h2>
-        </FadeIn>
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {categories.map((category, index) => (
-            <FadeIn key={category.id} delay={index * 0.05}>
-              <CategoryCard category={category} />
-            </FadeIn>
-          ))}
+      <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
+        <SectionHeader title="Explore by Category" viewAllHref="/shop" />
+        <div className="mt-6">
+          <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
+            {categories.map((category) => (
+              <CategoryCard key={category.id} category={category} />
+            ))}
+          </Carousel>
         </div>
       </section>
 
@@ -80,7 +86,7 @@ export default async function HomePage() {
 
       <HomeNewsletter />
 
-      <div className="mx-auto w-full max-w-[var(--container-width)] px-6 pb-[var(--section-padding-y)] max-sm:pb-12">
+      <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6 pb-[var(--home-section-padding-y)]">
         <RecentlyViewedSection />
       </div>
     </div>

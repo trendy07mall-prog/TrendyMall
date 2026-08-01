@@ -85,6 +85,12 @@
   --grid-gap: 32px;
   --card-padding: 20px;
 
+  /* Homepage-only layout exception (v10) — every other page keeps the
+     1280px container and 80px section rhythm above untouched; only
+     app/page.tsx's sections reference these two. */
+  --home-container-width: 1400px;
+  --home-section-padding-y: 48px;
+
   /* Single shared motion token — see the `transition-brand` utility below. */
   --transition-duration: 250ms;
   --transition-easing: ease-in-out;
@@ -255,6 +261,17 @@ input:-webkit-autofill:focus {
   :root {
     --whatsapp-fab-bottom-base: 2rem;
   }
+}
+
+/* Hides the scrollbar on scroll-snap carousels (Carousel.tsx, the mobile
+   category strip) while keeping native scroll/swipe fully functional —
+   a new, unused-elsewhere class name, so this is purely additive. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Homepage-only heading font override (v9) — Poppins per the homepage

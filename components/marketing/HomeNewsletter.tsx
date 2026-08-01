@@ -26,7 +26,7 @@ export function HomeNewsletter() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
+    <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
       <FadeIn>
         <div className="flex flex-col items-center gap-4 rounded-[18px] bg-[#111111] px-6 py-14 text-center sm:px-14">
           <h2 className="font-heading text-2xl font-extrabold tracking-tight text-white sm:text-[32px]">

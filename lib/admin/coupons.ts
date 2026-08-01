@@ -23,9 +23,12 @@ export async function saveCoupon(
 
   const id = String(formData.get("id") ?? "").trim() || null;
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  const description = String(formData.get("description") ?? "").trim() || null;
   const typeRaw = String(formData.get("type") ?? "");
   const value = Number(formData.get("value") ?? 0);
   const minOrderValue = Number(formData.get("minOrderValue") ?? 0);
+  const maxDiscountAmountRaw = String(formData.get("maxDiscountAmount") ?? "").trim();
   const usageLimitRaw = String(formData.get("usageLimit") ?? "").trim();
   const usageLimitPerCustomerRaw = String(formData.get("usageLimitPerCustomer") ?? "").trim();
   const startsAtRaw = String(formData.get("startsAt") ?? "").trim();
@@ -46,9 +49,13 @@ export async function saveCoupon(
 
   const row = {
     code,
+    title,
+    description,
     type,
     value: type === "free_shipping" ? 0 : value,
     min_order_value: minOrderValue,
+    max_discount_amount:
+      type === "percentage" && maxDiscountAmountRaw ? Number(maxDiscountAmountRaw) : null,
     usage_limit: usageLimitRaw ? Number(usageLimitRaw) : null,
     usage_limit_per_customer: usageLimitPerCustomerRaw ? Number(usageLimitPerCustomerRaw) : null,
     starts_at: startsAtRaw ? new Date(startsAtRaw).toISOString() : null,

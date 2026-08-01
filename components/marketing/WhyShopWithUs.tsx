@@ -31,7 +31,7 @@ const REASONS = [
 
 export function WhyShopWithUs() {
   return (
-    <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-[var(--section-padding-y)] max-sm:py-12">
+    <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
       <FadeIn>
         <h2 className="font-heading text-center text-[32px] font-extrabold tracking-tight">
           Why Shop With Us
@@ -40,9 +40,9 @@ export function WhyShopWithUs() {
       <div className="mt-10 grid grid-cols-2 gap-6 lg:grid-cols-4">
         {REASONS.map((reason, index) => (
           <FadeIn key={reason.title} delay={index * 0.05}>
-            <div className="flex h-full flex-col items-center gap-2 rounded-[18px] border border-[var(--border)] bg-white p-6 text-center shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-in-out hover:-translate-y-1">
-              <reason.icon className="h-7 w-7 shrink-0 text-[var(--foreground)]" />
-              <h3 className="mt-1 text-sm font-semibold">{reason.title}</h3>
+            <div className="flex h-full flex-col items-center gap-3 rounded-[18px] border border-[var(--border)] bg-white p-6 text-center shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-in-out hover:-translate-y-1">
+              <reason.icon className="h-9 w-9 shrink-0 text-[var(--foreground)]" />
+              <h3 className="text-sm font-semibold">{reason.title}</h3>
               <p className="text-xs text-[var(--muted)]">{reason.description}</p>
             </div>
           </FadeIn>

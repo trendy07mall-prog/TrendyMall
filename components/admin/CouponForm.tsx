@@ -52,6 +52,34 @@ export function CouponForm({ coupon, onSaved }: { coupon: Coupon | null; onSaved
         </div>
       </div>
 
+      <div className="flex flex-col gap-1">
+        <label htmlFor="title" className="text-sm font-medium">
+          Title (shown on the homepage and /coupons — optional)
+        </label>
+        <input
+          id="title"
+          name="title"
+          type="text"
+          defaultValue={coupon?.title ?? ""}
+          placeholder="e.g. Welcome Offer"
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="description" className="text-sm font-medium">
+          Description (shown on the homepage and /coupons — optional)
+        </label>
+        <textarea
+          id="description"
+          name="description"
+          rows={2}
+          defaultValue={coupon?.description ?? ""}
+          placeholder="e.g. 10% off your first order"
+          className={inputClass}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1">
           <label htmlFor="value" className="text-sm font-medium">
@@ -81,6 +109,21 @@ export function CouponForm({ coupon, onSaved }: { coupon: Coupon | null; onSaved
             className={inputClass}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="maxDiscountAmount" className="text-sm font-medium">
+          Max discount cap (Rs — percentage coupons only, blank = uncapped)
+        </label>
+        <input
+          id="maxDiscountAmount"
+          name="maxDiscountAmount"
+          type="number"
+          min="0"
+          step="0.01"
+          defaultValue={coupon?.max_discount_amount ?? ""}
+          className={`${inputClass} max-w-[200px]`}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
