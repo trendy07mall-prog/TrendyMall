@@ -28,7 +28,7 @@ export function SearchBox() {
         type="button"
         aria-label="Search"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+        className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-black/5"
       >
         <SearchIcon className="h-5 w-5" />
       </button>

@@ -71,7 +71,11 @@ export function HomeSearchBar() {
 
   return (
     <div
-      className={`fixed inset-x-0 top-20 z-[var(--z-sticky-bar)] border-b border-[var(--border)] bg-white py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)] print:hidden ${
+      // top-[84px] matches the header's real rendered height (20px
+      // vertical padding + the 44px icon row is now the tallest flex
+      // item, taller than the 40px logo) — was top-20 (80px) before the
+      // header icons were bumped to a 44px touch target.
+      className={`fixed inset-x-0 top-[84px] z-[var(--z-sticky-bar)] border-b border-[var(--border)] bg-white py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)] print:hidden ${
         reducedMotion ? "" : "transition-[opacity,transform] duration-300 ease-in-out"
       } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
       aria-hidden={!visible}

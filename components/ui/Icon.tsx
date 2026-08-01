@@ -812,3 +812,24 @@ export function BadgePercentIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+// A storefront glyph, deliberately distinct from CartIcon (bag/basket
+// shape) — "browse the shop" vs. "your cart", not the same action.
+export function StoreIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 9 12 3l9 6" />
+      <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9" />
+      <rect x="10" y="14" width="4" height="6" />
+    </svg>
+  );
+}

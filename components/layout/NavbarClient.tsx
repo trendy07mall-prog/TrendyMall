@@ -15,6 +15,8 @@ import {
   CloseIcon,
   HeartIcon,
   MenuIcon,
+  SearchIcon,
+  StoreIcon,
   UserIcon,
 } from "@/components/ui/Icon";
 import type { Category } from "@/types";
@@ -282,15 +284,40 @@ export function NavbarClient({
           ))}
         </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          {/* Mobile: no room to expand SearchBox's inline form (see below)
+              without overflowing the header at 320-414px, so this just
+              navigates to /search directly instead. */}
+          <Link
+            href="/search"
+            aria-label="Search"
+            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 sm:hidden"
+          >
+            <SearchIcon className="h-5 w-5" />
+          </Link>
+          {/* Desktop/tablet: existing click-to-expand inline search — there's
+              room for it here, already confirmed working. */}
           <div className="hidden sm:block">
             <SearchBox />
           </div>
 
+          {/* Shop — mobile/tablet only. Desktop already has "Shop" in the
+              text nav (NAV_LINKS above), an icon there would be redundant. */}
+          <Link
+            href="/shop"
+            aria-label="Shop"
+            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
+          >
+            <StoreIcon className="h-5 w-5" />
+          </Link>
+
+          {/* Wishlist — hidden on phone widths (below sm) to keep the header
+              from crowding now that Search and Shop both live here too;
+              still reachable from the hamburger drawer at those widths. */}
           <Link
             href="/wishlist"
             aria-label="Wishlist"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+            className="relative hidden h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 sm:flex"
           >
             <HeartIcon className="h-5 w-5" />
             <WishlistCount />
@@ -299,7 +326,7 @@ export function NavbarClient({
           <Link
             href="/cart"
             aria-label="Cart"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
           >
             <CartIcon className="h-5 w-5" />
             <CartCount />
@@ -316,7 +343,7 @@ export function NavbarClient({
               aria-haspopup="true"
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((v) => !v)}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+              className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
             >
               <UserIcon className="h-5 w-5" />
             </button>
@@ -368,7 +395,7 @@ export function NavbarClient({
             aria-expanded={drawerOpen}
             aria-controls="mobile-drawer"
             onClick={openDrawer}
-            className="flex h-9 w-9 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
           >
             <MenuIcon className="h-5 w-5" />
           </button>
