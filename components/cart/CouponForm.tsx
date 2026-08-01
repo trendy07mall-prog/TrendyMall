@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { previewCoupon } from "@/lib/coupons";
 import { PercentIcon } from "@/components/ui/Icon";
@@ -19,24 +19,49 @@ export function CouponForm({
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [label, setLabel] = useState<string | null>(null);
+  const autoPreviewedRef = useRef(false);
 
-  async function handleApply() {
-    if (!input.trim()) return;
+  async function handleApply(codeOverride?: string) {
+    const code = (codeOverride ?? input).trim();
+    if (!code) return;
     setChecking(true);
     setError(null);
 
-    const result = await previewCoupon(input.trim(), subtotal, deliveryFee);
+    const result = await previewCoupon(code, subtotal, deliveryFee);
     setChecking(false);
 
     if (result.error || result.discount == null) {
       setError(result.error ?? "Invalid coupon code.");
+      onPreview(0, "");
       return;
     }
 
-    applyCoupon(input.trim());
+    applyCoupon(code);
     setLabel(result.label ?? "");
     onPreview(result.discount, result.label ?? "");
   }
+
+  // The cart page's own `discount` state (and this form's `label`) both
+  // start empty on every mount — if a coupon was already applied in an
+  // earlier visit/session, CartContext still has it, but nothing
+  // recomputes the actual discount amount until this runs, so the price
+  // breakdown wouldn't otherwise agree with the "Applied" badge below.
+  //
+  // Keyed on couponCode (not a run-once mount effect): CartContext
+  // hydrates its own coupon code from localStorage inside its own effect,
+  // which can still be pending on this component's first render (e.g. a
+  // hard reload straight on /cart). A mount-only effect would see
+  // couponCode as null at that instant and never get another chance to
+  // preview it. Tracking the real value (with a ref so it still only
+  // ever auto-previews once) fires correctly on whichever render it
+  // first becomes available.
+  useEffect(() => {
+    if (couponCode && !autoPreviewedRef.current) {
+      autoPreviewedRef.current = true;
+      void handleApply(couponCode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [couponCode]);
 
   function handleRemove() {
     removeCoupon();
@@ -75,7 +100,7 @@ export function CouponForm({
         </div>
         <button
           type="button"
-          onClick={handleApply}
+          onClick={() => handleApply()}
           disabled={checking || !input.trim()}
           className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
         >

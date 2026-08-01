@@ -1,16 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { subscribe } from "@/lib/subscribers";
+import { useEffect, useState } from "react";
+import { checkMySubscription, subscribe } from "@/lib/subscribers";
 import { FadeIn } from "@/components/motion/FadeIn";
 
 // Same subscribe() server action as the footer's NewsletterSignup (writes
 // to the real subscribers table) — this is a homepage-only, larger visual
 // presentation of the identical working form, not a second submit path.
-export function HomeNewsletter() {
-  const [email, setEmail] = useState("");
+export function HomeNewsletter({ defaultEmail }: { defaultEmail?: string }) {
+  const [email, setEmail] = useState(defaultEmail ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [error, setError] = useState("");
+
+  // A logged-in customer whose email is already subscribed sees the
+  // acknowledgement immediately — no typing or submitting required.
+  useEffect(() => {
+    if (!defaultEmail) return;
+    let cancelled = false;
+    checkMySubscription().then((subscribed) => {
+      if (!cancelled && subscribed) setAlreadySubscribed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultEmail]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -18,7 +32,11 @@ export function HomeNewsletter() {
     setError("");
     const result = await subscribe(email);
     if (result.ok) {
-      setSubmitted(true);
+      if (result.alreadySubscribed) {
+        setAlreadySubscribed(true);
+      } else {
+        setSubmitted(true);
+      }
       setEmail("");
     } else {
       setError(result.error ?? "Something went wrong. Please try again.");
@@ -37,7 +55,9 @@ export function HomeNewsletter() {
             promotions.
           </p>
 
-          {submitted ? (
+          {alreadySubscribed ? (
+            <p className="mt-2 text-sm text-white">You&apos;re already subscribed ✓</p>
+          ) : submitted ? (
             <p className="mt-2 text-sm text-white">
               Thanks — you&apos;re on the list. We&apos;ll be in touch with new arrivals and
               offers.

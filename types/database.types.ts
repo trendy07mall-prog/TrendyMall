@@ -1044,6 +1044,10 @@ export interface Database {
         Args: { p_order_id: string };
         Returns: boolean;
       };
+      is_my_email_subscribed: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       create_order_atomic: {
         Args: {
           p_customer_name: string;

@@ -16,7 +16,7 @@ import {
   HeartIcon,
   MenuIcon,
   SearchIcon,
-  StoreIcon,
+  ShoppingBagIcon,
   UserIcon,
 } from "@/components/ui/Icon";
 import type { Category } from "@/types";
@@ -216,17 +216,22 @@ export function NavbarClient({
         scrolled ? "border-[var(--border)]" : "border-transparent"
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-6 py-5">
+      <div className="mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 py-5 sm:px-6">
         <Link href="/" className="flex items-center">
           {/* The wordmark is baked into this logo image (unlike the old
               icon-only mark) — no adjacent "TrendyMall" text needed, the
-              alt text carries that for accessibility instead. */}
+              alt text carries that for accessibility instead. Rendered
+              slightly smaller below sm: with Wishlist now always visible
+              the icon row needs every spare pixel to fit next to the logo
+              at 320px (width/height props stay full-size for a correct
+              intrinsic aspect ratio — only the display size is smaller). */}
           <Image
             src="/images/logo/trendymall-logo.png"
             alt="TrendyMall"
             width={67}
             height={40}
             priority
+            className="h-8 w-auto sm:h-10"
           />
         </Link>
 
@@ -284,7 +289,7 @@ export function NavbarClient({
           ))}
         </nav>
 
-        <div className="flex items-center gap-1 sm:gap-1.5">
+        <div className="flex items-center gap-0.5 sm:gap-1.5">
           {/* Mobile: no room to expand SearchBox's inline form (see below)
               without overflowing the header at 320-414px, so this just
               navigates to /search directly instead. */}
@@ -308,16 +313,17 @@ export function NavbarClient({
             aria-label="Shop"
             className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
           >
-            <StoreIcon className="h-5 w-5" />
+            <ShoppingBagIcon className="h-5 w-5" />
           </Link>
 
-          {/* Wishlist — hidden on phone widths (below sm) to keep the header
-              from crowding now that Search and Shop both live here too;
-              still reachable from the hamburger drawer at those widths. */}
+          {/* Wishlist — always visible, including phone widths. The row's
+              gap/padding/logo size are all trimmed on mobile (above and
+              below) specifically to keep this 5-icon row fitting at 320px
+              without shrinking the 44px touch targets themselves. */}
           <Link
             href="/wishlist"
             aria-label="Wishlist"
-            className="relative hidden h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 sm:flex"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
           >
             <HeartIcon className="h-5 w-5" />
             <WishlistCount />

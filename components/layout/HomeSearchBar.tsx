@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
 
@@ -15,6 +15,8 @@ export function HomeSearchBar() {
   const isHome = pathname === "/";
   const [visible, setVisible] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [headerBottom, setHeaderBottom] = useState(84);
+  const tickingRef = useRef(false);
 
   useEffect(() => {
     if (!isHome) return;
@@ -26,6 +28,43 @@ export function HomeSearchBar() {
     }
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
+  }, [isHome]);
+
+  // The bar used to sit at a hardcoded top-[84px], assuming the sticky
+  // <header> always occupies exactly the viewport's first 84px — true only
+  // once scrolled past AnnouncementBar+PromoBanner (normal-flow siblings
+  // above it in app/layout.tsx). Their combined height varies — the mobile
+  // PromoBanner text can wrap to 2 lines where desktop's wider layout keeps
+  // it to 1 — and the hero's fixed aspect ratio makes the hero-sentinel
+  // trigger much earlier on narrow phones, so `visible` could flip on
+  // before the header had actually finished sticking to y:0. In that
+  // window the header (still below the not-yet-scrolled banner stack)
+  // visually outranks and covers this fixed-position bar. Tracking the
+  // header's real live bottom edge instead of a fixed number is
+  // self-correcting for that window, for any future header height change,
+  // and for both mobile and desktop — not a new magic number to go stale.
+  useEffect(() => {
+    if (!isHome) return;
+
+    function measure() {
+      const header = document.querySelector("header");
+      if (header) setHeaderBottom(header.getBoundingClientRect().bottom);
+      tickingRef.current = false;
+    }
+
+    function onScrollOrResize() {
+      if (tickingRef.current) return;
+      tickingRef.current = true;
+      requestAnimationFrame(measure);
+    }
+
+    measure();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+    };
   }, [isHome]);
 
   useEffect(() => {
@@ -71,11 +110,8 @@ export function HomeSearchBar() {
 
   return (
     <div
-      // top-[84px] matches the header's real rendered height (20px
-      // vertical padding + the 44px icon row is now the tallest flex
-      // item, taller than the 40px logo) — was top-20 (80px) before the
-      // header icons were bumped to a 44px touch target.
-      className={`fixed inset-x-0 top-[84px] z-[var(--z-sticky-bar)] border-b border-[var(--border)] bg-white py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)] print:hidden ${
+      style={{ top: headerBottom }}
+      className={`fixed inset-x-0 z-[var(--z-sticky-bar)] border-b border-[var(--border)] bg-white py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)] print:hidden ${
         reducedMotion ? "" : "transition-[opacity,transform] duration-300 ease-in-out"
       } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
       aria-hidden={!visible}

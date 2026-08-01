@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
 import { BankIcon, CashIcon, CreditCardIcon, FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
 
@@ -14,7 +15,12 @@ const COMPANY_LINKS = [
   { href: "/terms", label: "Terms & Conditions" },
 ];
 
-export function Footer() {
+export async function Footer() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <footer className="border-t border-[var(--border)] bg-white print:hidden">
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-14">
@@ -99,7 +105,7 @@ export function Footer() {
               special promotions.
             </p>
             <div className="mt-4">
-              <NewsletterSignup />
+              <NewsletterSignup defaultEmail={user?.email} />
             </div>
           </div>
         </div>

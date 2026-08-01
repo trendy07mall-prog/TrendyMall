@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals } from "@/lib/data/products";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
@@ -40,9 +41,11 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 }
 
 export default async function HomePage() {
-  const [categories, newArrivals] = await Promise.all([
+  const supabase = await createClient();
+  const [categories, newArrivals, { data: { user } }] = await Promise.all([
     getCategories(),
     getNewArrivals(10),
+    supabase.auth.getUser(),
   ]);
 
   return (
@@ -84,7 +87,7 @@ export default async function HomePage() {
 
       <CustomerReviews />
 
-      <HomeNewsletter />
+      <HomeNewsletter defaultEmail={user?.email} />
 
       <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6 pb-[var(--home-section-padding-y)]">
         <RecentlyViewedSection />

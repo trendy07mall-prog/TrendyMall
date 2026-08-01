@@ -24,7 +24,7 @@ const SLIDES: Slide[] = [
   {
     src: "/images/hero/hero-2.jpg",
     alt: "Get 5% off your order — limited-time discount, use code 1ST ORDER",
-    href: "/cart",
+    href: "/coupons",
     blurDataURL:
       "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAEF/8QAHBAAAgMBAAMAAAAAAAAAAAAAAQIAAxEEEzGh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEUH/2gAMAwEAAhEDEQA/AM/iZV02Vl1zAAZOzxsWesGvfSEE/YiEX7r/2Q==",
   },

@@ -24,6 +24,7 @@ export default async function CheckoutPage() {
       payHereEnabled={isPayHereEnabled()}
       addresses={addresses}
       isLoggedIn={Boolean(user)}
+      defaultEmail={user?.email ?? ""}
       preferredPaymentMethod={
         profile?.preferred_payment_method === "cod" ||
         profile?.preferred_payment_method === "bank_transfer" ||

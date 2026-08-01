@@ -60,6 +60,7 @@ export function CheckoutForm({
   addresses,
   preferredPaymentMethod,
   isLoggedIn,
+  defaultEmail,
 }: {
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
@@ -72,11 +73,18 @@ export function CheckoutForm({
   // anyway, but this also governs whether CheckoutAddress shows the
   // "save for next time"/edit-scope UI at all.
   isLoggedIn: boolean;
+  // A logged-in customer's account email — prefilled but still a normal,
+  // fully editable input, never read-only/hidden. Empty for a guest.
+  defaultEmail?: string;
 }) {
   const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes } = useCart();
   const router = useRouter();
 
-  const [form, setForm] = useState<FormState>(() => ({ email: "", notes: cartNotes, paymentReference: "" }));
+  const [form, setForm] = useState<FormState>(() => ({
+    email: defaultEmail ?? "",
+    notes: cartNotes,
+    paymentReference: "",
+  }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("standard");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
@@ -118,6 +126,11 @@ export function CheckoutForm({
     discount: number;
     label: string;
   } | null>(null);
+  // True only for the mount-time auto-preview of a coupon carried over from
+  // the cart — while this is in flight the blank "Coupon code" input must
+  // not render, or the round-trip reads as "checkout lost my coupon."
+  const [couponAutoApplying, setCouponAutoApplying] = useState(Boolean(cartCouponCode));
+  const couponAutoAppliedRef = useRef(false);
 
   // Pricing keys off the normalized postal code within the Colombo
   // district — see lib/delivery-fee.ts for why (the city text field is
@@ -206,34 +219,55 @@ export function CheckoutForm({
   // A preview only — create_order_atomic re-validates the code and
   // recomputes the real discount from scratch at submit time regardless
   // of what this shows (Rule #1: the server is the only source of truth).
-  async function handleApplyCoupon() {
-    if (!couponInput.trim()) return;
+  async function handleApplyCoupon(codeOverride?: string, isAutoApply = false) {
+    const code = (codeOverride ?? couponInput).trim();
+    if (!code) return;
     setCouponChecking(true);
     setCouponError(null);
 
-    const result = await previewCoupon(couponInput.trim(), subtotal, shippingFee);
+    const result = await previewCoupon(code, subtotal, shippingFee);
 
     setCouponChecking(false);
 
     if (result.error || result.discount == null) {
-      setCouponError(result.error ?? "Invalid coupon code.");
+      setCouponError(
+        isAutoApply
+          ? `Coupon ${code} could no longer be applied: ${result.error ?? "it's no longer valid."}`
+          : (result.error ?? "Invalid coupon code."),
+      );
       setAppliedCoupon(null);
       return;
     }
 
-    setAppliedCoupon({ code: couponInput.trim(), discount: result.discount, label: result.label ?? "" });
+    setAppliedCoupon({ code, discount: result.discount, label: result.label ?? "" });
   }
 
-  // Auto-preview a coupon already applied on the cart page, once, on
-  // mount — so its discount shows here without an extra click. Submit
-  // time still re-validates from scratch regardless (see above).
+  // Auto-preview a coupon already applied on the cart page, once, so its
+  // discount shows here without an extra click. Submit time still
+  // re-validates from scratch regardless (see above). Until this
+  // resolves, couponAutoApplying keeps the blank "apply a coupon" form
+  // from rendering, which would otherwise read as "checkout lost the
+  // coupon I already applied."
+  //
+  // Deliberately keyed on cartCouponCode (not a run-once mount effect):
+  // CartContext hydrates its own coupon code from localStorage inside
+  // its own effect, which is itself async — on a hard navigation
+  // straight into /checkout (refresh, bookmark, external link), that
+  // hydration can still be pending on CheckoutForm's first render. A
+  // mount-only effect would see cartCouponCode as null at that instant
+  // and never get another chance to apply it. Tracking the real value
+  // (with a ref so it still only ever auto-applies once) fires
+  // correctly whichever render it first becomes available on.
   useEffect(() => {
-    if (cartCouponCode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to an external signal (the cart's saved coupon), same class of exception as the localStorage-read effects elsewhere in this app.
-      void handleApplyCoupon();
+    if (cartCouponCode && !couponAutoAppliedRef.current) {
+      couponAutoAppliedRef.current = true;
+      setCouponAutoApplying(true);
+      void handleApplyCoupon(cartCouponCode, true).finally(() => {
+        setCouponAutoApplying(false);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [cartCouponCode]);
 
   function handleRemoveCoupon() {
     setAppliedCoupon(null);
@@ -623,7 +657,11 @@ export function CheckoutForm({
             ))}
           </ul>
           <div className="mt-4 flex flex-col gap-2">
-            {appliedCoupon ? (
+            {couponAutoApplying ? (
+              <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm text-[var(--muted)]">
+                Applying your saved coupon…
+              </div>
+            ) : appliedCoupon ? (
               <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm">
                 <span>
                   Coupon <strong>{appliedCoupon.code}</strong> — {appliedCoupon.label}
@@ -644,7 +682,7 @@ export function CheckoutForm({
                   />
                   <button
                     type="button"
-                    onClick={handleApplyCoupon}
+                    onClick={() => handleApplyCoupon()}
                     disabled={couponChecking || !couponInput.trim()}
                     className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
                   >

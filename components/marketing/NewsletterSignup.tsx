@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { subscribe } from "@/lib/subscribers";
+import { useEffect, useState } from "react";
+import { checkMySubscription, subscribe } from "@/lib/subscribers";
 
-export function NewsletterSignup() {
-  const [email, setEmail] = useState("");
+export function NewsletterSignup({ defaultEmail }: { defaultEmail?: string }) {
+  const [email, setEmail] = useState(defaultEmail ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [error, setError] = useState("");
+
+  // A logged-in customer whose email is already subscribed sees the
+  // acknowledgement immediately — no typing or submitting required.
+  useEffect(() => {
+    if (!defaultEmail) return;
+    let cancelled = false;
+    checkMySubscription().then((subscribed) => {
+      if (!cancelled && subscribed) setAlreadySubscribed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultEmail]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -14,11 +28,19 @@ export function NewsletterSignup() {
     setError("");
     const result = await subscribe(email);
     if (result.ok) {
-      setSubmitted(true);
+      if (result.alreadySubscribed) {
+        setAlreadySubscribed(true);
+      } else {
+        setSubmitted(true);
+      }
       setEmail("");
     } else {
       setError(result.error ?? "Something went wrong. Please try again.");
     }
+  }
+
+  if (alreadySubscribed) {
+    return <p className="text-sm text-[var(--foreground)]">You&apos;re already subscribed ✓</p>;
   }
 
   if (submitted) {
