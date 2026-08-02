@@ -245,9 +245,29 @@ skip for now and come back later.
     own* Resend account email — customer confirmation emails won't actually
     reach customers yet, even though the code sends them. The order
     notification to `trendy07mall@gmail.com` will work immediately either
-    way. Once you register a domain (e.g. `trendymall.lk`) and verify it in
-    Resend (a few DNS records), set `RESEND_FROM_EMAIL` to an address on
-    that domain (e.g. `orders@trendymall.lk`) and both emails will go out.
+    way. Never leave `RESEND_FROM_EMAIL` as the default `onboarding@resend.dev`
+    test sender in production — it's sandbox-only by design.
+  - **To verify `trendymall.online`**: Resend dashboard → **Domains → Add
+    Domain** → enter `trendymall.online`. Resend shows the exact DNS records
+    to add at your registrar (the same place you added the Vercel domain
+    records) — an MX + SPF TXT record on a `send.` subdomain (the
+    return-path) and a DKIM TXT record on `resend._domainkey` (a long public
+    key, unique per account — copy it exactly as shown, it can't be
+    predicted or reused from another project). Click **Verify** once added;
+    DNS propagation is usually minutes, occasionally up to ~24h. Then set
+    `RESEND_FROM_EMAIL=orders@trendymall.online` (not `noreply@` — it hurts
+    deliverability/trust — and not a Gmail address, which can never pass
+    SPF/DKIM for a domain Google doesn't host).
+  - Also worth adding a DMARC record — `_dmarc.trendymall.online` TXT
+    `v=DMARC1; p=none; rua=mailto:trendy07mall@gmail.com; fo=1` — to improve
+    inbox placement (`p=none` just monitors at first; tighten later once the
+    reports look clean).
+  - `lib/email.ts` sets `Reply-To` to `trendy07mall@gmail.com` on every
+    customer email, so replies land in a real inbox even though the `From`
+    is the domain address.
+  - Check delivery any time in the Resend dashboard's **Logs** page — every
+    send attempt is listed with its status (delivered/bounced/complained)
+    and the raw response from the receiving mail server.
 - **Card payments (PayHere)**: log in to your existing PayHere account →
   **Integrations → Add Domain/App** → set Domain/App as "Domain", enter the
   domain you're integrating on (`localhost`/`127.0.0.1` for local dev, your

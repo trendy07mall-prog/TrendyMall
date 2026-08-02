@@ -2,9 +2,16 @@ import { Resend } from "resend";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
 import { SITE_URL } from "@/lib/site";
-import type { OrderStatus } from "@/types";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
+
+// Also used as Reply-To on every customer-facing send: we send from our own
+// domain (trendymall.online, once verified in Resend) for SPF/DKIM to pass,
+// but a customer hitting "Reply" should still land in a real inbox someone
+// reads, not a noreply@ dead end.
+function fromHeader(fromEmail: string): string {
+  return `"TrendyMall" <${fromEmail}>`;
+}
 
 // No logo appeared in any email before this — this is a new addition, not
 // a swap. Most email clients (Outlook, Gmail's image-proxy, etc.) strip
@@ -12,14 +19,6 @@ const OWNER_EMAIL = "trendy07mall@gmail.com";
 // publicly-fetchable URL — the same static file Next.js already serves
 // for the header/footer, not a separate asset.
 const EMAIL_LOGO_HTML = `<img src="${SITE_URL}/images/logo/trendymall-logo.png" alt="TrendyMall" width="120" height="71" style="display:block; margin-bottom: 16px;" />`;
-
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending_payment: "Pending payment",
-  confirmed: "Confirmed",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-};
 
 interface OrderEmailItem {
   name: string;
@@ -92,7 +91,13 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
 
 // Best-effort: silently no-ops if Resend isn't configured yet (see
 // .env.example / SETUP.md), and never throws — a failed email should never
-// fail the order it's confirming.
+// fail the order it's confirming. The Resend SDK itself never rejects (a
+// failed send resolves as { data: null, error }, not a thrown exception),
+// so every result — including each entry of the Promise.allSettled array
+// below — is checked for an `error` field and logged if present. Without
+// this, a bounced/rejected customer send is otherwise indistinguishable
+// from a working admin send from the outside — exactly what let the
+// customer-email-never-arrives bug go unnoticed.
 export async function sendOrderConfirmationEmails(order: OrderEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -100,22 +105,33 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
 
   try {
     const resend = new Resend(apiKey);
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       resend.emails.send({
-        from: fromEmail,
+        from: fromHeader(fromEmail),
         to: OWNER_EMAIL,
+        replyTo: OWNER_EMAIL,
         subject: `New order ${order.orderNumber}`,
         html: buildOrderEmailHtml(order, true),
       }),
       resend.emails.send({
-        from: fromEmail,
+        from: fromHeader(fromEmail),
         to: order.customerEmail,
+        replyTo: OWNER_EMAIL,
         subject: `Your TrendyMall order ${order.orderNumber}`,
         html: buildOrderEmailHtml(order, false),
       }),
     ]);
-  } catch {
+    const recipients = [OWNER_EMAIL, order.customerEmail];
+    results.forEach((result, i) => {
+      if (result.status === "rejected") {
+        console.error(`sendOrderConfirmationEmails: send to ${recipients[i]} failed`, result.reason);
+      } else if (result.value.error) {
+        console.error(`sendOrderConfirmationEmails: send to ${recipients[i]} rejected by Resend`, result.value.error);
+      }
+    });
+  } catch (error) {
     // Sending is best-effort — order creation already succeeded.
+    console.error("sendOrderConfirmationEmails failed", error);
   }
 }
 
@@ -132,9 +148,10 @@ export async function sendPaymentVerifiedEmail(order: {
 
   try {
     const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from: fromEmail,
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
       to: order.customerEmail,
+      replyTo: OWNER_EMAIL,
       subject: `Payment verified — order ${order.orderNumber}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
@@ -144,17 +161,16 @@ export async function sendPaymentVerifiedEmail(order: {
         </div>
       `,
     });
-  } catch {
+    if (error) console.error(`sendPaymentVerifiedEmail: send to ${order.customerEmail} rejected by Resend`, error);
+  } catch (error) {
     // Sending is best-effort — the verification already succeeded.
+    console.error("sendPaymentVerifiedEmail failed", error);
   }
 }
 
-// Best-effort, same as the others. Generic replacement for
-// sendOrderStatusUpdateEmail's new call sites (lib/admin/orderActions.ts)
-// — takes a pre-resolved human label rather than the legacy OrderStatus
-// union, since Phase 4's admin actions key off order_status/payment_status
-// instead. sendOrderStatusUpdateEmail itself is kept below, unused by new
-// code but not deleted (nothing requires removing it this phase).
+// Best-effort, same as the others. Generic — takes a pre-resolved human
+// label rather than an OrderStatus union, since the admin actions
+// (lib/admin/orderActions.ts) key off order_status/payment_status instead.
 export async function sendOrderStatusEmail(order: {
   orderNumber: string;
   customerName: string;
@@ -168,9 +184,10 @@ export async function sendOrderStatusEmail(order: {
 
   try {
     const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from: fromEmail,
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
       to: order.customerEmail,
+      replyTo: OWNER_EMAIL,
       subject: `Your TrendyMall order ${order.orderNumber} is now ${order.label}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
@@ -182,41 +199,9 @@ export async function sendOrderStatusEmail(order: {
         </div>
       `,
     });
-  } catch {
+    if (error) console.error(`sendOrderStatusEmail: send to ${order.customerEmail} rejected by Resend`, error);
+  } catch (error) {
     // Sending is best-effort — the status change already succeeded.
-  }
-}
-
-// Best-effort, same as sendOrderConfirmationEmails — a failed email should
-// never block the status change that triggered it. Customer-facing only
-// (the admin making the change already knows).
-export async function sendOrderStatusUpdateEmail(order: {
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  status: OrderStatus;
-}): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.RESEND_FROM_EMAIL;
-  if (!apiKey || !fromEmail) return;
-
-  try {
-    const resend = new Resend(apiKey);
-    const statusLabel = STATUS_LABELS[order.status];
-    await resend.emails.send({
-      from: fromEmail,
-      to: order.customerEmail,
-      subject: `Your TrendyMall order ${order.orderNumber} is now ${statusLabel}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
-          ${EMAIL_LOGO_HTML}
-          <h2>Order ${order.orderNumber}</h2>
-          <p>Hi ${order.customerName}, your order status has been updated to:</p>
-          <p style="font-size: 18px; font-weight: bold;">${statusLabel}</p>
-        </div>
-      `,
-    });
-  } catch {
-    // Sending is best-effort — the status change already succeeded.
+    console.error("sendOrderStatusEmail failed", error);
   }
 }
