@@ -18,7 +18,18 @@ const STOCK_STATE = {
   in: { dot: "bg-[#16a34a]", text: "text-[#16a34a]" },
 };
 
-export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
+export function ProductCard({
+  product,
+  hideDeliveryEstimate = false,
+}: {
+  product: ProductWithPrimaryImage;
+  // Homepage-only (New Arrivals) — every other render site (/shop, category,
+  // /search, Related Products) keeps the delivery estimate and the original
+  // spacing rhythm exactly as-is. The tighter gaps below only apply once
+  // this is true, since they only make sense with the date line actually
+  // gone, not as a general site-wide spacing change.
+  hideDeliveryEstimate?: boolean;
+}) {
   const discountPercent = getDiscountPercent(product.actual_price, product.special_price);
   const delivery = getEstimatedDeliveryRange();
   const stock =
@@ -31,11 +42,14 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
   return (
     <div className="group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative">
-        {/* Inset ~74% of the card's content width (not edge-to-edge) —
-            a centered, "framed" thumbnail rather than a full-bleed image. */}
+        {/* Inset ~83% of the card's content width (not edge-to-edge) —
+            a centered, "framed" thumbnail rather than a full-bleed image.
+            object-contain (not cover) + a white background so non-square
+            product photos sit cleanly without a cropped edge or a grey
+            letterbox behind them. */}
         <Link
           href={`/product/${product.slug}`}
-          className="relative mx-auto block aspect-square w-[74%] overflow-hidden rounded-[var(--radius-md)] bg-black/5"
+          className="relative mx-auto block aspect-square w-5/6 overflow-hidden rounded-[14px] bg-white"
         >
           {product.image ? (
             <Image
@@ -43,8 +57,8 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
               alt={product.name}
               fill
               loading="lazy"
-              sizes="(max-width: 640px) 37vw, 19vw"
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+              sizes="(max-width: 640px) 42vw, 21vw"
+              className="object-contain transition-transform duration-300 group-hover:scale-[1.04]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
@@ -62,7 +76,7 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-1 flex-col gap-3">
+      <div className={`mt-3 flex flex-1 flex-col ${hideDeliveryEstimate ? "" : "gap-3"}`}>
         <div>
           {product.brand && (
             <p className="text-[10px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
@@ -77,14 +91,14 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
         </div>
 
         {product.reviewCount > 0 && (
-          <div className="flex items-center gap-1.5">
+          <div className={`flex items-center gap-1.5 ${hideDeliveryEstimate ? "mt-2" : ""}`}>
             <StarRating rating={product.avgRating} size="sm" />
             <span className="text-xs text-[var(--muted)]">({product.reviewCount})</span>
           </div>
         )}
 
-        <div>
-          <div className="flex items-center justify-between gap-2">
+        <div className={hideDeliveryEstimate ? "mt-2" : ""}>
+          <div className={`flex items-center justify-between ${hideDeliveryEstimate ? "gap-1.5" : "gap-2"}`}>
             <PriceDisplay
               actualPrice={product.actual_price}
               specialPrice={product.special_price}
@@ -96,10 +110,10 @@ export function ProductCard({ product }: { product: ProductWithPrimaryImage }) {
               {stock.label}
             </span>
           </div>
-          <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>
+          {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
         </div>
 
-        <div className="mt-auto">
+        <div className={hideDeliveryEstimate ? "mt-3" : "mt-auto"}>
           <QuickAddButton product={product} />
         </div>
       </div>

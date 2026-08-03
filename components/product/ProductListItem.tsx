@@ -28,7 +28,7 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
       <div className="relative shrink-0">
         <Link
           href={`/product/${product.slug}`}
-          className="relative block aspect-square w-28 overflow-hidden rounded-[var(--radius-md)] bg-black/5"
+          className="relative block aspect-square w-28 overflow-hidden rounded-[var(--radius-md)] bg-white"
         >
           {product.image ? (
             <Image
@@ -36,7 +36,7 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
               alt={product.name}
               fill
               sizes="112px"
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-contain transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-[var(--muted)]">

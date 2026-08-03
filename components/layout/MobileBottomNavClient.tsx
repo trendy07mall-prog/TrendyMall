@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/components/ui/Icon";
+import { CartCount } from "@/components/cart/CartCount";
 
 // Cart/checkout already have their own sticky primary-action bar (Proceed
 // to Checkout / Place Order) — a persistent nav competing for the same
@@ -94,7 +95,10 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
             href={item.href}
             className="transition-brand flex flex-1 flex-col items-center justify-center gap-0.5"
           >
-            <item.icon className={`h-6 w-6 ${color}`} />
+            <span className="relative">
+              <item.icon className={`h-6 w-6 ${color}`} />
+              {item.label === "Cart" && <CartCount variant="nav" />}
+            </span>
             <span className={`text-xs font-medium ${color}`}>{item.label}</span>
           </Link>
         );
