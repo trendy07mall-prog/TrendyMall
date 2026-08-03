@@ -127,7 +127,7 @@ export function HeroSlider() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1730px] px-6 py-8">
+    <div className="mx-auto w-full max-w-[1920px] px-6 py-8">
       {/* Scoped keyframes for the active dot's progress fill — a plain CSS
           animation (not Framer Motion) so `animation-play-state` can truly
           pause/resume it mid-fill without losing progress. */}
@@ -151,7 +151,14 @@ export function HeroSlider() {
         onKeyDown={onKeyDown}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
-        className="group relative aspect-[15/4] w-full overflow-hidden rounded-[24px] bg-black/5 shadow-[0_15px_35px_rgba(0,0,0,0.10)] outline-none"
+        // Responsive aspect ratio, not a single fixed one — a 15:4 banner
+        // cropped down to a mobile viewport left almost nothing of a source
+        // image visible (see the width×height numbers in the PR notes), so
+        // the container gets taller as the viewport narrows instead of
+        // keeping a fixed ultra-wide ratio at every width. Values match the
+        // three device tiers exactly (1080×1080 mobile, 1400×600 tablet,
+        // 1920×650 desktop) rather than approximated fractions.
+        className="group relative aspect-[1080/1080] w-full overflow-hidden rounded-[24px] bg-black/5 shadow-[0_15px_35px_rgba(0,0,0,0.10)] outline-none sm:aspect-[1400/600] lg:aspect-[1920/650]"
       >
         {SLIDES.map((slide, index) => {
           const isActive = index === active;
@@ -180,11 +187,11 @@ export function HeroSlider() {
                   fill
                   priority={index === 0}
                   loading={index === 0 ? undefined : "lazy"}
-                  quality={78}
+                  quality={88}
                   placeholder="blur"
                   blurDataURL={slide.blurDataURL}
-                  sizes="(min-width: 1730px) 1730px, 100vw"
-                  className="object-cover"
+                  sizes="(min-width: 1920px) 1920px, 100vw"
+                  className="object-cover object-center"
                 />
               </motion.div>
             </Link>

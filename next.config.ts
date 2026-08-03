@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
     viewTransition: true,
   },
   images: {
-    // HeroSlider requests quality={78}; Next 16 rejects any quality not
+    // HeroSlider requests quality={88}; Next 16 rejects any quality not
     // explicitly listed here (75 is the implicit default used everywhere
     // else via next/image's defaults).
-    qualities: [75, 78],
+    qualities: [75, 88],
     remotePatterns: supabaseHostname
       ? [
           {
