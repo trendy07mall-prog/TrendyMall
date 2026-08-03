@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
@@ -9,55 +9,62 @@ import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 interface Slide {
   src: string;
   alt: string;
-  href: string;
+  // null = no click action (no Link, no pointer cursor) — only the
+  // "click" slide in each set actually navigates anywhere.
+  href: string | null;
   blurDataURL: string;
 }
 
-// Desktop/tablet keeps all 3 slides and its existing images — unchanged.
+// Tablet/desktop — same md: (768px) breakpoint already used sitewide for
+// "tablet and up" (header icons, this hero's own mobile/desktop image
+// split from an earlier phase), not a new one.
 const DESKTOP_SLIDES: Slide[] = [
   {
-    src: "/images/hero/hero-1.jpg",
+    src: "/images/hero/hero-desktop-1-who.webp",
     alt: "TrendyMall — Sri Lanka's online shop for mobile phone accessories",
-    href: "/shop",
+    href: null,
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAFABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAQG/8QAHRAAAgMAAgMAAAAAAAAAAAAAAQIAAxEFEjEy0f/EABQBAQAAAAAAAAAAAAAAAAAAAAL/xAAWEQEBAQAAAAAAAAAAAAAAAAAAQQH/2gAMAwEAAhEDEQA/AM1acSvc9QfErutrfi1RKQnVydB3SfmREcwa/9k=",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAbEAACAQUAAAAAAAAAAAAAAAAAAQQRIjNRcf/EABUBAQEAAAAAAAAAAAAAAAAAAAID/8QAFhEBAQEAAAAAAAAAAAAAAAAAAAEx/9oADAMBAAIRAxEAPwCDHdslUWLXAAVmhX//2Q==",
   },
   {
-    src: "/images/hero/hero-2.jpg",
+    src: "/images/hero/hero-desktop-2-click.webp",
     alt: "Get 5% off your order — limited-time discount, use code 1ST ORDER",
     href: "/coupons",
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAEF/8QAHBAAAgMBAAMAAAAAAAAAAAAAAQIAAxEEEzGh/8QAFQEBAQAAAAAAAAAAAAAAAAAABAX/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEUH/2gAMAwEAAhEDEQA/AM/iZV02Vl1zAAZOzxsWesGvfSEE/YiEX7r/2Q==",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAZEAACAwEAAAAAAAAAAAAAAAAAAQQSMRH/xAAVAQEBAAAAAAAAAAAAAAAAAAAEBf/EABURAQEAAAAAAAAAAAAAAAAAAAAB/9oADAMBAAIRAxEAPwCbZuLV4l3AAFXq/9k=",
   },
   {
-    src: "/images/hero/hero-3.jpg",
+    src: "/images/hero/hero-desktop-3-freeshipping.webp",
     alt: "TrendyMall islandwide delivery",
-    href: "/shop",
+    href: null,
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAIABADASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAAMF/8QAIRAAAgIBAgcAAAAAAAAAAAAAAQIAAwQRIRITIkJRYXH/xAAUAQEAAAAAAAAAAAAAAAAAAAAD/8QAGREAAwADAAAAAAAAAAAAAAAAAAERAhIy/9oADAMBAAIRAxEAPwDbdso5QelFNO3cOr3KG+1bnLo/K4goJ02Hn5EQeoI8daz/2Q==",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAADAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAaEAACAgMAAAAAAAAAAAAAAAAAAgERAzEy/8QAFQEBAQAAAAAAAAAAAAAAAAAAAQP/xAAYEQACAwAAAAAAAAAAAAAAAAAAAREhMf/aAAwDAQACEQMRAD8AszkdXmmnu9gAlFisP//Z",
   },
 ];
 
-// Mobile gets dedicated 16:9 crops (art direction, not CSS-cropped from the
-// desktop images) — only 2 slides. The desktop coupon slide (hero-2.jpg) has
-// no real dedicated mobile source yet (its only 16:9 export was an unedited
-// ad-template placeholder, not usable — see the PR notes), so it's omitted
-// here rather than shown in a wrong crop; add a third slide once a real
-// mobile coupon banner exists.
+// Mobile — dedicated 16:9 crops (art direction, not CSS-cropped from
+// desktop). All 3 slides now available; click behavior mirrors desktop.
 const MOBILE_SLIDES: Slide[] = [
   {
-    src: "/images/hero/hero-mobile-1.jpg",
+    src: "/images/hero/hero-mobile-1-who.webp",
     alt: "TrendyMall — Sri Lanka's online shop for mobile phone accessories",
-    href: "/shop",
+    href: null,
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAEAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAbEAACAgMBAAAAAAAAAAAAAAAAAQQxAhEjQf/EABUBAQEAAAAAAAAAAAAAAAAAAAID/8QAFhEBAQEAAAAAAAAAAAAAAAAAAAEx/9oADAMBAAIRAxEAPwCHHa1KTxT42/KABSaFf//Z",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAEAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAbEAEAAgIDAAAAAAAAAAAAAAABAAIDMQQRIf/EABUBAQEAAAAAAAAAAAAAAAAAAAID/8QAFhEBAQEAAAAAAAAAAAAAAAAAAAEx/9oADAMBAAIRAxEAPwCDgQOTVqPeLaemoiJWaFf/2Q==",
   },
   {
-    src: "/images/hero/hero-mobile-2.jpg",
-    alt: "TrendyMall islandwide delivery",
-    href: "/shop",
+    src: "/images/hero/hero-mobile-2-click.webp",
+    alt: "Get 5% off your order — limited-time discount, use code 1ST ORDER",
+    href: "/coupons",
     blurDataURL:
-      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAEAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAZEAACAwEAAAAAAAAAAAAAAAAAAQIDEbH/xAAVAQEBAAAAAAAAAAAAAAAAAAACA//EABcRAAMBAAAAAAAAAAAAAAAAAAACMTL/2gAMAwEAAhEDEQA/ALErbK5PJt7ZuPgAJNRJk//Z",
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAEAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAbEAACAgMBAAAAAAAAAAAAAAAAAQIRISRBkf/EABUBAQEAAAAAAAAAAAAAAAAAAAQF/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AmuWoo1F9us+gAIvv/9k=",
+  },
+  {
+    src: "/images/hero/hero-mobile-3-freeshipping.webp",
+    alt: "TrendyMall islandwide delivery",
+    href: null,
+    blurDataURL:
+      "data:image/jpeg;base64,/9j/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAEAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAaEAADAQADAAAAAAAAAAAAAAAAAQIRAzFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgP/xAAXEQADAQAAAAAAAAAAAAAAAAAAATEC/9oADAMBAAIRAxEAPwC3V3xttXT29x9eAAk6LMP/2Q==",
   },
 ];
 
@@ -68,14 +75,13 @@ const SLIDE_DURATION = 4000; // ms each slide is visible
 const TRANSITION_DURATION = 600; // ms crossfade transition
 
 // One fully self-contained carousel instance (own state/interval/touch
-// handling), rendered twice by HeroSlider below — once for mobile's 2-slide
-// set, once for desktop's 3-slide set — with CSS alone deciding which one
-// is visible. This (not a single instance switching its `slides` prop via a
+// handling), rendered twice by HeroSlider below — once for mobile's slide
+// set, once for desktop's — with CSS alone deciding which one is visible.
+// This (not a single instance switching its `slides` prop via a
 // client-side matchMedia check) is deliberate: a JS-computed breakpoint
-// would render the wrong slide count for one frame after hydration before
-// correcting itself, which is exactly the kind of flash this avoids —
-// Tailwind's responsive classes are already correct in the very first paint,
-// server-rendered and client-rendered alike.
+// would render the wrong slide set for one frame after hydration before
+// correcting itself — Tailwind's responsive classes are already correct in
+// the very first paint, server-rendered and client-rendered alike.
 function SlideCarousel({
   slides,
   wrapperClassName,
@@ -191,7 +197,45 @@ function SlideCarousel({
       {slides.map((slide, index) => {
         const isActive = index === active;
 
-        return (
+        const content = (
+          <motion.div
+            className="relative h-full w-full"
+            initial={false}
+            animate={{ opacity: isActive ? 1 : 0 }}
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: TRANSITION_DURATION / 1000, ease: "easeInOut" }
+            }
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              // Every slide (including index 0) lazy-loads here — the
+              // correct-for-this-breakpoint first slide instead gets a
+              // real fetch priority boost from the manual, media-gated
+              // <link rel="preload"> tags below (built with
+              // next/image's own getImageProps so the preloaded URL
+              // exactly matches what this <Image> will request, no
+              // wasted duplicate fetch). Using next/image's own
+              // `priority` here instead would preload BOTH the mobile
+              // and desktop first slide unconditionally, since it has
+              // no media-query awareness.
+              loading="lazy"
+              quality={88}
+              placeholder="blur"
+              blurDataURL={slide.blurDataURL}
+              sizes={imageSizes}
+              className="object-cover object-center"
+            />
+          </motion.div>
+        );
+
+        // Only the "click" slide is interactive — the others render a
+        // plain, non-focusable div with no href, no pointer cursor, and
+        // no click behavior at all.
+        return slide.href ? (
           <Link
             key={slide.src}
             href={slide.href}
@@ -199,30 +243,16 @@ function SlideCarousel({
             tabIndex={isActive ? 0 : -1}
             className={`absolute inset-0 overflow-hidden ${isActive ? "" : "pointer-events-none"}`}
           >
-            <motion.div
-              className="relative h-full w-full"
-              initial={false}
-              animate={{ opacity: isActive ? 1 : 0 }}
-              transition={
-                reducedMotion
-                  ? { duration: 0 }
-                  : { duration: TRANSITION_DURATION / 1000, ease: "easeInOut" }
-              }
-            >
-              <Image
-                src={slide.src}
-                alt={slide.alt}
-                fill
-                priority={index === 0}
-                loading={index === 0 ? undefined : "lazy"}
-                quality={88}
-                placeholder="blur"
-                blurDataURL={slide.blurDataURL}
-                sizes={imageSizes}
-                className="object-cover object-center"
-              />
-            </motion.div>
+            {content}
           </Link>
+        ) : (
+          <div
+            key={slide.src}
+            aria-hidden={!isActive}
+            className={`absolute inset-0 overflow-hidden ${isActive ? "" : "pointer-events-none"}`}
+          >
+            {content}
+          </div>
         );
       })}
 
@@ -286,9 +316,53 @@ function SlideCarousel({
   );
 }
 
+const MOBILE_SIZES = "100vw";
+const DESKTOP_SIZES = "(min-width: 1920px) 1920px, 100vw";
+
+// getImageProps resolves the exact same optimizer URL/srcSet next/image's
+// <Image> below will request for each breakpoint's first slide — so these
+// preload links prime the real cache entry (no wasted duplicate fetch),
+// gated by `media` so only the browser's actually-matching breakpoint ever
+// fetches its candidate. This is the only way to get a responsive,
+// art-directed preload with next/image: the `priority` prop has no media
+// awareness and would preload both device's first slide unconditionally.
+const { props: mobilePreload } = getImageProps({
+  src: MOBILE_SLIDES[0].src,
+  alt: "",
+  fill: true,
+  quality: 88,
+  sizes: MOBILE_SIZES,
+});
+const { props: desktopPreload } = getImageProps({
+  src: DESKTOP_SLIDES[0].src,
+  alt: "",
+  fill: true,
+  quality: 88,
+  sizes: DESKTOP_SIZES,
+});
+
 export function HeroSlider() {
   return (
     <div className="mx-auto w-full max-w-[1920px] px-6 py-8">
+      {/* Resource hints, not rendered images — React hoists <link> elements
+          rendered anywhere in the tree up into <head> automatically. */}
+      <link
+        rel="preload"
+        as="image"
+        href={mobilePreload.src}
+        imageSrcSet={mobilePreload.srcSet}
+        imageSizes={MOBILE_SIZES}
+        media="(max-width: 767px)"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href={desktopPreload.src}
+        imageSrcSet={desktopPreload.srcSet}
+        imageSizes={DESKTOP_SIZES}
+        media="(min-width: 768px)"
+      />
+
       {/* Scoped keyframes for the active dot's progress fill — a plain CSS
           animation (not Framer Motion) so `animation-play-state` can truly
           pause/resume it mid-fill without losing progress. Shared by both
@@ -300,23 +374,20 @@ export function HeroSlider() {
         }
       `}</style>
 
-      {/* Mobile: dedicated 16:9 art-directed images, 2 slides, <768px only.
-          Always rendered below the 768px breakpoint where this instance is
-          even visible, so a flat 100vw request (never the 1920px desktop
-          candidate) is all that's needed. */}
+      {/* Mobile: dedicated 16:9 art-directed images, <768px only. */}
       <SlideCarousel
         slides={MOBILE_SLIDES}
         wrapperClassName="aspect-[1200/675] md:hidden"
         ariaLabel="Promotions"
-        imageSizes="100vw"
+        imageSizes={MOBILE_SIZES}
       />
 
-      {/* Tablet/desktop: existing 3-slide set, unchanged aspect ratios. */}
+      {/* Tablet/desktop: dedicated images, unchanged aspect ratios. */}
       <SlideCarousel
         slides={DESKTOP_SLIDES}
         wrapperClassName="hidden md:block md:aspect-[1400/600] lg:aspect-[1920/650]"
         ariaLabel="Promotions"
-        imageSizes="(min-width: 1920px) 1920px, 100vw"
+        imageSizes={DESKTOP_SIZES}
       />
 
       {/* Watched by the homepage's sticky search bar (see
