@@ -11,7 +11,7 @@ export function PriceDisplay({
   size?: "sm" | "md";
   showDiscountBadge?: boolean;
 }) {
-  const priceClass = size === "md" ? "text-xl font-semibold" : "text-sm font-semibold";
+  const priceClass = size === "md" ? "text-xl font-semibold" : "text-lg font-bold";
   const wasClass = size === "md" ? "text-base" : "text-xs";
 
   if (specialPrice != null) {

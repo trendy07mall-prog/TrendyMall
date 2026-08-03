@@ -813,6 +813,29 @@ export function BadgePercentIcon({ className }: IconProps) {
   );
 }
 
+// A plain house glyph for the mobile bottom nav's "Home" tab — distinct
+// from ShoppingBagIcon (used for "Shop" in both the header and bottom nav)
+// and from StoreIcon below (a storefront, not the same concept as the
+// site's own homepage).
+export function HomeIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M3 11 12 3l9 8" />
+      <path d="M5 10.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9.5" />
+      <path d="M9.5 21v-6a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v6" />
+    </svg>
+  );
+}
+
 // A storefront glyph, deliberately distinct from CartIcon (bag/basket
 // shape) — "browse the shop" vs. "your cart", not the same action.
 export function StoreIcon({ className }: IconProps) {

@@ -65,6 +65,12 @@
   --z-announcement: 20;
   --z-sticky-bar: 25;
   --z-nav: 30;
+  /* Same tier as --z-nav — the persistent mobile bottom nav is the "other
+     half" of site navigation chrome, not an overlay. Sits below
+     --z-whatsapp so the FAB always wins if they ever spatially overlapped
+     (in practice they don't: the bottom nav publishes its height into
+     --mobile-bottom-bar-offset, which the FAB already shifts above). */
+  --z-bottom-nav: 30;
   --z-whatsapp: 35;
   --z-drawer-overlay: 40;
   --z-drawer-panel: 50;

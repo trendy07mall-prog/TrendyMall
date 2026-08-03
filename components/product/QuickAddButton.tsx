@@ -41,7 +41,7 @@ export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }
       type="button"
       disabled={outOfStock || status !== "idle"}
       onClick={handleClick}
-      className="transition-brand group-hover:bg-[var(--color-btn-hover)] flex w-full items-center justify-center gap-1.5 rounded-full bg-[var(--foreground)] py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="transition-brand group-hover:bg-[var(--color-btn-hover)] flex h-[42px] w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--foreground)] text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 md:h-11"
     >
       {outOfStock ? (
         "Out of stock"

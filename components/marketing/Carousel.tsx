@@ -101,21 +101,24 @@ export function Carousel({
 
       {showArrows && (
         <>
+          {/* 40/46/52px mobile/tablet/desktop — the button element itself is
+              sized to each tier (not just the visual circle inside it), so
+              the tap target never shrinks below a real 40px on mobile. */}
           <button
             type="button"
             aria-label="Previous"
             onClick={() => scrollByPage(-1)}
-            className="absolute top-1/2 left-0 hidden h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-brand hover:scale-110 md:flex"
+            className="absolute top-1/2 left-0 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110 sm:h-[46px] sm:w-[46px] lg:h-[52px] lg:w-[52px]"
           >
-            <ChevronLeftIcon className="h-5 w-5" />
+            <ChevronLeftIcon className="h-[18px] w-[18px] sm:h-5 sm:w-5 lg:h-[22px] lg:w-[22px]" />
           </button>
           <button
             type="button"
             aria-label="Next"
             onClick={() => scrollByPage(1)}
-            className="absolute top-1/2 right-0 hidden h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full border border-[var(--border)] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-brand hover:scale-110 md:flex"
+            className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110 sm:h-[46px] sm:w-[46px] lg:h-[52px] lg:w-[52px]"
           >
-            <ChevronRightIcon className="h-5 w-5" />
+            <ChevronRightIcon className="h-[18px] w-[18px] sm:h-5 sm:w-5 lg:h-[22px] lg:w-[22px]" />
           </button>
         </>
       )}

@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
@@ -113,13 +114,17 @@ export default async function RootLayout({
                   <Navbar />
                   <HomeSearchBar />
                 </ConditionalChrome>
-                <main className="flex flex-1 flex-col">
+                <main
+                  className="flex flex-1 flex-col"
+                  style={{ paddingBottom: "var(--mobile-nav-height, 0px)" }}
+                >
                   <ViewTransition>{children}</ViewTransition>
                 </main>
                 <ConditionalChrome>
                   <TrustSection />
                   <Footer />
                   <WhatsAppButton />
+                  <MobileBottomNav />
                 </ConditionalChrome>
               </RecentlyViewedProvider>
             </WishlistProvider>

@@ -7,7 +7,7 @@ import { getNewArrivals } from "@/lib/data/products";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
-import { HomeProductCard } from "@/components/marketing/HomeProductCard";
+import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
 import { WhyShopWithUs } from "@/components/marketing/WhyShopWithUs";
 import { CustomerReviews } from "@/components/marketing/CustomerReviews";
@@ -65,7 +65,7 @@ export default async function HomePage() {
               showArrows={newArrivals.length > 5}
             >
               {newArrivals.map((product) => (
-                <HomeProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} />
               ))}
             </Carousel>
           </div>

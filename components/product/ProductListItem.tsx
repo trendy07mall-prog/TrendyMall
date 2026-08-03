@@ -6,15 +6,29 @@ import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
 import type { ProductWithPrimaryImage } from "@/types";
 
+// Same three-tier stock treatment as ProductCard.tsx (grid view) — a
+// literal #16a34a for "in stock" text so it passes contrast, not the
+// shared --color-success token (used elsewhere for unrelated things).
+const STOCK_STATE = {
+  out: "text-[var(--color-discount)]",
+  low: "text-[var(--color-warning)]",
+  in: "text-[#16a34a]",
+};
+
 export function ProductListItem({ product }: { product: ProductWithPrimaryImage }) {
-  const inStock = product.stock > 0;
+  const stock =
+    product.stock <= 0
+      ? { color: STOCK_STATE.out, label: "Out of stock" }
+      : product.stock < 5
+        ? { color: STOCK_STATE.low, label: `Only ${product.stock} left` }
+        : { color: STOCK_STATE.in, label: "In Stock" };
 
   return (
     <div className="group flex gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-3 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative shrink-0">
         <Link
           href={`/product/${product.slug}`}
-          className="relative block h-28 w-28 overflow-hidden rounded-[var(--radius-md)] bg-black/5"
+          className="relative block aspect-square w-28 overflow-hidden rounded-[var(--radius-md)] bg-black/5"
         >
           {product.image ? (
             <Image
@@ -55,9 +69,7 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
               specialPrice={product.special_price}
               size="sm"
             />
-            <span className={`text-xs ${inStock ? "text-[var(--muted)]" : "text-red-600"}`}>
-              {inStock ? "In stock" : "Out of stock"}
-            </span>
+            <span className={`text-xs font-medium ${stock.color}`}>{stock.label}</span>
           </div>
           <div className="w-36 shrink-0">
             <QuickAddButton product={product} />
