@@ -25,13 +25,29 @@ const STORAGE_KEY = "trendymall-cart";
 // the mount-time hydration effect has already run (avoids an effect-ordering
 // race: both effects fire on the same mount, but only one reads localStorage
 // synchronously here).
+// Pre-Stage-6 stored items have no variantId/variantName/variantColorHex at
+// all -- normalizing to null on every read is what makes an old guest cart
+// load and behave exactly as it did before variants existed.
+function normalizeItem(item: CartItem): CartItem {
+  return {
+    ...item,
+    variantId: item.variantId ?? null,
+    variantName: item.variantName ?? null,
+    variantColorHex: item.variantColorHex ?? null,
+  };
+}
+
+function sameLine(a: CartItem, b: { productId: string; variantId: string | null }): boolean {
+  return a.productId === b.productId && (a.variantId ?? null) === (b.variantId ?? null);
+}
+
 function readGuestItemsFromStorage(): CartItem[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-    return parsed.items ?? [];
+    const items: CartItem[] = Array.isArray(parsed) ? parsed : (parsed.items ?? []);
+    return items.map(normalizeItem);
   } catch {
     return [];
   }
@@ -40,8 +56,8 @@ function readGuestItemsFromStorage(): CartItem[] {
 interface CartContextValue {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId: string | null) => void;
+  updateQuantity: (productId: string, variantId: string | null, quantity: number) => void;
   // Resolves once the server-side clear has finished for a logged-in
   // customer (immediately for a guest) — never rejects, so callers that
   // await it (e.g. checkout's post-order-success flow) can rely on the
@@ -80,9 +96,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         // read correctly, just with no coupon applied.
         if (Array.isArray(parsed)) {
           // eslint-disable-next-line react-hooks/set-state-in-effect
-          setItems(parsed);
+          setItems(parsed.map(normalizeItem));
         } else {
-          setItems(parsed.items ?? []);
+          setItems((parsed.items ?? []).map(normalizeItem));
           setCouponCode(parsed.couponCode ?? null);
           setNotes(parsed.notes ?? "");
         }
@@ -119,7 +135,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       if (session && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) {
         const guestItems = readGuestItemsFromStorage();
-        mergeCartOnLogin(guestItems.map((i) => ({ productId: i.productId, quantity: i.quantity })))
+        mergeCartOnLogin(
+          guestItems.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+          })),
+        )
           .then((merged) => {
             setItems(merged);
             setIsLoggedIn(true);
@@ -135,19 +157,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addItem = useCallback(
-    (item: CartItem) => {
+    (rawItem: CartItem) => {
+      const item = normalizeItem(rawItem);
       setItems((prev) => {
-        const existing = prev.find((i) => i.productId === item.productId);
+        const existing = prev.find((i) => sameLine(i, item));
         const nextQuantity = (existing?.quantity ?? 0) + item.quantity;
         if (isLoggedIn) {
-          upsertCartItem(item.productId, nextQuantity).catch((error) =>
+          upsertCartItem(item.productId, item.variantId, nextQuantity).catch((error) =>
             console.error("Cart sync failed:", error),
           );
         }
         if (existing) {
-          return prev.map((i) =>
-            i.productId === item.productId ? { ...i, quantity: nextQuantity } : i,
-          );
+          return prev.map((i) => (sameLine(i, item) ? { ...i, quantity: nextQuantity } : i));
         }
         return [...prev, item];
       });
@@ -156,27 +177,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 
   const removeItem = useCallback(
-    (productId: string) => {
-      setItems((prev) => prev.filter((i) => i.productId !== productId));
+    (productId: string, variantId: string | null) => {
+      setItems((prev) => prev.filter((i) => !sameLine(i, { productId, variantId })));
       if (isLoggedIn) {
-        removeCartItem(productId).catch((error) => console.error("Cart sync failed:", error));
+        removeCartItem(productId, variantId).catch((error) =>
+          console.error("Cart sync failed:", error),
+        );
       }
     },
     [isLoggedIn],
   );
 
   const updateQuantity = useCallback(
-    (productId: string, quantity: number) => {
+    (productId: string, variantId: string | null, quantity: number) => {
       setItems((prev) =>
         quantity <= 0
-          ? prev.filter((i) => i.productId !== productId)
+          ? prev.filter((i) => !sameLine(i, { productId, variantId }))
           : prev.map((i) =>
-              i.productId === productId ? { ...i, quantity } : i,
+              sameLine(i, { productId, variantId }) ? { ...i, quantity } : i,
             ),
       );
       if (isLoggedIn) {
         const sync =
-          quantity <= 0 ? removeCartItem(productId) : upsertCartItem(productId, quantity);
+          quantity <= 0
+            ? removeCartItem(productId, variantId)
+            : upsertCartItem(productId, variantId, quantity);
         sync.catch((error) => console.error("Cart sync failed:", error));
       }
     },

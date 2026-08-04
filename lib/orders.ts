@@ -35,7 +35,7 @@ export interface CreateOrderInput {
   // replay that returns the existing order instead of creating a
   // duplicate or double-reducing stock.
   idempotencyKey: string;
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; variantId: string | null; quantity: number }[];
   // The checkout page's own last-rendered total — used only as a
   // staleness check (Rule #1: never trusted as the actual price source).
   // The server/RPC recomputes everything itself regardless of this value.
@@ -112,7 +112,11 @@ export async function createOrder(
     p_delivery_method: input.deliveryMethod,
     p_payment_method: input.paymentMethod,
     p_notes: input.notes,
-    p_items: input.items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
+    p_items: input.items.map((item) => ({
+      product_id: item.productId,
+      variant_id: item.variantId,
+      quantity: item.quantity,
+    })),
     p_client_total: input.clientTotal,
     p_payment_reference: input.paymentReference,
     p_slip_url: input.slipPath,

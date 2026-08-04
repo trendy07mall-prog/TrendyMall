@@ -1,7 +1,12 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateProduct, deleteProduct } from "@/lib/admin/products";
+import { getBrands } from "@/lib/data/brands";
+import { getTags, getProductTagIds } from "@/lib/data/tags";
+import { getAllTemplatesWithFields, getProductSpecValues } from "@/lib/data/spec-templates";
+import { getAllAttributesWithValues, getProductAttributeValueIds } from "@/lib/data/attributes";
 import { ProductForm } from "@/components/admin/ProductForm";
+import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
 
 export default async function EditProductPage({
   params,
@@ -11,25 +16,36 @@ export default async function EditProductPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: product }, { data: categories }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).maybeSingle(),
-    supabase.from("categories").select("*").order("sort_order"),
-  ]);
+  const [{ data: product }, { data: categories }, brands, tags, templatesWithFields, attributesWithValues] =
+    await Promise.all([
+      supabase.from("products").select("*").eq("id", id).maybeSingle(),
+      supabase.from("categories").select("*").order("sort_order"),
+      getBrands({ activeOnly: false }),
+      getTags({ activeOnly: false }),
+      getAllTemplatesWithFields(),
+      getAllAttributesWithValues(),
+    ]);
 
   if (!product) notFound();
 
-  const [{ data: images }, { data: variants }] = await Promise.all([
-    supabase
-      .from("product_images")
-      .select("*")
-      .eq("product_id", product.id)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("product_variants")
-      .select("*")
-      .eq("product_id", product.id)
-      .order("sort_order", { ascending: true }),
-  ]);
+  const orderedCategories = flattenCategoryTree(buildCategoryTree(categories ?? []));
+
+  const [{ data: images }, { data: variants }, defaultTagIds, defaultSpecValues, defaultAttributeValueIds] =
+    await Promise.all([
+      supabase
+        .from("product_images")
+        .select("*")
+        .eq("product_id", product.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", product.id)
+        .order("sort_order", { ascending: true }),
+      getProductTagIds(product.id),
+      getProductSpecValues(product.id),
+      getProductAttributeValueIds(product.id),
+    ]);
 
   const boundUpdate = updateProduct.bind(null, product.id);
   const boundDelete = deleteProduct.bind(null, product.id);
@@ -50,10 +66,17 @@ export default async function EditProductPage({
         </form>
       </div>
       <ProductForm
-        categories={categories ?? []}
+        categories={orderedCategories}
+        brands={brands}
+        tags={tags}
+        templatesWithFields={templatesWithFields}
+        attributesWithValues={attributesWithValues}
         product={product}
         images={images ?? []}
         variants={variants ?? []}
+        defaultTagIds={defaultTagIds}
+        defaultSpecValues={defaultSpecValues}
+        defaultAttributeValueIds={defaultAttributeValueIds}
         action={boundUpdate}
       />
     </div>

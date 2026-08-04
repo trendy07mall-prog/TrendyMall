@@ -6,18 +6,21 @@ import { SpecsTable } from "@/components/product/SpecsTable";
 import { ReviewsSection } from "@/components/product/ReviewsSection";
 import type { Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
+import type { DisplaySpec } from "@/lib/data/spec-templates";
 
 type Tab = "description" | "specifications" | "reviews" | "shipping";
 
 export function ProductTabs({
   product,
   categoryName,
+  specs,
   reviews,
   ratingSummary,
   reviewState,
 }: {
   product: Product;
   categoryName: string;
+  specs: DisplaySpec[];
   reviews: ReviewWithReviewerName[];
   ratingSummary: ProductRatingSummary | null;
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
@@ -72,7 +75,7 @@ export function ProductTabs({
         hidden={active !== "specifications"}
         className="py-6"
       >
-        <SpecsTable product={product} categoryName={categoryName} />
+        <SpecsTable product={product} categoryName={categoryName} specs={specs} />
       </div>
 
       <div

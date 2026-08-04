@@ -69,8 +69,32 @@ export async function bulkImportProducts(rows: ImportRow[]): Promise<BulkImportR
     (categories ?? []).map((c) => [c.name.trim().toLowerCase(), c.id] as const),
   );
 
+  // Brand, unlike category, is open-ended -- an unrecognized brand name is
+  // auto-created (matching the product form's inline "+ Add new brand"
+  // affordance) rather than rejecting the row.
+  const { data: brandRows } = await supabase.from("brands").select("id, name");
+  const brandByName = new Map(
+    (brandRows ?? []).map((b) => [b.name.trim().toLowerCase(), b] as const),
+  );
+
   const { data: existingProducts } = await supabase.from("products").select("slug");
   const existingSlugs = new Set((existingProducts ?? []).map((p) => p.slug));
+
+  // model/compatible_devices/bluetooth stopped being the live admin-form/PDP
+  // path in Stage 4 (replaced by category-driven spec templates), but the
+  // CSV columns stay as-is -- importing a row with these values populates
+  // product_spec_values against the default "General Specs" template too,
+  // so a bulk-imported product's specs show up on its PDP immediately
+  // rather than only after a manual edit through the new dynamic editor.
+  const { data: generalTemplate } = await supabase
+    .from("spec_templates")
+    .select("id")
+    .eq("slug", "general-specs")
+    .maybeSingle();
+  const { data: generalFields } = generalTemplate
+    ? await supabase.from("spec_fields").select("id, field_key").eq("template_id", generalTemplate.id)
+    : { data: null };
+  const generalFieldIdByKey = new Map((generalFields ?? []).map((f) => [f.field_key, f.id] as const));
 
   const errors: ImportError[] = [];
   let successCount = 0;
@@ -122,27 +146,78 @@ export async function bulkImportProducts(rows: ImportRow[]): Promise<BulkImportR
 
     const status = row.status?.trim().toLowerCase() === "published" ? "published" : "draft";
 
-    const { error } = await supabase.from("products").insert({
-      slug,
-      name,
-      brand: row.brand?.trim() || null,
-      model: row.model?.trim() || null,
-      sku: row.sku?.trim() || null,
-      category_id: categoryId,
-      actual_price: actualPrice,
-      special_price: specialPrice,
-      stock,
-      status,
-      bluetooth: parseBoolean(row.bluetooth),
-      is_featured: parseBoolean(row.is_featured),
-      description: plainTextToHtml(row.description ?? ""),
-      compatible_devices: parseList(row.compatible_devices),
-      whats_in_box: parseList(row.whats_in_box),
-    });
+    const brandInput = row.brand?.trim() || null;
+    let brandId: string | null = null;
+    let brandName: string | null = null;
+    if (brandInput) {
+      const existing = brandByName.get(brandInput.toLowerCase());
+      if (existing) {
+        brandId = existing.id;
+        brandName = existing.name;
+      } else {
+        const { data: created, error: brandError } = await supabase
+          .from("brands")
+          .insert({ name: brandInput, slug: slugify(brandInput) })
+          .select("id, name")
+          .single();
+        if (brandError || !created) {
+          errors.push({ row: rowNumber, message: `Could not create brand "${brandInput}".` });
+          continue;
+        }
+        brandByName.set(brandInput.toLowerCase(), created);
+        brandId = created.id;
+        brandName = created.name;
+      }
+    }
 
-    if (error) {
-      errors.push({ row: rowNumber, message: error.message });
+    const { data: inserted, error } = await supabase
+      .from("products")
+      .insert({
+        slug,
+        name,
+        brand: brandName,
+        brand_id: brandId,
+        model: row.model?.trim() || null,
+        sku: row.sku?.trim() || null,
+        category_id: categoryId,
+        actual_price: actualPrice,
+        special_price: specialPrice,
+        stock,
+        status,
+        bluetooth: parseBoolean(row.bluetooth),
+        is_featured: parseBoolean(row.is_featured),
+        description: plainTextToHtml(row.description ?? ""),
+        compatible_devices: parseList(row.compatible_devices),
+        whats_in_box: parseList(row.whats_in_box),
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      errors.push({ row: rowNumber, message: error?.message ?? "Could not create product." });
       continue;
+    }
+
+    const specRows: { product_id: string; spec_field_id: string; value: string }[] = [];
+    const modelFieldId = generalFieldIdByKey.get("model");
+    if (modelFieldId && row.model?.trim()) {
+      specRows.push({ product_id: inserted.id, spec_field_id: modelFieldId, value: row.model.trim() });
+    }
+    const devicesFieldId = generalFieldIdByKey.get("compatible-devices");
+    const devices = parseList(row.compatible_devices);
+    if (devicesFieldId && devices.length > 0) {
+      specRows.push({ product_id: inserted.id, spec_field_id: devicesFieldId, value: JSON.stringify(devices) });
+    }
+    const bluetoothFieldId = generalFieldIdByKey.get("bluetooth");
+    if (bluetoothFieldId) {
+      specRows.push({
+        product_id: inserted.id,
+        spec_field_id: bluetoothFieldId,
+        value: parseBoolean(row.bluetooth) ? "true" : "false",
+      });
+    }
+    if (specRows.length > 0) {
+      await supabase.from("product_spec_values").insert(specRows);
     }
 
     successCount += 1;

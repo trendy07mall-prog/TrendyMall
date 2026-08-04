@@ -142,7 +142,11 @@ export default async function AdminOrderDetailPage({
             </div>
             <div className="flex flex-1 items-center justify-between">
               <span>
-                {item.product_name} × {item.quantity}
+                {item.product_name}
+                {item.variant_name && (
+                  <span className="text-[var(--muted)]"> ({item.variant_name})</span>
+                )}{" "}
+                × {item.quantity}
               </span>
               <span>{formatPrice(item.subtotal)}</span>
             </div>

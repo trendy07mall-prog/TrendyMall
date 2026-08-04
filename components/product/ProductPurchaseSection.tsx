@@ -12,27 +12,32 @@ import { NotifyMeForm } from "@/components/product/NotifyMeForm";
 import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
-import { getEffectivePrice } from "@/lib/utils";
+import { getEffectiveVariantPrice } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { Product, ProductRatingSummary, ProductVariant } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
+import type { DisplaySpec } from "@/lib/data/spec-templates";
 
 export function ProductPurchaseSection({
   product,
   images,
   variants,
   categoryName,
+  specs,
   reviews,
   ratingSummary,
   reviewState,
+  tags,
 }: {
   product: Product;
   images: string[];
   variants: ProductVariant[];
   categoryName: string;
+  specs: DisplaySpec[];
   reviews: ReviewWithReviewerName[];
   ratingSummary: ProductRatingSummary | null;
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
+  tags: { name: string; slug: string }[];
 }) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -58,14 +63,30 @@ export function ProductPurchaseSection({
       />
 
       <div>
+        {tags.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag.slug}
+                className="rounded-full bg-[var(--foreground)] px-[10px] py-[3px] text-[11px] font-semibold text-white"
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
         <h1 className="font-heading text-2xl font-bold tracking-tight">
           {product.name}
         </h1>
         <div className="mt-2">
-          <PriceDisplay
-            actualPrice={product.actual_price}
-            specialPrice={product.special_price}
-          />
+          {selectedVariant?.price != null ? (
+            <PriceDisplay actualPrice={selectedVariant.price} specialPrice={null} />
+          ) : (
+            <PriceDisplay
+              actualPrice={product.actual_price}
+              specialPrice={product.special_price}
+            />
+          )}
         </div>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
@@ -106,6 +127,7 @@ export function ProductPurchaseSection({
 
           <AddToCartForm
             product={product}
+            variant={selectedVariant}
             image={primaryImage}
             quantity={quantity}
             outOfStock={outOfStock}
@@ -114,6 +136,7 @@ export function ProductPurchaseSection({
           <div className="flex flex-wrap items-center gap-3">
             <BuyNowButton
               product={product}
+              variant={selectedVariant}
               image={primaryImage}
               quantity={quantity}
               outOfStock={outOfStock}
@@ -124,7 +147,7 @@ export function ProductPurchaseSection({
                 productName={product.name}
                 colorName={selectedVariant?.color_name ?? null}
                 quantity={quantity}
-                price={getEffectivePrice(product)}
+                price={getEffectiveVariantPrice(product, selectedVariant)}
               />
             )}
           </div>
@@ -143,6 +166,7 @@ export function ProductPurchaseSection({
         <ProductTabs
           product={product}
           categoryName={categoryName}
+          specs={specs}
           reviews={reviews}
           ratingSummary={ratingSummary}
           reviewState={reviewState}

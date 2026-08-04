@@ -11,14 +11,18 @@ export function MobileFilterSortBar({
   state,
   categories,
   brands,
+  tags,
+  attributes,
   showCategoryFacet,
   showRatingFacet,
   extraQuery,
 }: {
   basePath: string;
   state: ProductFilterState;
-  categories: { slug: string; name: string; count: number }[];
+  categories: { slug: string; name: string; count: number; depth: number }[];
   brands: { name: string; count: number }[];
+  tags: { slug: string; name: string; count: number }[];
+  attributes: { attributeName: string; attributeSlug: string; values: { name: string; slug: string; count: number }[] }[];
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
   extraQuery?: Record<string, string>;
@@ -82,6 +86,8 @@ export function MobileFilterSortBar({
           state={state}
           categories={categories}
           brands={brands}
+          tags={tags}
+          attributes={attributes}
           showCategoryFacet={showCategoryFacet}
           showRatingFacet={showRatingFacet}
           extraQuery={extraQuery}

@@ -363,7 +363,11 @@ export function CheckoutForm({
       notes: form.notes.trim() || null,
       sourceAddressId: resolvedAddress.sourceAddressId,
       idempotencyKey,
-      items: items.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+      items: items.map((item) => ({
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })),
       clientTotal: total,
       clientShippingFee: shippingFee,
     });
@@ -648,9 +652,13 @@ export function CheckoutForm({
           <h2 className="text-lg font-medium">Order summary</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {items.map((item) => (
-              <li key={item.productId} className="flex justify-between text-sm">
+              <li
+                key={`${item.productId}:${item.variantId ?? "base"}`}
+                className="flex justify-between text-sm"
+              >
                 <span>
-                  {item.name} × {item.quantity}
+                  {item.name}
+                  {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
                 </span>
                 <span>{formatPrice(item.price * item.quantity)}</span>
               </li>

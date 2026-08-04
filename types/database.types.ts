@@ -168,6 +168,11 @@ export interface Database {
           image_path: string | null;
           sort_order: number;
           created_at: string;
+          parent_id: string | null;
+          depth: number;
+          path: string;
+          is_active: boolean;
+          spec_template_id: string | null;
         };
         Insert: {
           id?: string;
@@ -177,6 +182,11 @@ export interface Database {
           image_path?: string | null;
           sort_order?: number;
           created_at?: string;
+          parent_id?: string | null;
+          depth?: number;
+          path?: string;
+          is_active?: boolean;
+          spec_template_id?: string | null;
         };
         Update: {
           id?: string;
@@ -186,8 +196,334 @@ export interface Database {
           image_path?: string | null;
           sort_order?: number;
           created_at?: string;
+          parent_id?: string | null;
+          depth?: number;
+          path?: string;
+          is_active?: boolean;
+          spec_template_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "categories_spec_template_id_fkey";
+            columns: ["spec_template_id"];
+            isOneToOne: false;
+            referencedRelation: "spec_templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      category_slug_redirects: {
+        Row: {
+          old_slug: string;
+          category_id: string;
+          created_at: string;
+        };
+        Insert: {
+          old_slug: string;
+          category_id: string;
+          created_at?: string;
+        };
+        Update: {
+          old_slug?: string;
+          category_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "category_slug_redirects_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      brands: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          image_path: string | null;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          image_path?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          image_path?: string | null;
+          is_active?: boolean;
+          created_at?: string;
         };
         Relationships: [];
+      };
+      tags: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      product_tags: {
+        Row: {
+          product_id: string;
+          tag_id: string;
+          created_at: string;
+        };
+        Insert: {
+          product_id: string;
+          tag_id: string;
+          created_at?: string;
+        };
+        Update: {
+          product_id?: string;
+          tag_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_tags_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      attributes: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      attribute_values: {
+        Row: {
+          id: string;
+          attribute_id: string;
+          value: string;
+          slug: string;
+          color_hex: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          attribute_id: string;
+          value: string;
+          slug: string;
+          color_hex?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          attribute_id?: string;
+          value?: string;
+          slug?: string;
+          color_hex?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attribute_values_attribute_id_fkey";
+            columns: ["attribute_id"];
+            isOneToOne: false;
+            referencedRelation: "attributes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_attribute_values: {
+        Row: {
+          product_id: string;
+          attribute_value_id: string;
+          created_at: string;
+        };
+        Insert: {
+          product_id: string;
+          attribute_value_id: string;
+          created_at?: string;
+        };
+        Update: {
+          product_id?: string;
+          attribute_value_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_attribute_values_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_attribute_values_attribute_value_id_fkey";
+            columns: ["attribute_value_id"];
+            isOneToOne: false;
+            referencedRelation: "attribute_values";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      spec_templates: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      spec_fields: {
+        Row: {
+          id: string;
+          template_id: string;
+          label: string;
+          field_key: string;
+          field_type: string;
+          unit: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          template_id: string;
+          label: string;
+          field_key: string;
+          field_type?: string;
+          unit?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          template_id?: string;
+          label?: string;
+          field_key?: string;
+          field_type?: string;
+          unit?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "spec_fields_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "spec_templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_spec_values: {
+        Row: {
+          product_id: string;
+          spec_field_id: string;
+          value: string;
+        };
+        Insert: {
+          product_id: string;
+          spec_field_id: string;
+          value: string;
+        };
+        Update: {
+          product_id?: string;
+          spec_field_id?: string;
+          value?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_spec_values_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_spec_values_spec_field_id_fkey";
+            columns: ["spec_field_id"];
+            isOneToOne: false;
+            referencedRelation: "spec_fields";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       products: {
         Row: {
@@ -198,6 +534,7 @@ export interface Database {
           actual_price: number;
           special_price: number | null;
           brand: string | null;
+          brand_id: string | null;
           model: string | null;
           compatible_devices: string[];
           bluetooth: boolean;
@@ -227,6 +564,7 @@ export interface Database {
           actual_price: number;
           special_price?: number | null;
           brand?: string | null;
+          brand_id?: string | null;
           model?: string | null;
           compatible_devices?: string[];
           bluetooth?: boolean;
@@ -255,6 +593,7 @@ export interface Database {
           actual_price?: number;
           special_price?: number | null;
           brand?: string | null;
+          brand_id?: string | null;
           model?: string | null;
           compatible_devices?: string[];
           bluetooth?: boolean;
@@ -281,6 +620,13 @@ export interface Database {
             columns: ["category_id"];
             isOneToOne: false;
             referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "products_brand_id_fkey";
+            columns: ["brand_id"];
+            isOneToOne: false;
+            referencedRelation: "brands";
             referencedColumns: ["id"];
           },
         ];
@@ -324,6 +670,8 @@ export interface Database {
           color_name: string;
           color_hex: string;
           stock: number | null;
+          price: number | null;
+          sku: string | null;
           variant_image_url: string | null;
           sort_order: number;
           created_at: string;
@@ -334,6 +682,8 @@ export interface Database {
           color_name: string;
           color_hex: string;
           stock?: number | null;
+          price?: number | null;
+          sku?: string | null;
           variant_image_url?: string | null;
           sort_order?: number;
           created_at?: string;
@@ -344,6 +694,8 @@ export interface Database {
           color_name?: string;
           color_hex?: string;
           stock?: number | null;
+          price?: number | null;
+          sku?: string | null;
           variant_image_url?: string | null;
           sort_order?: number;
           created_at?: string;
@@ -632,6 +984,7 @@ export interface Database {
           quantity: number;
           subtotal: number;
           product_image_url: string | null;
+          variant_id: string | null;
           variant_name: string | null;
           variant_color_hex: string | null;
           created_at: string;
@@ -645,6 +998,7 @@ export interface Database {
           quantity: number;
           subtotal: number;
           product_image_url?: string | null;
+          variant_id?: string | null;
           variant_name?: string | null;
           variant_color_hex?: string | null;
           created_at?: string;
@@ -658,6 +1012,7 @@ export interface Database {
           quantity?: number;
           subtotal?: number;
           product_image_url?: string | null;
+          variant_id?: string | null;
           variant_name?: string | null;
           variant_color_hex?: string | null;
           created_at?: string;
@@ -675,6 +1030,13 @@ export interface Database {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
         ];
@@ -930,6 +1292,8 @@ export interface Database {
           id: string;
           user_id: string;
           product_id: string;
+          variant_id: string | null;
+          variant_key: string;
           quantity: number;
           created_at: string;
           updated_at: string;
@@ -938,6 +1302,7 @@ export interface Database {
           id?: string;
           user_id: string;
           product_id: string;
+          variant_id?: string | null;
           quantity: number;
           created_at?: string;
           updated_at?: string;
@@ -946,6 +1311,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           product_id?: string;
+          variant_id?: string | null;
           quantity?: number;
           created_at?: string;
           updated_at?: string;
@@ -956,6 +1322,13 @@ export interface Database {
             columns: ["product_id"];
             isOneToOne: false;
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
         ];

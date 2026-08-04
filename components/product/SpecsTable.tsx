@@ -1,20 +1,21 @@
 import type { Product } from "@/types";
+import type { DisplaySpec } from "@/lib/data/spec-templates";
 
 export function SpecsTable({
   product,
   categoryName,
+  specs,
 }: {
   product: Product;
   categoryName: string;
+  specs: DisplaySpec[];
 }) {
   const rows: [string, string][] = [["Category", categoryName]];
 
   if (product.brand) rows.push(["Brand", product.brand]);
-  if (product.model) rows.push(["Model", product.model]);
-  if (product.compatible_devices.length > 0) {
-    rows.push(["Compatible devices", product.compatible_devices.join(", ")]);
+  for (const spec of specs) {
+    rows.push([spec.unit ? `${spec.label} (${spec.unit})` : spec.label, spec.value]);
   }
-  rows.push(["Bluetooth", product.bluetooth ? "Yes" : "No"]);
   if (product.sku) rows.push(["SKU", product.sku]);
   rows.push([
     "Availability",

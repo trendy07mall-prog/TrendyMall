@@ -12,16 +12,21 @@ const NEW_CATEGORY_VALUE = "__new__";
 
 export function CategoryField({
   categories,
-  defaultCategoryId,
+  value,
+  onChange,
 }: {
   categories: Category[];
-  defaultCategoryId?: string;
+  // Controlled (lifted to ProductForm) rather than owning its own state --
+  // a sibling SpecFieldsEditor needs to know the live-selected category to
+  // show the right spec fields as soon as the admin changes the dropdown,
+  // not just on initial load.
+  value: string;
+  onChange: (categoryId: string) => void;
 }) {
-  const [selected, setSelected] = useState(defaultCategoryId ?? "");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isNewCategory = selected === NEW_CATEGORY_VALUE;
+  const isNewCategory = value === NEW_CATEGORY_VALUE;
 
   async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -51,9 +56,9 @@ export function CategoryField({
         <select
           id="categoryId"
           name="categoryId"
-          value={selected}
+          value={value}
           onChange={(e) => {
-            setSelected(e.target.value);
+            onChange(e.target.value);
             setImageUrl(null);
             setError(null);
           }}
@@ -65,7 +70,7 @@ export function CategoryField({
           </option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
-              {category.name}
+              {"—".repeat(category.depth)} {category.name}
             </option>
           ))}
           <option value={NEW_CATEGORY_VALUE}>+ Add new category</option>

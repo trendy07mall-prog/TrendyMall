@@ -10,6 +10,12 @@ import type {
 } from "./database.types";
 
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
+export type Brand = Database["public"]["Tables"]["brands"]["Row"];
+export type Tag = Database["public"]["Tables"]["tags"]["Row"];
+export type Attribute = Database["public"]["Tables"]["attributes"]["Row"];
+export type AttributeValue = Database["public"]["Tables"]["attribute_values"]["Row"];
+export type SpecTemplate = Database["public"]["Tables"]["spec_templates"]["Row"];
+export type SpecField = Database["public"]["Tables"]["spec_fields"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
 export type ProductVariant = Database["public"]["Tables"]["product_variants"]["Row"];
@@ -46,6 +52,7 @@ export interface ProductWithPrimaryImage extends Product {
   image: string | null;
   avgRating: number;
   reviewCount: number;
+  tags: { name: string; slug: string }[];
 }
 
 export interface CartItem {
@@ -55,6 +62,9 @@ export interface CartItem {
   price: number;
   image: string | null;
   quantity: number;
+  variantId: string | null;
+  variantName: string | null;
+  variantColorHex: string | null;
 }
 
 // The jsonb shape returned by both track_order and get_guest_order_by_id
@@ -72,6 +82,8 @@ export interface GuestOrderItem {
   quantity: number;
   subtotal: number;
   imageUrl: string | null;
+  variantName?: string | null;
+  variantColorHex?: string | null;
 }
 
 export interface GuestOrderAddressDetail {

@@ -26,6 +26,9 @@ export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }
         price: getEffectivePrice(product),
         image: product.image,
         quantity: 1,
+        variantId: null,
+        variantName: null,
+        variantColorHex: null,
       });
       setStatus("added");
       setTimeout(() => setStatus("idle"), ADDED_MS);

@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import sanitizeHtml from "sanitize-html";
 import { requireAdminClient } from "@/lib/admin/guard";
+import { setProductTags } from "@/lib/admin/tags";
+import { setProductSpecValues } from "@/lib/admin/spec-templates";
+import { setProductAttributeValues } from "@/lib/admin/attributes";
 import { slugify } from "@/lib/utils";
 import type { ProductStatus } from "@/types";
 
@@ -27,9 +30,16 @@ const DESCRIPTION_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
 type AdminSupabaseClient = Awaited<ReturnType<typeof requireAdminClient>>;
 
 interface VariantInput {
+  // Present only for a variant that already exists in the DB (populated
+  // when editing a product) -- omitted for a brand-new row added in this
+  // save. This is what lets syncProductVariants update in place instead of
+  // deleting and reinserting with a fresh id every save.
+  id?: string;
   colorName: string;
   colorHex: string;
   stock: string;
+  price: string;
+  sku: string;
   imageUrl: string | null;
 }
 
@@ -72,6 +82,67 @@ async function resolveCategoryId(
   return { categoryId };
 }
 
+// Brand is optional (unlike category) -- an empty selection is valid and
+// resolves to no brand at all, not an error. Resolves to both the brand's
+// id (the real FK, `brand_id`) and its name (kept as the legacy `brand`
+// text column so every existing reader -- ProductCard, SpecsTable, PDP
+// JSON-LD, CSV export -- stays correct without being touched this stage).
+async function resolveBrandId(
+  supabase: AdminSupabaseClient,
+  formData: FormData,
+): Promise<{ brandId: string | null; brandName: string | null } | { error: string }> {
+  const brandId = String(formData.get("brandId") ?? "");
+
+  if (brandId === "__new__") {
+    const name = String(formData.get("newBrandName") ?? "").trim();
+    if (!name) return { error: "New brand name is required." };
+
+    const { data, error } = await supabase
+      .from("brands")
+      .insert({ slug: slugify(name), name })
+      .select("id, name")
+      .single();
+
+    if (error || !data) {
+      return { error: error?.message ?? "Could not create brand." };
+    }
+    return { brandId: data.id, brandName: data.name };
+  }
+
+  if (!brandId) return { brandId: null, brandName: null };
+
+  const { data, error } = await supabase.from("brands").select("name").eq("id", brandId).maybeSingle();
+  if (error || !data) return { error: "Selected brand could not be found." };
+  return { brandId, brandName: data.name };
+}
+
+// The resolved category's assigned spec template (if any) determines which
+// `specValue_<fieldId>` form fields exist -- read dynamically rather than a
+// fixed list, mirroring how SpecFieldsEditor renders them dynamically too.
+async function resolveSpecValues(
+  supabase: AdminSupabaseClient,
+  categoryId: string,
+  formData: FormData,
+): Promise<{ fieldId: string; value: string }[]> {
+  const { data: category } = await supabase
+    .from("categories")
+    .select("spec_template_id")
+    .eq("id", categoryId)
+    .maybeSingle();
+
+  if (!category?.spec_template_id) return [];
+
+  const { data: fields } = await supabase
+    .from("spec_fields")
+    .select("id")
+    .eq("template_id", category.spec_template_id);
+
+  return (fields ?? []).map((field) => ({
+    fieldId: field.id,
+    value: String(formData.get(`specValue_${field.id}`) ?? ""),
+  }));
+}
+
 function readCommonFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
@@ -80,10 +151,7 @@ function readCommonFields(formData: FormData) {
     String(formData.get("description") ?? ""),
     DESCRIPTION_SANITIZE_OPTIONS,
   );
-  const brand = String(formData.get("brand") ?? "").trim() || null;
-  const model = String(formData.get("model") ?? "").trim() || null;
   const sku = String(formData.get("sku") ?? "").trim() || null;
-  const bluetooth = formData.get("bluetooth") === "on";
   const actualPrice = Number(formData.get("actualPrice") ?? 0);
   const specialPriceRaw = String(formData.get("specialPrice") ?? "").trim();
   const specialPrice = specialPriceRaw ? Number(specialPriceRaw) : null;
@@ -97,19 +165,17 @@ function readCommonFields(formData: FormData) {
   const codAvailable = formData.get("codAvailable") === "on";
   const freeDelivery = formData.get("freeDelivery") === "on";
   const warrantyAvailable = formData.get("warrantyAvailable") === "on";
-  const compatibleDevices = parseJsonArray<string>(formData.get("compatibleDevices"));
   const whatsInBox = parseJsonArray<string>(formData.get("whatsInBox"));
   const galleryImageUrls = parseJsonArray<string>(formData.get("galleryImageUrls"));
   const variants = parseJsonArray<VariantInput>(formData.get("variants"));
+  const tagIds = formData.getAll("tagIds").map(String);
+  const attributeValueIds = formData.getAll("attributeValueIds").map(String);
 
   return {
     name,
     slug,
     description,
-    brand,
-    model,
     sku,
-    bluetooth,
     actualPrice,
     specialPrice,
     stock,
@@ -121,9 +187,10 @@ function readCommonFields(formData: FormData) {
     codAvailable,
     freeDelivery,
     warrantyAvailable,
-    compatibleDevices,
     whatsInBox,
     galleryImageUrls,
+    tagIds,
+    attributeValueIds,
     variants,
   };
 }
@@ -145,26 +212,56 @@ async function replaceProductImages(
   if (error) throw new Error(error.message);
 }
 
-async function replaceProductVariants(
+// Stable-identity sync, not delete-then-reinsert: a variant's id has to
+// survive an unrelated product edit (a price tweak, a description fix)
+// now that cart_items/order_items can reference it. Deleting and
+// reinserting with a fresh uuid every save would silently orphan every
+// customer's in-progress cart line and every historical order reference
+// pointing at the old id.
+async function syncProductVariants(
   supabase: AdminSupabaseClient,
   productId: string,
   variants: VariantInput[],
 ) {
-  await supabase.from("product_variants").delete().eq("product_id", productId);
-
   const validVariants = variants.filter((v) => v.colorName?.trim() && v.colorHex?.trim());
-  if (validVariants.length === 0) return;
 
-  const rows = validVariants.map((v, index) => ({
-    product_id: productId,
-    color_name: v.colorName.trim(),
-    color_hex: v.colorHex.trim(),
-    stock: v.stock?.trim() ? Number(v.stock) : null,
-    variant_image_url: v.imageUrl,
-    sort_order: index,
-  }));
-  const { error } = await supabase.from("product_variants").insert(rows);
-  if (error) throw new Error(error.message);
+  const { data: existingRows, error: existingError } = await supabase
+    .from("product_variants")
+    .select("id")
+    .eq("product_id", productId);
+  if (existingError) throw new Error(existingError.message);
+  const existingIds = new Set((existingRows ?? []).map((r) => r.id));
+
+  const toUpdate = validVariants.filter((v) => v.id && existingIds.has(v.id));
+  const toInsert = validVariants.filter((v) => !v.id || !existingIds.has(v.id));
+  const keepIds = new Set(toUpdate.map((v) => v.id));
+  const toDeleteIds = [...existingIds].filter((id) => !keepIds.has(id));
+
+  if (toDeleteIds.length > 0) {
+    const { error } = await supabase.from("product_variants").delete().in("id", toDeleteIds);
+    if (error) throw new Error(error.message);
+  }
+
+  for (const [index, v] of validVariants.entries()) {
+    const row = {
+      color_name: v.colorName.trim(),
+      color_hex: v.colorHex.trim(),
+      stock: v.stock?.trim() ? Number(v.stock) : null,
+      price: v.price?.trim() ? Number(v.price) : null,
+      sku: v.sku?.trim() || null,
+      variant_image_url: v.imageUrl,
+      sort_order: index,
+    };
+    if (toUpdate.includes(v)) {
+      const { error } = await supabase.from("product_variants").update(row).eq("id", v.id!);
+      if (error) throw new Error(error.message);
+    } else if (toInsert.includes(v)) {
+      const { error } = await supabase
+        .from("product_variants")
+        .insert({ ...row, product_id: productId });
+      if (error) throw new Error(error.message);
+    }
+  }
 }
 
 export async function createProduct(
@@ -176,8 +273,13 @@ export async function createProduct(
   const categoryResult = await resolveCategoryId(supabase, formData);
   if ("error" in categoryResult) return { error: categoryResult.error };
 
+  const brandResult = await resolveBrandId(supabase, formData);
+  if ("error" in brandResult) return { error: brandResult.error };
+
   const fields = readCommonFields(formData);
   if (!fields.name) return { error: "Name is required." };
+
+  const specValues = await resolveSpecValues(supabase, categoryResult.categoryId, formData);
 
   const { data: product, error } = await supabase
     .from("products")
@@ -185,10 +287,8 @@ export async function createProduct(
       slug: fields.slug,
       name: fields.name,
       description: fields.description,
-      brand: fields.brand,
-      model: fields.model,
-      compatible_devices: fields.compatibleDevices,
-      bluetooth: fields.bluetooth,
+      brand: brandResult.brandName,
+      brand_id: brandResult.brandId,
       actual_price: fields.actualPrice,
       special_price: fields.specialPrice,
       sku: fields.sku,
@@ -213,7 +313,10 @@ export async function createProduct(
 
   try {
     await replaceProductImages(supabase, product.id, fields.galleryImageUrls);
-    await replaceProductVariants(supabase, product.id, fields.variants);
+    await syncProductVariants(supabase, product.id, fields.variants);
+    await setProductTags(supabase, product.id, fields.tagIds);
+    await setProductSpecValues(supabase, product.id, specValues);
+    await setProductAttributeValues(supabase, product.id, fields.attributeValueIds);
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Could not save product images/variants.",
@@ -234,8 +337,13 @@ export async function updateProduct(
   const categoryResult = await resolveCategoryId(supabase, formData);
   if ("error" in categoryResult) return { error: categoryResult.error };
 
+  const brandResult = await resolveBrandId(supabase, formData);
+  if ("error" in brandResult) return { error: brandResult.error };
+
   const fields = readCommonFields(formData);
   if (!fields.name) return { error: "Name is required." };
+
+  const specValues = await resolveSpecValues(supabase, categoryResult.categoryId, formData);
 
   const { data: existing } = await supabase
     .from("products")
@@ -257,10 +365,8 @@ export async function updateProduct(
       slug: fields.slug,
       name: fields.name,
       description: fields.description,
-      brand: fields.brand,
-      model: fields.model,
-      compatible_devices: fields.compatibleDevices,
-      bluetooth: fields.bluetooth,
+      brand: brandResult.brandName,
+      brand_id: brandResult.brandId,
       actual_price: fields.actualPrice,
       special_price: fields.specialPrice,
       sku: fields.sku,
@@ -282,7 +388,10 @@ export async function updateProduct(
 
   try {
     await replaceProductImages(supabase, productId, fields.galleryImageUrls);
-    await replaceProductVariants(supabase, productId, fields.variants);
+    await syncProductVariants(supabase, productId, fields.variants);
+    await setProductTags(supabase, productId, fields.tagIds);
+    await setProductSpecValues(supabase, productId, specValues);
+    await setProductAttributeValues(supabase, productId, fields.attributeValueIds);
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Could not save product images/variants.",

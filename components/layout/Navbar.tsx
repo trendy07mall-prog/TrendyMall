@@ -18,7 +18,9 @@ export async function Navbar() {
     isAdmin = profile?.is_admin ?? false;
   }
 
-  const categories = await getCategories();
+  // Top-level only -- the header's Categories dropdown is a simple flat
+  // list, not a nested flyout, so a deeply-nested tree would just clutter it.
+  const categories = await getCategories({ depth: 0 });
 
   return <NavbarClient user={user} isAdmin={isAdmin} categories={categories} />;
 }

@@ -66,11 +66,21 @@ export function ProductCard({
             </div>
           )}
         </Link>
-        {discountPercent != null && (
-          <span className="absolute top-2 left-2 flex h-[30px] items-center rounded-full bg-[var(--color-discount)] px-[10px] text-[13px] font-semibold text-white">
-            -{discountPercent}%
-          </span>
-        )}
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          {discountPercent != null && (
+            <span className="flex h-[30px] items-center rounded-full bg-[var(--color-discount)] px-[10px] text-[13px] font-semibold text-white">
+              -{discountPercent}%
+            </span>
+          )}
+          {product.tags.slice(0, 2).map((tag) => (
+            <span
+              key={tag.slug}
+              className="rounded-full bg-[var(--foreground)] px-[10px] py-[3px] text-[11px] font-semibold text-white"
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
         <div className="absolute top-2 right-2">
           <WishlistButton product={product} image={product.image} />
         </div>

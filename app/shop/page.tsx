@@ -6,6 +6,9 @@ import {
   hasAnyApprovedReviews,
 } from "@/lib/data/products";
 import { getCategories } from "@/lib/data/categories";
+import { getBrands } from "@/lib/data/brands";
+import { getTags } from "@/lib/data/tags";
+import { getAllAttributeValues } from "@/lib/data/attributes";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { FilterSidebar } from "@/components/product/FilterSidebar";
@@ -37,8 +40,13 @@ export default async function ShopPage({
 }) {
   const sp = await searchParams;
   const state = parseProductFilterState(sp);
-  const categories = await getCategories();
-  const filters = toProductListFilters(state, categories);
+  const [categories, brands, tags, attributeValues] = await Promise.all([
+    getCategories(),
+    getBrands(),
+    getTags(),
+    getAllAttributeValues(),
+  ]);
+  const filters = toProductListFilters(state, categories, brands, tags, attributeValues);
 
   const [products, totalCount, facetCounts, hasReviews] = await Promise.all([
     getAllProducts(filters),
@@ -78,6 +86,8 @@ export default async function ShopPage({
           state={state}
           categories={facetCounts.categories}
           brands={facetCounts.brands}
+          tags={facetCounts.tags}
+          attributes={facetCounts.attributes}
           showCategoryFacet
           showRatingFacet={hasReviews}
         />
@@ -90,13 +100,21 @@ export default async function ShopPage({
             state={state}
             categories={facetCounts.categories}
             brands={facetCounts.brands}
+            tags={facetCounts.tags}
+            attributes={facetCounts.attributes}
             showCategoryFacet
             showRatingFacet={hasReviews}
           />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-4">
-              <FilterChips basePath="/shop" state={state} categories={facetCounts.categories} />
+              <FilterChips
+                basePath="/shop"
+                state={state}
+                categories={facetCounts.categories}
+                tags={facetCounts.tags}
+                attributes={facetCounts.attributes}
+              />
               <SortBar
                 basePath="/shop"
                 state={state}

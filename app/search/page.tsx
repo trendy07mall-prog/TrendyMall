@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { getCategories } from "@/lib/data/categories";
+import { getBrands } from "@/lib/data/brands";
+import { getTags } from "@/lib/data/tags";
+import { getAllAttributeValues } from "@/lib/data/attributes";
 import {
   getFacetCounts,
   getSearchMatchIds,
@@ -38,8 +41,13 @@ export default async function SearchPage({
   }
 
   const state = parseProductFilterState(sp);
-  const categories = await getCategories();
-  const filters = toProductListFilters(state, categories);
+  const [categories, brands, tags, attributeValues] = await Promise.all([
+    getCategories(),
+    getBrands(),
+    getTags(),
+    getAllAttributeValues(),
+  ]);
+  const filters = toProductListFilters(state, categories, brands, tags, attributeValues);
   const extraQuery = { q };
 
   const matchIds = await getSearchMatchIds(q);
@@ -62,6 +70,8 @@ export default async function SearchPage({
           state={state}
           categories={facetCounts.categories}
           brands={facetCounts.brands}
+          tags={facetCounts.tags}
+          attributes={facetCounts.attributes}
           showCategoryFacet
           showRatingFacet={hasReviews}
           extraQuery={extraQuery}
@@ -74,6 +84,8 @@ export default async function SearchPage({
           state={state}
           categories={facetCounts.categories}
           brands={facetCounts.brands}
+          tags={facetCounts.tags}
+          attributes={facetCounts.attributes}
           showCategoryFacet
           showRatingFacet={hasReviews}
           extraQuery={extraQuery}
@@ -85,6 +97,8 @@ export default async function SearchPage({
               basePath="/search"
               state={state}
               categories={facetCounts.categories}
+              tags={facetCounts.tags}
+              attributes={facetCounts.attributes}
               extraQuery={extraQuery}
             />
             <SortBar

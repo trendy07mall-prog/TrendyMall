@@ -1,12 +1,22 @@
-import { ComingSoon } from "@/components/admin/ComingSoon";
-import { FolderIcon } from "@/components/ui/Icon";
+import { getCategories } from "@/lib/data/categories";
+import { getSpecTemplates } from "@/lib/data/spec-templates";
+import { CategoryTree } from "@/components/admin/CategoryTree";
 
-export default function AdminCategoriesPage() {
+export default async function AdminCategoriesPage() {
+  const [categories, specTemplates] = await Promise.all([
+    getCategories({ activeOnly: false }),
+    getSpecTemplates(),
+  ]);
+
   return (
-    <ComingSoon
-      icon={FolderIcon}
-      title="Categories"
-      description="A dedicated page to manage categories directly — for now, add a new category from the product form's category field."
-    />
+    <div>
+      <h1 className="font-heading text-2xl font-bold tracking-tight">Categories</h1>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        Drag a category onto another to make it a sub-category, or drop it above a row to reorder.
+      </p>
+      <div className="mt-6">
+        <CategoryTree categories={categories} specTemplateOptions={specTemplates} />
+      </div>
+    </div>
   );
 }

@@ -43,7 +43,7 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 export default async function HomePage() {
   const supabase = await createClient();
   const [categories, newArrivals, { data: { user } }] = await Promise.all([
-    getCategories(),
+    getCategories({ depth: 0 }),
     getNewArrivals(10),
     supabase.auth.getUser(),
   ]);

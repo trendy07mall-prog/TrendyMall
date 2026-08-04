@@ -74,6 +74,9 @@ export default function WishlistPage() {
                     price: item.price,
                     image: item.image,
                     quantity: 1,
+                    variantId: null,
+                    variantName: null,
+                    variantColorHex: null,
                   });
                   remove(item.productId);
                 }}

@@ -68,6 +68,8 @@ export async function getMyOrderDetail(orderId: string): Promise<GuestOrderDetai
       quantity: item.quantity,
       subtotal: item.subtotal,
       imageUrl: item.product_image_url,
+      variantName: item.variant_name,
+      variantColorHex: item.variant_color_hex,
     })),
     statusHistory: (history ?? []).map((entry) => ({
       status: entry.new_value as GuestOrderDetail["orderStatus"],

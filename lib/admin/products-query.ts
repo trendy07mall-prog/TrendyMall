@@ -9,10 +9,10 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // separate view), so for an admin product list this size, sorting the
 // already-fetched array in JS is simpler than splitting the logic.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyAdminFilters(query: any, filters: AdminProductFilterState): any {
+function applyAdminFilters(query: any, filters: AdminProductFilterState, brandIds: string[]): any {
   let q = query;
   if (filters.categoryIds.length > 0) q = q.in("category_id", filters.categoryIds);
-  if (filters.brands.length > 0) q = q.in("brand", filters.brands);
+  if (brandIds.length > 0) q = q.in("brand_id", brandIds);
   if (filters.minPrice) q = q.gte("actual_price", Number(filters.minPrice));
   if (filters.maxPrice) q = q.lte("actual_price", Number(filters.maxPrice));
   if (filters.featured) q = q.eq("is_featured", true);
@@ -120,6 +120,18 @@ async function attachPrimaryImages(
   }));
 }
 
+// Filtering by raw brand text would miss casing-drifted rows even though
+// the dropdown itself now only ever offers canonical brand names -- same
+// reasoning as the storefront's toProductListFilters brandIds resolution.
+async function resolveBrandIds(
+  supabase: SupabaseServerClient,
+  names: string[],
+): Promise<string[]> {
+  if (names.length === 0) return [];
+  const { data } = await supabase.from("brands").select("id, name").in("name", names);
+  return (data ?? []).map((b) => b.id);
+}
+
 export const ADMIN_PRODUCTS_PAGE_SIZE = 20;
 
 export interface AdminProductsPage {
@@ -145,6 +157,7 @@ export async function getAdminProducts(
     matchIds = await getAdminSearchMatchIds(supabase, search);
     if (matchIds.length === 0) return { products: [], totalCount: 0 };
   }
+  const brandIds = await resolveBrandIds(supabase, filters.brands);
 
   function buildBaseQuery(forCount: boolean) {
     let query = forCount
@@ -157,7 +170,7 @@ export async function getAdminProducts(
     if (filters.status === "draft" || filters.status === "published") {
       query = query.eq("status", filters.status);
     }
-    query = applyAdminFilters(query, filters);
+    query = applyAdminFilters(query, filters, brandIds);
     if (matchIds) query = query.in("id", matchIds);
     return query;
   }
@@ -197,6 +210,8 @@ export async function getAllMatchingAdminProducts(
     if (matchIds.length === 0) return [];
   }
 
+  const brandIds = await resolveBrandIds(supabase, filters.brands);
+
   let query = supabase.from("products").select("*");
   query =
     filters.status === "deleted"
@@ -205,7 +220,7 @@ export async function getAllMatchingAdminProducts(
   if (filters.status === "draft" || filters.status === "published") {
     query = query.eq("status", filters.status);
   }
-  query = applyAdminFilters(query, filters);
+  query = applyAdminFilters(query, filters, brandIds);
   if (matchIds) query = query.in("id", matchIds);
   query = applyAdminSort(query, filters.sort === "best_selling" ? "newest" : filters.sort);
 
@@ -275,15 +290,6 @@ export async function getAdminProductsByIds(ids: string[]): Promise<Product[]> {
 
 export async function getDistinctBrands(): Promise<string[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("brand")
-    .eq("is_deleted", false)
-    .not("brand", "is", null);
-
-  const set = new Set<string>();
-  for (const row of data ?? []) {
-    if (row.brand) set.add(row.brand);
-  }
-  return [...set].sort((a, b) => a.localeCompare(b));
+  const { data } = await supabase.from("brands").select("name").order("name");
+  return (data ?? []).map((b) => b.name);
 }

@@ -1,9 +1,31 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { ProductListFilters } from "@/lib/product-filters";
+import { newArrivalCutoff } from "@/lib/product-filters";
+import { getProductIdsForTags } from "@/lib/data/tags";
+import { getProductIdsForAttributeValues } from "@/lib/data/attributes";
+import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
 import type { Product, ProductImage, ProductVariant, ProductWithPrimaryImage } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// Tags/attribute values live in join tables (product_tags/
+// product_attribute_values), so they can't be filtered with a plain
+// `.in(column, ids)` against `products` the way brand_id/category_id can --
+// each is resolved to a concrete product-id list once per query, then fed
+// into applyDbFilters as extra `.in("id", ...)` narrowing calls (chaining
+// multiple `.in("id", ...)` on the same column composes as an intersection,
+// so an active tag filter AND an active attribute filter correctly narrow
+// together), the same mechanism /search's restrictToIds already uses.
+async function resolveTagProductIds(filters: ProductListFilters): Promise<string[] | undefined> {
+  if (!filters.tagIds?.length) return undefined;
+  return getProductIdsForTags(filters.tagIds);
+}
+
+async function resolveAttributeValueProductIds(filters: ProductListFilters): Promise<string[] | undefined> {
+  if (!filters.attributeValueIds?.length) return undefined;
+  return getProductIdsForAttributeValues(filters.attributeValueIds);
+}
 
 async function attachPrimaryImages(
   supabase: SupabaseServerClient,
@@ -12,21 +34,29 @@ async function attachPrimaryImages(
   if (products.length === 0) return [];
 
   const ids = products.map((p) => p.id);
-  const [{ data: images, error: imagesError }, { data: ratings, error: ratingsError }] =
-    await Promise.all([
-      supabase
-        .from("product_images")
-        .select("product_id, image_url, sort_order")
-        .in("product_id", ids)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("product_rating_summary")
-        .select("product_id, avg_rating, review_count")
-        .in("product_id", ids),
-    ]);
+  const [
+    { data: images, error: imagesError },
+    { data: ratings, error: ratingsError },
+    { data: productTagRows, error: tagsError },
+  ] = await Promise.all([
+    supabase
+      .from("product_images")
+      .select("product_id, image_url, sort_order")
+      .in("product_id", ids)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("product_rating_summary")
+      .select("product_id, avg_rating, review_count")
+      .in("product_id", ids),
+    supabase
+      .from("product_tags")
+      .select("product_id, tags(name, slug, is_active)")
+      .in("product_id", ids),
+  ]);
 
   if (imagesError) throw imagesError;
   if (ratingsError) throw ratingsError;
+  if (tagsError) throw tagsError;
 
   const primaryByProductId = new Map<string, string>();
   for (const image of images ?? []) {
@@ -39,6 +69,15 @@ async function attachPrimaryImages(
     (ratings ?? []).map((r) => [r.product_id, r] as const),
   );
 
+  const tagsByProductId = new Map<string, { name: string; slug: string }[]>();
+  for (const row of productTagRows ?? []) {
+    const tag = row.tags as unknown as { name: string; slug: string; is_active: boolean } | null;
+    if (!tag?.is_active) continue;
+    const list = tagsByProductId.get(row.product_id) ?? [];
+    list.push({ name: tag.name, slug: tag.slug });
+    tagsByProductId.set(row.product_id, list);
+  }
+
   return products.map((product) => {
     const rating = ratingByProductId.get(product.id);
     return {
@@ -46,6 +85,7 @@ async function attachPrimaryImages(
       image: primaryByProductId.get(product.id) ?? null,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
+      tags: tagsByProductId.get(product.id) ?? [],
     };
   });
 }
@@ -58,10 +98,16 @@ async function attachPrimaryImages(
 // sorting the already-fetched array in JS is simpler than splitting the
 // logic between SQL ORDER BY and a JS fallback.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyDbFilters(query: any, filters: ProductListFilters): any {
+function applyDbFilters(query: any, filters: ProductListFilters, narrowingIdLists?: (string[] | undefined)[]): any {
   let q = query;
   if (filters.categoryIds?.length) q = q.in("category_id", filters.categoryIds);
-  if (filters.brands?.length) q = q.in("brand", filters.brands);
+  if (filters.brandIds?.length) q = q.in("brand_id", filters.brandIds);
+  // Each join-table-backed filter (tags, attribute values, ...) contributes
+  // its own pre-resolved product-id list here -- chaining multiple
+  // `.in("id", ...)` calls on the same column composes as an intersection.
+  for (const idList of narrowingIdLists ?? []) {
+    if (idList) q = q.in("id", idList);
+  }
   if (filters.minPrice != null) q = q.gte("actual_price", filters.minPrice);
   if (filters.maxPrice != null) q = q.lte("actual_price", filters.maxPrice);
   if (filters.cod) q = q.eq("cod_available", true);
@@ -73,10 +119,7 @@ function applyDbFilters(query: any, filters: ProductListFilters): any {
 
   const promoConditions: string[] = [];
   if (filters.onSale) promoConditions.push("special_price.not.is.null");
-  if (filters.newArrival) {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    promoConditions.push(`created_at.gte.${cutoff}`);
-  }
+  if (filters.newArrival) promoConditions.push(`created_at.gte.${newArrivalCutoff()}`);
   if (filters.featured) promoConditions.push("is_featured.eq.true");
   if (promoConditions.length > 0) q = q.or(promoConditions.join(","));
 
@@ -125,18 +168,27 @@ async function applyPostFilters(
   );
 }
 
+// categoryIds is the target category's own id plus every descendant's id
+// (see getDescendantCategoryIds) -- a single-item array behaves exactly
+// like the old .eq("category_id", categoryId) for a leaf category with no
+// children.
 export async function getProductsByCategory(
-  categoryId: string,
+  categoryIds: string[],
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
+  const [tagProductIds, attributeProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+  ]);
   const { data, error } = await applyDbFilters(
     supabase
       .from("products")
       .select("*")
-      .eq("category_id", categoryId)
+      .in("category_id", categoryIds)
       .eq("status", "published").eq("is_deleted", false),
     filters,
+    [tagProductIds, attributeProductIds],
   );
 
   if (error) throw error;
@@ -148,9 +200,14 @@ export async function getAllProducts(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
+  const [tagProductIds, attributeProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+  ]);
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false),
     filters,
+    [tagProductIds, attributeProductIds],
   );
 
   if (error) throw error;
@@ -159,8 +216,10 @@ export async function getAllProducts(
 }
 
 export interface FacetCounts {
-  categories: { slug: string; name: string; count: number }[];
+  categories: { slug: string; name: string; count: number; depth: number }[];
   brands: { name: string; count: number }[];
+  tags: { name: string; slug: string; count: number }[];
+  attributes: { attributeName: string; attributeSlug: string; values: { name: string; slug: string; count: number }[] }[];
 }
 
 // Counts reflect every ACTIVE filter except the facet's own selection (so
@@ -172,15 +231,21 @@ export interface FacetCounts {
 // from /search.
 export async function getFacetCounts(
   filters: ProductListFilters,
-  options: { categoryId?: string; includeCategoryFacet?: boolean; restrictToIds?: string[] } = {},
+  options: { categoryIds?: string[]; includeCategoryFacet?: boolean; restrictToIds?: string[] } = {},
 ): Promise<FacetCounts> {
   if (options.restrictToIds && options.restrictToIds.length === 0) {
-    return { categories: [], brands: [] };
+    return { categories: [], brands: [], tags: [], attributes: [] };
   }
 
   const supabase = await createClient();
   const filtersWithoutCategory: ProductListFilters = { ...filters, categoryIds: undefined };
-  const filtersWithoutBrand: ProductListFilters = { ...filters, brands: undefined };
+  const filtersWithoutBrand: ProductListFilters = { ...filters, brands: undefined, brandIds: undefined };
+  const filtersWithoutTag: ProductListFilters = { ...filters, tagIds: undefined };
+  const filtersWithoutAttribute: ProductListFilters = { ...filters, attributeValueIds: undefined };
+  const [tagProductIds, attributeProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+  ]);
 
   let categories: FacetCounts["categories"] = [];
   if (options.includeCategoryFacet !== false) {
@@ -188,48 +253,120 @@ export async function getFacetCounts(
     if (options.restrictToIds) categoryCountQuery = categoryCountQuery.in("id", options.restrictToIds);
 
     const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
-      supabase.from("categories").select("id, name, slug").order("sort_order"),
-      applyDbFilters(categoryCountQuery, filtersWithoutCategory),
+      supabase.from("categories").select("*").eq("is_active", true),
+      applyDbFilters(categoryCountQuery, filtersWithoutCategory, [tagProductIds, attributeProductIds]),
     ]);
 
     const countByCategoryId = new Map<string, number>();
     for (const row of productRows ?? []) {
       countByCategoryId.set(row.category_id, (countByCategoryId.get(row.category_id) ?? 0) + 1);
     }
-    categories = (categoryRows ?? []).map((c) => ({
+    // Depth-first tree order (not a flat sort_order sort) so parent/child
+    // categories group together in the filter sidebar instead of being
+    // interleaved by their raw sort_order values.
+    const orderedCategories = flattenCategoryTree(buildCategoryTree(categoryRows ?? []));
+    categories = orderedCategories.map((c) => ({
       slug: c.slug,
       name: c.name,
+      depth: c.depth,
       count: countByCategoryId.get(c.id) ?? 0,
     }));
   }
 
   let brandQuery = supabase
     .from("products")
-    .select("brand")
+    .select("brand_id")
     .eq("status", "published").eq("is_deleted", false)
-    .not("brand", "is", null);
-  if (options.categoryId) brandQuery = brandQuery.eq("category_id", options.categoryId);
+    .not("brand_id", "is", null);
+  if (options.categoryIds) brandQuery = brandQuery.in("category_id", options.categoryIds);
   if (options.restrictToIds) brandQuery = brandQuery.in("id", options.restrictToIds);
-  const { data: brandRows } = await applyDbFilters(brandQuery, filtersWithoutBrand);
+  const [{ data: brandRows }, { data: brandCatalog }] = await Promise.all([
+    applyDbFilters(brandQuery, filtersWithoutBrand, [tagProductIds, attributeProductIds]),
+    supabase.from("brands").select("id, name").eq("is_active", true),
+  ]);
 
-  const countByBrand = new Map<string, number>();
+  const countByBrandId = new Map<string, number>();
   for (const row of brandRows ?? []) {
-    if (row.brand) countByBrand.set(row.brand, (countByBrand.get(row.brand) ?? 0) + 1);
+    if (row.brand_id) countByBrandId.set(row.brand_id, (countByBrandId.get(row.brand_id) ?? 0) + 1);
   }
-  const brands = [...countByBrand.entries()]
-    .map(([name, count]) => ({ name, count }))
+  const brands = (brandCatalog ?? [])
+    .map((b) => ({ name: b.name, count: countByBrandId.get(b.id) ?? 0 }))
+    .filter((b) => b.count > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { categories, brands };
+  // Tags live in a join table, so the facet needs an extra hop: first the
+  // set of products eligible under every OTHER active filter (including an
+  // active attribute filter, but deliberately NOT tagProductIds -- that's
+  // this facet's own selection), then which tags those products carry.
+  let tagCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
+  if (options.categoryIds) tagCountQuery = tagCountQuery.in("category_id", options.categoryIds);
+  if (options.restrictToIds) tagCountQuery = tagCountQuery.in("id", options.restrictToIds);
+  const { data: tagEligibleProducts } = await applyDbFilters(tagCountQuery, filtersWithoutTag, [attributeProductIds]);
+  const tagEligibleProductIds = (tagEligibleProducts ?? []).map((p: { id: string }) => p.id);
+
+  let tags: FacetCounts["tags"] = [];
+  if (tagEligibleProductIds.length > 0) {
+    const [{ data: productTagRows }, { data: tagCatalog }] = await Promise.all([
+      supabase.from("product_tags").select("tag_id").in("product_id", tagEligibleProductIds),
+      supabase.from("tags").select("id, name, slug").eq("is_active", true),
+    ]);
+
+    const countByTagId = new Map<string, number>();
+    for (const row of productTagRows ?? []) {
+      countByTagId.set(row.tag_id, (countByTagId.get(row.tag_id) ?? 0) + 1);
+    }
+    tags = (tagCatalog ?? [])
+      .map((t) => ({ name: t.name, slug: t.slug, count: countByTagId.get(t.id) ?? 0 }))
+      .filter((t) => t.count > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Attributes: same two-hop join-table pattern as tags, with an extra
+  // grouping level (values grouped under their parent attribute for the
+  // storefront's one-FilterGroup-per-attribute rendering).
+  let attributeCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
+  if (options.categoryIds) attributeCountQuery = attributeCountQuery.in("category_id", options.categoryIds);
+  if (options.restrictToIds) attributeCountQuery = attributeCountQuery.in("id", options.restrictToIds);
+  const { data: attributeEligibleProducts } = await applyDbFilters(attributeCountQuery, filtersWithoutAttribute, [
+    tagProductIds,
+  ]);
+  const attributeEligibleProductIds = (attributeEligibleProducts ?? []).map((p: { id: string }) => p.id);
+
+  let attributes: FacetCounts["attributes"] = [];
+  if (attributeEligibleProductIds.length > 0) {
+    const [{ data: productAttributeRows }, { data: attributeCatalog }, { data: valueCatalog }] = await Promise.all([
+      supabase.from("product_attribute_values").select("attribute_value_id").in("product_id", attributeEligibleProductIds),
+      supabase.from("attributes").select("id, name, slug").order("sort_order"),
+      supabase.from("attribute_values").select("id, attribute_id, value, slug").order("sort_order"),
+    ]);
+
+    const countByValueId = new Map<string, number>();
+    for (const row of productAttributeRows ?? []) {
+      countByValueId.set(row.attribute_value_id, (countByValueId.get(row.attribute_value_id) ?? 0) + 1);
+    }
+
+    attributes = (attributeCatalog ?? [])
+      .map((attribute) => ({
+        attributeName: attribute.name,
+        attributeSlug: attribute.slug,
+        values: (valueCatalog ?? [])
+          .filter((v) => v.attribute_id === attribute.id)
+          .map((v) => ({ name: v.value, slug: v.slug, count: countByValueId.get(v.id) ?? 0 }))
+          .filter((v) => v.count > 0),
+      }))
+      .filter((a) => a.values.length > 0);
+  }
+
+  return { categories, brands, tags, attributes };
 }
 
-export async function getPublishedProductCount(categoryId?: string): Promise<number> {
+export async function getPublishedProductCount(categoryIds?: string[]): Promise<number> {
   const supabase = await createClient();
   let query = supabase
     .from("products")
     .select("*", { count: "exact", head: true })
     .eq("status", "published").eq("is_deleted", false);
-  if (categoryId) query = query.eq("category_id", categoryId);
+  if (categoryIds) query = query.in("category_id", categoryIds);
 
   const { count } = await query;
   return count ?? 0;
@@ -252,12 +389,20 @@ export async function incrementProductViewCount(productId: string): Promise<void
   }
 }
 
+// Now uses the same NEW_ARRIVAL_WINDOW_DAYS cutoff as the /shop filter's
+// "New Arrival" checkbox (see applyDbFilters) -- previously this ignored
+// age entirely and just showed the newest N published products, so a
+// stale catalog could show a 2-year-old product here while it failed its
+// own definition on the filter checkbox. A thin catalog may now return
+// fewer than `limit` results, which is correct: it means fewer than that
+// many products actually qualify as new.
 export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
     .select("*")
     .eq("status", "published").eq("is_deleted", false)
+    .gte("created_at", newArrivalCutoff())
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -339,10 +484,15 @@ export async function searchProducts(
   const supabase = await createClient();
   const matchIds = await getSearchMatchIds(query);
   if (matchIds.length === 0) return [];
+  const [tagProductIds, attributeProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+  ]);
 
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false).in("id", matchIds),
     filters,
+    [tagProductIds, attributeProductIds],
   );
   if (error) throw error;
 

@@ -39,13 +39,7 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
       .textSearch("search_vector", tsQuery, { type: "plain", config: "english" })
       .limit(6),
     supabase.from("categories").select("slug, name").ilike("name", `%${safe}%`).limit(4),
-    supabase
-      .from("products")
-      .select("brand")
-      .eq("status", "published").eq("is_deleted", false)
-      .not("brand", "is", null)
-      .ilike("brand", `%${safe}%`)
-      .limit(20),
+    supabase.from("brands").select("name").eq("is_active", true).ilike("name", `%${safe}%`).limit(4),
   ]);
 
   const productIds = (products ?? []).map((p) => p.id);
@@ -71,14 +65,9 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
     image: imageByProductId.get(p.id) ?? null,
   }));
 
-  const brandSet = new Set<string>();
-  for (const row of brandRows ?? []) {
-    if (row.brand) brandSet.add(row.brand);
-  }
-
   return {
     products: productSuggestions,
     categories: (categories ?? []).map((c) => ({ slug: c.slug, name: c.name })),
-    brands: [...brandSet].slice(0, 4),
+    brands: (brandRows ?? []).map((b) => b.name),
   };
 }

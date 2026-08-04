@@ -31,7 +31,7 @@ export function CartItemCard({
   const atMax = stock !== null && item.quantity >= stock;
 
   function handleRemove() {
-    removeItem(item.productId);
+    removeItem(item.productId, item.variantId);
     showToast(`${item.name} removed`, {
       action: { label: "Undo", onClick: () => addItem(item) },
     });
@@ -45,7 +45,7 @@ export function CartItemCard({
       price: item.price,
       image: item.image,
     });
-    removeItem(item.productId);
+    removeItem(item.productId, item.variantId);
     showToast(`${item.name} moved to Wishlist`, {
       action: {
         label: "Undo",
@@ -59,12 +59,12 @@ export function CartItemCard({
 
   function handleDecrease() {
     if (item.quantity <= 1) return;
-    updateQuantity(item.productId, item.quantity - 1);
+    updateQuantity(item.productId, item.variantId, item.quantity - 1);
   }
 
   function handleIncrease() {
     if (atMax) return;
-    updateQuantity(item.productId, item.quantity + 1);
+    updateQuantity(item.productId, item.variantId, item.quantity + 1);
   }
 
   return (
@@ -85,6 +85,17 @@ export function CartItemCard({
             <Link href={`/product/${item.slug}`} className="font-medium hover:underline">
               {item.name}
             </Link>
+            {item.variantName && (
+              <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--muted)]">
+                {item.variantColorHex && (
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full border border-[var(--border)]"
+                    style={{ backgroundColor: item.variantColorHex }}
+                  />
+                )}
+                {item.variantName}
+              </div>
+            )}
             <div className="mt-1">
               {!available ? (
                 <span className="text-xs font-medium text-[var(--color-discount)]">

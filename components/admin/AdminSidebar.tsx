@@ -9,6 +9,9 @@ import {
   GridIcon,
   FolderIcon,
   AwardIcon,
+  PriceTagIcon,
+  ListIcon,
+  GemIcon,
   CartIcon,
   UserIcon,
   StarIcon,
@@ -49,8 +52,11 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/products", label: "Products", icon: GridIcon },
-      { href: "/admin/categories", label: "Categories", icon: FolderIcon, soon: true },
-      { href: "/admin/brands", label: "Brands", icon: AwardIcon, soon: true },
+      { href: "/admin/categories", label: "Categories", icon: FolderIcon },
+      { href: "/admin/brands", label: "Brands", icon: AwardIcon },
+      { href: "/admin/tags", label: "Tags", icon: PriceTagIcon },
+      { href: "/admin/spec-templates", label: "Spec Templates", icon: ListIcon },
+      { href: "/admin/attributes", label: "Attributes", icon: GemIcon },
     ],
   },
   {

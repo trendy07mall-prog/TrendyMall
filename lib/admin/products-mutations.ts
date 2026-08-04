@@ -82,9 +82,7 @@ async function duplicateOne(
       name: `${source.name} (Copy)`,
       description: source.description,
       brand: source.brand,
-      model: source.model,
-      compatible_devices: source.compatible_devices,
-      bluetooth: source.bluetooth,
+      brand_id: source.brand_id,
       actual_price: source.actual_price,
       special_price: source.special_price,
       sku: source.sku,
@@ -108,16 +106,20 @@ async function duplicateOne(
     return { error: insertError?.message ?? "Could not duplicate product." };
   }
 
-  const [{ data: images }, { data: variants }] = await Promise.all([
-    supabase
-      .from("product_images")
-      .select("image_url, sort_order")
-      .eq("product_id", productId),
-    supabase
-      .from("product_variants")
-      .select("color_name, color_hex, stock, variant_image_url, sort_order")
-      .eq("product_id", productId),
-  ]);
+  const [{ data: images }, { data: variants }, { data: productTags }, { data: specValues }, { data: attributeValues }] =
+    await Promise.all([
+      supabase
+        .from("product_images")
+        .select("image_url, sort_order")
+        .eq("product_id", productId),
+      supabase
+        .from("product_variants")
+        .select("color_name, color_hex, stock, variant_image_url, sort_order")
+        .eq("product_id", productId),
+      supabase.from("product_tags").select("tag_id").eq("product_id", productId),
+      supabase.from("product_spec_values").select("spec_field_id, value").eq("product_id", productId),
+      supabase.from("product_attribute_values").select("attribute_value_id").eq("product_id", productId),
+    ]);
 
   if (images && images.length > 0) {
     await supabase.from("product_images").insert(
@@ -127,6 +129,21 @@ async function duplicateOne(
   if (variants && variants.length > 0) {
     await supabase.from("product_variants").insert(
       variants.map((v) => ({ ...v, product_id: inserted.id })),
+    );
+  }
+  if (productTags && productTags.length > 0) {
+    await supabase.from("product_tags").insert(
+      productTags.map((t) => ({ tag_id: t.tag_id, product_id: inserted.id })),
+    );
+  }
+  if (specValues && specValues.length > 0) {
+    await supabase.from("product_spec_values").insert(
+      specValues.map((v) => ({ spec_field_id: v.spec_field_id, value: v.value, product_id: inserted.id })),
+    );
+  }
+  if (attributeValues && attributeValues.length > 0) {
+    await supabase.from("product_attribute_values").insert(
+      attributeValues.map((v) => ({ attribute_value_id: v.attribute_value_id, product_id: inserted.id })),
     );
   }
 

@@ -125,7 +125,10 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
           </View>
           {items.map((item) => (
             <View key={item.id} style={styles.tableRow}>
-              <Text style={styles.colName}>{item.product_name}</Text>
+              <Text style={styles.colName}>
+                {item.product_name}
+                {item.variant_name ? ` (${item.variant_name})` : ""}
+              </Text>
               <Text style={styles.colQty}>{item.quantity}</Text>
               <Text style={styles.colPrice}>{formatPrice(item.unit_price)}</Text>
               <Text style={styles.colSubtotal}>{formatPrice(item.subtotal)}</Text>

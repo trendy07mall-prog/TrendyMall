@@ -15,6 +15,7 @@ interface CategoryFacet {
   slug: string;
   name: string;
   count: number;
+  depth: number;
 }
 
 interface BrandFacet {
@@ -22,11 +23,25 @@ interface BrandFacet {
   count: number;
 }
 
+interface TagFacet {
+  slug: string;
+  name: string;
+  count: number;
+}
+
+interface AttributeFacet {
+  attributeName: string;
+  attributeSlug: string;
+  values: { name: string; slug: string; count: number }[];
+}
+
 export function FilterGroups({
   state,
   onChange,
   categories,
   brands,
+  tags,
+  attributes,
   showCategoryFacet,
   showRatingFacet,
 }: {
@@ -34,6 +49,8 @@ export function FilterGroups({
   onChange: (next: Partial<ProductFilterState>) => void;
   categories: CategoryFacet[];
   brands: BrandFacet[];
+  tags: TagFacet[];
+  attributes: AttributeFacet[];
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
 }) {
@@ -46,6 +63,7 @@ export function FilterGroups({
               key={category.slug}
               label={category.name}
               count={category.count}
+              indent={category.depth}
               checked={state.categorySlugs.includes(category.slug)}
               onChange={(checked) =>
                 onChange({
@@ -78,6 +96,46 @@ export function FilterGroups({
           ))}
         </FilterGroup>
       )}
+
+      {tags.length > 0 && (
+        <FilterGroup title="Tags">
+          {tags.map((tag) => (
+            <CheckboxRow
+              key={tag.slug}
+              label={tag.name}
+              count={tag.count}
+              checked={state.tagSlugs.includes(tag.slug)}
+              onChange={(checked) =>
+                onChange({
+                  tagSlugs: checked
+                    ? [...state.tagSlugs, tag.slug]
+                    : state.tagSlugs.filter((s) => s !== tag.slug),
+                })
+              }
+            />
+          ))}
+        </FilterGroup>
+      )}
+
+      {attributes.map((attribute) => (
+        <FilterGroup key={attribute.attributeSlug} title={attribute.attributeName}>
+          {attribute.values.map((value) => (
+            <CheckboxRow
+              key={value.slug}
+              label={value.name}
+              count={value.count}
+              checked={state.attributeValueSlugs.includes(value.slug)}
+              onChange={(checked) =>
+                onChange({
+                  attributeValueSlugs: checked
+                    ? [...state.attributeValueSlugs, value.slug]
+                    : state.attributeValueSlugs.filter((s) => s !== value.slug),
+                })
+              }
+            />
+          ))}
+        </FilterGroup>
+      ))}
 
       <FilterGroup title="Price (LKR)">
         <PriceRangeSlider
@@ -274,15 +332,22 @@ function CheckboxRow({
   count,
   checked,
   onChange,
+  indent = 0,
 }: {
   label: string;
   count: number;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  // Nested category depth -- 0 for a top-level category/every other
+  // facet type, which don't pass this at all.
+  indent?: number;
 }) {
   const disabled = count === 0 && !checked;
   return (
-    <label className={`flex items-center justify-between gap-2 py-1.5 text-sm ${disabled ? "opacity-40" : ""}`}>
+    <label
+      style={indent > 0 ? { marginLeft: indent * 12 } : undefined}
+      className={`flex items-center justify-between gap-2 py-1.5 text-sm ${disabled ? "opacity-40" : ""}`}
+    >
       <span className="flex items-center gap-2">
         <Checkbox checked={checked} disabled={disabled} onChange={onChange} />
         {label}

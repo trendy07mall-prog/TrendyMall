@@ -2,10 +2,24 @@
 
 import { useActionState, useState } from "react";
 import dynamic from "next/dynamic";
-import type { Category, Product, ProductImage, ProductVariant } from "@/types";
+import type {
+  Attribute,
+  AttributeValue,
+  Brand,
+  Category,
+  Product,
+  ProductImage,
+  ProductVariant,
+  SpecField,
+  SpecTemplate,
+  Tag,
+} from "@/types";
 import type { ProductFormState } from "@/lib/admin/products";
 import { CategoryField } from "./product-form/CategoryField";
-import { TagInput } from "./product-form/TagInput";
+import { BrandField } from "./product-form/BrandField";
+import { TagsField } from "./product-form/TagsField";
+import { AttributesField } from "./product-form/AttributesField";
+import { SpecFieldsEditor } from "./product-form/SpecFieldsEditor";
 import { PricingFields } from "./product-form/PricingFields";
 import { VariantsEditor, type VariantDraft } from "./product-form/VariantsEditor";
 import { WhatsInBoxEditor } from "./product-form/WhatsInBoxEditor";
@@ -32,15 +46,29 @@ const inputClass =
 
 export function ProductForm({
   categories,
+  brands,
+  tags,
+  templatesWithFields,
+  attributesWithValues,
   product,
   images,
   variants,
+  defaultTagIds = [],
+  defaultSpecValues = {},
+  defaultAttributeValueIds = [],
   action,
 }: {
   categories: Category[];
+  brands: Brand[];
+  tags: Tag[];
+  templatesWithFields: { template: SpecTemplate; fields: SpecField[] }[];
+  attributesWithValues: { attribute: Attribute; values: AttributeValue[] }[];
   product?: Product;
   images?: ProductImage[];
   variants?: ProductVariant[];
+  defaultTagIds?: string[];
+  defaultSpecValues?: Record<string, string>;
+  defaultAttributeValueIds?: string[];
   action: (
     state: ProductFormState,
     formData: FormData,
@@ -48,10 +76,8 @@ export function ProductForm({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
 
+  const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
-  const [compatibleDevices, setCompatibleDevices] = useState<string[]>(
-    product?.compatible_devices ?? [],
-  );
   const [whatsInBox, setWhatsInBox] = useState<string[]>(
     product?.whats_in_box ?? [],
   );
@@ -60,16 +86,19 @@ export function ProductForm({
   );
   const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>(
     (variants ?? []).map((v) => ({
+      id: v.id,
       colorName: v.color_name,
       colorHex: v.color_hex,
       stock: v.stock?.toString() ?? "",
+      price: v.price?.toString() ?? "",
+      sku: v.sku ?? "",
       imageUrl: v.variant_image_url,
     })),
   );
 
   return (
     <form action={formAction} className="mt-8 flex flex-col gap-6">
-      <CategoryField categories={categories} defaultCategoryId={product?.category_id} />
+      <CategoryField categories={categories} value={categoryId} onChange={setCategoryId} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
@@ -100,41 +129,14 @@ export function ProductForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="brand" className="text-sm font-medium">
-            Brand
-          </label>
-          <input
-            id="brand"
-            name="brand"
-            type="text"
-            defaultValue={product?.brand ?? ""}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="model" className="text-sm font-medium">
-            Model
-          </label>
-          <input
-            id="model"
-            name="model"
-            type="text"
-            defaultValue={product?.model ?? ""}
-            className={inputClass}
-          />
-        </div>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium">
-          <input type="checkbox" name="bluetooth" defaultChecked={product?.bluetooth ?? false} />
-          Bluetooth
-        </label>
+        <BrandField brands={brands} defaultBrandId={product?.brand_id} />
       </div>
 
-      <TagInput
-        label="Compatible devices"
-        placeholder="Type a device and press Enter"
-        value={compatibleDevices}
-        onChange={setCompatibleDevices}
+      <SpecFieldsEditor
+        categories={categories}
+        templatesWithFields={templatesWithFields}
+        categoryId={categoryId}
+        defaultValues={defaultSpecValues}
       />
 
       <PricingFields
@@ -217,6 +219,10 @@ export function ProductForm({
         </label>
       </div>
 
+      <TagsField tags={tags} defaultTagIds={defaultTagIds} />
+
+      <AttributesField attributesWithValues={attributesWithValues} defaultValueIds={defaultAttributeValueIds} />
+
       <VariantsEditor value={variantDrafts} onChange={setVariantDrafts} />
 
       <RichTextEditor value={description} onChange={setDescription} />
@@ -281,11 +287,6 @@ export function ProductForm({
       </details>
 
       <input type="hidden" name="description" value={description} />
-      <input
-        type="hidden"
-        name="compatibleDevices"
-        value={JSON.stringify(compatibleDevices)}
-      />
       <input type="hidden" name="whatsInBox" value={JSON.stringify(whatsInBox)} />
       <input
         type="hidden"

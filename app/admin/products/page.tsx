@@ -27,7 +27,7 @@ export default async function AdminProductsPage({
   const [{ products, totalCount }, counts, categories, brands] = await Promise.all([
     getAdminProducts(state, page, ADMIN_PRODUCTS_PAGE_SIZE),
     getProductSummaryCounts(),
-    getCategories(),
+    getCategories({ activeOnly: false }),
     getDistinctBrands(),
   ]);
 

@@ -6,7 +6,9 @@ import {
   getRelatedProducts,
   incrementProductViewCount,
 } from "@/lib/data/products";
-import { getCategoryById } from "@/lib/data/categories";
+import { getCategoryAncestors, getCategoryById } from "@/lib/data/categories";
+import { getProductTags } from "@/lib/data/tags";
+import { getProductSpecs } from "@/lib/data/spec-templates";
 import { getProductRatingSummary, getProductReviews, hasUserReviewed } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
@@ -68,6 +70,7 @@ export default async function ProductPage({
 
   const { product, images, variants } = detail;
   const category = await getCategoryById(product.category_id);
+  const categoryAncestors = category ? await getCategoryAncestors(category) : [];
   const imageUrls = images.map((i) => i.image_url);
 
   // Awaited (not fire-and-forget): Vercel's serverless runtime can cut off
@@ -81,11 +84,13 @@ export default async function ProductPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [relatedProducts, reviews, ratingSummary, alreadyReviewed] = await Promise.all([
+  const [relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs] = await Promise.all([
     getRelatedProducts(product.category_id, product.id),
     getProductReviews(product.id),
     getProductRatingSummary(product.id),
     user ? hasUserReviewed(product.id, user.id) : Promise.resolve(false),
+    getProductTags(product.id),
+    getProductSpecs(product),
   ]);
 
   const reviewState = !user
@@ -127,9 +132,10 @@ export default async function ProductPage({
       <Breadcrumbs
         items={[
           { label: "Home", href: "/" },
-          ...(category
-            ? [{ label: category.name, href: `/category/${category.slug}` }]
-            : []),
+          ...categoryAncestors.map((ancestor) => ({
+            label: ancestor.name,
+            href: `/category/${ancestor.slug}`,
+          })),
           { label: product.name },
         ]}
       />
@@ -139,9 +145,11 @@ export default async function ProductPage({
         images={imageUrls}
         variants={variants}
         categoryName={category?.name ?? "—"}
+        specs={specs}
         reviews={reviews}
         ratingSummary={ratingSummary}
         reviewState={reviewState}
+        tags={tags}
       />
 
       <RelatedProducts products={relatedProducts} />

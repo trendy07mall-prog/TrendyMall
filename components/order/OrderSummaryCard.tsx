@@ -30,7 +30,11 @@ export function OrderSummaryCard({ order }: { order: GuestOrderDetail }) {
             </div>
             <div className="flex flex-1 items-center justify-between">
               <span>
-                {item.productName} × {item.quantity}
+                {item.productName}
+                {item.variantName && (
+                  <span className="text-[var(--muted)]"> ({item.variantName})</span>
+                )}{" "}
+                × {item.quantity}
               </span>
               <span>{formatPrice(item.subtotal)}</span>
             </div>

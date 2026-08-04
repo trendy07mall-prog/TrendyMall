@@ -77,6 +77,9 @@ export async function getCartRecommendations(
       image: primaryImageByProductId.get(product.id) ?? null,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
+      // Not fetched here -- this recommendations widget doesn't need tag
+      // badges the way primary product-browsing surfaces do.
+      tags: [],
     };
   });
 }

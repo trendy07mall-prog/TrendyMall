@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { cartLineKey, formatPrice } from "@/lib/utils";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee } from "@/lib/delivery-fee";
 import { getMyDefaultAddress } from "@/lib/addresses";
 import { getCartValidation } from "@/lib/cart-validation";
@@ -41,7 +41,9 @@ export default function CartPage() {
   // live stock/availability whenever the cart's contents change. This is
   // the lighter, Phase 1 version of the full re-validation Phase 4 adds
   // for the persisted cart.
-  const itemsKey = items.map((i) => `${i.productId}:${i.quantity}`).join(",");
+  const itemsKey = items
+    .map((i) => `${i.productId}:${i.variantId ?? "base"}:${i.quantity}`)
+    .join(",");
 
   useEffect(() => {
     // No setState needed when the cart is empty — that branch renders the
@@ -49,10 +51,15 @@ export default function CartPage() {
     if (items.length === 0) return;
     let cancelled = false;
     getCartValidation(
-      items.map((i) => ({ productId: i.productId, price: i.price, quantity: i.quantity })),
+      items.map((i) => ({
+        productId: i.productId,
+        variantId: i.variantId,
+        price: i.price,
+        quantity: i.quantity,
+      })),
     ).then((results) => {
       if (cancelled) return;
-      setValidation(new Map(results.map((r) => [r.productId, r])));
+      setValidation(new Map(results.map((r) => [cartLineKey(r.productId, r.variantId), r])));
     });
     return () => {
       cancelled = true;
@@ -117,7 +124,9 @@ export default function CartPage() {
     };
   }, []);
 
-  const unavailableItems = items.filter((item) => validation.get(item.productId)?.available === false);
+  const unavailableItems = items.filter(
+    (item) => validation.get(cartLineKey(item.productId, item.variantId))?.available === false,
+  );
   const hasBlockingIssue = unavailableItems.length > 0;
   const recommendationsLoading = recommendationsKey !== itemsKey;
 
@@ -202,7 +211,7 @@ export default function CartPage() {
           </p>
           <ul className="mt-1 list-inside list-disc text-[var(--muted)]">
             {unavailableItems.map((item) => (
-              <li key={item.productId}>{item.name}</li>
+              <li key={cartLineKey(item.productId, item.variantId)}>{item.name}</li>
             ))}
           </ul>
           <p className="mt-1 text-[var(--muted)]">
@@ -214,8 +223,11 @@ export default function CartPage() {
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
         <ul className="flex flex-col gap-4">
           {items.map((item) => (
-            <li key={item.productId}>
-              <CartItemCard item={item} validation={validation.get(item.productId)} />
+            <li key={cartLineKey(item.productId, item.variantId)}>
+              <CartItemCard
+                item={item}
+                validation={validation.get(cartLineKey(item.productId, item.variantId))}
+              />
             </li>
           ))}
         </ul>

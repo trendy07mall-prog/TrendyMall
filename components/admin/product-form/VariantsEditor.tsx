@@ -5,9 +5,16 @@ import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
 
 export interface VariantDraft {
+  // Present only for a variant that already exists in the DB — populated
+  // when editing a product, omitted for a row added in this session. Lets
+  // the server sync variants by stable identity instead of deleting and
+  // reinserting with a fresh id on every save.
+  id?: string;
   colorName: string;
   colorHex: string;
   stock: string;
+  price: string;
+  sku: string;
   imageUrl: string | null;
 }
 
@@ -28,7 +35,10 @@ export function VariantsEditor({
   }
 
   function addRow() {
-    onChange([...value, { colorName: "", colorHex: "#000000", stock: "", imageUrl: null }]);
+    onChange([
+      ...value,
+      { colorName: "", colorHex: "#000000", stock: "", price: "", sku: "", imageUrl: null },
+    ]);
   }
 
   function removeRow(index: number) {
@@ -58,17 +68,16 @@ export function VariantsEditor({
       {value.map((row, index) => (
         <div
           key={index}
-          className="grid grid-cols-1 gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3 sm:grid-cols-[1fr_auto_1fr_auto_auto]"
+          className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3"
         >
-          <input
-            type="text"
-            placeholder="Color name"
-            value={row.colorName}
-            onChange={(e) => updateRow(index, { colorName: e.target.value })}
-            className={inputClass}
-          />
-
           <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Color name"
+              value={row.colorName}
+              onChange={(e) => updateRow(index, { colorName: e.target.value })}
+              className={`${inputClass} flex-1`}
+            />
             <input
               type="color"
               value={row.colorHex}
@@ -82,42 +91,59 @@ export function VariantsEditor({
               onChange={(e) => updateRow(index, { colorHex: e.target.value })}
               className={`${inputClass} w-24`}
             />
+            <button
+              type="button"
+              onClick={() => removeRow(index)}
+              className="ml-auto text-xs text-red-600 underline"
+            >
+              Remove
+            </button>
           </div>
 
-          <input
-            type="number"
-            min="0"
-            placeholder="Stock (optional)"
-            value={row.stock}
-            onChange={(e) => updateRow(index, { stock: e.target.value })}
-            className={inputClass}
-          />
-
-          <div className="flex items-center gap-2">
-            {row.imageUrl ? (
-              <span className="relative block h-9 w-9 overflow-hidden rounded-[var(--radius-sm)]">
-                <Image src={row.imageUrl} alt="" fill sizes="36px" className="object-cover" />
-              </span>
-            ) : (
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageChange(index, e)}
-                className="w-28 text-xs"
-              />
-            )}
-            {uploadingIndex === index && (
-              <span className="text-xs text-[var(--muted)]">…</span>
-            )}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <input
+              type="number"
+              min="0"
+              placeholder="Stock (optional)"
+              value={row.stock}
+              onChange={(e) => updateRow(index, { stock: e.target.value })}
+              className={inputClass}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Price (optional)"
+              value={row.price}
+              onChange={(e) => updateRow(index, { price: e.target.value })}
+              className={inputClass}
+              title="Leave blank to use the product's price"
+            />
+            <input
+              type="text"
+              placeholder="SKU (optional)"
+              value={row.sku}
+              onChange={(e) => updateRow(index, { sku: e.target.value })}
+              className={inputClass}
+            />
+            <div className="flex items-center gap-2">
+              {row.imageUrl ? (
+                <span className="relative block h-9 w-9 overflow-hidden rounded-[var(--radius-sm)]">
+                  <Image src={row.imageUrl} alt="" fill sizes="36px" className="object-cover" />
+                </span>
+              ) : (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleImageChange(index, e)}
+                  className="w-28 text-xs"
+                />
+              )}
+              {uploadingIndex === index && (
+                <span className="text-xs text-[var(--muted)]">…</span>
+              )}
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => removeRow(index)}
-            className="text-xs text-red-600 underline"
-          >
-            Remove
-          </button>
         </div>
       ))}
 

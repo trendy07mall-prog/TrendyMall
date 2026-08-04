@@ -15,15 +15,23 @@ export function FilterChips({
   basePath,
   state,
   categories,
+  tags = [],
+  attributes = [],
   extraQuery,
 }: {
   basePath: string;
   state: ProductFilterState;
   categories: { slug: string; name: string }[];
+  tags?: { slug: string; name: string }[];
+  attributes?: { attributeName: string; attributeSlug: string; values: { name: string; slug: string; count: number }[] }[];
   extraQuery?: Record<string, string>;
 }) {
   const router = useRouter();
   const categoryNameBySlug = new Map(categories.map((c) => [c.slug, c.name]));
+  const tagNameBySlug = new Map(tags.map((t) => [t.slug, t.name]));
+  const attributeValueNameBySlug = new Map(
+    attributes.flatMap((a) => a.values.map((v) => [v.slug, v.name] as const)),
+  );
 
   const chips: Chip[] = [
     ...state.categorySlugs.map((slug) => ({
@@ -38,6 +46,19 @@ export function FilterChips({
       key: `brand-${brand}`,
       label: brand,
       apply: (s: ProductFilterState) => ({ ...s, brands: s.brands.filter((b) => b !== brand) }),
+    })),
+    ...state.tagSlugs.map((slug) => ({
+      key: `tag-${slug}`,
+      label: tagNameBySlug.get(slug) ?? slug,
+      apply: (s: ProductFilterState) => ({ ...s, tagSlugs: s.tagSlugs.filter((t) => t !== slug) }),
+    })),
+    ...state.attributeValueSlugs.map((slug) => ({
+      key: `attr-${slug}`,
+      label: attributeValueNameBySlug.get(slug) ?? slug,
+      apply: (s: ProductFilterState) => ({
+        ...s,
+        attributeValueSlugs: s.attributeValueSlugs.filter((v) => v !== slug),
+      }),
     })),
     ...(state.minPrice || state.maxPrice
       ? [

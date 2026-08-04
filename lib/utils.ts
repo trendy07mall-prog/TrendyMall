@@ -25,6 +25,23 @@ export function getEffectivePrice(product: {
   return product.special_price ?? product.actual_price;
 }
 
+// variant.price null means "same as the product's effective price" — it's
+// an opt-in override, not a required field.
+export function getEffectiveVariantPrice(
+  product: { actual_price: number; special_price: number | null },
+  variant: { price: number | null } | null | undefined,
+): number {
+  return variant?.price ?? getEffectivePrice(product);
+}
+
+// Same identity a cart line has everywhere: a product on its own, or a
+// product pinned to one specific variant. Shared by cart-sync.ts,
+// cart-validation.ts, and every cart/checkout list that needs a stable
+// React key or a lookup key into a Map keyed the same way.
+export function cartLineKey(productId: string, variantId: string | null): string {
+  return `${productId}:${variantId ?? "base"}`;
+}
+
 export function isValidSriLankanPhone(phone: string): boolean {
   return /^(?:\+94|0)[1-9][0-9]{8}$/.test(phone.replace(/[\s-]/g, ""));
 }
