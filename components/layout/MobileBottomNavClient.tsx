@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/components/ui/Icon";
 import { CartCount } from "@/components/cart/CartCount";
 
@@ -11,6 +12,9 @@ import { CartCount } from "@/components/cart/CartCount";
 // to Checkout / Place Order) — a persistent nav competing for the same
 // strip of screen would be the wrong call on both, not just checkout.
 const HIDDEN_ROUTE_PREFIXES = ["/cart", "/checkout"];
+
+// No spring/bounce anywhere in this component, per spec.
+const TRANSITION = { type: "tween" as const, duration: 0.22, ease: "easeInOut" as const };
 
 interface NavItem {
   href: string;
@@ -47,6 +51,13 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   // +16px breathing room) that app/layout.tsx's <main> uses for its own
   // bottom padding, so page content/the footer are never covered — added
   // once at the shared layout level instead of per-page.
+  //
+  // Both variables are read off THIS element's own getBoundingClientRect(),
+  // which does not include margin — so the pill's outer spacing below is
+  // deliberately real padding on this same ref'd <nav>, not margin on an
+  // inner element, or these published heights would silently under-report
+  // the pill's true footprint (exactly the bug class that broke this
+  // corner of the site before).
   useEffect(() => {
     const el = barRef.current;
     if (!el) return;
@@ -80,29 +91,61 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
       // exact same "guard on height > 0" pattern cart/page.tsx already
       // proves out, reused rather than reinvented with special-case
       // unmount cleanup.
+      //
+      // The floating-pill margin is real padding on this element (not
+      // margin on the inner pill div below) so the ResizeObserver's
+      // measured height already includes it — see the comment on the
+      // effect above. pb- folds env(safe-area-inset-bottom) directly into
+      // that same measured box, which is what keeps the pill clear of the
+      // iPhone home indicator without a separate unmeasured offset.
       className={
         hiddenByRoute
           ? "hidden"
-          : "fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] flex min-h-[68px] items-stretch border-t border-[var(--border)] bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-5px_20px_rgba(0,0,0,0.08)] md:hidden print:hidden"
+          : "fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden print:hidden"
       }
     >
-      {items.map((item) => {
-        const active = item.isActive(pathname);
-        const color = active ? "text-[#dc2626]" : "text-[var(--muted)]";
-        return (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="transition-brand flex flex-1 flex-col items-center justify-center gap-0.5"
-          >
-            <span className="relative">
-              <item.icon className={`h-6 w-6 ${color}`} />
-              {item.label === "Cart" && <CartCount variant="nav" />}
-            </span>
-            <span className={`text-xs font-medium ${color}`}>{item.label}</span>
-          </Link>
-        );
-      })}
+      <div className="mx-auto flex h-[68px] max-w-[480px] items-center justify-around rounded-full border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+        {items.map((item) => {
+          const active = item.isActive(pathname);
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-label={item.label}
+              aria-current={active ? "page" : undefined}
+              className="relative flex min-h-11 min-w-11 flex-1 items-center justify-center"
+            >
+              {active && (
+                <motion.span
+                  layoutId="bottom-nav-active-capsule"
+                  transition={TRANSITION}
+                  className="absolute inset-y-2 right-1 left-1 rounded-full bg-[var(--foreground)]"
+                />
+              )}
+              <motion.span layout transition={TRANSITION} className="relative flex items-center gap-1.5 px-2">
+                <span className="relative flex">
+                  <item.icon
+                    className={`h-6 w-6 transition-transform duration-[220ms] ${
+                      active ? "scale-105 text-white" : "text-[var(--color-text-secondary)]"
+                    }`}
+                  />
+                  {item.label === "Cart" && <CartCount variant="nav" />}
+                </span>
+                {active && (
+                  <motion.span
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={TRANSITION}
+                    className="text-xs font-medium text-white"
+                  >
+                    {item.label}
+                  </motion.span>
+                )}
+              </motion.span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
