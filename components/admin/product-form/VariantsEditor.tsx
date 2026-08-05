@@ -31,6 +31,30 @@ export interface VariantDraft {
 const inputClass =
   "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
+// Every new row defaults colorHex to black (see addRow below) -- typing a
+// recognized name here auto-fills a matching hex so "white" doesn't
+// silently save as black just because the admin forgot to also touch the
+// color picker. Only the common/likely cases; anything not listed still
+// needs the picker set manually, same as before.
+const COMMON_COLOR_HEX: Record<string, string> = {
+  white: "#ffffff",
+  black: "#000000",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  green: "#22c55e",
+  yellow: "#eab308",
+  gray: "#6b7280",
+  grey: "#6b7280",
+  silver: "#c0c0c0",
+  gold: "#d4af37",
+  pink: "#ec4899",
+  purple: "#a855f7",
+  orange: "#f97316",
+  brown: "#78350f",
+  navy: "#1e3a8a",
+  beige: "#f5f5dc",
+};
+
 export function VariantsEditor({
   value,
   onChange,
@@ -43,9 +67,34 @@ export function VariantsEditor({
   variantAttributes: { attribute: Attribute; values: AttributeValue[] }[];
 }) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  // Rows whose hex the admin has manually set (via either the color picker
+  // or the text field) -- once touched, typing a color name no longer
+  // auto-fills over it. Transient UI state only, never saved.
+  const [touchedHexRows, setTouchedHexRows] = useState<Set<number>>(new Set());
 
   function updateRow(index: number, patch: Partial<VariantDraft>) {
     onChange(value.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  // Every new row starts at black (a valid hex is required for the color
+  // picker input) -- typing a recognized name below auto-corrects it
+  // before the admin ever has to notice, closing the gap that let two
+  // variants named "white" save with color_hex #000000. Only applies to
+  // rows added this session (no `id` yet) -- an existing, already-saved
+  // variant's hex was a deliberate choice and must never be silently
+  // overwritten just because its name was edited.
+  function handleColorNameChange(index: number, name: string) {
+    const patch: Partial<VariantDraft> = { colorName: name };
+    if (!value[index].id && !touchedHexRows.has(index)) {
+      const match = COMMON_COLOR_HEX[name.trim().toLowerCase()];
+      if (match) patch.colorHex = match;
+    }
+    updateRow(index, patch);
+  }
+
+  function handleColorHexChange(index: number, hex: string) {
+    setTouchedHexRows((prev) => new Set(prev).add(index));
+    updateRow(index, { colorHex: hex });
   }
 
   function addRow() {
@@ -68,6 +117,14 @@ export function VariantsEditor({
 
   function removeRow(index: number) {
     onChange(value.filter((_, i) => i !== index));
+    setTouchedHexRows((prev) => {
+      const next = new Set<number>();
+      for (const i of prev) {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      }
+      return next;
+    });
   }
 
   async function handleImagesChange(
@@ -124,20 +181,20 @@ export function VariantsEditor({
               type="text"
               placeholder="Color name"
               value={row.colorName}
-              onChange={(e) => updateRow(index, { colorName: e.target.value })}
+              onChange={(e) => handleColorNameChange(index, e.target.value)}
               className={`${inputClass} flex-1`}
             />
             <input
               type="color"
               value={row.colorHex}
-              onChange={(e) => updateRow(index, { colorHex: e.target.value })}
+              onChange={(e) => handleColorHexChange(index, e.target.value)}
               className="h-9 w-9 cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent p-0.5"
               aria-label="Color swatch"
             />
             <input
               type="text"
               value={row.colorHex}
-              onChange={(e) => updateRow(index, { colorHex: e.target.value })}
+              onChange={(e) => handleColorHexChange(index, e.target.value)}
               className={`${inputClass} w-24`}
             />
             <button

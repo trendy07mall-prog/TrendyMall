@@ -104,6 +104,22 @@ export function ProductPurchaseSection({
     });
   }
 
+  // The variant-defining attribute values a given variant actually carries
+  // -- shared by defaultDimensions (page load) and handleColorSelect
+  // (picking a color whose only variant(s) need a different value on some
+  // other dimension too).
+  function attributeValuesForVariant(variant: ProductVariantWithImages): Record<string, AttributeValue> {
+    const attributeValues: Record<string, AttributeValue> = {};
+    for (const group of attributes) {
+      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+      const groupValueIds = new Set(group.values.map((v) => v.id));
+      const matchedId = valueIdForGroup(variant, groupValueIds);
+      const matchedValue = group.values.find((v) => v.id === matchedId);
+      if (matchedValue) attributeValues[group.attribute.id] = matchedValue;
+    }
+    return attributeValues;
+  }
+
   function defaultDimensions(): {
     colorKey: string | null;
     attributeValues: Record<string, AttributeValue>;
@@ -113,15 +129,10 @@ export function ProductPurchaseSection({
     // if nothing has stock -- same "sort_order is authoritative" rule used
     // everywhere else in this catalog.
     const defaultVariant = variants.find((v) => v.stock !== 0) ?? variants[0];
-    const attributeValues: Record<string, AttributeValue> = {};
-    for (const group of attributes) {
-      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
-      const groupValueIds = new Set(group.values.map((v) => v.id));
-      const matchedId = valueIdForGroup(defaultVariant, groupValueIds);
-      const matchedValue = group.values.find((v) => v.id === matchedId);
-      if (matchedValue) attributeValues[group.attribute.id] = matchedValue;
-    }
-    return { colorKey: normalizeColor(defaultVariant.color_name), attributeValues };
+    return {
+      colorKey: normalizeColor(defaultVariant.color_name),
+      attributeValues: attributeValuesForVariant(defaultVariant),
+    };
   }
 
   const [selectedColorKey, setSelectedColorKey] = useState<string | null>(
@@ -161,10 +172,38 @@ export function ProductPurchaseSection({
     setQuantity((q) => Math.max(1, Math.min(q, Math.max(1, nextStock))));
   }
 
+  // Picking a color can require some OTHER attribute to change too (e.g.
+  // this product's two variants are White/1000-5000mAh and White-new/
+  // 5000-10000mAh -- there's no variant at all for White + 5000-10000mAh).
+  // If the color you clicked doesn't exist combined with what's currently
+  // selected elsewhere, jump straight to a real variant of that color
+  // (first in stock, else first overall, same tie-break as
+  // defaultDimensions) instead of leaving the click landing on an
+  // unreachable combination the user could never get out of by clicking
+  // one swatch at a time.
   function handleColorSelect(key: string) {
-    setSelectedColorKey(key);
     setSelectionError(null);
-    clampQuantityFor({ ...dimensions, color: key });
+    const stillMatches = findMatchingVariants({ ...dimensions, color: key }).length > 0;
+    let nextDimensions: { color?: string; [attributeId: string]: string | undefined } = {
+      ...dimensions,
+      color: key,
+    };
+
+    if (!stillMatches) {
+      const colorVariants = variants.filter((v) => normalizeColor(v.color_name) === key);
+      const target = colorVariants.find((v) => v.stock !== 0) ?? colorVariants[0];
+      if (target) {
+        const nextAttributeValues = attributeValuesForVariant(target);
+        setSelectedAttributeValues(nextAttributeValues);
+        nextDimensions = { color: key };
+        for (const [attributeId, value] of Object.entries(nextAttributeValues)) {
+          nextDimensions[attributeId] = value.id;
+        }
+      }
+    }
+
+    setSelectedColorKey(key);
+    clampQuantityFor(nextDimensions);
   }
 
   function handleAttributeSelect(attributeId: string, value: AttributeValue) {
@@ -173,14 +212,15 @@ export function ProductPurchaseSection({
     clampQuantityFor({ ...dimensions, [attributeId]: value.id });
   }
 
-  // Existence check for one candidate value on one dimension, combined
-  // with whatever's currently selected on every OTHER dimension -- true
-  // impossibility (no such variant) and "exists but sold out" both read
-  // as disabled/struck-through, matching how out-of-stock swatches have
-  // always been shown here.
-  function isColorDisabled(key: string): boolean {
-    const matches = findMatchingVariants({ ...dimensions, color: key });
-    return matches.length === 0 || matches.every((v) => v.stock === 0);
+  // A color swatch is only ever struck-through/unclickable for a genuine
+  // "every variant of this color is sold out" -- NOT for "impossible with
+  // whatever's currently selected on another dimension," since
+  // handleColorSelect above always resolves that case to a real variant
+  // instead. (Attribute pills, e.g. Mah, keep the stricter
+  // impossible-OR-sold-out disabling below -- unchanged, by design.)
+  function isColorSoldOut(key: string): boolean {
+    const colorVariants = variants.filter((v) => normalizeColor(v.color_name) === key);
+    return colorVariants.length === 0 || colorVariants.every((v) => v.stock === 0);
   }
 
   function isAttributeValueDisabled(attributeId: string, valueId: string): boolean {
@@ -190,7 +230,7 @@ export function ProductPurchaseSection({
 
   const colorSwatchOptions: ColorSwatchOption[] = colorOptions.map((option) => ({
     ...option,
-    disabled: isColorDisabled(option.key),
+    disabled: isColorSoldOut(option.key),
   }));
 
   // A color must be picked whenever the product has any, every attribute

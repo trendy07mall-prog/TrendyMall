@@ -2,10 +2,10 @@ export interface ColorSwatchOption {
   key: string;
   name: string;
   hex: string;
-  // True when no variant exists for this color combined with whatever's
-  // currently selected for every other attribute (a genuinely impossible
-  // combination) OR the one variant that does match is out of stock --
-  // both render the same way: visible, struck-through, unclickable.
+  // True only when every variant of this color is sold out. Picking a
+  // color that merely needs some other attribute to change too is never
+  // "disabled" here -- the caller resolves that to a real variant instead
+  // of leaving an unreachable, permanently-struck-through swatch.
   disabled: boolean;
 }
 
