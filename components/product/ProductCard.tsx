@@ -108,15 +108,27 @@ export function ProductCard({
         )}
 
         <div className={hideDeliveryEstimate ? "mt-2" : ""}>
-          <div className={`flex items-center justify-between ${hideDeliveryEstimate ? "gap-1.5" : "gap-2"}`}>
-            <PriceDisplay
-              actualPrice={product.actual_price}
-              specialPrice={product.special_price}
-              size="sm"
-              showDiscountBadge={false}
-            />
-            <span className={`flex shrink-0 items-center gap-1.5 text-xs font-medium ${stock.text}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${stock.dot}`} aria-hidden="true" />
+          {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
+              lets the price box get compressed smaller than its own text,
+              which visually collides with the stock badge instead of
+              wrapping) is what keeps this row on one line, at full size,
+              at every price/stock combination and every grid density this
+              card renders at (New Arrivals' wider cards down to /shop's
+              narrower 4-up columns) -- gap-1 is deliberately tighter than
+              the site's usual gap-2 for the same reason. */}
+          <div className="flex items-center justify-between gap-1">
+            <div className="shrink-0">
+              <PriceDisplay
+                actualPrice={product.actual_price}
+                specialPrice={product.special_price}
+                size="sm"
+                showDiscountBadge={false}
+              />
+            </div>
+            <span
+              className={`flex shrink-0 items-center gap-0.5 text-[11px] font-medium whitespace-nowrap ${stock.text}`}
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stock.dot}`} aria-hidden="true" />
               {stock.label}
             </span>
           </div>
