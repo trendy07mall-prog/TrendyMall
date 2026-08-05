@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
@@ -15,7 +16,7 @@ import { useToast } from "@/components/admin/ToastProvider";
 import { useRouter } from "next/navigation";
 import { Pagination } from "@/components/product/Pagination";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
-import type { AdminOrderRow } from "@/lib/admin/orders-query";
+import type { AdminOrderItemRow, AdminOrderRow } from "@/lib/admin/orders-query";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
 
 function formatDateTime(iso: string): string {
@@ -108,9 +109,17 @@ export function OrdersTable({
 
   return (
     <div>
-      <p className="text-sm text-[var(--muted)]">
-        Showing {rangeStart}–{rangeEnd} of {totalCount} order{totalCount === 1 ? "" : "s"}
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-[var(--muted)]">
+          Showing {rangeStart}–{rangeEnd} of {totalCount} order{totalCount === 1 ? "" : "s"}
+        </p>
+        {orders.length > 0 && (
+          <label className="flex items-center gap-2 text-sm text-[var(--muted)]">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+            Select all on this page
+          </label>
+        )}
+      </div>
 
       <div className="mt-4 flex flex-col gap-3">
         {orders.map((order) => (
@@ -128,13 +137,6 @@ export function OrdersTable({
           </p>
         )}
       </div>
-
-      {orders.length > 0 && (
-        <label className="mt-3 flex items-center gap-2 text-sm text-[var(--muted)]">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
-          Select all on this page
-        </label>
-      )}
 
       <div className="mt-6">
         <Pagination
@@ -167,6 +169,10 @@ function OrderRow({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const hiddenCount = order.items.length - 1;
+  const visibleItems = order.items.length <= 1 || expanded ? order.items : order.items.slice(0, 1);
+
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -199,8 +205,77 @@ function OrderRow({
         </div>
       </div>
 
+      {order.items.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-[var(--border)] pt-3">
+          {visibleItems.map((item) => (
+            <OrderItemLine key={item.id} item={item} />
+          ))}
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="self-start text-xs font-medium text-[var(--muted)] underline"
+            >
+              {expanded ? "Show less" : `+${hiddenCount} more item${hiddenCount === 1 ? "" : "s"}`}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mt-3 border-t border-[var(--border)] pt-3">
         <TabBody order={order} tab={tab} />
+      </div>
+    </div>
+  );
+}
+
+// Pulled entirely from the order_items snapshot (name/image/price/variant
+// color+attributes as they were at purchase time) — never a live join to
+// the current product, since it may have since changed price or been
+// discontinued. SKU is the one exception (see AdminOrderItemRow's comment
+// in orders-query.ts): order_items has no sku column, so it's resolved via
+// a live products/product_variants lookup, which is safe in practice since
+// a SKU essentially never changes after a product is created.
+function OrderItemLine({ item }: { item: AdminOrderItemRow }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-black/5">
+        {item.imageUrl ? (
+          <Image src={item.imageUrl} alt="" fill sizes="44px" className="object-cover" />
+        ) : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{item.productName}</p>
+        {(item.variantName || item.variantColorHex || (item.attributeSelections?.length ?? 0) > 0) && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--muted)]">
+            {item.variantColorHex && (
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full border border-[var(--border)]"
+                style={{ backgroundColor: item.variantColorHex }}
+                aria-hidden="true"
+              />
+            )}
+            {item.variantName && <span>{item.variantName}</span>}
+            {item.attributeSelections?.map((sel) => (
+              <span key={sel.attributeName}>
+                {sel.attributeName}: {sel.value}
+              </span>
+            ))}
+          </div>
+        )}
+        <p
+          className="mt-0.5 truncate font-mono text-[11px] text-[var(--muted)]"
+          title={`ID: ${item.productId ?? "—"}${item.sku ? ` · SKU: ${item.sku}` : ""}`}
+        >
+          ID: {item.productId ?? "—"}
+          {item.sku && <> · SKU: {item.sku}</>}
+        </p>
+      </div>
+      <div className="shrink-0 text-right text-sm whitespace-nowrap">
+        <p>
+          {item.quantity} × {formatPrice(item.unitPrice)}
+        </p>
+        <p className="text-[var(--muted)]">{formatPrice(item.subtotal)}</p>
       </div>
     </div>
   );

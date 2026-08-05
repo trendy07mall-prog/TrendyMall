@@ -1,9 +1,29 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AdminOrderFilterState } from "@/lib/admin/order-filters";
 import { ADMIN_ORDER_TAB_STATUSES, type AdminOrderTab } from "@/lib/admin/orderStatusFlow";
-import type { OrderFulfillmentStatus, PaymentStatus } from "@/types";
+import type { AttributeSelection, OrderFulfillmentStatus, PaymentStatus } from "@/types";
 
 export const ADMIN_ORDERS_PAGE_SIZE = 20;
+
+export interface AdminOrderItemRow {
+  id: string;
+  productId: string | null;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  imageUrl: string | null;
+  variantName: string | null;
+  variantColorHex: string | null;
+  attributeSelections: AttributeSelection[] | null;
+  // Not part of the order_items snapshot (no sku column exists there) —
+  // a live lookup via product_id/variant_id against products.sku /
+  // product_variants.sku. Unlike price/stock, a SKU essentially never
+  // changes after a product is created, so this is a deliberate, scoped
+  // exception to the "never live-join order history" rule; if the
+  // product/variant was since deleted this is simply null.
+  sku: string | null;
+}
 
 export interface AdminOrderRow {
   id: string;
@@ -25,6 +45,7 @@ export interface AdminOrderRow {
   deliveredAt: string | null;
   cancelReason: string | null;
   cancelledByName: string | null;
+  items: AdminOrderItemRow[];
 }
 
 export interface AdminOrdersPage {
@@ -102,7 +123,12 @@ export async function getAdminOrders(
     deliveredAt: null,
     cancelReason: null,
     cancelledByName: null,
+    items: [],
   }));
+
+  if (orders.length > 0) {
+    await attachOrderItems(supabase, orders);
+  }
 
   // Per-tab timestamp/reason enrichment from order_status_history — the
   // correct source for "when did this order first reach status X"
@@ -161,6 +187,78 @@ export async function getAdminOrders(
   }
 
   return { orders, totalCount: count ?? 0 };
+}
+
+// One batched order_items fetch for every order on the page (not N+1),
+// then one batched products.sku + one batched product_variants.sku
+// lookup for the distinct product/variant ids referenced — SKU is the
+// only field here that isn't already part of the order_items snapshot.
+async function attachOrderItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orders: AdminOrderRow[],
+): Promise<void> {
+  const { data: itemRows } = await supabase
+    .from("order_items")
+    .select(
+      "id, order_id, product_id, product_name, unit_price, quantity, subtotal, product_image_url, " +
+        "variant_id, variant_name, variant_color_hex, attribute_selections",
+    )
+    .in(
+      "order_id",
+      orders.map((o) => o.id),
+    )
+    .order("created_at", { ascending: true });
+
+  // The concatenated (non-literal) select string above defeats Supabase's
+  // column-based return-type inference, same as ORDER_ROW_SELECT — cast
+  // row-by-row rather than fighting the generic builder types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (itemRows ?? []) as any[];
+  const productIds = [...new Set(rows.map((r) => r.product_id).filter((id): id is string => !!id))];
+  const variantIds = [...new Set(rows.map((r) => r.variant_id).filter((id): id is string => !!id))];
+
+  const [{ data: products }, { data: variants }] = await Promise.all([
+    productIds.length > 0
+      ? supabase.from("products").select("id, sku").in("id", productIds)
+      : Promise.resolve({ data: [] as { id: string; sku: string | null }[] }),
+    variantIds.length > 0
+      ? supabase.from("product_variants").select("id, sku").in("id", variantIds)
+      : Promise.resolve({ data: [] as { id: string; sku: string | null }[] }),
+  ]);
+
+  const productSkuById = new Map((products ?? []).map((p) => [p.id, p.sku] as const));
+  const variantSkuById = new Map((variants ?? []).map((v) => [v.id, v.sku] as const));
+
+  const itemsByOrderId = new Map<string, AdminOrderItemRow[]>();
+  for (const row of rows) {
+    const sku = row.variant_id
+      ? (variantSkuById.get(row.variant_id) ?? null)
+      : row.product_id
+        ? (productSkuById.get(row.product_id) ?? null)
+        : null;
+
+    const item: AdminOrderItemRow = {
+      id: row.id,
+      productId: row.product_id,
+      productName: row.product_name,
+      unitPrice: row.unit_price,
+      quantity: row.quantity,
+      subtotal: row.subtotal,
+      imageUrl: row.product_image_url,
+      variantName: row.variant_name,
+      variantColorHex: row.variant_color_hex,
+      attributeSelections: row.attribute_selections as AttributeSelection[] | null,
+      sku,
+    };
+
+    const existing = itemsByOrderId.get(row.order_id);
+    if (existing) existing.push(item);
+    else itemsByOrderId.set(row.order_id, [item]);
+  }
+
+  for (const order of orders) {
+    order.items = itemsByOrderId.get(order.id) ?? [];
+  }
 }
 
 async function attachFirstReachedTimestamp(

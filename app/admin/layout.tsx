@@ -27,7 +27,7 @@ export default async function AdminLayout({
     <ToastProvider>
       <div className="flex min-h-full flex-1 flex-col lg:flex-row">
         <AdminSidebar />
-        <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-8">
+        <div className="mx-auto w-full min-w-0 max-w-[var(--container-width)] flex-1 px-6 py-8">
           {children}
         </div>
       </div>
