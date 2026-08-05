@@ -4,13 +4,19 @@ import type { Attribute, AttributeValue } from "@/types";
 
 export function AttributesField({
   attributesWithValues,
-  defaultValueIds,
+  value,
+  onChange,
 }: {
   attributesWithValues: { attribute: Attribute; values: AttributeValue[] }[];
-  defaultValueIds: string[];
+  value: string[];
+  onChange: (next: string[]) => void;
 }) {
   const groupsWithValues = attributesWithValues.filter((g) => g.values.length > 0);
   if (groupsWithValues.length === 0) return null;
+
+  function toggle(valueId: string, checked: boolean) {
+    onChange(checked ? [...value, valueId] : value.filter((id) => id !== valueId));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -21,22 +27,23 @@ export function AttributesField({
             {attribute.name}
           </span>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {values.map((value) => (
-              <label key={value.id} className="flex items-center gap-2 text-sm">
+            {values.map((v) => (
+              <label key={v.id} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   name="attributeValueIds"
-                  value={value.id}
-                  defaultChecked={defaultValueIds.includes(value.id)}
+                  value={v.id}
+                  checked={value.includes(v.id)}
+                  onChange={(e) => toggle(v.id, e.target.checked)}
                 />
-                {value.color_hex && (
+                {v.color_hex && (
                   <span
                     className="inline-block h-3 w-3 rounded-full border border-[var(--border)]"
-                    style={{ backgroundColor: value.color_hex }}
+                    style={{ backgroundColor: v.color_hex }}
                     aria-hidden="true"
                   />
                 )}
-                {value.value}
+                {v.value}
               </label>
             ))}
           </div>

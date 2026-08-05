@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import type { Attribute, AttributeValue } from "@/types";
 
 const MAX_VARIANT_IMAGES = 4;
 
@@ -20,6 +21,11 @@ export interface VariantDraft {
   // Up to 4, first = primary (shown on the swatch/card). Capped again
   // server-side in lib/admin/products.ts -- never trust the client alone.
   imageUrls: string[];
+  // Which non-color attribute value this variant represents, one per
+  // attribute the product has assigned (e.g. a specific Mah capacity).
+  // Left unset for an attribute = this variant doesn't distinguish on it,
+  // matching today's behavior for every product that hasn't opted in.
+  attributeValueIds: string[];
 }
 
 const inputClass =
@@ -28,9 +34,13 @@ const inputClass =
 export function VariantsEditor({
   value,
   onChange,
+  variantAttributes,
 }: {
   value: VariantDraft[];
   onChange: (next: VariantDraft[]) => void;
+  // Non-color attributes currently checked in AttributesField, grouped --
+  // one optional single-select picker is rendered per group, per variant.
+  variantAttributes: { attribute: Attribute; values: AttributeValue[] }[];
 }) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
 
@@ -41,8 +51,19 @@ export function VariantsEditor({
   function addRow() {
     onChange([
       ...value,
-      { colorName: "", colorHex: "#000000", stock: "", price: "", sku: "", imageUrls: [] },
+      { colorName: "", colorHex: "#000000", stock: "", price: "", sku: "", imageUrls: [], attributeValueIds: [] },
     ]);
+  }
+
+  // A variant links at most one value per attribute -- picking a new value
+  // for an attribute replaces whatever this variant previously had for it.
+  function setAttributeValue(rowIndex: number, attribute: Attribute, valueId: string) {
+    const group = variantAttributes.find((g) => g.attribute.id === attribute.id);
+    const groupValueIds = new Set((group?.values ?? []).map((v) => v.id));
+    const kept = value[rowIndex].attributeValueIds.filter((id) => !groupValueIds.has(id));
+    updateRow(rowIndex, {
+      attributeValueIds: valueId ? [...kept, valueId] : kept,
+    });
   }
 
   function removeRow(index: number) {
@@ -155,6 +176,31 @@ export function VariantsEditor({
               className={inputClass}
             />
           </div>
+
+          {variantAttributes.length > 0 && (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {variantAttributes.map(({ attribute, values }) => {
+                const selected = values.find((v) => row.attributeValueIds.includes(v.id));
+                return (
+                  <label key={attribute.id} className="flex flex-col gap-1 text-xs">
+                    <span className="text-[var(--muted)]">{attribute.name}</span>
+                    <select
+                      value={selected?.id ?? ""}
+                      onChange={(e) => setAttributeValue(index, attribute, e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">— not distinguished —</option>
+                      {values.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-[var(--muted)]">

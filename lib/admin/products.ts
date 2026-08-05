@@ -41,6 +41,7 @@ interface VariantInput {
   price: string;
   sku: string;
   imageUrls: string[];
+  attributeValueIds: string[];
 }
 
 function parseJsonArray<T>(raw: FormDataEntryValue | null): T[] {
@@ -233,6 +234,26 @@ async function replaceVariantImages(
   if (error) throw new Error(error.message);
 }
 
+// Which non-color attribute values (e.g. a specific Mah capacity) this
+// variant represents, for real combination-based matching on the PDP.
+// Delete-then-reinsert -- pure tags, no external reference needing
+// stable identity.
+async function replaceVariantAttributeValues(
+  supabase: AdminSupabaseClient,
+  variantId: string,
+  attributeValueIds: string[],
+) {
+  await supabase.from("product_variant_attribute_values").delete().eq("variant_id", variantId);
+  if (attributeValueIds.length === 0) return;
+
+  const rows = attributeValueIds.map((attribute_value_id) => ({
+    variant_id: variantId,
+    attribute_value_id,
+  }));
+  const { error } = await supabase.from("product_variant_attribute_values").insert(rows);
+  if (error) throw new Error(error.message);
+}
+
 // Stable-identity sync, not delete-then-reinsert: a variant's id has to
 // survive an unrelated product edit (a price tweak, a description fix)
 // now that cart_items/order_items can reference it. Deleting and
@@ -296,6 +317,7 @@ async function syncProductVariants(
       const { error } = await supabase.from("product_variants").update(row).eq("id", v.id!);
       if (error) throw new Error(error.message);
       await replaceVariantImages(supabase, v.id!, imageUrls);
+      await replaceVariantAttributeValues(supabase, v.id!, v.attributeValueIds ?? []);
     } else if (toInsert.includes(v)) {
       const { data: inserted, error } = await supabase
         .from("product_variants")
@@ -304,6 +326,7 @@ async function syncProductVariants(
         .single();
       if (error) throw new Error(error.message);
       await replaceVariantImages(supabase, inserted.id, imageUrls);
+      await replaceVariantAttributeValues(supabase, inserted.id, v.attributeValueIds ?? []);
     }
   }
 }

@@ -1,49 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { ProductGallery } from "@/components/product/ProductGallery";
-import { VariantSwatches } from "@/components/product/VariantSwatches";
+import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 
+// Purely presentational now -- color selection state and the full
+// combination lookup (which variant is actually active) both live in
+// ProductPurchaseSection, since price/stock/attribute-disabling all need
+// the same resolved variant this gallery displays.
 export function ProductGalleryWithVariants({
   images,
-  variants,
+  colorOptions,
+  selectedColorKey,
+  onColorSelect,
+  resolvedVariant,
   name,
-  onVariantChange,
 }: {
   images: string[];
-  variants: ProductVariantWithImages[];
+  colorOptions: ColorSwatchOption[];
+  selectedColorKey: string | null;
+  onColorSelect: (key: string) => void;
+  resolvedVariant: ProductVariantWithImages | null;
   name: string;
-  onVariantChange?: (variant: ProductVariantWithImages | null) => void;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const selectedVariant = variants.find((v) => v.id === selectedId) ?? null;
-
-  // A selected variant swaps the WHOLE gallery to its own image set (up to
-  // 4, product_variant_images) -- falls back to the base product's images
-  // if this variant has none of its own.
-  const displayImages = useMemo(() => {
-    if (selectedVariant && selectedVariant.images.length > 0) {
-      return selectedVariant.images;
-    }
-    return images;
-  }, [images, selectedVariant]);
+  // The resolved variant swaps the WHOLE gallery to its own image set (up
+  // to 4, product_variant_images) -- falls back to the base product's
+  // images if it has none of its own. Two variants can share a color but
+  // differ on another attribute (e.g. capacity) with different images, so
+  // this follows the resolved variant, not just the color selection.
+  const displayImages =
+    resolvedVariant && resolvedVariant.images.length > 0 ? resolvedVariant.images : images;
 
   return (
     <div>
       {/* key forces a remount (resetting the gallery's internal "active"
-          thumbnail index) whenever the selected variant changes, instead of
+          thumbnail index) whenever the resolved variant changes, instead of
           syncing that reset via an effect. */}
-      <ProductGallery key={selectedId ?? "base"} images={displayImages} name={name} />
-      <VariantSwatches
-        variants={variants}
-        selectedId={selectedId}
-        onSelect={(variant) => {
-          setSelectedId(variant.id);
-          onVariantChange?.(variant);
-        }}
-      />
+      <ProductGallery key={resolvedVariant?.id ?? "base"} images={displayImages} name={name} />
+      <VariantSwatches options={colorOptions} selectedKey={selectedColorKey} onSelect={onColorSelect} />
     </div>
   );
 }

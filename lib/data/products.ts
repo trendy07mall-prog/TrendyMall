@@ -564,8 +564,13 @@ export async function getAllProductSlugs(): Promise<string[]> {
 
 // A color variant enriched with its own image set (up to 4, product_variant_images
 // ordered by sort_order) -- falls back to the legacy single variant_image_url
-// when a variant hasn't been re-saved since the multi-image migration.
-export type ProductVariantWithImages = ProductVariant & { images: string[] };
+// when a variant hasn't been re-saved since the multi-image migration -- and
+// the set of non-color attribute values it represents (e.g. a specific Mah
+// capacity), empty for a variant that's still color-only.
+export type ProductVariantWithImages = ProductVariant & {
+  images: string[];
+  attributeValueIds: string[];
+};
 
 export interface ProductDetail {
   product: Product;
@@ -628,9 +633,26 @@ export const getProductDetailBySlug = cache(
       imagesByVariantId.set(row.variant_id, list);
     }
 
+    const { data: variantAttributeValues, error: variantAttributeValuesError } =
+      variantIds.length > 0
+        ? await supabase
+            .from("product_variant_attribute_values")
+            .select("variant_id, attribute_value_id")
+            .in("variant_id", variantIds)
+        : { data: [] as { variant_id: string; attribute_value_id: string }[], error: null };
+    if (variantAttributeValuesError) throw variantAttributeValuesError;
+
+    const attributeValueIdsByVariantId = new Map<string, string[]>();
+    for (const row of variantAttributeValues ?? []) {
+      const list = attributeValueIdsByVariantId.get(row.variant_id) ?? [];
+      list.push(row.attribute_value_id);
+      attributeValueIdsByVariantId.set(row.variant_id, list);
+    }
+
     const variantsWithImages: ProductVariantWithImages[] = (variants ?? []).map((v) => ({
       ...v,
       images: imagesByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
+      attributeValueIds: attributeValueIdsByVariantId.get(v.id) ?? [],
     }));
 
     return { product, images: images ?? [], variants: variantsWithImages, attributes };

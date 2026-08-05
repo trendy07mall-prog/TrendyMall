@@ -15,10 +15,15 @@ import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { getEffectiveVariantPrice } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
+import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
+
+function normalizeColor(name: string): string {
+  return name.trim().toLowerCase();
+}
 
 export function ProductPurchaseSection({
   product,
@@ -43,39 +48,166 @@ export function ProductPurchaseSection({
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
   tags: { name: string; slug: string }[];
 }) {
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariantWithImages | null>(null);
-  const [selectedAttributeValues, setSelectedAttributeValues] = useState<Record<string, AttributeValue>>({});
+  // Color options are every distinct color across this product's variants
+  // (deduped -- two variants can share a color, e.g. the same white in two
+  // capacities, and must render as ONE swatch, not two identical ones).
+  const colorOptions: { key: string; name: string; hex: string }[] = [];
+  const seenColorKeys = new Set<string>();
+  for (const v of variants) {
+    const key = normalizeColor(v.color_name);
+    if (!seenColorKeys.has(key)) {
+      seenColorKeys.add(key);
+      colorOptions.push({ key, name: v.color_name, hex: v.color_hex });
+    }
+  }
+
+  // An attribute only participates in variant matching if at least one of
+  // this product's variants is actually linked to one of its values --
+  // every other attribute (the common case, every product untouched by
+  // this feature) stays exactly what it's always been: a required
+  // reference-only choice with zero effect on price/stock/SKU.
+  const variantDefiningAttributeIds = new Set(
+    attributes
+      .filter((group) => {
+        const groupValueIds = new Set(group.values.map((v) => v.id));
+        return variants.some((v) => v.attributeValueIds.some((id) => groupValueIds.has(id)));
+      })
+      .map((group) => group.attribute.id),
+  );
+
+  function valueIdForGroup(variant: ProductVariantWithImages, groupValueIds: Set<string>): string | undefined {
+    return variant.attributeValueIds.find((id) => groupValueIds.has(id));
+  }
+
+  // Finds every variant matching the given dimensions -- color and/or
+  // variant-defining attribute value ids. A dimension left `undefined`
+  // (not yet decided) doesn't constrain the search at all; this is what
+  // lets the same function answer both "what's the ONE active variant for
+  // my full current selection" and "does ANY variant exist if I changed
+  // just this one dimension."
+  function findMatchingVariants(dimensions: {
+    color?: string;
+    [attributeId: string]: string | undefined;
+  }): ProductVariantWithImages[] {
+    return variants.filter((v) => {
+      if (colorOptions.length > 0 && dimensions.color !== undefined) {
+        if (normalizeColor(v.color_name) !== dimensions.color) return false;
+      }
+      for (const group of attributes) {
+        if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+        const selected = dimensions[group.attribute.id];
+        if (selected === undefined) continue;
+        const groupValueIds = new Set(group.values.map((x) => x.id));
+        if (valueIdForGroup(v, groupValueIds) !== selected) return false;
+      }
+      return true;
+    });
+  }
+
+  function defaultDimensions(): {
+    colorKey: string | null;
+    attributeValues: Record<string, AttributeValue>;
+  } {
+    if (variants.length === 0) return { colorKey: null, attributeValues: {} };
+    // First in stock, in admin sort_order; falls back to the first overall
+    // if nothing has stock -- same "sort_order is authoritative" rule used
+    // everywhere else in this catalog.
+    const defaultVariant = variants.find((v) => v.stock !== 0) ?? variants[0];
+    const attributeValues: Record<string, AttributeValue> = {};
+    for (const group of attributes) {
+      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+      const groupValueIds = new Set(group.values.map((v) => v.id));
+      const matchedId = valueIdForGroup(defaultVariant, groupValueIds);
+      const matchedValue = group.values.find((v) => v.id === matchedId);
+      if (matchedValue) attributeValues[group.attribute.id] = matchedValue;
+    }
+    return { colorKey: normalizeColor(defaultVariant.color_name), attributeValues };
+  }
+
+  const [selectedColorKey, setSelectedColorKey] = useState<string | null>(
+    () => defaultDimensions().colorKey,
+  );
+  const [selectedAttributeValues, setSelectedAttributeValues] = useState<
+    Record<string, AttributeValue>
+  >(() => defaultDimensions().attributeValues);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  const effectiveStock =
-    selectedVariant?.stock != null ? selectedVariant.stock : product.stock;
-  const outOfStock = effectiveStock <= 0;
-  const primaryImage = selectedVariant?.images[0] ?? images[0] ?? null;
+  const dimensions: { color?: string; [attributeId: string]: string | undefined } = {
+    color: selectedColorKey ?? undefined,
+  };
+  for (const [attributeId, value] of Object.entries(selectedAttributeValues)) {
+    dimensions[attributeId] = value.id;
+  }
+  // The one variant matching the FULL current selection -- every other
+  // piece of derived state (price, stock, SKU, gallery, cart payload)
+  // reads off this, so nothing can ever go stale or fall back silently to
+  // the wrong variant.
+  const resolvedVariant = variants.length > 0 ? (findMatchingVariants(dimensions)[0] ?? null) : null;
 
-  function handleVariantChange(variant: ProductVariantWithImages | null) {
-    setSelectedVariant(variant);
+  const effectiveStock =
+    resolvedVariant?.stock != null ? resolvedVariant.stock : product.stock;
+  const outOfStock = effectiveStock <= 0;
+  const primaryImage = resolvedVariant?.images[0] ?? images[0] ?? null;
+
+  // Clamps quantity to whatever the NEXT selection's resolved variant can
+  // actually fulfill -- computed synchronously against the current
+  // dimensions plus this one change, since the underlying state update
+  // (and therefore resolvedVariant) hasn't landed yet at the point this
+  // runs. Covers both a color change and an attribute change identically.
+  function clampQuantityFor(nextDimensions: { color?: string; [attributeId: string]: string | undefined }) {
+    const nextVariant = findMatchingVariants(nextDimensions)[0] ?? null;
+    const nextStock = nextVariant?.stock != null ? nextVariant.stock : product.stock;
+    setQuantity((q) => Math.max(1, Math.min(q, Math.max(1, nextStock))));
+  }
+
+  function handleColorSelect(key: string) {
+    setSelectedColorKey(key);
     setSelectionError(null);
-    const nextStock = variant?.stock != null ? variant.stock : product.stock;
-    setQuantity((q) => Math.min(q, Math.max(1, nextStock)));
+    clampQuantityFor({ ...dimensions, color: key });
   }
 
   function handleAttributeSelect(attributeId: string, value: AttributeValue) {
     setSelectedAttributeValues((prev) => ({ ...prev, [attributeId]: value }));
     setSelectionError(null);
+    clampQuantityFor({ ...dimensions, [attributeId]: value.id });
   }
 
-  // A color must be picked whenever the product has any, and every
-  // attribute group returned for this product (e.g. "Mah") is required
-  // too -- returns a human-readable reason, or null if everything needed
-  // is selected.
+  // Existence check for one candidate value on one dimension, combined
+  // with whatever's currently selected on every OTHER dimension -- true
+  // impossibility (no such variant) and "exists but sold out" both read
+  // as disabled/struck-through, matching how out-of-stock swatches have
+  // always been shown here.
+  function isColorDisabled(key: string): boolean {
+    const matches = findMatchingVariants({ ...dimensions, color: key });
+    return matches.length === 0 || matches.every((v) => v.stock === 0);
+  }
+
+  function isAttributeValueDisabled(attributeId: string, valueId: string): boolean {
+    const matches = findMatchingVariants({ ...dimensions, [attributeId]: valueId });
+    return matches.length === 0 || matches.every((v) => v.stock === 0);
+  }
+
+  const colorSwatchOptions: ColorSwatchOption[] = colorOptions.map((option) => ({
+    ...option,
+    disabled: isColorDisabled(option.key),
+  }));
+
+  // A color must be picked whenever the product has any, every attribute
+  // group returned for this product is required (variant-defining or not
+  // -- non-defining ones stay a plain required reference choice, exactly
+  // as before), and if somehow the full selection still resolves to no
+  // real variant, block rather than silently fall back to a wrong price.
   function validateSelections(): string | null {
-    if (variants.length > 0 && !selectedVariant) {
+    if (colorOptions.length > 0 && !selectedColorKey) {
       return "Please select a color before adding to cart.";
     }
     const missing = attributes.find((group) => !selectedAttributeValues[group.attribute.id]);
     if (missing) {
       return `Please select a ${missing.attribute.name} before adding to cart.`;
+    }
+    if (variants.length > 0 && !resolvedVariant) {
+      return "This combination is unavailable.";
     }
     return null;
   }
@@ -97,9 +229,11 @@ export function ProductPurchaseSection({
     <div className="mt-6 grid gap-10 sm:grid-cols-2">
       <ProductGalleryWithVariants
         images={images}
-        variants={variants}
+        colorOptions={colorSwatchOptions}
+        selectedColorKey={selectedColorKey}
+        onColorSelect={handleColorSelect}
+        resolvedVariant={resolvedVariant}
         name={product.name}
-        onVariantChange={handleVariantChange}
       />
 
       <div>
@@ -119,8 +253,8 @@ export function ProductPurchaseSection({
           {product.name}
         </h1>
         <div className="mt-2">
-          {selectedVariant?.price != null ? (
-            <PriceDisplay actualPrice={selectedVariant.price} specialPrice={null} />
+          {resolvedVariant?.price != null ? (
+            <PriceDisplay actualPrice={resolvedVariant.price} specialPrice={null} />
           ) : (
             <PriceDisplay
               actualPrice={product.actual_price}
@@ -144,6 +278,15 @@ export function ProductPurchaseSection({
             values={group.values}
             selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
             onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
+            disabledIds={
+              variantDefiningAttributeIds.has(group.attribute.id)
+                ? new Set(
+                    group.values
+                      .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
+                      .map((v) => v.id),
+                  )
+                : undefined
+            }
           />
         ))}
 
@@ -183,7 +326,7 @@ export function ProductPurchaseSection({
 
           <AddToCartForm
             product={product}
-            variant={selectedVariant}
+            variant={resolvedVariant}
             attributeSelections={attributeSelections}
             image={primaryImage}
             quantity={quantity}
@@ -194,7 +337,7 @@ export function ProductPurchaseSection({
           <div className="flex flex-wrap items-center gap-3">
             <BuyNowButton
               product={product}
-              variant={selectedVariant}
+              variant={resolvedVariant}
               attributeSelections={attributeSelections}
               image={primaryImage}
               quantity={quantity}
@@ -205,9 +348,9 @@ export function ProductPurchaseSection({
             {!outOfStock && (
               <WhatsAppOrderButton
                 productName={product.name}
-                colorName={selectedVariant?.color_name ?? null}
+                colorName={resolvedVariant?.color_name ?? null}
                 quantity={quantity}
-                price={getEffectiveVariantPrice(product, selectedVariant)}
+                price={getEffectiveVariantPrice(product, resolvedVariant)}
               />
             )}
           </div>

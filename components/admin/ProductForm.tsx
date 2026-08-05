@@ -65,7 +65,7 @@ export function ProductForm({
   attributesWithValues: { attribute: Attribute; values: AttributeValue[] }[];
   product?: Product;
   images?: ProductImage[];
-  variants?: (ProductVariant & { imageUrls: string[] })[];
+  variants?: (ProductVariant & { imageUrls: string[]; attributeValueIds: string[] })[];
   defaultTagIds?: string[];
   defaultSpecValues?: Record<string, string>;
   defaultAttributeValueIds?: string[];
@@ -93,8 +93,20 @@ export function ProductForm({
       price: v.price?.toString() ?? "",
       sku: v.sku ?? "",
       imageUrls: v.imageUrls,
+      attributeValueIds: v.attributeValueIds,
     })),
   );
+  const [attributeValueIds, setAttributeValueIds] = useState<string[]>(defaultAttributeValueIds);
+
+  // Only non-color attributes can define a variant combination -- Color
+  // stays sourced from the variant rows themselves (see VariantsEditor).
+  const checkedNonColorAttributes = attributesWithValues
+    .filter((g) => g.attribute.slug !== "color")
+    .map((g) => ({
+      attribute: g.attribute,
+      values: g.values.filter((v) => attributeValueIds.includes(v.id)),
+    }))
+    .filter((g) => g.values.length > 0);
 
   return (
     <form action={formAction} className="mt-8 flex flex-col gap-6">
@@ -221,9 +233,17 @@ export function ProductForm({
 
       <TagsField tags={tags} defaultTagIds={defaultTagIds} />
 
-      <AttributesField attributesWithValues={attributesWithValues} defaultValueIds={defaultAttributeValueIds} />
+      <AttributesField
+        attributesWithValues={attributesWithValues}
+        value={attributeValueIds}
+        onChange={setAttributeValueIds}
+      />
 
-      <VariantsEditor value={variantDrafts} onChange={setVariantDrafts} />
+      <VariantsEditor
+        value={variantDrafts}
+        onChange={setVariantDrafts}
+        variantAttributes={checkedNonColorAttributes}
+      />
 
       <RichTextEditor value={description} onChange={setDescription} />
 

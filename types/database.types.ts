@@ -742,6 +742,39 @@ export interface Database {
           },
         ];
       };
+      product_variant_attribute_values: {
+        Row: {
+          variant_id: string;
+          attribute_value_id: string;
+          created_at: string;
+        };
+        Insert: {
+          variant_id: string;
+          attribute_value_id: string;
+          created_at?: string;
+        };
+        Update: {
+          variant_id?: string;
+          attribute_value_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variant_attribute_values_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_variant_attribute_values_attribute_value_id_fkey";
+            columns: ["attribute_value_id"];
+            isOneToOne: false;
+            referencedRelation: "attribute_values";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_slug_redirects: {
         Row: {
           old_slug: string;

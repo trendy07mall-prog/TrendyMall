@@ -48,14 +48,21 @@ export default async function EditProductPage({
     ]);
 
   const variantIds = (variantRows ?? []).map((v) => v.id);
-  const { data: variantImageRows } =
+  const [{ data: variantImageRows }, { data: variantAttributeRows }] = await Promise.all([
     variantIds.length > 0
-      ? await supabase
+      ? supabase
           .from("product_variant_images")
           .select("variant_id, image_url, sort_order")
           .in("variant_id", variantIds)
           .order("sort_order", { ascending: true })
-      : { data: [] as { variant_id: string; image_url: string }[] };
+      : Promise.resolve({ data: [] as { variant_id: string; image_url: string }[] }),
+    variantIds.length > 0
+      ? supabase
+          .from("product_variant_attribute_values")
+          .select("variant_id, attribute_value_id")
+          .in("variant_id", variantIds)
+      : Promise.resolve({ data: [] as { variant_id: string; attribute_value_id: string }[] }),
+  ]);
 
   const imageUrlsByVariantId = new Map<string, string[]>();
   for (const row of variantImageRows ?? []) {
@@ -63,9 +70,16 @@ export default async function EditProductPage({
     list.push(row.image_url);
     imageUrlsByVariantId.set(row.variant_id, list);
   }
+  const attributeValueIdsByVariantId = new Map<string, string[]>();
+  for (const row of variantAttributeRows ?? []) {
+    const list = attributeValueIdsByVariantId.get(row.variant_id) ?? [];
+    list.push(row.attribute_value_id);
+    attributeValueIdsByVariantId.set(row.variant_id, list);
+  }
   const variants = (variantRows ?? []).map((v) => ({
     ...v,
     imageUrls: imageUrlsByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
+    attributeValueIds: attributeValueIdsByVariantId.get(v.id) ?? [],
   }));
 
   const boundUpdate = updateProduct.bind(null, product.id);
