@@ -9,11 +9,15 @@ import type { GuestOrderDetail, Order, OrderItem, ShippingAddress } from "@/type
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ orderId: string }> },
 ) {
   const { orderId } = await params;
   const supabase = await createClient();
+  // "Print Invoice" opens this same PDF inline (the browser's native PDF
+  // viewer supplies its own print button) instead of forcing a download —
+  // one route/one generator either way, just a different Content-Disposition.
+  const inline = new URL(request.url).searchParams.get("disposition") === "inline";
 
   // Regular authenticated client, not a service-role bypass — the
   // existing orders_select_own_or_admin RLS policy (auth.uid() = user_id
@@ -78,7 +82,7 @@ export async function GET(
   return new Response(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${invoiceOrder.order_number}.pdf"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="invoice-${invoiceOrder.order_number}.pdf"`,
     },
   });
 }

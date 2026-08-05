@@ -33,7 +33,7 @@ export function OrderSearchBar({
         type="text"
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Search by order number, name, phone…"
+        placeholder="Search by order number, name, phone, tracking number…"
         aria-label="Search orders"
         className="w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-[var(--foreground)] focus:ring-1 focus:ring-[var(--foreground)]"
       />

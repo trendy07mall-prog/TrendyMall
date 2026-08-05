@@ -83,6 +83,108 @@ export async function markOrderPaid(orderId: string): Promise<OrderActionResult>
   return { success: true };
 }
 
+// Ready to Ship → Mark as Shipped: one atomic update instead of separately
+// calling addOrderTracking then advanceOrderStatus, so a manipulated
+// client can't ship (advance past packing) without ever supplying
+// courier+tracking — the gate the packing→shipped step needs, per the
+// spec's "don't let staff ship without a tracking number" requirement.
+export async function markOrderShipped(
+  orderId: string,
+  input: { courier: string; trackingNumber: string; trackingUrl: string | null },
+): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const courier = input.courier.trim();
+  const trackingNumber = input.trackingNumber.trim();
+  if (!courier || !trackingNumber) {
+    return { error: "Courier and tracking number are required before shipping." };
+  }
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update({
+      courier,
+      tracking_number: trackingNumber,
+      tracking_url: input.trackingUrl?.trim() || null,
+      order_status: "shipped",
+    })
+    .eq("id", orderId)
+    .eq("order_status", "packing")
+    .select("order_number, customer_name, customer_email")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!order) return { error: "This order is not ready to ship." };
+
+  await sendOrderStatusEmail({
+    orderNumber: order.order_number,
+    customerName: order.customer_name,
+    customerEmail: order.customer_email,
+    label: ORDER_STATUS_LABELS.shipped,
+    detail: `Tracking added — ${courier}: ${trackingNumber}`,
+  });
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Out for Delivery → Delivered, with the COD cash-reconciliation prompt:
+// we've previously had orders showing Delivered + Payment Pending at the
+// same time, which is contradictory for Cash on Delivery. codCollected is
+// only meaningful (and required) when the order is COD and not yet paid;
+// for every other case this behaves exactly like advanceOrderStatus.
+export async function markOrderDelivered(
+  orderId: string,
+  input?: { codCollected?: boolean },
+): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("order_status, payment_method, payment_status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (!current) return { error: "Order not found." };
+  if (current.order_status !== "out_for_delivery") {
+    return { error: "This order is not out for delivery." };
+  }
+
+  const isUnpaidCod = current.payment_method === "cod" && current.payment_status !== "paid";
+
+  const updates: { order_status: OrderFulfillmentStatus; payment_status?: PaymentStatus } = {
+    order_status: "delivered",
+  };
+  if (isUnpaidCod) {
+    // 'failed' (not 'pending') marks this as an exception the staff have
+    // already looked at and confirmed collection didn't happen — distinct
+    // from a plain not-yet-attempted pending state. Surfaced via the
+    // Delivered tab's Payment Status column rather than a new column.
+    updates.payment_status = input?.codCollected ? "paid" : "failed";
+  }
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update(updates)
+    .eq("id", orderId)
+    .eq("order_status", "out_for_delivery")
+    .select("order_number, customer_name, customer_email")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!order) return { error: "This order's status changed — please refresh." };
+
+  await sendOrderStatusEmail({
+    orderNumber: order.order_number,
+    customerName: order.customer_name,
+    customerEmail: order.customer_email,
+    label: ORDER_STATUS_LABELS.delivered,
+  });
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
 export async function addOrderTracking(
   orderId: string,
   input: { courier: string; trackingNumber: string; trackingUrl: string | null },
@@ -403,4 +505,38 @@ export async function markOrderReturned(orderId: string): Promise<OrderActionRes
 
   revalidateOrderPaths(orderId);
   return { success: true };
+}
+
+export interface BulkOrderActionResult {
+  successCount: number;
+  errors: string[];
+}
+
+// Loops the existing single-order actions (confirmOrder/cancelOrder) one
+// id at a time rather than a raw batched .update().in() — those actions
+// carry business-rule checks (only-pending guard, stock restore via
+// cancel_order_atomic, the status-change email) that a raw batched update
+// would silently skip. Mirrors lib/admin/products-mutations.ts's
+// bulkDuplicate, the one existing bulk action in this codebase that also
+// needs per-row business logic rather than a single-shot field update.
+export async function bulkConfirmOrders(orderIds: string[]): Promise<BulkOrderActionResult> {
+  const errors: string[] = [];
+  let successCount = 0;
+  for (const id of orderIds) {
+    const result = await confirmOrder(id);
+    if ("error" in result) errors.push(result.error);
+    else successCount += 1;
+  }
+  return { successCount, errors };
+}
+
+export async function bulkCancelOrders(orderIds: string[]): Promise<BulkOrderActionResult> {
+  const errors: string[] = [];
+  let successCount = 0;
+  for (const id of orderIds) {
+    const result = await cancelOrder(id);
+    if ("error" in result) errors.push(result.error);
+    else successCount += 1;
+  }
+  return { successCount, errors };
 }

@@ -9,6 +9,7 @@ import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
 import { OrderActionPanel } from "@/components/admin/OrderActionPanel";
 import { AddTrackingForm } from "@/components/admin/AddTrackingForm";
 import { WhatsAppOrderLink } from "@/components/admin/WhatsAppOrderLink";
+import { OrderTimeline } from "@/components/order/OrderTimeline";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -26,10 +27,16 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
-  const [{ data: items }, { data: payment }, { data: address }] = await Promise.all([
+  const [{ data: items }, { data: payment }, { data: address }, { data: history }] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id),
     supabase.from("payments").select("*").eq("order_id", id).maybeSingle(),
     supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
+    supabase
+      .from("order_status_history")
+      .select("new_value, note, created_at")
+      .eq("order_id", id)
+      .eq("field", "order_status")
+      .order("created_at", { ascending: true }),
   ]);
 
   const deliveryLabel =
@@ -67,6 +74,21 @@ export default async function AdminOrderDetailPage({
       <p className="mt-2 text-sm text-[var(--muted)]">
         Placed {new Date(order.created_at).toLocaleString()}
       </p>
+
+      <div className="mt-6">
+        <OrderTimeline
+          status={order.order_status}
+          failureReason={order.delivery_failure_reason}
+          deliveryAttemptCount={order.delivery_attempt_count}
+          statusHistory={(history ?? []).map((entry) => ({
+            status: entry.new_value as typeof order.order_status,
+            changedAt: entry.created_at,
+            note: entry.note,
+          }))}
+          createdAt={order.created_at}
+          orderNumber={order.order_number}
+        />
+      </div>
 
       <div className="mt-6">
         <OrderActionPanel

@@ -7,17 +7,20 @@ import {
 } from "@/lib/admin/order-filters";
 import type {
   AdminOrderFilterState,
-  AdminOrderStatusFilter,
   AdminPaymentMethodFilter,
+  AdminPaymentStatusFilter,
 } from "@/lib/admin/order-filters";
-import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
-import type { OrderFulfillmentStatus } from "@/types";
+import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
+import type { PaymentStatus } from "@/types";
 
 const selectClass =
   "rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
-const ALL_ORDER_STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderFulfillmentStatus[];
+const ALL_PAYMENT_STATUSES = Object.keys(PAYMENT_STATUS_LABELS) as PaymentStatus[];
 
+// The order-status filter now lives in the tab strip (OrderStatusTabs) —
+// this bar is secondary refiners within whichever tab is active: payment
+// method/status, courier, and date range.
 export function OrderFilterBar({
   basePath,
   state,
@@ -38,20 +41,6 @@ export function OrderFilterBar({
     <div className="flex flex-wrap items-center gap-3">
       <select
         className={selectClass}
-        value={state.orderStatus}
-        onChange={(e) => apply({ orderStatus: e.target.value as AdminOrderStatusFilter })}
-        aria-label="Order status"
-      >
-        <option value="">All statuses</option>
-        {ALL_ORDER_STATUSES.map((s) => (
-          <option key={s} value={s}>
-            {ORDER_STATUS_LABELS[s]}
-          </option>
-        ))}
-      </select>
-
-      <select
-        className={selectClass}
         value={state.paymentMethod}
         onChange={(e) => apply({ paymentMethod: e.target.value as AdminPaymentMethodFilter })}
         aria-label="Payment method"
@@ -61,6 +50,29 @@ export function OrderFilterBar({
         <option value="bank_transfer">Bank Transfer</option>
         <option value="payhere">Card (PayHere)</option>
       </select>
+
+      <select
+        className={selectClass}
+        value={state.paymentStatus}
+        onChange={(e) => apply({ paymentStatus: e.target.value as AdminPaymentStatusFilter })}
+        aria-label="Payment status"
+      >
+        <option value="">All payment statuses</option>
+        {ALL_PAYMENT_STATUSES.map((s) => (
+          <option key={s} value={s}>
+            {PAYMENT_STATUS_LABELS[s]}
+          </option>
+        ))}
+      </select>
+
+      <input
+        type="text"
+        value={state.courier}
+        onChange={(e) => apply({ courier: e.target.value })}
+        placeholder="Courier"
+        aria-label="Courier"
+        className={selectClass}
+      />
 
       <label className="flex items-center gap-2 text-sm">
         From
@@ -84,7 +96,7 @@ export function OrderFilterBar({
       {activeCount > 0 && (
         <button
           type="button"
-          onClick={() => router.push(basePath)}
+          onClick={() => router.push(state.tab !== "all" ? `${basePath}?tab=${state.tab}` : basePath)}
           className="text-sm text-[var(--muted)] underline"
         >
           Clear filters
