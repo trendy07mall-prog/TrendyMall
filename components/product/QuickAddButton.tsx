@@ -29,6 +29,7 @@ export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }
         variantId: null,
         variantName: null,
         variantColorHex: null,
+        attributeSelections: [],
       });
       setStatus("added");
       setTimeout(() => setStatus("idle"), ADDED_MS);

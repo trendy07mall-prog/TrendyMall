@@ -65,7 +65,7 @@ export function ProductForm({
   attributesWithValues: { attribute: Attribute; values: AttributeValue[] }[];
   product?: Product;
   images?: ProductImage[];
-  variants?: ProductVariant[];
+  variants?: (ProductVariant & { imageUrls: string[] })[];
   defaultTagIds?: string[];
   defaultSpecValues?: Record<string, string>;
   defaultAttributeValueIds?: string[];
@@ -92,7 +92,7 @@ export function ProductForm({
       stock: v.stock?.toString() ?? "",
       price: v.price?.toString() ?? "",
       sku: v.sku ?? "",
-      imageUrl: v.variant_image_url,
+      imageUrls: v.imageUrls,
     })),
   );
 

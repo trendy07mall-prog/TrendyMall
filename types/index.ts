@@ -19,6 +19,7 @@ export type SpecField = Database["public"]["Tables"]["spec_fields"]["Row"];
 export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
 export type ProductVariant = Database["public"]["Tables"]["product_variants"]["Row"];
+export type ProductVariantImage = Database["public"]["Tables"]["product_variant_images"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 export type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];
@@ -55,6 +56,15 @@ export interface ProductWithPrimaryImage extends Product {
   tags: { name: string; slug: string }[];
 }
 
+// A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the
+// cart line/order for reference only -- it never affects price, stock, or
+// SKU, which come entirely from the selected color variant (or the base
+// product if there is none).
+export interface AttributeSelection {
+  attributeName: string;
+  value: string;
+}
+
 export interface CartItem {
   productId: string;
   slug: string;
@@ -65,6 +75,7 @@ export interface CartItem {
   variantId: string | null;
   variantName: string | null;
   variantColorHex: string | null;
+  attributeSelections: AttributeSelection[];
 }
 
 // The jsonb shape returned by both track_order and get_guest_order_by_id
@@ -84,6 +95,7 @@ export interface GuestOrderItem {
   imageUrl: string | null;
   variantName?: string | null;
   variantColorHex?: string | null;
+  attributeSelections?: AttributeSelection[] | null;
 }
 
 export interface GuestOrderAddressDetail {

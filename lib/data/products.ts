@@ -3,9 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import type { ProductListFilters } from "@/lib/product-filters";
 import { newArrivalCutoff } from "@/lib/product-filters";
 import { getProductIdsForTags } from "@/lib/data/tags";
-import { getProductIdsForAttributeValues } from "@/lib/data/attributes";
+import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
-import type { Product, ProductImage, ProductVariant, ProductWithPrimaryImage } from "@/types";
+import type {
+  Attribute,
+  AttributeValue,
+  Product,
+  ProductImage,
+  ProductVariant,
+  ProductWithPrimaryImage,
+} from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -555,10 +562,16 @@ export async function getAllProductSlugs(): Promise<string[]> {
   return data.map((p) => p.slug);
 }
 
+// A color variant enriched with its own image set (up to 4, product_variant_images
+// ordered by sort_order) -- falls back to the legacy single variant_image_url
+// when a variant hasn't been re-saved since the multi-image migration.
+export type ProductVariantWithImages = ProductVariant & { images: string[] };
+
 export interface ProductDetail {
   product: Product;
   images: ProductImage[];
-  variants: ProductVariant[];
+  variants: ProductVariantWithImages[];
+  attributes: { attribute: Attribute; values: AttributeValue[] }[];
 }
 
 // Wrapped in React's cache() so generateMetadata() and the page body (which
@@ -576,23 +589,50 @@ export const getProductDetailBySlug = cache(
 
     if (!product) return null;
 
-    const [{ data: images, error: imagesError }, { data: variants, error: variantsError }] =
-      await Promise.all([
-        supabase
-          .from("product_images")
-          .select("*")
-          .eq("product_id", product.id)
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("product_variants")
-          .select("*")
-          .eq("product_id", product.id)
-          .order("sort_order", { ascending: true }),
-      ]);
+    const [
+      { data: images, error: imagesError },
+      { data: variants, error: variantsError },
+      attributes,
+    ] = await Promise.all([
+      supabase
+        .from("product_images")
+        .select("*")
+        .eq("product_id", product.id)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", product.id)
+        .order("sort_order", { ascending: true }),
+      getProductAttributesForDetail(product.id),
+    ]);
 
     if (imagesError) throw imagesError;
     if (variantsError) throw variantsError;
 
-    return { product, images: images ?? [], variants: variants ?? [] };
+    const variantIds = (variants ?? []).map((v) => v.id);
+    const { data: variantImages, error: variantImagesError } =
+      variantIds.length > 0
+        ? await supabase
+            .from("product_variant_images")
+            .select("variant_id, image_url, sort_order")
+            .in("variant_id", variantIds)
+            .order("sort_order", { ascending: true })
+        : { data: [] as { variant_id: string; image_url: string; sort_order: number }[], error: null };
+    if (variantImagesError) throw variantImagesError;
+
+    const imagesByVariantId = new Map<string, string[]>();
+    for (const row of variantImages ?? []) {
+      const list = imagesByVariantId.get(row.variant_id) ?? [];
+      list.push(row.image_url);
+      imagesByVariantId.set(row.variant_id, list);
+    }
+
+    const variantsWithImages: ProductVariantWithImages[] = (variants ?? []).map((v) => ({
+      ...v,
+      images: imagesByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
+    }));
+
+    return { product, images: images ?? [], variants: variantsWithImages, attributes };
   },
 );

@@ -6,7 +6,7 @@ import { sendOrderConfirmationEmails } from "@/lib/email";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 import { isPayHereEnabled, getCheckoutUrl, generateCheckoutHash } from "@/lib/payhere";
-import type { DeliveryMethod, GuestOrderDetail, PaymentGateway } from "@/types";
+import type { AttributeSelection, DeliveryMethod, GuestOrderDetail, PaymentGateway } from "@/types";
 
 export interface CreateOrderInput {
   customerName: string;
@@ -35,7 +35,12 @@ export interface CreateOrderInput {
   // replay that returns the existing order instead of creating a
   // duplicate or double-reducing stock.
   idempotencyKey: string;
-  items: { productId: string; variantId: string | null; quantity: number }[];
+  items: {
+    productId: string;
+    variantId: string | null;
+    quantity: number;
+    attributeSelections: AttributeSelection[];
+  }[];
   // The checkout page's own last-rendered total — used only as a
   // staleness check (Rule #1: never trusted as the actual price source).
   // The server/RPC recomputes everything itself regardless of this value.
@@ -116,6 +121,7 @@ export async function createOrder(
       product_id: item.productId,
       variant_id: item.variantId,
       quantity: item.quantity,
+      attribute_selections: item.attributeSelections.length > 0 ? item.attributeSelections : null,
     })),
     p_client_total: input.clientTotal,
     p_payment_reference: input.paymentReference,

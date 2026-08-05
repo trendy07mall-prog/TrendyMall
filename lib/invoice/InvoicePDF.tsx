@@ -128,6 +128,12 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
               <Text style={styles.colName}>
                 {item.product_name}
                 {item.variant_name ? ` (${item.variant_name})` : ""}
+                {(item.attribute_selections as { attributeName: string; value: string }[] | null)
+                  ?.length
+                  ? ` (${(item.attribute_selections as { attributeName: string; value: string }[])
+                      .map((s) => `${s.attributeName}: ${s.value}`)
+                      .join(", ")})`
+                  : ""}
               </Text>
               <Text style={styles.colQty}>{item.quantity}</Text>
               <Text style={styles.colPrice}>{formatPrice(item.unit_price)}</Text>

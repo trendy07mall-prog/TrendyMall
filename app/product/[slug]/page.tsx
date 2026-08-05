@@ -68,7 +68,7 @@ export default async function ProductPage({
     notFound();
   }
 
-  const { product, images, variants } = detail;
+  const { product, images, variants, attributes: productAttributes } = detail;
   const category = await getCategoryById(product.category_id);
   const categoryAncestors = category ? await getCategoryAncestors(category) : [];
   const imageUrls = images.map((i) => i.image_url);
@@ -144,6 +144,7 @@ export default async function ProductPage({
         product={product}
         images={imageUrls}
         variants={variants}
+        attributes={productAttributes}
         categoryName={category?.name ?? "—"}
         specs={specs}
         reviews={reviews}

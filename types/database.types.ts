@@ -710,6 +710,38 @@ export interface Database {
           },
         ];
       };
+      product_variant_images: {
+        Row: {
+          id: string;
+          variant_id: string;
+          image_url: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          variant_id: string;
+          image_url: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          variant_id?: string;
+          image_url?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_variant_images_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_slug_redirects: {
         Row: {
           old_slug: string;
@@ -987,6 +1019,7 @@ export interface Database {
           variant_id: string | null;
           variant_name: string | null;
           variant_color_hex: string | null;
+          attribute_selections: unknown | null;
           created_at: string;
         };
         Insert: {
@@ -1001,6 +1034,7 @@ export interface Database {
           variant_id?: string | null;
           variant_name?: string | null;
           variant_color_hex?: string | null;
+          attribute_selections?: unknown | null;
           created_at?: string;
         };
         Update: {
@@ -1015,6 +1049,7 @@ export interface Database {
           variant_id?: string | null;
           variant_name?: string | null;
           variant_color_hex?: string | null;
+          attribute_selections?: unknown | null;
           created_at?: string;
         };
         Relationships: [
@@ -1295,6 +1330,7 @@ export interface Database {
           variant_id: string | null;
           variant_key: string;
           quantity: number;
+          attribute_selections: unknown | null;
           created_at: string;
           updated_at: string;
         };
@@ -1304,6 +1340,7 @@ export interface Database {
           product_id: string;
           variant_id?: string | null;
           quantity: number;
+          attribute_selections?: unknown | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1313,6 +1350,7 @@ export interface Database {
           product_id?: string;
           variant_id?: string | null;
           quantity?: number;
+          attribute_selections?: unknown | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -9,6 +9,7 @@ import { previewCoupon } from "@/lib/coupons";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
 import { CheckoutAddress, OTHER_COLOMBO_ZONE_VALUE } from "@/components/checkout/CheckoutAddress";
@@ -367,6 +368,7 @@ export function CheckoutForm({
         productId: item.productId,
         variantId: item.variantId,
         quantity: item.quantity,
+        attributeSelections: item.attributeSelections,
       })),
       clientTotal: total,
       clientShippingFee: shippingFee,
@@ -729,6 +731,11 @@ export function CheckoutForm({
               <span>Total</span>
               <span>{formatPrice(total)}</span>
             </div>
+            {deliveryMethod !== "pickup" && (
+              <p className="text-xs text-[var(--muted)]">
+                Estimated delivery: {getEstimatedDeliveryRange().label.replace(/^Get it by /, "")}
+              </p>
+            )}
           </div>
         </div>
       </div>

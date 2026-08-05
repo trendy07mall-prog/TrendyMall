@@ -62,6 +62,49 @@ export async function getProductAttributeValueIds(productId: string): Promise<st
   return (data ?? []).map((row) => row.attribute_value_id);
 }
 
+// A single product's assigned attribute values, grouped by attribute --
+// for the PDP's generic attribute selector (e.g. "Mah"). Deliberately
+// excludes the "color" attribute: Color variants (product_variants) already
+// have their own real price/stock/SKU-aware swatch picker on the PDP, so
+// showing a second, independent Color picker here (Stage 5's attribute
+// system is intentionally NOT synced with product_variants) would just be
+// confusing -- Color stays filter-sidebar-only via this function.
+export async function getProductAttributesForDetail(
+  productId: string,
+): Promise<{ attribute: Attribute; values: AttributeValue[] }[]> {
+  const supabase = await createClient();
+  const { data: assignedIds, error: assignedError } = await supabase
+    .from("product_attribute_values")
+    .select("attribute_value_id")
+    .eq("product_id", productId);
+  if (assignedError) throw assignedError;
+  if (!assignedIds || assignedIds.length === 0) return [];
+
+  const { data: values, error: valuesError } = await supabase
+    .from("attribute_values")
+    .select("*, attributes(*)")
+    .in(
+      "id",
+      assignedIds.map((row) => row.attribute_value_id),
+    )
+    .order("sort_order");
+  if (valuesError) throw valuesError;
+
+  const grouped = new Map<string, { attribute: Attribute; values: AttributeValue[] }>();
+  for (const row of values ?? []) {
+    const { attributes: attribute, ...value } = row as AttributeValue & { attributes: Attribute };
+    if (!attribute || attribute.slug === "color") continue;
+    const entry = grouped.get(attribute.id);
+    if (entry) {
+      entry.values.push(value);
+    } else {
+      grouped.set(attribute.id, { attribute, values: [value] });
+    }
+  }
+
+  return [...grouped.values()].sort((a, b) => a.attribute.sort_order - b.attribute.sort_order);
+}
+
 // Every product id assigned any of the given attribute-value ids -- feeds
 // straight into products' existing `.in("id", ids)` query pattern, same
 // shape as getProductIdsForTags.

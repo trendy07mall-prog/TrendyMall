@@ -34,6 +34,7 @@ function normalizeItem(item: CartItem): CartItem {
     variantId: item.variantId ?? null,
     variantName: item.variantName ?? null,
     variantColorHex: item.variantColorHex ?? null,
+    attributeSelections: item.attributeSelections ?? [],
   };
 }
 
@@ -140,6 +141,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             productId: i.productId,
             variantId: i.variantId,
             quantity: i.quantity,
+            attributeSelections: i.attributeSelections,
           })),
         )
           .then((merged) => {
@@ -163,8 +165,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const existing = prev.find((i) => sameLine(i, item));
         const nextQuantity = (existing?.quantity ?? 0) + item.quantity;
         if (isLoggedIn) {
-          upsertCartItem(item.productId, item.variantId, nextQuantity).catch((error) =>
-            console.error("Cart sync failed:", error),
+          upsertCartItem(item.productId, item.variantId, nextQuantity, item.attributeSelections).catch(
+            (error) => console.error("Cart sync failed:", error),
           );
         }
         if (existing) {
@@ -190,20 +192,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback(
     (productId: string, variantId: string | null, quantity: number) => {
-      setItems((prev) =>
-        quantity <= 0
+      setItems((prev) => {
+        if (isLoggedIn) {
+          // A quantity-only change must not drop the line's existing
+          // attribute selections -- look them up rather than re-sending [].
+          const existing = prev.find((i) => sameLine(i, { productId, variantId }));
+          const sync =
+            quantity <= 0
+              ? removeCartItem(productId, variantId)
+              : upsertCartItem(productId, variantId, quantity, existing?.attributeSelections ?? []);
+          sync.catch((error) => console.error("Cart sync failed:", error));
+        }
+        return quantity <= 0
           ? prev.filter((i) => !sameLine(i, { productId, variantId }))
-          : prev.map((i) =>
-              sameLine(i, { productId, variantId }) ? { ...i, quantity } : i,
-            ),
-      );
-      if (isLoggedIn) {
-        const sync =
-          quantity <= 0
-            ? removeCartItem(productId, variantId)
-            : upsertCartItem(productId, variantId, quantity);
-        sync.catch((error) => console.error("Cart sync failed:", error));
-      }
+          : prev.map((i) => (sameLine(i, { productId, variantId }) ? { ...i, quantity } : i));
+      });
     },
     [isLoggedIn],
   );

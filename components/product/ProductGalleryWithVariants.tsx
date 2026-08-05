@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { VariantSwatches } from "@/components/product/VariantSwatches";
-import type { ProductVariant } from "@/types";
+import type { ProductVariantWithImages } from "@/lib/data/products";
 
 export function ProductGalleryWithVariants({
   images,
@@ -12,17 +12,20 @@ export function ProductGalleryWithVariants({
   onVariantChange,
 }: {
   images: string[];
-  variants: ProductVariant[];
+  variants: ProductVariantWithImages[];
   name: string;
-  onVariantChange?: (variant: ProductVariant | null) => void;
+  onVariantChange?: (variant: ProductVariantWithImages | null) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedVariant = variants.find((v) => v.id === selectedId) ?? null;
 
+  // A selected variant swaps the WHOLE gallery to its own image set (up to
+  // 4, product_variant_images) -- falls back to the base product's images
+  // if this variant has none of its own.
   const displayImages = useMemo(() => {
-    if (selectedVariant?.variant_image_url) {
-      return [selectedVariant.variant_image_url, ...images];
+    if (selectedVariant && selectedVariant.images.length > 0) {
+      return selectedVariant.images;
     }
     return images;
   }, [images, selectedVariant]);

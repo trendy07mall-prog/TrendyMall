@@ -30,7 +30,7 @@ export default async function EditProductPage({
 
   const orderedCategories = flattenCategoryTree(buildCategoryTree(categories ?? []));
 
-  const [{ data: images }, { data: variants }, defaultTagIds, defaultSpecValues, defaultAttributeValueIds] =
+  const [{ data: images }, { data: variantRows }, defaultTagIds, defaultSpecValues, defaultAttributeValueIds] =
     await Promise.all([
       supabase
         .from("product_images")
@@ -46,6 +46,27 @@ export default async function EditProductPage({
       getProductSpecValues(product.id),
       getProductAttributeValueIds(product.id),
     ]);
+
+  const variantIds = (variantRows ?? []).map((v) => v.id);
+  const { data: variantImageRows } =
+    variantIds.length > 0
+      ? await supabase
+          .from("product_variant_images")
+          .select("variant_id, image_url, sort_order")
+          .in("variant_id", variantIds)
+          .order("sort_order", { ascending: true })
+      : { data: [] as { variant_id: string; image_url: string }[] };
+
+  const imageUrlsByVariantId = new Map<string, string[]>();
+  for (const row of variantImageRows ?? []) {
+    const list = imageUrlsByVariantId.get(row.variant_id) ?? [];
+    list.push(row.image_url);
+    imageUrlsByVariantId.set(row.variant_id, list);
+  }
+  const variants = (variantRows ?? []).map((v) => ({
+    ...v,
+    imageUrls: imageUrlsByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
+  }));
 
   const boundUpdate = updateProduct.bind(null, product.id);
   const boundDelete = deleteProduct.bind(null, product.id);
@@ -73,7 +94,7 @@ export default async function EditProductPage({
         attributesWithValues={attributesWithValues}
         product={product}
         images={images ?? []}
-        variants={variants ?? []}
+        variants={variants}
         defaultTagIds={defaultTagIds}
         defaultSpecValues={defaultSpecValues}
         defaultAttributeValueIds={defaultAttributeValueIds}

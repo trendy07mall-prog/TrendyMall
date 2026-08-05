@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { GuestOrderDetail } from "@/types";
+import type { AttributeSelection, GuestOrderDetail } from "@/types";
 
 // Assembles the exact same GuestOrderDetail shape get_order_confirmation/
 // track_order/get_guest_order_by_id already produce, from plain RLS-scoped
@@ -70,6 +70,7 @@ export async function getMyOrderDetail(orderId: string): Promise<GuestOrderDetai
       imageUrl: item.product_image_url,
       variantName: item.variant_name,
       variantColorHex: item.variant_color_hex,
+      attributeSelections: item.attribute_selections as AttributeSelection[] | null,
     })),
     statusHistory: (history ?? []).map((entry) => ({
       status: entry.new_value as GuestOrderDetail["orderStatus"],

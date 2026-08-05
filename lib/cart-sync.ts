@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getEffectiveVariantPrice } from "@/lib/utils";
-import type { CartItem } from "@/types";
+import type { AttributeSelection, CartItem } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -21,7 +21,7 @@ async function fetchValidatedServerCart(
 ): Promise<CartItem[]> {
   const { data: rows, error } = await supabase
     .from("cart_items")
-    .select("product_id, variant_id, quantity")
+    .select("product_id, variant_id, quantity, attribute_selections")
     .eq("user_id", userId);
   if (error) throw error;
   if (!rows || rows.length === 0) return [];
@@ -83,6 +83,7 @@ async function fetchValidatedServerCart(
       variantId: variant?.id ?? null,
       variantName: variant?.color_name ?? null,
       variantColorHex: variant?.color_hex ?? null,
+      attributeSelections: (row.attribute_selections as AttributeSelection[] | null) ?? [],
     });
   }
   return validated;
@@ -107,7 +108,12 @@ export async function getServerCart(): Promise<CartItem[]> {
 // the merged result and hands it back so the caller can clear localStorage
 // and swap it straight into in-memory state.
 export async function mergeCartOnLogin(
-  guestItems: { productId: string; variantId: string | null; quantity: number }[],
+  guestItems: {
+    productId: string;
+    variantId: string | null;
+    quantity: number;
+    attributeSelections: AttributeSelection[];
+  }[],
 ): Promise<CartItem[]> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
@@ -182,6 +188,7 @@ export async function mergeCartOnLogin(
       variantId: variant?.id ?? null,
       variantName: variant?.color_name ?? null,
       variantColorHex: variant?.color_hex ?? null,
+      attributeSelections: guestItem.attributeSelections,
     });
   }
 
@@ -197,6 +204,7 @@ export async function mergeCartOnLogin(
       product_id: item.productId,
       variant_id: item.variantId,
       quantity: item.quantity,
+      attribute_selections: item.attributeSelections.length > 0 ? item.attributeSelections : null,
     })),
     { onConflict: "user_id,product_id,variant_key" },
   );
@@ -209,15 +217,20 @@ export async function upsertCartItem(
   productId: string,
   variantId: string | null,
   quantity: number,
+  attributeSelections: AttributeSelection[],
 ): Promise<void> {
   const supabase = await createClient();
   const userId = await requireUserId(supabase);
-  const { error } = await supabase
-    .from("cart_items")
-    .upsert(
-      { user_id: userId, product_id: productId, variant_id: variantId, quantity },
-      { onConflict: "user_id,product_id,variant_key" },
-    );
+  const { error } = await supabase.from("cart_items").upsert(
+    {
+      user_id: userId,
+      product_id: productId,
+      variant_id: variantId,
+      quantity,
+      attribute_selections: attributeSelections.length > 0 ? attributeSelections : null,
+    },
+    { onConflict: "user_id,product_id,variant_key" },
+  );
   if (error) throw error;
 }
 

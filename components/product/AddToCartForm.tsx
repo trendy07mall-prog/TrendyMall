@@ -3,20 +3,27 @@
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { getEffectiveVariantPrice } from "@/lib/utils";
-import type { Product, ProductVariant } from "@/types";
+import type { AttributeSelection, Product, ProductVariant } from "@/types";
 
 export function AddToCartForm({
   product,
   variant = null,
+  attributeSelections = [],
   image,
   quantity,
   outOfStock = false,
+  onBeforeAdd,
 }: {
   product: Product;
   variant?: ProductVariant | null;
+  attributeSelections?: AttributeSelection[];
   image: string | null;
   quantity: number;
   outOfStock?: boolean;
+  // Returning false blocks the add (and lets the caller show its own
+  // prompt, e.g. "select a color") instead of adding an incomplete
+  // selection to the cart.
+  onBeforeAdd?: () => boolean;
 }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -26,6 +33,7 @@ export function AddToCartForm({
       type="button"
       disabled={outOfStock}
       onClick={() => {
+        if (onBeforeAdd && !onBeforeAdd()) return;
         addItem({
           productId: product.id,
           slug: product.slug,
@@ -36,6 +44,7 @@ export function AddToCartForm({
           variantId: variant?.id ?? null,
           variantName: variant?.color_name ?? null,
           variantColorHex: variant?.color_hex ?? null,
+          attributeSelections,
         });
         setAdded(true);
         setTimeout(() => setAdded(false), 1500);

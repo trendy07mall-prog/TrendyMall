@@ -7,6 +7,7 @@ import { useCart } from "@/context/CartContext";
 import { cartLineKey, formatPrice } from "@/lib/utils";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee } from "@/lib/delivery-fee";
 import { getMyDefaultAddress } from "@/lib/addresses";
+import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { getCartValidation } from "@/lib/cart-validation";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { CartItemCard } from "@/components/cart/CartItemCard";
@@ -287,6 +288,9 @@ export default function CartPage() {
             <span>Total</span>
             <span>{totalDisplay}</span>
           </div>
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Estimated delivery: {getEstimatedDeliveryRange().label.replace(/^Get it by /, "")}
+          </p>
           {!defaultAddress && deliveryArea !== "outside" && (
             <p className="mt-1 text-xs text-[var(--muted)]">
               {deliveryArea === "colombo"

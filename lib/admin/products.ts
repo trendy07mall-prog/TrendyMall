@@ -40,7 +40,7 @@ interface VariantInput {
   stock: string;
   price: string;
   sku: string;
-  imageUrl: string | null;
+  imageUrls: string[];
 }
 
 function parseJsonArray<T>(raw: FormDataEntryValue | null): T[] {
@@ -212,6 +212,27 @@ async function replaceProductImages(
   if (error) throw new Error(error.message);
 }
 
+// Up to 4 images per variant. Delete-then-reinsert (unlike the variant row
+// itself) is fine here -- these are plain display assets with no external
+// FK referencing a specific image row, so there's no stable-identity
+// concern the way there is for product_variants.id.
+async function replaceVariantImages(
+  supabase: AdminSupabaseClient,
+  variantId: string,
+  urls: string[],
+) {
+  await supabase.from("product_variant_images").delete().eq("variant_id", variantId);
+  if (urls.length === 0) return;
+
+  const rows = urls.slice(0, 4).map((image_url, index) => ({
+    variant_id: variantId,
+    image_url,
+    sort_order: index,
+  }));
+  const { error } = await supabase.from("product_variant_images").insert(rows);
+  if (error) throw new Error(error.message);
+}
+
 // Stable-identity sync, not delete-then-reinsert: a variant's id has to
 // survive an unrelated product edit (a price tweak, a description fix)
 // now that cart_items/order_items can reference it. Deleting and
@@ -223,6 +244,22 @@ async function syncProductVariants(
   productId: string,
   variants: VariantInput[],
 ) {
+  // A row that's genuinely blank (never touched after "+ Add color
+  // variant") is silently dropped, same as before -- but a row with SOME
+  // field filled in that's still missing colorName/colorHex must not be
+  // silently discarded, or the admin has no way to know why their variant
+  // vanished after saving.
+  const incomplete = variants.filter(
+    (v) =>
+      !(v.colorName?.trim() && v.colorHex?.trim()) &&
+      (v.colorName?.trim() || v.stock?.trim() || v.price?.trim() || v.sku?.trim() || v.imageUrls?.length),
+  );
+  if (incomplete.length > 0) {
+    throw new Error(
+      "Every color variant needs both a color name and a color swatch before it can be saved.",
+    );
+  }
+
   const validVariants = variants.filter((v) => v.colorName?.trim() && v.colorHex?.trim());
 
   const { data: existingRows, error: existingError } = await supabase
@@ -243,23 +280,30 @@ async function syncProductVariants(
   }
 
   for (const [index, v] of validVariants.entries()) {
+    // Never trust the client's array length -- cap at 4 server-side
+    // regardless of what the form actually submitted.
+    const imageUrls = (v.imageUrls ?? []).slice(0, 4);
     const row = {
       color_name: v.colorName.trim(),
       color_hex: v.colorHex.trim(),
       stock: v.stock?.trim() ? Number(v.stock) : null,
       price: v.price?.trim() ? Number(v.price) : null,
       sku: v.sku?.trim() || null,
-      variant_image_url: v.imageUrl,
+      variant_image_url: imageUrls[0] ?? null,
       sort_order: index,
     };
     if (toUpdate.includes(v)) {
       const { error } = await supabase.from("product_variants").update(row).eq("id", v.id!);
       if (error) throw new Error(error.message);
+      await replaceVariantImages(supabase, v.id!, imageUrls);
     } else if (toInsert.includes(v)) {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("product_variants")
-        .insert({ ...row, product_id: productId });
+        .insert({ ...row, product_id: productId })
+        .select("id")
+        .single();
       if (error) throw new Error(error.message);
+      await replaceVariantImages(supabase, inserted.id, imageUrls);
     }
   }
 }

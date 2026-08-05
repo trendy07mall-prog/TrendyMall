@@ -33,6 +33,12 @@ export function OrderSummaryCard({ order }: { order: GuestOrderDetail }) {
                 {item.productName}
                 {item.variantName && (
                   <span className="text-[var(--muted)]"> ({item.variantName})</span>
+                )}
+                {item.attributeSelections && item.attributeSelections.length > 0 && (
+                  <span className="text-[var(--muted)]">
+                    {" "}
+                    ({item.attributeSelections.map((s) => `${s.attributeName}: ${s.value}`).join(", ")})
+                  </span>
                 )}{" "}
                 × {item.quantity}
               </span>

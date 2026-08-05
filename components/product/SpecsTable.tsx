@@ -23,14 +23,14 @@ export function SpecsTable({
   ]);
 
   return (
-    <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+    <dl className="flex flex-col gap-2 text-sm">
       {rows.map(([label, val]) => (
         <div
           key={label}
-          className="flex justify-between border-b border-[var(--border)] pb-2"
+          className="grid grid-cols-[minmax(110px,40%)_1fr] gap-x-4 border-b border-[var(--border)] py-2"
         >
           <dt className="text-[var(--muted)]">{label}</dt>
-          <dd className="font-medium">{val}</dd>
+          <dd className="min-w-0 font-medium break-words">{val}</dd>
         </div>
       ))}
     </dl>

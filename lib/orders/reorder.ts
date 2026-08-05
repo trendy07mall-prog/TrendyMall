@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getEffectiveVariantPrice } from "@/lib/utils";
-import type { CartItem } from "@/types";
+import type { AttributeSelection, CartItem } from "@/types";
 
 export interface ReorderResult {
   items: CartItem[];
@@ -26,7 +26,7 @@ export async function getReorderItems(orderId: string): Promise<ReorderResult | 
 
   const { data: orderItems, error } = await supabase
     .from("order_items")
-    .select("product_id, variant_id, quantity")
+    .select("product_id, variant_id, quantity, attribute_selections")
     .eq("order_id", orderId);
 
   if (error) return { error: error.message };
@@ -75,6 +75,7 @@ export async function getReorderItems(orderId: string): Promise<ReorderResult | 
       variantId: variant?.id ?? null,
       variantName: variant?.color_name ?? null,
       variantColorHex: variant?.color_hex ?? null,
+      attributeSelections: (orderItem.attribute_selections as AttributeSelection[] | null) ?? [],
     });
   }
 

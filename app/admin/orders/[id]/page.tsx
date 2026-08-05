@@ -145,7 +145,18 @@ export default async function AdminOrderDetailPage({
                 {item.product_name}
                 {item.variant_name && (
                   <span className="text-[var(--muted)]"> ({item.variant_name})</span>
-                )}{" "}
+                )}
+                {(item.attribute_selections as { attributeName: string; value: string }[] | null)
+                  ?.length ? (
+                  <span className="text-[var(--muted)]">
+                    {" "}
+                    (
+                    {(item.attribute_selections as { attributeName: string; value: string }[])
+                      .map((s) => `${s.attributeName}: ${s.value}`)
+                      .join(", ")}
+                    )
+                  </span>
+                ) : null}{" "}
                 × {item.quantity}
               </span>
               <span>{formatPrice(item.subtotal)}</span>

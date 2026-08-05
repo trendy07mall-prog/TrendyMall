@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
+import { AttributeSelector } from "@/components/product/AttributeSelector";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { AddToCartForm } from "@/components/product/AddToCartForm";
 import { BuyNowButton } from "@/components/product/BuyNowButton";
@@ -14,7 +15,8 @@ import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { getEffectiveVariantPrice } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
-import type { Product, ProductRatingSummary, ProductVariant } from "@/types";
+import type { ProductVariantWithImages } from "@/lib/data/products";
+import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
 
@@ -22,6 +24,7 @@ export function ProductPurchaseSection({
   product,
   images,
   variants,
+  attributes,
   categoryName,
   specs,
   reviews,
@@ -31,7 +34,8 @@ export function ProductPurchaseSection({
 }: {
   product: Product;
   images: string[];
-  variants: ProductVariant[];
+  variants: ProductVariantWithImages[];
+  attributes: { attribute: Attribute; values: AttributeValue[] }[];
   categoryName: string;
   specs: DisplaySpec[];
   reviews: ReviewWithReviewerName[];
@@ -39,19 +43,55 @@ export function ProductPurchaseSection({
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
   tags: { name: string; slug: string }[];
 }) {
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariantWithImages | null>(null);
+  const [selectedAttributeValues, setSelectedAttributeValues] = useState<Record<string, AttributeValue>>({});
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
   const effectiveStock =
     selectedVariant?.stock != null ? selectedVariant.stock : product.stock;
   const outOfStock = effectiveStock <= 0;
-  const primaryImage = selectedVariant?.variant_image_url ?? images[0] ?? null;
+  const primaryImage = selectedVariant?.images[0] ?? images[0] ?? null;
 
-  function handleVariantChange(variant: ProductVariant | null) {
+  function handleVariantChange(variant: ProductVariantWithImages | null) {
     setSelectedVariant(variant);
+    setSelectionError(null);
     const nextStock = variant?.stock != null ? variant.stock : product.stock;
     setQuantity((q) => Math.min(q, Math.max(1, nextStock)));
   }
+
+  function handleAttributeSelect(attributeId: string, value: AttributeValue) {
+    setSelectedAttributeValues((prev) => ({ ...prev, [attributeId]: value }));
+    setSelectionError(null);
+  }
+
+  // A color must be picked whenever the product has any, and every
+  // attribute group returned for this product (e.g. "Mah") is required
+  // too -- returns a human-readable reason, or null if everything needed
+  // is selected.
+  function validateSelections(): string | null {
+    if (variants.length > 0 && !selectedVariant) {
+      return "Please select a color before adding to cart.";
+    }
+    const missing = attributes.find((group) => !selectedAttributeValues[group.attribute.id]);
+    if (missing) {
+      return `Please select a ${missing.attribute.name} before adding to cart.`;
+    }
+    return null;
+  }
+
+  function handleBeforeAdd(): boolean {
+    const error = validateSelections();
+    setSelectionError(error);
+    return !error;
+  }
+
+  const attributeSelections: AttributeSelection[] = attributes
+    .map((group) => {
+      const value = selectedAttributeValues[group.attribute.id];
+      return value ? { attributeName: group.attribute.name, value: value.value } : null;
+    })
+    .filter((s): s is AttributeSelection => s !== null);
 
   return (
     <div className="mt-6 grid gap-10 sm:grid-cols-2">
@@ -97,6 +137,16 @@ export function ProductPurchaseSection({
           </p>
         )}
 
+        {attributes.map((group) => (
+          <AttributeSelector
+            key={group.attribute.id}
+            attribute={group.attribute}
+            values={group.values}
+            selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
+            onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
+          />
+        ))}
+
         <div className="mt-8 flex flex-col gap-4">
           {!outOfStock && (
             <div className="flex items-center gap-3">
@@ -125,21 +175,31 @@ export function ProductPurchaseSection({
             </div>
           )}
 
+          {selectionError && (
+            <p role="alert" className="text-sm font-medium text-[var(--color-discount)]">
+              {selectionError}
+            </p>
+          )}
+
           <AddToCartForm
             product={product}
             variant={selectedVariant}
+            attributeSelections={attributeSelections}
             image={primaryImage}
             quantity={quantity}
             outOfStock={outOfStock}
+            onBeforeAdd={handleBeforeAdd}
           />
 
           <div className="flex flex-wrap items-center gap-3">
             <BuyNowButton
               product={product}
               variant={selectedVariant}
+              attributeSelections={attributeSelections}
               image={primaryImage}
               quantity={quantity}
               outOfStock={outOfStock}
+              onBeforeAdd={handleBeforeAdd}
             />
             <WishlistButton product={product} image={primaryImage} />
             {!outOfStock && (
