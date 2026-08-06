@@ -13,6 +13,7 @@ export function SortBar({
   showHighestRated,
   extraQuery,
   viewToggle,
+  variant = "default",
 }: {
   basePath: string;
   state: ProductFilterState;
@@ -21,8 +22,13 @@ export function SortBar({
   showHighestRated: boolean;
   extraQuery?: Record<string, string>;
   viewToggle?: React.ReactNode;
+  // "shop" opts into the /shop redesign's toolbar shell + "{count}
+  // Products" wording — shared by /category and /search too, which omit
+  // this and keep today's "Showing X of Y product(s)" text/appearance.
+  variant?: "default" | "shop";
 }) {
   const router = useRouter();
+  const isShop = variant === "shop";
 
   const options = (Object.keys(SORT_LABELS) as SortOption[]).filter(
     (option) => option !== "highest_rated" || showHighestRated,
@@ -34,9 +40,21 @@ export function SortBar({
   }
 
   return (
-    <div className="hidden items-center justify-between sm:flex">
+    <div
+      className={`hidden items-center justify-between sm:flex ${
+        isShop ? "rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4" : ""
+      }`}
+    >
       <p className="text-sm text-[var(--muted)]">
-        Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
+        {isShop ? (
+          <>
+            {resultCount} Product{resultCount === 1 ? "" : "s"}
+          </>
+        ) : (
+          <>
+            Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
+          </>
+        )}
       </p>
       <div className="flex items-center gap-3">
         {viewToggle}
@@ -45,7 +63,9 @@ export function SortBar({
             value={state.sort}
             onChange={(e) => setSort(e.target.value as SortOption)}
             aria-label="Sort products"
-            className="transition-brand appearance-none rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--color-card)] py-2 pr-9 pl-3 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+            className={`transition-brand appearance-none rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--color-card)] pr-9 pl-3 focus:outline-none focus:ring-1 focus:ring-[var(--foreground)] ${
+              isShop ? "py-2.5 text-[15px]" : "py-2 text-sm"
+            }`}
           >
             {options.map((option) => (
               <option key={option} value={option}>

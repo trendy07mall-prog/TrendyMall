@@ -8,7 +8,16 @@ import type { ProductWithPrimaryImage } from "@/types";
 const ADDING_MS = 350;
 const ADDED_MS = 1200;
 
-export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }) {
+export function QuickAddButton({
+  product,
+  variant = "default",
+}: {
+  product: ProductWithPrimaryImage;
+  // "shop" is the /shop redesign's taller/rounder button — opt-in only,
+  // every other render site (category/search/PDP-related/homepage) keeps
+  // today's sizing untouched.
+  variant?: "default" | "shop";
+}) {
   const { addItem } = useCart();
   const [status, setStatus] = useState<"idle" | "adding" | "added">("idle");
   const outOfStock = product.stock <= 0;
@@ -47,7 +56,11 @@ export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }
       type="button"
       disabled={outOfStock || status !== "idle"}
       onClick={handleClick}
-      className="transition-brand group-hover:bg-[var(--color-btn-hover)] flex h-[42px] w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--foreground)] text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 md:h-11"
+      className={`transition-brand group-hover:bg-[var(--color-btn-hover)] flex w-full items-center justify-center gap-1.5 bg-[var(--foreground)] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
+        variant === "shop"
+          ? "h-12 rounded-[var(--radius-btn)] text-base"
+          : "h-[42px] rounded-xl text-[15px] md:h-11"
+      }`}
     >
       {outOfStock ? (
         "Out of stock"

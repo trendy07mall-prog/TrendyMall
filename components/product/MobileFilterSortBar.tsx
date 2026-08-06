@@ -16,6 +16,7 @@ export function MobileFilterSortBar({
   showCategoryFacet,
   showRatingFacet,
   extraQuery,
+  variant = "default",
 }: {
   basePath: string;
   state: ProductFilterState;
@@ -26,6 +27,10 @@ export function MobileFilterSortBar({
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
   extraQuery?: Record<string, string>;
+  // "shop" opts into the /shop redesign's toolbar/sort-sheet restyle — also
+  // shared by /category and /search, which omit this and keep today's
+  // appearance untouched.
+  variant?: "default" | "shop";
 }) {
   const router = useRouter();
   const [filterOpen, setFilterOpen] = useState(false);
@@ -57,11 +62,17 @@ export function MobileFilterSortBar({
 
   return (
     <>
-      <div className="sticky top-0 z-30 flex gap-3 border-y border-[var(--border)] bg-white py-3 sm:hidden">
+      <div
+        className={`sticky top-0 z-30 flex gap-3 border-y border-[var(--border)] bg-white py-3 sm:hidden ${
+          variant === "shop" ? "px-1" : ""
+        }`}
+      >
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className="transition-brand relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-medium"
+          className={`transition-brand relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] font-medium ${
+            variant === "shop" ? "py-3 text-base" : "py-2.5 text-sm"
+          }`}
         >
           Filter
           {activeCount > 0 && (
@@ -73,7 +84,9 @@ export function MobileFilterSortBar({
         <button
           type="button"
           onClick={() => setSortOpen(true)}
-          className="transition-brand flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-medium"
+          className={`transition-brand flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] font-medium ${
+            variant === "shop" ? "py-3 text-base" : "py-2.5 text-sm"
+          }`}
         >
           Sort
         </button>
@@ -91,6 +104,7 @@ export function MobileFilterSortBar({
           showCategoryFacet={showCategoryFacet}
           showRatingFacet={showRatingFacet}
           extraQuery={extraQuery}
+          variant={variant}
         />
       )}
 
@@ -106,7 +120,9 @@ export function MobileFilterSortBar({
             role="dialog"
             aria-modal="true"
             aria-label="Sort by"
-            className="absolute right-0 bottom-0 left-0 rounded-t-2xl bg-white p-4 shadow-xl"
+            className={`absolute right-0 bottom-0 left-0 bg-white p-4 shadow-xl ${
+              variant === "shop" ? "rounded-t-[20px]" : "rounded-t-2xl"
+            }`}
           >
             <p className="mb-2 text-sm font-semibold">Sort by</p>
             <div className="flex flex-col">

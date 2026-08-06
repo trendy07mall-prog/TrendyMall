@@ -28,12 +28,12 @@ export function Pagination({
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
   return (
-    <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-2">
+    <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-3">
       <Link
         href={hrefFor(Math.max(1, currentPage - 1))}
         aria-disabled={currentPage === 1}
         aria-label="Previous page"
-        className={`transition-brand flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] ${
+        className={`transition-brand flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] ${
           currentPage === 1 ? "pointer-events-none opacity-40" : "hover:bg-black/5"
         }`}
       >
@@ -44,7 +44,7 @@ export function Pagination({
           key={page}
           href={hrefFor(page)}
           aria-current={page === currentPage ? "page" : undefined}
-          className={`transition-brand flex h-10 w-10 items-center justify-center rounded-full text-sm ${
+          className={`transition-brand flex h-12 w-12 items-center justify-center rounded-full text-sm ${
             page === currentPage
               ? "bg-[var(--foreground)] text-white"
               : "hover:bg-black/5"
@@ -57,7 +57,7 @@ export function Pagination({
         href={hrefFor(Math.min(totalPages, currentPage + 1))}
         aria-disabled={currentPage === totalPages}
         aria-label="Next page"
-        className={`transition-brand flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] ${
+        className={`transition-brand flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] ${
           currentPage === totalPages ? "pointer-events-none opacity-40" : "hover:bg-black/5"
         }`}
       >

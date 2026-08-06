@@ -15,7 +15,13 @@ const STOCK_STATE = {
   in: "text-[#16a34a]",
 };
 
-export function ProductListItem({ product }: { product: ProductWithPrimaryImage }) {
+export function ProductListItem({
+  product,
+  variant = "default",
+}: {
+  product: ProductWithPrimaryImage;
+  variant?: "default" | "shop";
+}) {
   const stock =
     product.stock <= 0
       ? { color: STOCK_STATE.out, label: "Out of stock" }
@@ -24,7 +30,11 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
         : { color: STOCK_STATE.in, label: "In Stock" };
 
   return (
-    <div className="group flex gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-3 transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
+    <div
+      className={`group flex gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-3 transition-[border-color,box-shadow] duration-200 ease-in-out hover:shadow-[var(--shadow-card-hover)] ${
+        variant === "shop" ? "hover:border-[var(--color-warning)]" : "hover:border-[var(--border-hover)]"
+      }`}
+    >
       <div className="relative shrink-0">
         <Link
           href={`/product/${product.slug}`}
@@ -84,7 +94,7 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
             <span className={`text-xs font-medium ${stock.color}`}>{stock.label}</span>
           </div>
           <div className="w-36 shrink-0">
-            <QuickAddButton product={product} />
+            <QuickAddButton product={product} variant={variant} />
           </div>
         </div>
       </div>

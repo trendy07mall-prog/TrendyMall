@@ -9,9 +9,14 @@ import type { ProductWithPrimaryImage } from "@/types";
 export function ProductGrid({
   products,
   emptyMessage = "No products in this category yet.",
+  variant = "default",
 }: {
   products: ProductWithPrimaryImage[];
   emptyMessage?: string;
+  // "shop" opts into the /shop redesign's bigger cards -- every other
+  // caller (category, search, related products) omits this and keeps
+  // today's rendering untouched.
+  variant?: "default" | "shop";
 }) {
   const { view } = useViewMode();
 
@@ -33,16 +38,16 @@ export function ProductGrid({
     return (
       <div className="flex flex-col gap-4">
         {products.map((product) => (
-          <ProductListItem key={product.id} product={product} />
+          <ProductListItem key={product.id} product={product} variant={variant} />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+    <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 ${variant === "shop" ? "gap-6" : "gap-5"}`}>
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <ProductCard key={product.id} product={product} variant={variant} />
       ))}
     </div>
   );

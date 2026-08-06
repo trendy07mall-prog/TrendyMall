@@ -44,6 +44,7 @@ export function FilterGroups({
   attributes,
   showCategoryFacet,
   showRatingFacet,
+  variant = "default",
 }: {
   state: ProductFilterState;
   onChange: (next: Partial<ProductFilterState>) => void;
@@ -53,6 +54,10 @@ export function FilterGroups({
   attributes: AttributeFacet[];
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
+  // "shop" opts into the /shop redesign's slightly larger checkboxes/rows —
+  // this component is also shared by /category and /search, which omit
+  // this and keep today's sizing untouched.
+  variant?: "default" | "shop";
 }) {
   return (
     <div className="flex flex-col divide-y divide-[var(--border)]">
@@ -65,6 +70,7 @@ export function FilterGroups({
               count={category.count}
               indent={category.depth}
               checked={state.categorySlugs.includes(category.slug)}
+              variant={variant}
               onChange={(checked) =>
                 onChange({
                   categorySlugs: checked
@@ -85,6 +91,7 @@ export function FilterGroups({
               label={brand.name}
               count={brand.count}
               checked={state.brands.includes(brand.name)}
+              variant={variant}
               onChange={(checked) =>
                 onChange({
                   brands: checked
@@ -105,6 +112,7 @@ export function FilterGroups({
               label={tag.name}
               count={tag.count}
               checked={state.tagSlugs.includes(tag.slug)}
+              variant={variant}
               onChange={(checked) =>
                 onChange({
                   tagSlugs: checked
@@ -125,6 +133,7 @@ export function FilterGroups({
               label={value.name}
               count={value.count}
               checked={state.attributeValueSlugs.includes(value.slug)}
+              variant={variant}
               onChange={(checked) =>
                 onChange({
                   attributeValueSlugs: checked
@@ -199,6 +208,7 @@ export function FilterGroups({
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.inStock}
+            variant={variant}
             onChange={(checked) => onChange({ inStock: checked })}
           />
           In Stock
@@ -206,6 +216,7 @@ export function FilterGroups({
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.outOfStock}
+            variant={variant}
             onChange={(checked) => onChange({ outOfStock: checked })}
           />
           Out of Stock
@@ -214,12 +225,13 @@ export function FilterGroups({
 
       <FilterGroup title="Service">
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <Checkbox checked={state.cod} onChange={(checked) => onChange({ cod: checked })} />
+          <Checkbox checked={state.cod} variant={variant} onChange={(checked) => onChange({ cod: checked })} />
           Cash on Delivery
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.freeDelivery}
+            variant={variant}
             onChange={(checked) => onChange({ freeDelivery: checked })}
           />
           Free Delivery
@@ -227,6 +239,7 @@ export function FilterGroups({
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.warranty}
+            variant={variant}
             onChange={(checked) => onChange({ warranty: checked })}
           />
           Warranty Available
@@ -235,12 +248,13 @@ export function FilterGroups({
 
       <FilterGroup title="Promotion">
         <label className="flex items-center gap-2 py-1.5 text-sm">
-          <Checkbox checked={state.onSale} onChange={(checked) => onChange({ onSale: checked })} />
+          <Checkbox checked={state.onSale} variant={variant} onChange={(checked) => onChange({ onSale: checked })} />
           On Sale
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.newArrival}
+            variant={variant}
             onChange={(checked) => onChange({ newArrival: checked })}
           />
           New Arrival
@@ -248,6 +262,7 @@ export function FilterGroups({
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.featured}
+            variant={variant}
             onChange={(checked) => onChange({ featured: checked })}
           />
           Featured
@@ -285,19 +300,24 @@ function Checkbox({
   checked,
   onChange,
   disabled,
+  variant = "default",
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
+  variant?: "default" | "shop";
 }) {
+  const size = variant === "shop" ? "h-[18px] w-[18px]" : "h-4 w-4";
   return (
-    <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+    <span className={`relative flex shrink-0 items-center justify-center ${size}`}>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="peer absolute inset-0 h-4 w-4 cursor-pointer appearance-none rounded-[4px] border border-[var(--border)] checked:border-[var(--foreground)] checked:bg-[var(--foreground)] disabled:cursor-not-allowed"
+        className={`peer absolute inset-0 cursor-pointer appearance-none border border-[var(--border)] checked:border-[var(--foreground)] checked:bg-[var(--foreground)] disabled:cursor-not-allowed ${size} ${
+          variant === "shop" ? "rounded-[5px]" : "rounded-[4px]"
+        }`}
       />
       <CheckIcon className="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" />
     </span>
@@ -333,6 +353,7 @@ function CheckboxRow({
   checked,
   onChange,
   indent = 0,
+  variant = "default",
 }: {
   label: string;
   count: number;
@@ -341,18 +362,27 @@ function CheckboxRow({
   // Nested category depth -- 0 for a top-level category/every other
   // facet type, which don't pass this at all.
   indent?: number;
+  variant?: "default" | "shop";
 }) {
   const disabled = count === 0 && !checked;
   return (
     <label
       style={indent > 0 ? { marginLeft: indent * 12 } : undefined}
-      className={`flex items-center justify-between gap-2 py-1.5 text-sm ${disabled ? "opacity-40" : ""}`}
+      className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""} ${
+        variant === "shop" ? "py-2" : "py-1.5"
+      }`}
     >
       <span className="flex items-center gap-2">
-        <Checkbox checked={checked} disabled={disabled} onChange={onChange} />
+        <Checkbox checked={checked} disabled={disabled} onChange={onChange} variant={variant} />
         {label}
       </span>
-      <span className="text-xs text-[var(--muted)]">{count}</span>
+      <span
+        className={`text-xs text-[var(--muted)] ${
+          variant === "shop" ? "rounded-full bg-[var(--background)] px-1.5 py-0.5" : ""
+        }`}
+      >
+        {count}
+      </span>
     </label>
   );
 }

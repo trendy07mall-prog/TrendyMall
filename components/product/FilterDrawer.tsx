@@ -22,6 +22,7 @@ export function FilterDrawer({
   showCategoryFacet,
   showRatingFacet,
   extraQuery,
+  variant = "default",
 }: {
   onClose: () => void;
   basePath: string;
@@ -33,6 +34,10 @@ export function FilterDrawer({
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
   extraQuery?: Record<string, string>;
+  // "shop" opts into the /shop redesign's chrome restyle — this drawer is
+  // also shared by /category and /search, which omit this and keep today's
+  // appearance untouched.
+  variant?: "default" | "shop";
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(state);
@@ -91,6 +96,7 @@ export function FilterDrawer({
             attributes={attributes}
             showCategoryFacet={showCategoryFacet}
             showRatingFacet={showRatingFacet}
+            variant={variant}
           />
         </div>
 
@@ -98,14 +104,18 @@ export function FilterDrawer({
           <button
             type="button"
             onClick={() => setDraft({ ...EMPTY_FILTER_STATE, sort: draft.sort })}
-            className="transition-brand flex-1 rounded-[var(--radius-btn)] border border-[var(--border)] px-4 py-3 text-sm font-semibold"
+            className={`transition-brand flex-1 rounded-[var(--radius-btn)] border border-[var(--border)] font-semibold ${
+              variant === "shop" ? "py-3.5 text-base" : "px-4 py-3 text-sm"
+            }`}
           >
             Clear all
           </button>
           <button
             type="button"
             onClick={apply}
-            className="transition-brand flex-1 rounded-[var(--radius-btn)] bg-[var(--foreground)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--color-btn-hover)]"
+            className={`transition-brand flex-1 rounded-[var(--radius-btn)] bg-[var(--foreground)] font-semibold text-white hover:bg-[var(--color-btn-hover)] ${
+              variant === "shop" ? "py-3.5 text-base" : "px-4 py-3 text-sm"
+            }`}
           >
             Apply
           </button>

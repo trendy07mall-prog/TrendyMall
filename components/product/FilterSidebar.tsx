@@ -15,6 +15,7 @@ export function FilterSidebar({
   showCategoryFacet,
   showRatingFacet,
   extraQuery,
+  variant = "default",
 }: {
   basePath: string;
   state: ProductFilterState;
@@ -25,6 +26,10 @@ export function FilterSidebar({
   showCategoryFacet: boolean;
   showRatingFacet: boolean;
   extraQuery?: Record<string, string>;
+  // "shop" opts into the /shop redesign's panel/accordion restyle — this
+  // component is also shared by /category and /search, which omit this and
+  // keep today's appearance untouched.
+  variant?: "default" | "shop";
 }) {
   const router = useRouter();
 
@@ -36,7 +41,9 @@ export function FilterSidebar({
   return (
     <aside className="hidden w-64 shrink-0 lg:block">
       <div
-        className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] shadow-[var(--shadow-card)]"
+        className={`sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] shadow-[var(--shadow-card)] ${
+          variant === "shop" ? "rounded-[var(--radius-lg)]" : "rounded-[var(--radius-card)]"
+        }`}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Filters</h2>
@@ -57,6 +64,7 @@ export function FilterSidebar({
           attributes={attributes}
           showCategoryFacet={showCategoryFacet}
           showRatingFacet={showRatingFacet}
+          variant={variant}
         />
       </div>
     </aside>
