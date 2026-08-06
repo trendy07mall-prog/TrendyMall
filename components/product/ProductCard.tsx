@@ -57,13 +57,13 @@ export function ProductCard({
             a centered, "framed" thumbnail rather than a full-bleed image.
             object-contain (not cover) + a white background so non-square
             product photos sit cleanly without a cropped edge or a grey
-            letterbox behind them. "shop" variant sizes the frame to a
-            fixed 200px height instead of aspect-square, per the redesign
-            spec. */}
+            letterbox behind them. "shop" variant insets slightly less
+            (92%, true 1:1 aspect-square rather than a fixed height) so the
+            image reads as the card's primary focus. */}
         <Link
           href={`/product/${product.slug}`}
-          className={`relative mx-auto block overflow-hidden rounded-[14px] bg-white ${
-            isShop ? "h-[200px] w-[95%]" : "aspect-square w-5/6"
+          className={`relative mx-auto block aspect-square overflow-hidden rounded-[14px] bg-white ${
+            isShop ? "w-[92%]" : "w-5/6"
           }`}
         >
           {product.image ? (
@@ -114,7 +114,7 @@ export function ProductCard({
         </div>
       </div>
 
-      <div className={`mt-3 flex flex-1 flex-col ${hideDeliveryEstimate ? "" : "gap-3"}`}>
+      <div className={`flex flex-1 flex-col ${isShop ? "mt-2.5 gap-2" : hideDeliveryEstimate ? "mt-3" : "mt-3 gap-3"}`}>
         <div>
           {product.brand && (
             <p className="text-[10px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
@@ -139,40 +139,32 @@ export function ProductCard({
           </div>
         )}
 
-        <div className={hideDeliveryEstimate ? "mt-2" : ""}>
-          {isShop ? (
-            // "shop" stacks price above the stock pill instead of forcing
-            // them onto one row -- at 34px the price alone is wider than
-            // "sm"'s whole row budget, so there's no narrow-column fit to
-            // preserve here the way the default variant's row has to.
-            <div className="flex flex-col gap-2">
-              <div>
-                {product.hasMultiplePrices && (
-                  <p className="text-[10px] text-[var(--muted)]">Starting from</p>
-                )}
-                <PriceDisplay
-                  actualPrice={product.actual_price}
-                  specialPrice={product.special_price}
-                  size="lg"
-                  showDiscountBadge={false}
-                />
-              </div>
-              <span
-                className={`inline-flex w-fit items-center gap-1.5 rounded-full bg-[#16a34a]/10 px-2.5 py-1 text-[11px] font-medium whitespace-nowrap ${stock.text}`}
-              >
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stock.dot}`} aria-hidden="true" />
-                {stock.label}
-              </span>
-            </div>
-          ) : (
-            // shrink-0 on BOTH sides (not min-w-0 on the price side -- that
-            // lets the price box get compressed smaller than its own text,
-            // which visually collides with the stock badge instead of
-            // wrapping) is what keeps this row on one line, at full size,
-            // at every price/stock combination and every grid density this
-            // card renders at (New Arrivals' wider cards down to /shop's
-            // narrower 4-up columns) -- gap-1 is deliberately tighter than
-            // the site's usual gap-2 for the same reason.
+        {isShop ? (
+          // Compact redesign: price only, no stock pill and no delivery
+          // line in the card itself -- stock still fully blocks Add to
+          // Cart below (QuickAddButton reads product.stock directly, not
+          // anything from this component), this is display-only.
+          <div>
+            {product.hasMultiplePrices && (
+              <p className="text-[10px] text-[var(--muted)]">Starting from</p>
+            )}
+            <PriceDisplay
+              actualPrice={product.actual_price}
+              specialPrice={product.special_price}
+              size="lg"
+              showDiscountBadge={false}
+            />
+          </div>
+        ) : (
+          <div className={hideDeliveryEstimate ? "mt-2" : ""}>
+            {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
+                lets the price box get compressed smaller than its own text,
+                which visually collides with the stock badge instead of
+                wrapping) is what keeps this row on one line, at full size,
+                at every price/stock combination and every grid density this
+                card renders at (New Arrivals' wider cards down to /shop's
+                narrower 4-up columns) -- gap-1 is deliberately tighter than
+                the site's usual gap-2 for the same reason. */}
             <div className="flex items-center justify-between gap-1">
               <div className="shrink-0">
                 {product.hasMultiplePrices && (
@@ -192,11 +184,11 @@ export function ProductCard({
                 {stock.label}
               </span>
             </div>
-          )}
-          {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
-        </div>
+            {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
+          </div>
+        )}
 
-        <div className={hideDeliveryEstimate ? "mt-3" : "mt-auto"}>
+        <div className={isShop ? "mt-auto" : hideDeliveryEstimate ? "mt-3" : "mt-auto"}>
           <QuickAddButton product={product} variant={variant} />
         </div>
       </div>

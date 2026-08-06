@@ -367,10 +367,10 @@ function CheckboxRow({
   const disabled = count === 0 && !checked;
   return (
     <label
-      style={indent > 0 ? { marginLeft: indent * 12 } : undefined}
+      style={indent > 0 ? { marginLeft: indent * 16, paddingLeft: 10 } : undefined}
       className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""} ${
-        variant === "shop" ? "py-2" : "py-1.5"
-      }`}
+        indent > 0 ? "border-l border-[var(--border)]" : ""
+      } ${variant === "shop" ? "py-2" : "py-1.5"}`}
     >
       <span className="flex items-center gap-2">
         <Checkbox checked={checked} disabled={disabled} onChange={onChange} variant={variant} />

@@ -41,21 +41,18 @@ export function SortBar({
 
   return (
     <div
-      className={`hidden items-center justify-between sm:flex ${
+      className={`hidden items-center sm:flex ${isShop ? "justify-end" : "justify-between"} ${
         isShop ? "rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4" : ""
       }`}
     >
-      <p className="text-sm text-[var(--muted)]">
-        {isShop ? (
-          <>
-            {resultCount} Product{resultCount === 1 ? "" : "s"}
-          </>
-        ) : (
-          <>
-            Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
-          </>
-        )}
-      </p>
+      {/* "shop" drops the product-count text entirely per the compact
+          redesign -- the /category and /search default variant keeps its
+          "Showing X of Y product(s)" text unchanged. */}
+      {!isShop && (
+        <p className="text-sm text-[var(--muted)]">
+          Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
+        </p>
+      )}
       <div className="flex items-center gap-3">
         {viewToggle}
         <div className="relative">

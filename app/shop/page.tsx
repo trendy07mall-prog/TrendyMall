@@ -15,8 +15,8 @@ import { FilterSidebar } from "@/components/product/FilterSidebar";
 import { MobileFilterSortBar } from "@/components/product/MobileFilterSortBar";
 import { FilterChips } from "@/components/product/FilterChips";
 import { SortBar } from "@/components/product/SortBar";
-import { ShopTrustStrip } from "@/components/product/ShopTrustStrip";
 import { QuickFilterChips } from "@/components/product/QuickFilterChips";
+import { CategoryCarousel } from "@/components/product/CategoryCarousel";
 import { ViewToggle } from "@/components/product/ViewToggle";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { Pagination } from "@/components/product/Pagination";
@@ -85,15 +85,24 @@ export default async function ShopPage({
       </div>
 
       {/* Live counts only -- no fabricated stats like a review-score
-          percentage we have no aggregate data to support. Categories/
-          brands counts come from the same fully-fetched lists the filter
-          sidebar renders (so they're guaranteed to match what's actually
-          in the sidebar), products from the same getPublishedProductCount()
-          the toolbar's own count is built from. */}
+          percentage we have no aggregate data to support. "Categories"
+          deliberately counts only categories with at least one product
+          (facetCounts.categories, filtered) rather than every active row in
+          the categories table -- that table carries a much larger taxonomy
+          than what the 15-product catalog actually uses (21 active rows vs
+          7 actually populated), and "categories we carry" should reflect
+          the latter. Brands has no such gap (11 active = 11 actually used),
+          confirmed directly against the live data, so brands.length is
+          already correct as-is. Products from the same
+          getPublishedProductCount() the toolbar's own count is built from. */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
           { icon: ShoppingBagIcon, value: String(totalCount), label: "Products" },
-          { icon: FolderIcon, value: String(categories.length), label: "Categories" },
+          {
+            icon: FolderIcon,
+            value: String(facetCounts.categories.filter((c) => c.count > 0).length),
+            label: "Categories",
+          },
           { icon: StoreIcon, value: String(brands.length), label: "Brands" },
           { icon: TruckIcon, value: "Islandwide", label: "Delivery" },
         ].map((stat) => (
@@ -108,12 +117,17 @@ export default async function ShopPage({
         ))}
       </div>
 
-      <div className="mt-8">
-        <ShopTrustStrip />
-      </div>
-
       <div className="mt-6">
         <QuickFilterChips basePath="/shop" state={state} />
+      </div>
+
+      <div className="mt-3">
+        <CategoryCarousel
+          basePath="/shop"
+          state={state}
+          categories={categories}
+          counts={facetCounts.categories}
+        />
       </div>
 
       <div className="mt-6">

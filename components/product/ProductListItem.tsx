@@ -91,7 +91,13 @@ export function ProductListItem({
                 size="sm"
               />
             </div>
-            <span className={`text-xs font-medium ${stock.color}`}>{stock.label}</span>
+            {/* Compact redesign drops the stock label from display for
+                "shop" -- stock still fully blocks Add to Cart below
+                (QuickAddButton reads product.stock directly), this is
+                display-only, and only for the /shop page's card treatment. */}
+            {variant !== "shop" && (
+              <span className={`text-xs font-medium ${stock.color}`}>{stock.label}</span>
+            )}
           </div>
           <div className="w-36 shrink-0">
             <QuickAddButton product={product} variant={variant} />
