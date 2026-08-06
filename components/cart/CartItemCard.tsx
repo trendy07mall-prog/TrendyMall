@@ -43,6 +43,7 @@ export function CartItemCard({
       slug: item.slug,
       name: item.name,
       price: item.price,
+      variantId: item.variantId,
       image: item.image,
     });
     removeItem(item.productId, item.variantId);

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getEffectiveVariantPrice } from "@/lib/utils";
+import { getVariantPrice } from "@/lib/utils";
 import type { AttributeSelection, CartItem } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -27,31 +27,39 @@ async function fetchValidatedServerCart(
   if (!rows || rows.length === 0) return [];
 
   const ids = rows.map((r) => r.product_id);
-  const variantIds = rows.map((r) => r.variant_id).filter((id): id is string => id !== null);
+  const rowVariantIds = rows.map((r) => r.variant_id).filter((id): id is string => id !== null);
   const [
     { data: products, error: productsError },
     { data: images, error: imagesError },
-    { data: variants, error: variantsError },
+    { data: rowVariants, error: rowVariantsError },
+    { data: defaultVariants, error: defaultVariantsError },
   ] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, slug, name, actual_price, special_price, stock, is_deleted, status")
-      .in("id", ids),
+    supabase.from("products").select("id, slug, name, stock, is_deleted, status").in("id", ids),
     supabase
       .from("product_images")
       .select("product_id, image_url, sort_order")
       .in("product_id", ids)
       .order("sort_order", { ascending: true }),
-    variantIds.length > 0
+    rowVariantIds.length > 0
       ? supabase
           .from("product_variants")
-          .select("id, color_name, color_hex, price, stock")
-          .in("id", variantIds)
+          .select("id, color_name, color_hex, regular_price, sale_price, stock")
+          .in("id", rowVariantIds)
       : Promise.resolve({ data: [], error: null }),
+    // A cart line saved before this migration (or one whose variant was
+    // since deleted) has no variant_id -- resolved to that product's
+    // default variant instead of a product-level price that no longer
+    // exists, so an old saved cart still shows a real price/stock.
+    supabase
+      .from("product_variants")
+      .select("id, product_id, color_name, color_hex, regular_price, sale_price, stock")
+      .in("product_id", ids)
+      .eq("is_default", true),
   ]);
   if (productsError) throw productsError;
   if (imagesError) throw imagesError;
-  if (variantsError) throw variantsError;
+  if (rowVariantsError) throw rowVariantsError;
+  if (defaultVariantsError) throw defaultVariantsError;
 
   const primaryImageByProductId = new Map<string, string>();
   for (const image of images ?? []) {
@@ -60,7 +68,8 @@ async function fetchValidatedServerCart(
     }
   }
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
-  const variantById = new Map((variants ?? []).map((v) => [v.id, v]));
+  const variantById = new Map((rowVariants ?? []).map((v) => [v.id, v]));
+  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
 
   const validated: CartItem[] = [];
   for (const row of rows) {
@@ -69,20 +78,24 @@ async function fetchValidatedServerCart(
       continue;
     }
     // A variant_id that no longer resolves (deleted between page loads,
-    // before the FK cascade catches up) falls back to the base product
-    // rather than silently vanishing the whole line.
-    const variant = row.variant_id ? (variantById.get(row.variant_id) ?? null) : null;
-    const effectiveStock = variant?.stock ?? product.stock;
+    // before the FK cascade catches up, or never set pre-migration) falls
+    // back to the product's default variant rather than silently
+    // vanishing the whole line.
+    const variant = row.variant_id
+      ? (variantById.get(row.variant_id) ?? defaultVariantByProductId.get(row.product_id))
+      : defaultVariantByProductId.get(row.product_id);
+    if (!variant) continue;
+    const effectiveStock = variant.stock ?? product.stock;
     validated.push({
       productId: product.id,
       slug: product.slug,
       name: product.name,
-      price: getEffectiveVariantPrice(product, variant),
+      price: getVariantPrice(variant),
       image: primaryImageByProductId.get(product.id) ?? null,
       quantity: Math.min(row.quantity, effectiveStock),
-      variantId: variant?.id ?? null,
-      variantName: variant?.color_name ?? null,
-      variantColorHex: variant?.color_hex ?? null,
+      variantId: variant.id,
+      variantName: variant.color_name,
+      variantColorHex: variant.color_hex,
       attributeSelections: (row.attribute_selections as AttributeSelection[] | null) ?? [],
     });
   }
@@ -132,11 +145,9 @@ export async function mergeCartOnLogin(
     { data: guestProducts, error: guestProductsError },
     { data: guestImages, error: guestImagesError },
     { data: guestVariants, error: guestVariantsError },
+    { data: guestDefaultVariants, error: guestDefaultVariantsError },
   ] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, slug, name, actual_price, special_price, stock, is_deleted, status")
-      .in("id", guestIds),
+    supabase.from("products").select("id, slug, name, stock, is_deleted, status").in("id", guestIds),
     supabase
       .from("product_images")
       .select("product_id, image_url, sort_order")
@@ -145,13 +156,19 @@ export async function mergeCartOnLogin(
     guestVariantIds.length > 0
       ? supabase
           .from("product_variants")
-          .select("id, color_name, color_hex, price, stock")
+          .select("id, color_name, color_hex, regular_price, sale_price, stock")
           .in("id", guestVariantIds)
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("product_variants")
+      .select("id, product_id, color_name, color_hex, regular_price, sale_price, stock")
+      .in("product_id", guestIds)
+      .eq("is_default", true),
   ]);
   if (guestProductsError) throw guestProductsError;
   if (guestImagesError) throw guestImagesError;
   if (guestVariantsError) throw guestVariantsError;
+  if (guestDefaultVariantsError) throw guestDefaultVariantsError;
 
   const guestImageByProductId = new Map<string, string>();
   for (const image of guestImages ?? []) {
@@ -161,6 +178,9 @@ export async function mergeCartOnLogin(
   }
   const guestProductById = new Map((guestProducts ?? []).map((p) => [p.id, p]));
   const guestVariantById = new Map((guestVariants ?? []).map((v) => [v.id, v]));
+  const guestDefaultVariantByProductId = new Map(
+    (guestDefaultVariants ?? []).map((v) => [v.product_id, v]),
+  );
 
   const merged = new Map<string, CartItem>(
     serverCart.map((i) => [lineKey(i.productId, i.variantId), i]),
@@ -172,22 +192,23 @@ export async function mergeCartOnLogin(
       continue;
     }
     const variant = guestItem.variantId
-      ? (guestVariantById.get(guestItem.variantId) ?? null)
-      : null;
-    const effectiveStock = variant?.stock ?? product.stock;
-    const key = lineKey(guestItem.productId, variant?.id ?? null);
+      ? (guestVariantById.get(guestItem.variantId) ?? guestDefaultVariantByProductId.get(guestItem.productId))
+      : guestDefaultVariantByProductId.get(guestItem.productId);
+    if (!variant) continue;
+    const effectiveStock = variant.stock ?? product.stock;
+    const key = lineKey(guestItem.productId, variant.id);
     const existing = merged.get(key);
     const combinedQuantity = (existing?.quantity ?? 0) + guestItem.quantity;
     merged.set(key, {
       productId: product.id,
       slug: product.slug,
       name: product.name,
-      price: getEffectiveVariantPrice(product, variant),
+      price: getVariantPrice(variant),
       image: guestImageByProductId.get(product.id) ?? existing?.image ?? null,
       quantity: Math.min(combinedQuantity, effectiveStock),
-      variantId: variant?.id ?? null,
-      variantName: variant?.color_name ?? null,
-      variantColorHex: variant?.color_hex ?? null,
+      variantId: variant.id,
+      variantName: variant.color_name,
+      variantColorHex: variant.color_hex,
       attributeSelections: guestItem.attributeSelections,
     });
   }

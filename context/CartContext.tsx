@@ -161,21 +161,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = useCallback(
     (rawItem: CartItem) => {
       const item = normalizeItem(rawItem);
+      // The server sync must fire as its own side effect, not from inside
+      // setItems' updater -- an updater is expected to be a pure function of
+      // prev state (React may invoke it more than once), and upsertCartItem
+      // touches the router, which React 19 rejects mid-render with "Cannot
+      // update a component (Router) while rendering CartProvider." `items`
+      // here is the last-committed state, which is exactly what an
+      // event-handler-triggered call (every caller of addItem) needs.
+      const existing = items.find((i) => sameLine(i, item));
+      const nextQuantity = (existing?.quantity ?? 0) + item.quantity;
       setItems((prev) => {
-        const existing = prev.find((i) => sameLine(i, item));
-        const nextQuantity = (existing?.quantity ?? 0) + item.quantity;
-        if (isLoggedIn) {
-          upsertCartItem(item.productId, item.variantId, nextQuantity, item.attributeSelections).catch(
-            (error) => console.error("Cart sync failed:", error),
-          );
-        }
-        if (existing) {
-          return prev.map((i) => (sameLine(i, item) ? { ...i, quantity: nextQuantity } : i));
-        }
-        return [...prev, item];
+        const existingPrev = prev.find((i) => sameLine(i, item));
+        const qty = (existingPrev?.quantity ?? 0) + item.quantity;
+        return existingPrev
+          ? prev.map((i) => (sameLine(i, item) ? { ...i, quantity: qty } : i))
+          : [...prev, item];
       });
+      if (isLoggedIn) {
+        upsertCartItem(item.productId, item.variantId, nextQuantity, item.attributeSelections).catch(
+          (error) => console.error("Cart sync failed:", error),
+        );
+      }
     },
-    [isLoggedIn],
+    [isLoggedIn, items],
   );
 
   const removeItem = useCallback(
@@ -192,23 +200,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQuantity = useCallback(
     (productId: string, variantId: string | null, quantity: number) => {
-      setItems((prev) => {
-        if (isLoggedIn) {
-          // A quantity-only change must not drop the line's existing
-          // attribute selections -- look them up rather than re-sending [].
-          const existing = prev.find((i) => sameLine(i, { productId, variantId }));
-          const sync =
-            quantity <= 0
-              ? removeCartItem(productId, variantId)
-              : upsertCartItem(productId, variantId, quantity, existing?.attributeSelections ?? []);
-          sync.catch((error) => console.error("Cart sync failed:", error));
-        }
-        return quantity <= 0
+      setItems((prev) =>
+        quantity <= 0
           ? prev.filter((i) => !sameLine(i, { productId, variantId }))
-          : prev.map((i) => (sameLine(i, { productId, variantId }) ? { ...i, quantity } : i));
-      });
+          : prev.map((i) => (sameLine(i, { productId, variantId }) ? { ...i, quantity } : i)),
+      );
+      if (isLoggedIn) {
+        // A quantity-only change must not drop the line's existing
+        // attribute selections -- look them up rather than re-sending [].
+        // Fired after setItems, not from inside its updater -- see addItem's
+        // comment above for why the sync call can't live in there.
+        const existing = items.find((i) => sameLine(i, { productId, variantId }));
+        const sync =
+          quantity <= 0
+            ? removeCartItem(productId, variantId)
+            : upsertCartItem(productId, variantId, quantity, existing?.attributeSelections ?? []);
+        sync.catch((error) => console.error("Cart sync failed:", error));
+      }
     },
-    [isLoggedIn],
+    [isLoggedIn, items],
   );
 
   const clear = useCallback(async () => {

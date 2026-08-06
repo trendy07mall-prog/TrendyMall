@@ -17,6 +17,10 @@ export interface WishlistItem {
   name: string;
   price: number;
   image: string | null;
+  // The variant this price/image came from -- every product now always
+  // resolves to a real one (see the pricing migration), so "move to cart"
+  // can add exactly what was wishlisted instead of guessing.
+  variantId: string | null;
 }
 
 interface WishlistContextValue {

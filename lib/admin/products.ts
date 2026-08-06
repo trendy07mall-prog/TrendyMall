@@ -35,10 +35,15 @@ interface VariantInput {
   // save. This is what lets syncProductVariants update in place instead of
   // deleting and reinserting with a fresh id every save.
   id?: string;
+  // Optional -- a product with no real color choice has one variant row
+  // with these left blank (no swatch shown on the storefront).
   colorName: string;
   colorHex: string;
   stock: string;
-  price: string;
+  // Required -- price lives ONLY on variants now, there is no more
+  // product-level price field this could fall back to.
+  regularPrice: string;
+  salePrice: string;
   sku: string;
   imageUrls: string[];
   attributeValueIds: string[];
@@ -153,9 +158,6 @@ function readCommonFields(formData: FormData) {
     DESCRIPTION_SANITIZE_OPTIONS,
   );
   const sku = String(formData.get("sku") ?? "").trim() || null;
-  const actualPrice = Number(formData.get("actualPrice") ?? 0);
-  const specialPriceRaw = String(formData.get("specialPrice") ?? "").trim();
-  const specialPrice = specialPriceRaw ? Number(specialPriceRaw) : null;
   const stock = Number(formData.get("stock") ?? 0);
   const status: ProductStatus =
     String(formData.get("status") ?? "draft") === "published" ? "published" : "draft";
@@ -177,8 +179,6 @@ function readCommonFields(formData: FormData) {
     slug,
     description,
     sku,
-    actualPrice,
-    specialPrice,
     stock,
     status,
     isFeatured,
@@ -265,23 +265,42 @@ async function syncProductVariants(
   productId: string,
   variants: VariantInput[],
 ) {
-  // A row that's genuinely blank (never touched after "+ Add color
-  // variant") is silently dropped, same as before -- but a row with SOME
-  // field filled in that's still missing colorName/colorHex must not be
-  // silently discarded, or the admin has no way to know why their variant
-  // vanished after saving.
-  const incomplete = variants.filter(
-    (v) =>
-      !(v.colorName?.trim() && v.colorHex?.trim()) &&
-      (v.colorName?.trim() || v.stock?.trim() || v.price?.trim() || v.sku?.trim() || v.imageUrls?.length),
+  // A row is "real" once it has a regular price -- color is optional now
+  // (a product with no real color choice has one variant with color left
+  // blank), but every real row still needs color name+hex together or
+  // neither, same "don't silently discard a half-filled row" spirit as
+  // before, just anchored on price instead of color.
+  const hasAnyField = (v: VariantInput) =>
+    v.colorName?.trim() || v.colorHex?.trim() || v.stock?.trim() || v.regularPrice?.trim() ||
+    v.salePrice?.trim() || v.sku?.trim() || v.imageUrls?.length;
+  const mismatchedColor = variants.filter(
+    (v) => Boolean(v.colorName?.trim()) !== Boolean(v.colorHex?.trim()),
   );
-  if (incomplete.length > 0) {
-    throw new Error(
-      "Every color variant needs both a color name and a color swatch before it can be saved.",
-    );
+  if (mismatchedColor.length > 0) {
+    throw new Error("A variant with a color name needs a color swatch, and vice versa.");
   }
 
-  const validVariants = variants.filter((v) => v.colorName?.trim() && v.colorHex?.trim());
+  const validVariants = variants.filter((v) => v.regularPrice?.trim());
+  const incomplete = variants.filter((v) => !v.regularPrice?.trim() && hasAnyField(v));
+  if (incomplete.length > 0) {
+    throw new Error("Every variant needs a regular price before it can be saved.");
+  }
+  if (validVariants.length === 0) {
+    throw new Error("Every product needs at least one priced variant.");
+  }
+
+  for (const v of validVariants) {
+    const regularPrice = Number(v.regularPrice);
+    if (!Number.isFinite(regularPrice) || regularPrice < 0) {
+      throw new Error("Regular price must be a valid non-negative number.");
+    }
+    if (v.salePrice?.trim()) {
+      const salePrice = Number(v.salePrice);
+      if (!Number.isFinite(salePrice) || salePrice < 0 || salePrice >= regularPrice) {
+        throw new Error("Sale price must be a valid number less than the regular price.");
+      }
+    }
+  }
 
   const { data: existingRows, error: existingError } = await supabase
     .from("product_variants")
@@ -300,18 +319,39 @@ async function syncProductVariants(
     if (error) throw new Error(error.message);
   }
 
+  // Clear is_default on every existing row first -- the one-default-per-
+  // product unique index would otherwise reject the per-row update below
+  // the moment the new default is set while the old one (a different row)
+  // still has is_default=true.
+  if (toUpdate.length > 0) {
+    const { error } = await supabase
+      .from("product_variants")
+      .update({ is_default: false })
+      .in(
+        "id",
+        toUpdate.map((v) => v.id!),
+      );
+    if (error) throw new Error(error.message);
+  }
+
+  // Whichever row is first (sort_order 0) becomes is_default -- mirrors
+  // the pricing-migration backfill's own tie-break (first row, not
+  // necessarily cheapest) so a freshly-created product behaves the same
+  // way as a migrated one.
   for (const [index, v] of validVariants.entries()) {
     // Never trust the client's array length -- cap at 4 server-side
     // regardless of what the form actually submitted.
     const imageUrls = (v.imageUrls ?? []).slice(0, 4);
     const row = {
-      color_name: v.colorName.trim(),
-      color_hex: v.colorHex.trim(),
+      color_name: v.colorName?.trim() || null,
+      color_hex: v.colorHex?.trim() || null,
       stock: v.stock?.trim() ? Number(v.stock) : null,
-      price: v.price?.trim() ? Number(v.price) : null,
+      regular_price: Number(v.regularPrice),
+      sale_price: v.salePrice?.trim() ? Number(v.salePrice) : null,
       sku: v.sku?.trim() || null,
       variant_image_url: imageUrls[0] ?? null,
       sort_order: index,
+      is_default: index === 0,
     };
     if (toUpdate.includes(v)) {
       const { error } = await supabase.from("product_variants").update(row).eq("id", v.id!);
@@ -356,8 +396,6 @@ export async function createProduct(
       description: fields.description,
       brand: brandResult.brandName,
       brand_id: brandResult.brandId,
-      actual_price: fields.actualPrice,
-      special_price: fields.specialPrice,
       sku: fields.sku,
       whats_in_box: fields.whatsInBox,
       category_id: categoryResult.categoryId,
@@ -434,8 +472,6 @@ export async function updateProduct(
       description: fields.description,
       brand: brandResult.brandName,
       brand_id: brandResult.brandId,
-      actual_price: fields.actualPrice,
-      special_price: fields.specialPrice,
       sku: fields.sku,
       whats_in_box: fields.whatsInBox,
       category_id: categoryResult.categoryId,

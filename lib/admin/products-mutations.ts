@@ -6,8 +6,6 @@ import { slugify } from "@/lib/utils";
 import type { ProductStatus } from "@/types";
 
 export interface QuickEditPatch {
-  actualPrice?: number;
-  specialPrice?: number | null;
   stock?: number;
   status?: ProductStatus;
   isFeatured?: boolean;
@@ -22,30 +20,53 @@ export async function quickUpdateProduct(
 ): Promise<QuickEditResult> {
   const supabase = await requireAdminClient();
 
-  if (patch.actualPrice != null && patch.actualPrice <= 0) {
-    return { error: "Price must be greater than 0." };
-  }
   if (patch.stock != null && patch.stock < 0) {
     return { error: "Stock can't be negative." };
   }
-  if (patch.specialPrice != null && patch.actualPrice != null && patch.specialPrice >= patch.actualPrice) {
-    return { error: "Special price must be less than the actual price." };
-  }
 
   const update: Partial<{
-    actual_price: number;
-    special_price: number | null;
     stock: number;
     status: ProductStatus;
     is_featured: boolean;
   }> = {};
-  if (patch.actualPrice != null) update.actual_price = patch.actualPrice;
-  if ("specialPrice" in patch) update.special_price = patch.specialPrice;
   if (patch.stock != null) update.stock = patch.stock;
   if (patch.status) update.status = patch.status;
   if (patch.isFeatured != null) update.is_featured = patch.isFeatured;
 
   const { error } = await supabase.from("products").update(update).eq("id", productId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/products");
+  return { success: true };
+}
+
+export interface VariantPricePatch {
+  regularPrice: number;
+  salePrice: number | null;
+}
+
+// The inline price editor only ever applies to a single-variant product's
+// one row (a multi-variant product's price is ambiguous from a flat table
+// cell -- that case gets a link to the full editor instead, see
+// ProductsTable.tsx). Price lives only on product_variants now, so this
+// updates that row directly instead of a product-level column.
+export async function quickUpdateVariantPrice(
+  variantId: string,
+  patch: VariantPricePatch,
+): Promise<QuickEditResult> {
+  const supabase = await requireAdminClient();
+
+  if (!Number.isFinite(patch.regularPrice) || patch.regularPrice <= 0) {
+    return { error: "Price must be greater than 0." };
+  }
+  if (patch.salePrice != null && patch.salePrice >= patch.regularPrice) {
+    return { error: "Sale price must be less than the regular price." };
+  }
+
+  const { error } = await supabase
+    .from("product_variants")
+    .update({ regular_price: patch.regularPrice, sale_price: patch.salePrice })
+    .eq("id", variantId);
   if (error) return { error: error.message };
 
   revalidatePath("/admin/products");
@@ -83,8 +104,6 @@ async function duplicateOne(
       description: source.description,
       brand: source.brand,
       brand_id: source.brand_id,
-      actual_price: source.actual_price,
-      special_price: source.special_price,
       sku: source.sku,
       whats_in_box: source.whats_in_box,
       category_id: source.category_id,
@@ -112,9 +131,14 @@ async function duplicateOne(
         .from("product_images")
         .select("image_url, sort_order")
         .eq("product_id", productId),
+      // Every column a variant needs to stay fully priced/identified in the
+      // duplicate -- regular_price/sale_price/sku/is_default were
+      // previously missing here, silently leaving a duplicated product's
+      // variants unpriced (a pre-existing gap, fixed while touching this
+      // function for the pricing migration).
       supabase
         .from("product_variants")
-        .select("color_name, color_hex, stock, variant_image_url, sort_order")
+        .select("color_name, color_hex, stock, regular_price, sale_price, sku, is_default, is_active, variant_image_url, sort_order")
         .eq("product_id", productId),
       supabase.from("product_tags").select("tag_id").eq("product_id", productId),
       supabase.from("product_spec_values").select("spec_field_id, value").eq("product_id", productId),
@@ -128,7 +152,10 @@ async function duplicateOne(
   }
   if (variants && variants.length > 0) {
     await supabase.from("product_variants").insert(
-      variants.map((v) => ({ ...v, product_id: inserted.id })),
+      // sku is explicitly dropped, not copied -- product_variants_sku_key
+      // is a real unique index (sql/051), so copying it verbatim would
+      // fail the insert outright rather than silently duplicate it.
+      variants.map((v) => ({ ...v, sku: null, product_id: inserted.id })),
     );
   }
   if (productTags && productTags.length > 0) {

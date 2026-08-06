@@ -1,20 +1,62 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolveCardDisplay } from "@/lib/data/products";
+import type { VariantPriceRow } from "@/lib/data/products";
 import type { AdminProductFilterState, AdminSortOption } from "@/lib/admin/product-filters";
 import type { Product } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+// Price now lives only on product_variants -- resolved to a product-id
+// list here (same "small store, aggregate in JS" approach as the
+// storefront's resolvePriceFilterProductIds) rather than a plain
+// .gte/.lte on `products`.
+async function resolveAdminPriceFilterProductIds(
+  supabase: SupabaseServerClient,
+  filters: AdminProductFilterState,
+): Promise<string[] | undefined> {
+  if (!filters.minPrice && !filters.maxPrice) return undefined;
+  const min = filters.minPrice ? Number(filters.minPrice) : null;
+  const max = filters.maxPrice ? Number(filters.maxPrice) : null;
+
+  const { data } = await supabase
+    .from("product_variants")
+    .select("product_id, regular_price, sale_price")
+    .eq("is_active", true);
+
+  const minPriceByProduct = new Map<string, number>();
+  for (const v of data ?? []) {
+    const effective = v.sale_price ?? v.regular_price;
+    const prev = minPriceByProduct.get(v.product_id);
+    if (prev == null || effective < prev) minPriceByProduct.set(v.product_id, effective);
+  }
+
+  const ids: string[] = [];
+  for (const [productId, price] of minPriceByProduct) {
+    if (min != null && price < min) continue;
+    if (max != null && price > max) continue;
+    ids.push(productId);
+  }
+  return ids;
+}
+
 // Same shape as lib/data/products.ts's applyDbFilters/applyPostFilters split
 // for the same reason: best_selling can't be pushed to SQL (it lives in a
 // separate view), so for an admin product list this size, sorting the
-// already-fetched array in JS is simpler than splitting the logic.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyAdminFilters(query: any, filters: AdminProductFilterState, brandIds: string[]): any {
+// already-fetched array in JS is simpler than splitting the logic. price_asc/
+// price_desc join the same category now that price lives on variants, not a
+// plain products column an .order() can reach.
+function applyAdminFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  filters: AdminProductFilterState,
+  brandIds: string[],
+  priceProductIds?: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   let q = query;
   if (filters.categoryIds.length > 0) q = q.in("category_id", filters.categoryIds);
   if (brandIds.length > 0) q = q.in("brand_id", brandIds);
-  if (filters.minPrice) q = q.gte("actual_price", Number(filters.minPrice));
-  if (filters.maxPrice) q = q.lte("actual_price", Number(filters.maxPrice));
+  if (priceProductIds) q = q.in("id", priceProductIds);
   if (filters.featured) q = q.eq("is_featured", true);
 
   if (filters.stockStatus === "in_stock") q = q.gte("stock", 5);
@@ -29,10 +71,6 @@ function applyAdminSort(query: any, sort: AdminSortOption): any {
   switch (sort) {
     case "oldest":
       return query.order("created_at", { ascending: true });
-    case "price_asc":
-      return query.order("actual_price", { ascending: true });
-    case "price_desc":
-      return query.order("actual_price", { ascending: false });
     case "most_viewed":
       return query.order("view_count", { ascending: false });
     default:
@@ -40,10 +78,10 @@ function applyAdminSort(query: any, sort: AdminSortOption): any {
   }
 }
 
-async function sortByBestSelling(
+async function sortByBestSelling<T extends Product>(
   supabase: SupabaseServerClient,
-  products: Product[],
-): Promise<Product[]> {
+  products: T[],
+): Promise<T[]> {
   const ids = products.map((p) => p.id);
   if (ids.length === 0) return products;
 
@@ -90,10 +128,15 @@ async function getAdminSearchMatchIds(
 
 export interface AdminProductRow extends Product {
   image: string | null;
+  actual_price: number;
+  special_price: number | null;
+  hasMultiplePrices: boolean;
+  defaultVariantId: string;
 }
 
-// Mirrors lib/data/products.ts's attachPrimaryImages, minus the ratings
-// join the admin table doesn't need.
+// Mirrors lib/data/products.ts's attachPrimaryImages (image + computed
+// display price off variants), minus the ratings join the admin table
+// doesn't need.
 async function attachPrimaryImages(
   supabase: SupabaseServerClient,
   products: Product[],
@@ -101,11 +144,18 @@ async function attachPrimaryImages(
   if (products.length === 0) return [];
 
   const ids = products.map((p) => p.id);
-  const { data: images } = await supabase
-    .from("product_images")
-    .select("product_id, image_url, sort_order")
-    .in("product_id", ids)
-    .order("sort_order", { ascending: true });
+  const [{ data: images }, { data: variantRows }] = await Promise.all([
+    supabase
+      .from("product_images")
+      .select("product_id, image_url, sort_order")
+      .in("product_id", ids)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("product_variants")
+      .select("id, product_id, regular_price, sale_price, stock, is_default, variant_image_url")
+      .in("product_id", ids)
+      .eq("is_active", true),
+  ]);
 
   const primaryByProductId = new Map<string, string>();
   for (const image of images ?? []) {
@@ -114,10 +164,28 @@ async function attachPrimaryImages(
     }
   }
 
-  return products.map((product) => ({
-    ...product,
-    image: primaryByProductId.get(product.id) ?? null,
-  }));
+  const variantsByProductId = new Map<string, VariantPriceRow[]>();
+  for (const v of (variantRows ?? []) as VariantPriceRow[]) {
+    const list = variantsByProductId.get(v.product_id) ?? [];
+    list.push(v);
+    variantsByProductId.set(v.product_id, list);
+  }
+
+  return products.map((product) => {
+    const variants = variantsByProductId.get(product.id) ?? [];
+    const display =
+      variants.length > 0
+        ? resolveCardDisplay(variants)
+        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
+    return {
+      ...product,
+      image: primaryByProductId.get(product.id) ?? null,
+      actual_price: display.actualPrice,
+      special_price: display.specialPrice,
+      hasMultiplePrices: display.hasMultiplePrices,
+      defaultVariantId: display.variantId,
+    };
+  });
 }
 
 // Filtering by raw brand text would miss casing-drifted rows even though
@@ -157,7 +225,10 @@ export async function getAdminProducts(
     matchIds = await getAdminSearchMatchIds(supabase, search);
     if (matchIds.length === 0) return { products: [], totalCount: 0 };
   }
-  const brandIds = await resolveBrandIds(supabase, filters.brands);
+  const [brandIds, priceProductIds] = await Promise.all([
+    resolveBrandIds(supabase, filters.brands),
+    resolveAdminPriceFilterProductIds(supabase, filters),
+  ]);
 
   function buildBaseQuery(forCount: boolean) {
     let query = forCount
@@ -170,18 +241,32 @@ export async function getAdminProducts(
     if (filters.status === "draft" || filters.status === "published") {
       query = query.eq("status", filters.status);
     }
-    query = applyAdminFilters(query, filters, brandIds);
+    query = applyAdminFilters(query, filters, brandIds, priceProductIds);
     if (matchIds) query = query.in("id", matchIds);
     return query;
   }
 
-  if (filters.sort === "best_selling") {
+  // price_asc/price_desc join best_selling in the "fetch full filtered set,
+  // sort in JS" lane now that price lives on variants (attachPrimaryImages'
+  // variant join is what resolves it), not a plain products column an
+  // .order() can reach.
+  if (filters.sort === "best_selling" || filters.sort === "price_asc" || filters.sort === "price_desc") {
     const { data, error } = await buildBaseQuery(false);
     if (error) throw error;
-    const sorted = await sortByBestSelling(supabase, data ?? []);
+
+    const withPrices = await attachPrimaryImages(supabase, data ?? []);
+    const sorted =
+      filters.sort === "best_selling"
+        ? await sortByBestSelling(supabase, withPrices)
+        : [...withPrices].sort((a, b) =>
+            filters.sort === "price_asc"
+              ? a.actual_price - b.actual_price
+              : b.actual_price - a.actual_price,
+          );
+
     const start = (page - 1) * pageSize;
     const pageSlice = sorted.slice(start, start + pageSize);
-    return { products: await attachPrimaryImages(supabase, pageSlice), totalCount: sorted.length };
+    return { products: pageSlice, totalCount: sorted.length };
   }
 
   const start = (page - 1) * pageSize;
@@ -210,7 +295,10 @@ export async function getAllMatchingAdminProducts(
     if (matchIds.length === 0) return [];
   }
 
-  const brandIds = await resolveBrandIds(supabase, filters.brands);
+  const [brandIds, priceProductIds] = await Promise.all([
+    resolveBrandIds(supabase, filters.brands),
+    resolveAdminPriceFilterProductIds(supabase, filters),
+  ]);
 
   let query = supabase.from("products").select("*");
   query =
@@ -220,9 +308,13 @@ export async function getAllMatchingAdminProducts(
   if (filters.status === "draft" || filters.status === "published") {
     query = query.eq("status", filters.status);
   }
-  query = applyAdminFilters(query, filters, brandIds);
+  query = applyAdminFilters(query, filters, brandIds, priceProductIds);
   if (matchIds) query = query.in("id", matchIds);
-  query = applyAdminSort(query, filters.sort === "best_selling" ? "newest" : filters.sort);
+  // price_asc/price_desc row order in an exported CSV isn't user-facing the
+  // way the browse page's sort is -- falls back to newest, same as
+  // best_selling already did, rather than adding a second JS-sort path here.
+  const sortable = filters.sort === "price_asc" || filters.sort === "price_desc" || filters.sort === "best_selling";
+  query = applyAdminSort(query, sortable ? "newest" : filters.sort);
 
   const { data, error } = await query;
   if (error) throw error;

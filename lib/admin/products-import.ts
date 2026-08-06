@@ -180,8 +180,6 @@ export async function bulkImportProducts(rows: ImportRow[]): Promise<BulkImportR
         model: row.model?.trim() || null,
         sku: row.sku?.trim() || null,
         category_id: categoryId,
-        actual_price: actualPrice,
-        special_price: specialPrice,
         stock,
         status,
         bluetooth: parseBoolean(row.bluetooth),
@@ -195,6 +193,27 @@ export async function bulkImportProducts(rows: ImportRow[]): Promise<BulkImportR
 
     if (error || !inserted) {
       errors.push({ row: rowNumber, message: error?.message ?? "Could not create product." });
+      continue;
+    }
+
+    // Price lives only on product_variants now -- the CSV's actual_price/
+    // special_price columns create this product's one default variant
+    // (no color, matching the "no real choice" storefront rendering)
+    // instead of writing to product-level columns that no longer exist.
+    const { error: variantError } = await supabase.from("product_variants").insert({
+      product_id: inserted.id,
+      color_name: null,
+      color_hex: null,
+      regular_price: actualPrice,
+      sale_price: specialPrice,
+      stock,
+      sku: null,
+      is_default: true,
+      is_active: true,
+      sort_order: 0,
+    });
+    if (variantError) {
+      errors.push({ row: rowNumber, message: `Product created but variant failed: ${variantError.message}` });
       continue;
     }
 

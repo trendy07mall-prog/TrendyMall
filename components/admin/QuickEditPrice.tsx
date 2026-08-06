@@ -1,36 +1,53 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { quickUpdateProduct } from "@/lib/admin/products-mutations";
+import Link from "next/link";
+import { quickUpdateVariantPrice } from "@/lib/admin/products-mutations";
 import { useToast } from "@/components/admin/ToastProvider";
 
+// Only meaningful for a single-variant product -- editing "the price" from
+// a flat table cell is ambiguous the moment a product has more than one
+// variant, so that case links to the full editor instead of guessing which
+// row a table cell should mean.
 export function QuickEditPrice({
   productId,
-  actualPrice,
-  specialPrice,
+  variantId,
+  regularPrice,
+  salePrice,
+  hasMultiplePrices,
 }: {
   productId: string;
-  actualPrice: number;
-  specialPrice: number | null;
+  variantId: string;
+  regularPrice: number;
+  salePrice: number | null;
+  hasMultiplePrices: boolean;
 }) {
-  const [actual, setActual] = useState(String(actualPrice));
-  const [special, setSpecial] = useState(specialPrice != null ? String(specialPrice) : "");
+  const [regular, setRegular] = useState(String(regularPrice));
+  const [sale, setSale] = useState(salePrice != null ? String(salePrice) : "");
   const [pending, startTransition] = useTransition();
   const { showToast } = useToast();
 
+  if (hasMultiplePrices) {
+    return (
+      <Link href={`/admin/products/${productId}/edit`} className="text-xs underline">
+        Edit variants →
+      </Link>
+    );
+  }
+
   function commit() {
-    const parsedActual = Number(actual);
-    const parsedSpecial = special.trim() ? Number(special) : null;
-    if (parsedActual === actualPrice && parsedSpecial === specialPrice) return;
+    const parsedRegular = Number(regular);
+    const parsedSale = sale.trim() ? Number(sale) : null;
+    if (parsedRegular === regularPrice && parsedSale === salePrice) return;
 
     startTransition(async () => {
-      const result = await quickUpdateProduct(productId, {
-        actualPrice: parsedActual,
-        specialPrice: parsedSpecial,
+      const result = await quickUpdateVariantPrice(variantId, {
+        regularPrice: parsedRegular,
+        salePrice: parsedSale,
       });
       if ("error" in result) {
-        setActual(String(actualPrice));
-        setSpecial(specialPrice != null ? String(specialPrice) : "");
+        setRegular(String(regularPrice));
+        setSale(salePrice != null ? String(salePrice) : "");
         showToast(result.error, "error");
       } else {
         showToast("Price updated");
@@ -46,22 +63,22 @@ export function QuickEditPrice({
       <input
         type="number"
         min="0"
-        value={actual}
+        value={regular}
         disabled={pending}
-        onChange={(e) => setActual(e.target.value)}
+        onChange={(e) => setRegular(e.target.value)}
         onBlur={commit}
-        aria-label="Actual price"
+        aria-label="Regular price"
         className={inputClass}
       />
       <input
         type="number"
         min="0"
         placeholder="Sale price"
-        value={special}
+        value={sale}
         disabled={pending}
-        onChange={(e) => setSpecial(e.target.value)}
+        onChange={(e) => setSale(e.target.value)}
         onBlur={commit}
-        aria-label="Special price"
+        aria-label="Sale price"
         className={`${inputClass} text-[var(--color-discount)]`}
       />
     </div>

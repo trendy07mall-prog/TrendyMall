@@ -48,12 +48,24 @@ export type {
 // Product listing/card contexts (category grid, search, new arrivals, shop)
 // need exactly one representative image plus a rating summary for the card's
 // star display; the base Product row carries neither since images live in
-// product_images and ratings are aggregated from reviews.
+// product_images and ratings are aggregated from reviews. Price now lives
+// only on product_variants -- actual_price/special_price here are computed
+// display values (the winning variant's regular/sale price, see
+// lib/data/products.ts's attachPrimaryImages), named to match what they
+// replaced so ProductCard/PriceDisplay/sort logic needed no further change.
 export interface ProductWithPrimaryImage extends Product {
   image: string | null;
   avgRating: number;
   reviewCount: number;
   tags: { name: string; slug: string }[];
+  actual_price: number;
+  special_price: number | null;
+  // True when the product has more than one distinctly-priced active
+  // variant -- gates the "Starting from" prefix on the card.
+  hasMultiplePrices: boolean;
+  // The variant whose price/image this card is showing -- what
+  // QuickAddButton/WishlistButton add when there's no color picker to ask.
+  defaultVariantId: string;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

@@ -2,20 +2,26 @@
 
 import { useWishlist } from "@/context/WishlistContext";
 import { HeartIcon } from "@/components/ui/Icon";
-import { getEffectivePrice } from "@/lib/utils";
-import type { Product } from "@/types";
 
 export function WishlistButton({
-  product,
+  productId,
+  slug,
+  name,
+  price,
+  variantId,
   image,
   className,
 }: {
-  product: Pick<Product, "id" | "slug" | "name" | "actual_price" | "special_price">;
+  productId: string;
+  slug: string;
+  name: string;
+  price: number;
+  variantId: string | null;
   image: string | null;
   className?: string;
 }) {
   const { toggle, has } = useWishlist();
-  const active = has(product.id);
+  const active = has(productId);
 
   return (
     <button
@@ -25,13 +31,7 @@ export function WishlistButton({
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        toggle({
-          productId: product.id,
-          slug: product.slug,
-          name: product.name,
-          price: getEffectivePrice(product),
-          image,
-        });
+        toggle({ productId, slug, name, price, variantId, image });
       }}
       className={
         className ??

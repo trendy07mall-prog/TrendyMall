@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
-import { getEffectivePrice } from "@/lib/utils";
 import { CartIcon } from "@/components/ui/Icon";
 import type { ProductWithPrimaryImage } from "@/types";
 
@@ -23,10 +22,13 @@ export function QuickAddButton({ product }: { product: ProductWithPrimaryImage }
         productId: product.id,
         slug: product.slug,
         name: product.name,
-        price: getEffectivePrice(product),
+        price: product.special_price ?? product.actual_price,
         image: product.image,
         quantity: 1,
-        variantId: null,
+        // Always the exact variant this card's price/image came from --
+        // there's no color picker here, so this is the one the customer
+        // saw and clicked "Add to Cart" on.
+        variantId: product.defaultVariantId || null,
         variantName: null,
         variantColorHex: null,
         attributeSelections: [],

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getEffectiveVariantPrice } from "@/lib/utils";
+import { getVariantPrice } from "@/lib/utils";
 import type { AttributeSelection, CartItem } from "@/types";
 
 export interface ReorderResult {
@@ -41,19 +41,41 @@ export async function getReorderItems(orderId: string): Promise<ReorderResult | 
     .map((item) => item.variant_id)
     .filter((id): id is string => Boolean(id));
 
-  const [{ data: products }, { data: variants }] = await Promise.all([
+  const [{ data: products }, { data: variants }, { data: defaultVariants }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, slug, name, actual_price, special_price, stock, is_deleted, status, product_images(image_url, sort_order)")
+      .select("id, slug, name, stock, is_deleted, status, product_images(image_url, sort_order)")
       .in("id", productIds)
       .order("sort_order", { foreignTable: "product_images" }),
     variantIds.length > 0
-      ? supabase.from("product_variants").select("id, color_name, color_hex, price, stock").in("id", variantIds)
-      : Promise.resolve({ data: [] as { id: string; color_name: string; color_hex: string; price: number | null; stock: number | null }[] }),
+      ? supabase
+          .from("product_variants")
+          .select("id, color_name, color_hex, regular_price, sale_price, stock")
+          .in("id", variantIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            color_name: string | null;
+            color_hex: string | null;
+            regular_price: number;
+            sale_price: number | null;
+            stock: number | null;
+          }[],
+        }),
+    // The order predates variants entirely, or the original variant was
+    // since deleted (order_items.variant_id is ON DELETE SET NULL) --
+    // falls back to the product's current default variant rather than a
+    // product-level price that no longer exists.
+    supabase
+      .from("product_variants")
+      .select("id, product_id, color_name, color_hex, regular_price, sale_price, stock")
+      .in("product_id", productIds)
+      .eq("is_default", true),
   ]);
 
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
   const variantMap = new Map((variants ?? []).map((v) => [v.id, v]));
+  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
   const items: CartItem[] = [];
   let unavailableCount = 0;
 
@@ -63,18 +85,24 @@ export async function getReorderItems(orderId: string): Promise<ReorderResult | 
       unavailableCount += 1;
       continue;
     }
-    const variant = orderItem.variant_id ? (variantMap.get(orderItem.variant_id) ?? null) : null;
-    const effectiveStock = variant?.stock ?? product.stock;
+    const variant = orderItem.variant_id
+      ? (variantMap.get(orderItem.variant_id) ?? defaultVariantByProductId.get(product.id))
+      : defaultVariantByProductId.get(product.id);
+    if (!variant) {
+      unavailableCount += 1;
+      continue;
+    }
+    const effectiveStock = variant.stock ?? product.stock;
     items.push({
       productId: product.id,
       slug: product.slug,
       name: product.name,
-      price: getEffectiveVariantPrice(product, variant),
+      price: getVariantPrice(variant),
       image: product.product_images?.[0]?.image_url ?? null,
       quantity: Math.min(orderItem.quantity, effectiveStock),
-      variantId: variant?.id ?? null,
-      variantName: variant?.color_name ?? null,
-      variantColorHex: variant?.color_hex ?? null,
+      variantId: variant.id,
+      variantName: variant.color_name,
+      variantColorHex: variant.color_hex,
       attributeSelections: (orderItem.attribute_selections as AttributeSelection[] | null) ?? [],
     });
   }

@@ -13,10 +13,16 @@ export interface VariantDraft {
   // the server sync variants by stable identity instead of deleting and
   // reinserting with a fresh id on every save.
   id?: string;
+  // Optional now -- a product with no real color/size choice gets exactly
+  // one variant row with these left blank (no swatch shown anywhere on
+  // the storefront), per the pricing migration's "every product gets at
+  // least one variant" design. Price lives ONLY here now -- there is no
+  // more product-level price field anywhere in this form.
   colorName: string;
   colorHex: string;
   stock: string;
-  price: string;
+  regularPrice: string;
+  salePrice: string;
   sku: string;
   // Up to 4, first = primary (shown on the swatch/card). Capped again
   // server-side in lib/admin/products.ts -- never trust the client alone.
@@ -27,6 +33,20 @@ export interface VariantDraft {
   // matching today's behavior for every product that hasn't opted in.
   attributeValueIds: string[];
 }
+
+// Every product needs at least one variant to hold its price now -- used
+// both as VariantsEditor's own starting row and as ProductForm's submit-time
+// fallback if an admin removes every row.
+export const BLANK_VARIANT_DRAFT: VariantDraft = {
+  colorName: "",
+  colorHex: "",
+  stock: "",
+  regularPrice: "",
+  salePrice: "",
+  sku: "",
+  imageUrls: [],
+  attributeValueIds: [],
+};
 
 const inputClass =
   "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
@@ -76,13 +96,14 @@ export function VariantsEditor({
     onChange(value.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
-  // Every new row starts at black (a valid hex is required for the color
-  // picker input) -- typing a recognized name below auto-corrects it
-  // before the admin ever has to notice, closing the gap that let two
-  // variants named "white" save with color_hex #000000. Only applies to
-  // rows added this session (no `id` yet) -- an existing, already-saved
-  // variant's hex was a deliberate choice and must never be silently
-  // overwritten just because its name was edited.
+  // Typing a recognized color name auto-fills a matching hex, so "white"
+  // doesn't silently save with no swatch color just because the admin
+  // forgot to also touch the color picker. Only applies to rows added
+  // this session (no `id` yet) and only once a name is actually typed --
+  // an existing, already-saved variant's hex was a deliberate choice and
+  // must never be silently overwritten just because its name was edited,
+  // and a genuinely color-less "default" variant must be able to stay
+  // blank rather than defaulting to some color that was never chosen.
   function handleColorNameChange(index: number, name: string) {
     const patch: Partial<VariantDraft> = { colorName: name };
     if (!value[index].id && !touchedHexRows.has(index)) {
@@ -98,10 +119,7 @@ export function VariantsEditor({
   }
 
   function addRow() {
-    onChange([
-      ...value,
-      { colorName: "", colorHex: "#000000", stock: "", price: "", sku: "", imageUrls: [], attributeValueIds: [] },
-    ]);
+    onChange([...value, { ...BLANK_VARIANT_DRAFT }]);
   }
 
   // A variant links at most one value per attribute -- picking a new value
@@ -169,7 +187,14 @@ export function VariantsEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="text-sm font-medium">Color variants</label>
+      <div>
+        <label className="text-sm font-medium">Variants &amp; Pricing</label>
+        <p className="text-xs text-[var(--muted)]">
+          Every product needs at least one row here for its price. If this product has no
+          real color choice, leave the color fields blank on a single row — no color
+          selector will show on the product page.
+        </p>
+      </div>
 
       {value.map((row, index) => (
         <div
@@ -206,7 +231,7 @@ export function VariantsEditor({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
             <input
               type="number"
               min="0"
@@ -219,11 +244,21 @@ export function VariantsEditor({
               type="number"
               min="0"
               step="0.01"
-              placeholder="Price (optional)"
-              value={row.price}
-              onChange={(e) => updateRow(index, { price: e.target.value })}
+              placeholder="Regular price *"
+              value={row.regularPrice}
+              onChange={(e) => updateRow(index, { regularPrice: e.target.value })}
               className={inputClass}
-              title="Leave blank to use the product's price"
+              required
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Sale price (optional)"
+              value={row.salePrice}
+              onChange={(e) => updateRow(index, { salePrice: e.target.value })}
+              className={inputClass}
+              title="Leave blank if this variant isn't on sale"
             />
             <input
               type="text"

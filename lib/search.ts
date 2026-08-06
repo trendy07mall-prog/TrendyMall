@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getEffectivePrice } from "@/lib/utils";
+import { getVariantPrice } from "@/lib/utils";
 
 export interface ProductSuggestion {
   id: string;
@@ -34,7 +34,7 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
   const [{ data: products }, { data: categories }, { data: brandRows }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, slug, name, actual_price, special_price")
+      .select("id, slug, name")
       .eq("status", "published").eq("is_deleted", false)
       .textSearch("search_vector", tsQuery, { type: "plain", config: "english" })
       .limit(6),
@@ -44,16 +44,27 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
 
   const productIds = (products ?? []).map((p) => p.id);
   const imageByProductId = new Map<string, string>();
+  const priceByProductId = new Map<string, number>();
   if (productIds.length > 0) {
-    const { data: images } = await supabase
-      .from("product_images")
-      .select("product_id, image_url, sort_order")
-      .in("product_id", productIds)
-      .order("sort_order", { ascending: true });
+    const [{ data: images }, { data: defaultVariants }] = await Promise.all([
+      supabase
+        .from("product_images")
+        .select("product_id, image_url, sort_order")
+        .in("product_id", productIds)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("product_variants")
+        .select("product_id, regular_price, sale_price")
+        .in("product_id", productIds)
+        .eq("is_default", true),
+    ]);
     for (const image of images ?? []) {
       if (!imageByProductId.has(image.product_id)) {
         imageByProductId.set(image.product_id, image.image_url);
       }
+    }
+    for (const v of defaultVariants ?? []) {
+      priceByProductId.set(v.product_id, getVariantPrice(v));
     }
   }
 
@@ -61,7 +72,7 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
     id: p.id,
     slug: p.slug,
     name: p.name,
-    price: getEffectivePrice(p),
+    price: priceByProductId.get(p.id) ?? 0,
     image: imageByProductId.get(p.id) ?? null,
   }));
 

@@ -5,6 +5,7 @@ import { newArrivalCutoff } from "@/lib/product-filters";
 import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
+import { pickWinningVariant } from "@/lib/utils";
 import type {
   Attribute,
   AttributeValue,
@@ -34,6 +35,93 @@ async function resolveAttributeValueProductIds(filters: ProductListFilters): Pro
   return getProductIdsForAttributeValues(filters.attributeValueIds);
 }
 
+// Price now lives only on product_variants, so a price-range filter can no
+// longer be a plain .gte/.lte on `products` -- resolved here (same
+// "small store, aggregate in JS" approach the rest of this file already
+// uses for facet counts) to a product-id list, then composed via the same
+// `.in("id", ...)` narrowing every other join-table-backed filter uses.
+async function resolvePriceFilterProductIds(
+  supabase: SupabaseServerClient,
+  filters: ProductListFilters,
+): Promise<string[] | undefined> {
+  if (filters.minPrice == null && filters.maxPrice == null) return undefined;
+
+  const { data } = await supabase
+    .from("product_variants")
+    .select("product_id, regular_price, sale_price")
+    .eq("is_active", true);
+
+  const minPriceByProduct = new Map<string, number>();
+  for (const v of data ?? []) {
+    const effective = v.sale_price ?? v.regular_price;
+    const prev = minPriceByProduct.get(v.product_id);
+    if (prev == null || effective < prev) minPriceByProduct.set(v.product_id, effective);
+  }
+
+  const ids: string[] = [];
+  for (const [productId, price] of minPriceByProduct) {
+    if (filters.minPrice != null && price < filters.minPrice) continue;
+    if (filters.maxPrice != null && price > filters.maxPrice) continue;
+    ids.push(productId);
+  }
+  return ids;
+}
+
+// "On Sale" used to be a plain `special_price.not.is.null` column check,
+// OR'd together with newArrival/featured (see the promoConditions .or()
+// below) -- resolved to an id list the same way, then folded into that
+// same .or() string as an `id.in.(...)` term so the OR relationship with
+// newArrival/featured is preserved exactly as it was.
+async function resolveOnSaleProductIds(
+  supabase: SupabaseServerClient,
+  filters: ProductListFilters,
+): Promise<string[] | undefined> {
+  if (!filters.onSale) return undefined;
+  const { data } = await supabase
+    .from("product_variants")
+    .select("product_id")
+    .eq("is_active", true)
+    .not("sale_price", "is", null);
+  return [...new Set((data ?? []).map((v) => v.product_id))];
+}
+
+// The variant a listing card shows: lowest sale_price among active variants
+// that have one, else lowest regular_price -- a single-variant product
+// collapses to simply "that variant," not a special case. Falls back to the
+// product's own gallery image when the winning variant has no image of its
+// own (true for every auto-created "default" variant from the pricing
+// migration, which never had a variant-specific image uploaded).
+export interface VariantPriceRow {
+  id: string;
+  product_id: string;
+  regular_price: number;
+  sale_price: number | null;
+  stock: number | null;
+  is_default: boolean;
+  variant_image_url: string | null;
+}
+
+export function resolveCardDisplay(variants: VariantPriceRow[]): {
+  actualPrice: number;
+  specialPrice: number | null;
+  hasMultiplePrices: boolean;
+  variantId: string;
+  image: string | null;
+} {
+  const distinctPrices = new Set(variants.map((v) => v.sale_price ?? v.regular_price));
+  const hasMultiplePrices = distinctPrices.size > 1;
+
+  const winner = pickWinningVariant(variants);
+
+  return {
+    actualPrice: winner.regular_price,
+    specialPrice: winner.sale_price,
+    hasMultiplePrices,
+    variantId: winner.id,
+    image: winner.variant_image_url,
+  };
+}
+
 async function attachPrimaryImages(
   supabase: SupabaseServerClient,
   products: Product[],
@@ -45,6 +133,7 @@ async function attachPrimaryImages(
     { data: images, error: imagesError },
     { data: ratings, error: ratingsError },
     { data: productTagRows, error: tagsError },
+    { data: variantRows, error: variantsError },
   ] = await Promise.all([
     supabase
       .from("product_images")
@@ -59,11 +148,17 @@ async function attachPrimaryImages(
       .from("product_tags")
       .select("product_id, tags(name, slug, is_active)")
       .in("product_id", ids),
+    supabase
+      .from("product_variants")
+      .select("id, product_id, regular_price, sale_price, stock, is_default, variant_image_url")
+      .in("product_id", ids)
+      .eq("is_active", true),
   ]);
 
   if (imagesError) throw imagesError;
   if (ratingsError) throw ratingsError;
   if (tagsError) throw tagsError;
+  if (variantsError) throw variantsError;
 
   const primaryByProductId = new Map<string, string>();
   for (const image of images ?? []) {
@@ -85,11 +180,27 @@ async function attachPrimaryImages(
     tagsByProductId.set(row.product_id, list);
   }
 
+  const variantsByProductId = new Map<string, VariantPriceRow[]>();
+  for (const v of (variantRows ?? []) as VariantPriceRow[]) {
+    const list = variantsByProductId.get(v.product_id) ?? [];
+    list.push(v);
+    variantsByProductId.set(v.product_id, list);
+  }
+
   return products.map((product) => {
     const rating = ratingByProductId.get(product.id);
+    const variants = variantsByProductId.get(product.id) ?? [];
+    const display =
+      variants.length > 0
+        ? resolveCardDisplay(variants)
+        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
     return {
       ...product,
-      image: primaryByProductId.get(product.id) ?? null,
+      image: display.image ?? primaryByProductId.get(product.id) ?? null,
+      actual_price: display.actualPrice,
+      special_price: display.specialPrice,
+      hasMultiplePrices: display.hasMultiplePrices,
+      defaultVariantId: display.variantId,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       tags: tagsByProductId.get(product.id) ?? [],
@@ -104,19 +215,29 @@ async function attachPrimaryImages(
 // (avgRating lives in a view, sales in another) and for a store this size
 // sorting the already-fetched array in JS is simpler than splitting the
 // logic between SQL ORDER BY and a JS fallback.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyDbFilters(query: any, filters: ProductListFilters, narrowingIdLists?: (string[] | undefined)[]): any {
+// A UUID that can never match a real row -- used to make an empty
+// "on sale" result set behave as "matches nothing" inside an `.or()`
+// string, since `id.in.()` with an empty list isn't valid PostgREST syntax.
+const IMPOSSIBLE_ID = "00000000-0000-0000-0000-000000000000";
+
+function applyDbFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  filters: ProductListFilters,
+  narrowingIdLists?: (string[] | undefined)[],
+  onSaleProductIds?: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
   let q = query;
   if (filters.categoryIds?.length) q = q.in("category_id", filters.categoryIds);
   if (filters.brandIds?.length) q = q.in("brand_id", filters.brandIds);
-  // Each join-table-backed filter (tags, attribute values, ...) contributes
-  // its own pre-resolved product-id list here -- chaining multiple
-  // `.in("id", ...)` calls on the same column composes as an intersection.
+  // Each join-table-backed filter (tags, attribute values, price range...)
+  // contributes its own pre-resolved product-id list here -- chaining
+  // multiple `.in("id", ...)` calls on the same column composes as an
+  // intersection.
   for (const idList of narrowingIdLists ?? []) {
     if (idList) q = q.in("id", idList);
   }
-  if (filters.minPrice != null) q = q.gte("actual_price", filters.minPrice);
-  if (filters.maxPrice != null) q = q.lte("actual_price", filters.maxPrice);
   if (filters.cod) q = q.eq("cod_available", true);
   if (filters.freeDelivery) q = q.eq("free_delivery", true);
   if (filters.warranty) q = q.eq("warranty_available", true);
@@ -124,8 +245,15 @@ function applyDbFilters(query: any, filters: ProductListFilters, narrowingIdList
   if (filters.inStock && !filters.outOfStock) q = q.gt("stock", 0);
   else if (filters.outOfStock && !filters.inStock) q = q.lte("stock", 0);
 
+  // onSale used to be a plain column check (special_price.not.is.null) --
+  // now resolved to an id list (see resolveOnSaleProductIds) and folded
+  // into this same .or() string as an id.in.(...) term, preserving the
+  // original OR relationship with newArrival/featured exactly.
   const promoConditions: string[] = [];
-  if (filters.onSale) promoConditions.push("special_price.not.is.null");
+  if (filters.onSale) {
+    const ids = onSaleProductIds ?? [];
+    promoConditions.push(`id.in.(${ids.length > 0 ? ids.join(",") : IMPOSSIBLE_ID})`);
+  }
   if (filters.newArrival) promoConditions.push(`created_at.gte.${newArrivalCutoff()}`);
   if (filters.featured) promoConditions.push("is_featured.eq.true");
   if (promoConditions.length > 0) q = q.or(promoConditions.join(","));
@@ -184,9 +312,11 @@ export async function getProductsByCategory(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
-  const [tagProductIds, attributeProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
   ]);
   const { data, error } = await applyDbFilters(
     supabase
@@ -195,7 +325,8 @@ export async function getProductsByCategory(
       .in("category_id", categoryIds)
       .eq("status", "published").eq("is_deleted", false),
     filters,
-    [tagProductIds, attributeProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds],
+    onSaleProductIds,
   );
 
   if (error) throw error;
@@ -207,14 +338,17 @@ export async function getAllProducts(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
-  const [tagProductIds, attributeProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
   ]);
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false),
     filters,
-    [tagProductIds, attributeProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds],
+    onSaleProductIds,
   );
 
   if (error) throw error;
@@ -249,9 +383,11 @@ export async function getFacetCounts(
   const filtersWithoutBrand: ProductListFilters = { ...filters, brands: undefined, brandIds: undefined };
   const filtersWithoutTag: ProductListFilters = { ...filters, tagIds: undefined };
   const filtersWithoutAttribute: ProductListFilters = { ...filters, attributeValueIds: undefined };
-  const [tagProductIds, attributeProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
   ]);
 
   let categories: FacetCounts["categories"] = [];
@@ -261,7 +397,12 @@ export async function getFacetCounts(
 
     const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
       supabase.from("categories").select("*").eq("is_active", true),
-      applyDbFilters(categoryCountQuery, filtersWithoutCategory, [tagProductIds, attributeProductIds]),
+      applyDbFilters(
+        categoryCountQuery,
+        filtersWithoutCategory,
+        [tagProductIds, attributeProductIds, priceProductIds],
+        onSaleProductIds,
+      ),
     ]);
 
     const countByCategoryId = new Map<string, number>();
@@ -288,7 +429,12 @@ export async function getFacetCounts(
   if (options.categoryIds) brandQuery = brandQuery.in("category_id", options.categoryIds);
   if (options.restrictToIds) brandQuery = brandQuery.in("id", options.restrictToIds);
   const [{ data: brandRows }, { data: brandCatalog }] = await Promise.all([
-    applyDbFilters(brandQuery, filtersWithoutBrand, [tagProductIds, attributeProductIds]),
+    applyDbFilters(
+      brandQuery,
+      filtersWithoutBrand,
+      [tagProductIds, attributeProductIds, priceProductIds],
+      onSaleProductIds,
+    ),
     supabase.from("brands").select("id, name").eq("is_active", true),
   ]);
 
@@ -308,7 +454,12 @@ export async function getFacetCounts(
   let tagCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
   if (options.categoryIds) tagCountQuery = tagCountQuery.in("category_id", options.categoryIds);
   if (options.restrictToIds) tagCountQuery = tagCountQuery.in("id", options.restrictToIds);
-  const { data: tagEligibleProducts } = await applyDbFilters(tagCountQuery, filtersWithoutTag, [attributeProductIds]);
+  const { data: tagEligibleProducts } = await applyDbFilters(
+    tagCountQuery,
+    filtersWithoutTag,
+    [attributeProductIds, priceProductIds],
+    onSaleProductIds,
+  );
   const tagEligibleProductIds = (tagEligibleProducts ?? []).map((p: { id: string }) => p.id);
 
   let tags: FacetCounts["tags"] = [];
@@ -334,9 +485,12 @@ export async function getFacetCounts(
   let attributeCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
   if (options.categoryIds) attributeCountQuery = attributeCountQuery.in("category_id", options.categoryIds);
   if (options.restrictToIds) attributeCountQuery = attributeCountQuery.in("id", options.restrictToIds);
-  const { data: attributeEligibleProducts } = await applyDbFilters(attributeCountQuery, filtersWithoutAttribute, [
-    tagProductIds,
-  ]);
+  const { data: attributeEligibleProducts } = await applyDbFilters(
+    attributeCountQuery,
+    filtersWithoutAttribute,
+    [tagProductIds, priceProductIds],
+    onSaleProductIds,
+  );
   const attributeEligibleProductIds = (attributeEligibleProducts ?? []).map((p: { id: string }) => p.id);
 
   let attributes: FacetCounts["attributes"] = [];
@@ -424,19 +578,24 @@ export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage
 // can skip rendering the promotion entirely rather than showing "Up to 0%".
 export async function getMaxDiscountPercent(): Promise<number | null> {
   const supabase = await createClient();
+  // products!inner narrows the variant rows to published/non-deleted
+  // products in the same query, matching the join-based pattern already
+  // used elsewhere in this file for embedded-resource filters.
   const { data, error } = await supabase
-    .from("products")
-    .select("actual_price, special_price")
-    .eq("status", "published")
-    .eq("is_deleted", false)
-    .not("special_price", "is", null);
+    .from("product_variants")
+    .select("regular_price, sale_price, products!inner(status, is_deleted)")
+    .eq("is_active", true)
+    .eq("products.status", "published")
+    .eq("products.is_deleted", false)
+    .not("sale_price", "is", null);
 
   if (error) throw error;
 
   let max = 0;
-  for (const { actual_price, special_price } of data) {
-    if (special_price == null || special_price >= actual_price || actual_price <= 0) continue;
-    const percent = ((actual_price - special_price) / actual_price) * 100;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const { regular_price, sale_price } of data as any[]) {
+    if (sale_price == null || sale_price >= regular_price || regular_price <= 0) continue;
+    const percent = ((regular_price - sale_price) / regular_price) * 100;
     if (percent > max) max = percent;
   }
 
@@ -491,15 +650,18 @@ export async function searchProducts(
   const supabase = await createClient();
   const matchIds = await getSearchMatchIds(query);
   if (matchIds.length === 0) return [];
-  const [tagProductIds, attributeProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
   ]);
 
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false).in("id", matchIds),
     filters,
-    [tagProductIds, attributeProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds],
+    onSaleProductIds,
   );
   if (error) throw error;
 
@@ -608,6 +770,7 @@ export const getProductDetailBySlug = cache(
         .from("product_variants")
         .select("*")
         .eq("product_id", product.id)
+        .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       getProductAttributesForDetail(product.id),
     ]);

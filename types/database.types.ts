@@ -531,8 +531,6 @@ export interface Database {
           slug: string;
           name: string;
           description: string;
-          actual_price: number;
-          special_price: number | null;
           brand: string | null;
           brand_id: string | null;
           model: string | null;
@@ -561,8 +559,6 @@ export interface Database {
           slug: string;
           name: string;
           description?: string;
-          actual_price: number;
-          special_price?: number | null;
           brand?: string | null;
           brand_id?: string | null;
           model?: string | null;
@@ -590,8 +586,6 @@ export interface Database {
           slug?: string;
           name?: string;
           description?: string;
-          actual_price?: number;
-          special_price?: number | null;
           brand?: string | null;
           brand_id?: string | null;
           model?: string | null;
@@ -667,37 +661,46 @@ export interface Database {
         Row: {
           id: string;
           product_id: string;
-          color_name: string;
-          color_hex: string;
+          color_name: string | null;
+          color_hex: string | null;
           stock: number | null;
-          price: number | null;
+          regular_price: number;
+          sale_price: number | null;
           sku: string | null;
           variant_image_url: string | null;
           sort_order: number;
+          is_default: boolean;
+          is_active: boolean;
           created_at: string;
         };
         Insert: {
           id?: string;
           product_id: string;
-          color_name: string;
-          color_hex: string;
+          color_name?: string | null;
+          color_hex?: string | null;
           stock?: number | null;
-          price?: number | null;
+          regular_price: number;
+          sale_price?: number | null;
           sku?: string | null;
           variant_image_url?: string | null;
           sort_order?: number;
+          is_default?: boolean;
+          is_active?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           product_id?: string;
-          color_name?: string;
-          color_hex?: string;
+          color_name?: string | null;
+          color_hex?: string | null;
           stock?: number | null;
-          price?: number | null;
+          regular_price?: number;
+          sale_price?: number | null;
           sku?: string | null;
           variant_image_url?: string | null;
           sort_order?: number;
+          is_default?: boolean;
+          is_active?: boolean;
           created_at?: string;
         };
         Relationships: [

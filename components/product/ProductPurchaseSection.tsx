@@ -13,7 +13,7 @@ import { NotifyMeForm } from "@/components/product/NotifyMeForm";
 import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
-import { getEffectiveVariantPrice } from "@/lib/utils";
+import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
@@ -21,8 +21,8 @@ import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRat
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
 
-function normalizeColor(name: string): string {
-  return name.trim().toLowerCase();
+function normalizeColor(name: string | null): string {
+  return (name ?? "").trim().toLowerCase();
 }
 
 export function ProductPurchaseSection({
@@ -50,10 +50,13 @@ export function ProductPurchaseSection({
 }) {
   // Color options are every distinct color across this product's variants
   // (deduped -- two variants can share a color, e.g. the same white in two
-  // capacities, and must render as ONE swatch, not two identical ones).
+  // capacities, and must render as ONE swatch, not two identical ones). A
+  // variant with no color at all (the invisible "default" variant every
+  // single-option product now gets) never contributes a swatch.
   const colorOptions: { key: string; name: string; hex: string }[] = [];
   const seenColorKeys = new Set<string>();
   for (const v of variants) {
+    if (!v.color_name || !v.color_hex) continue;
     const key = normalizeColor(v.color_name);
     if (!seenColorKeys.has(key)) {
       seenColorKeys.add(key);
@@ -125,12 +128,13 @@ export function ProductPurchaseSection({
     attributeValues: Record<string, AttributeValue>;
   } {
     if (variants.length === 0) return { colorKey: null, attributeValues: {} };
-    // First in stock, in admin sort_order; falls back to the first overall
-    // if nothing has stock -- same "sort_order is authoritative" rule used
-    // everywhere else in this catalog.
-    const defaultVariant = variants.find((v) => v.stock !== 0) ?? variants[0];
+    // Same algorithm the shop card uses to pick a product's displayed
+    // variant (lib/utils.ts's pickWinningVariant) -- the PDP must land on
+    // the exact variant the card already showed a price for, or the two
+    // surfaces show different numbers for the same product on load.
+    const defaultVariant = pickWinningVariant(variants);
     return {
-      colorKey: normalizeColor(defaultVariant.color_name),
+      colorKey: colorOptions.length > 0 ? normalizeColor(defaultVariant.color_name) : null,
       attributeValues: attributeValuesForVariant(defaultVariant),
     };
   }
@@ -176,11 +180,10 @@ export function ProductPurchaseSection({
   // this product's two variants are White/1000-5000mAh and White-new/
   // 5000-10000mAh -- there's no variant at all for White + 5000-10000mAh).
   // If the color you clicked doesn't exist combined with what's currently
-  // selected elsewhere, jump straight to a real variant of that color
-  // (first in stock, else first overall, same tie-break as
-  // defaultDimensions) instead of leaving the click landing on an
-  // unreachable combination the user could never get out of by clicking
-  // one swatch at a time.
+  // selected elsewhere, jump straight to a real variant of that color (same
+  // pickWinningVariant tie-break as defaultDimensions) instead of leaving
+  // the click landing on an unreachable combination the user could never
+  // get out of by clicking one swatch at a time.
   function handleColorSelect(key: string) {
     setSelectionError(null);
     const stillMatches = findMatchingVariants({ ...dimensions, color: key }).length > 0;
@@ -191,7 +194,7 @@ export function ProductPurchaseSection({
 
     if (!stillMatches) {
       const colorVariants = variants.filter((v) => normalizeColor(v.color_name) === key);
-      const target = colorVariants.find((v) => v.stock !== 0) ?? colorVariants[0];
+      const target = colorVariants.length > 0 ? pickWinningVariant(colorVariants) : undefined;
       if (target) {
         const nextAttributeValues = attributeValuesForVariant(target);
         setSelectedAttributeValues(nextAttributeValues);
@@ -228,10 +231,16 @@ export function ProductPurchaseSection({
     return matches.length === 0 || matches.every((v) => v.stock === 0);
   }
 
-  const colorSwatchOptions: ColorSwatchOption[] = colorOptions.map((option) => ({
-    ...option,
-    disabled: isColorSoldOut(option.key),
-  }));
+  // A single color (or none at all -- the invisible "default" variant)
+  // means there's no real choice to present, so no swatch section at all,
+  // not a one-option selector.
+  const colorSwatchOptions: ColorSwatchOption[] =
+    colorOptions.length > 1
+      ? colorOptions.map((option) => ({
+          ...option,
+          disabled: isColorSoldOut(option.key),
+        }))
+      : [];
 
   // A color must be picked whenever the product has any, every attribute
   // group returned for this product is required (variant-defining or not
@@ -293,14 +302,10 @@ export function ProductPurchaseSection({
           {product.name}
         </h1>
         <div className="mt-2">
-          {resolvedVariant?.price != null ? (
-            <PriceDisplay actualPrice={resolvedVariant.price} specialPrice={null} />
-          ) : (
-            <PriceDisplay
-              actualPrice={product.actual_price}
-              specialPrice={product.special_price}
-            />
-          )}
+          <PriceDisplay
+            actualPrice={resolvedVariant?.regular_price ?? 0}
+            specialPrice={resolvedVariant?.sale_price ?? null}
+          />
         </div>
         <p className="mt-2 text-sm text-[var(--muted)]">
           {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
@@ -384,13 +389,20 @@ export function ProductPurchaseSection({
               outOfStock={outOfStock}
               onBeforeAdd={handleBeforeAdd}
             />
-            <WishlistButton product={product} image={primaryImage} />
+            <WishlistButton
+              productId={product.id}
+              slug={product.slug}
+              name={product.name}
+              price={resolvedVariant ? getVariantPrice(resolvedVariant) : 0}
+              variantId={resolvedVariant?.id ?? null}
+              image={primaryImage}
+            />
             {!outOfStock && (
               <WhatsAppOrderButton
                 productName={product.name}
                 colorName={resolvedVariant?.color_name ?? null}
                 quantity={quantity}
-                price={getEffectiveVariantPrice(product, resolvedVariant)}
+                price={resolvedVariant ? getVariantPrice(resolvedVariant) : 0}
               />
             )}
           </div>

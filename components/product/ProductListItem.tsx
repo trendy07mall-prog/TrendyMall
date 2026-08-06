@@ -45,7 +45,14 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
           )}
         </Link>
         <div className="absolute top-1.5 right-1.5">
-          <WishlistButton product={product} image={product.image} />
+          <WishlistButton
+            productId={product.id}
+            slug={product.slug}
+            name={product.name}
+            price={product.special_price ?? product.actual_price}
+            variantId={product.defaultVariantId || null}
+            image={product.image}
+          />
         </div>
       </div>
 
@@ -64,11 +71,16 @@ export function ProductListItem({ product }: { product: ProductWithPrimaryImage 
 
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <PriceDisplay
-              actualPrice={product.actual_price}
-              specialPrice={product.special_price}
-              size="sm"
-            />
+            <div>
+              {product.hasMultiplePrices && (
+                <p className="text-[10px] text-[var(--muted)]">Starting from</p>
+              )}
+              <PriceDisplay
+                actualPrice={product.actual_price}
+                specialPrice={product.special_price}
+                size="sm"
+              />
+            </div>
             <span className={`text-xs font-medium ${stock.color}`}>{stock.label}</span>
           </div>
           <div className="w-36 shrink-0">

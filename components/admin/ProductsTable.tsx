@@ -146,8 +146,10 @@ export function ProductsTable({
                   <td className="py-2 pr-4 align-top">
                     <QuickEditPrice
                       productId={product.id}
-                      actualPrice={product.actual_price}
-                      specialPrice={product.special_price}
+                      variantId={product.defaultVariantId}
+                      regularPrice={product.actual_price}
+                      salePrice={product.special_price}
+                      hasMultiplePrices={product.hasMultiplePrices}
                     />
                   </td>
                   <td className="py-2 pr-4 align-top">
@@ -252,8 +254,10 @@ export function ProductsTable({
                 <div className="flex flex-wrap items-center gap-3">
                   <QuickEditPrice
                     productId={product.id}
-                    actualPrice={product.actual_price}
-                    specialPrice={product.special_price}
+                    variantId={product.defaultVariantId}
+                    regularPrice={product.actual_price}
+                    salePrice={product.special_price}
+                    hasMultiplePrices={product.hasMultiplePrices}
                   />
                   <QuickEditStock productId={product.id} stock={product.stock} />
                   <StockBadge stock={product.stock} />

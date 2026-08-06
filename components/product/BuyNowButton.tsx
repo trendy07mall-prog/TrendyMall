@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { getEffectiveVariantPrice } from "@/lib/utils";
+import { getVariantPrice } from "@/lib/utils";
 import type { AttributeSelection, Product, ProductVariant } from "@/types";
 
 export function BuyNowButton({
@@ -35,7 +35,7 @@ export function BuyNowButton({
           productId: product.id,
           slug: product.slug,
           name: product.name,
-          price: getEffectiveVariantPrice(product, variant),
+          price: variant ? getVariantPrice(variant) : 0,
           image,
           quantity,
           variantId: variant?.id ?? null,

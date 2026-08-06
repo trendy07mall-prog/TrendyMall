@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getEffectiveVariantPrice } from "@/lib/utils";
+import { getVariantPrice } from "@/lib/utils";
 
 export interface CartItemValidation {
   productId: string;
@@ -24,22 +24,28 @@ export async function getCartValidation(
   if (items.length === 0) return [];
 
   const supabase = await createClient();
+  const productIds = items.map((i) => i.productId);
   const variantIds = items.map((i) => i.variantId).filter((id): id is string => id !== null);
-  const [{ data: products }, { data: variants }] = await Promise.all([
-    supabase
-      .from("products")
-      .select("id, actual_price, special_price, stock, is_deleted, status")
-      .in(
-        "id",
-        items.map((i) => i.productId),
-      ),
+  const [{ data: products }, { data: variants }, { data: defaultVariants }] = await Promise.all([
+    supabase.from("products").select("id, stock, is_deleted, status").in("id", productIds),
     variantIds.length > 0
-      ? supabase.from("product_variants").select("id, price, stock").in("id", variantIds)
-      : Promise.resolve({ data: [] as { id: string; price: number | null; stock: number | null }[] }),
+      ? supabase.from("product_variants").select("id, regular_price, sale_price, stock").in("id", variantIds)
+      : Promise.resolve({
+          data: [] as { id: string; regular_price: number; sale_price: number | null; stock: number | null }[],
+        }),
+    // A line with no variantId (a pre-migration or otherwise stale cart
+    // line) falls back to the product's default variant instead of a
+    // product-level price that no longer exists.
+    supabase
+      .from("product_variants")
+      .select("id, product_id, regular_price, sale_price, stock")
+      .in("product_id", productIds)
+      .eq("is_default", true),
   ]);
 
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
   const variantById = new Map((variants ?? []).map((v) => [v.id, v]));
+  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
 
   return items.map((item) => {
     const product = byId.get(item.productId);
@@ -54,9 +60,21 @@ export async function getCartValidation(
       };
     }
 
-    const variant = item.variantId ? (variantById.get(item.variantId) ?? null) : null;
-    const currentPrice = getEffectiveVariantPrice(product, variant);
-    const currentStock = variant?.stock ?? product.stock;
+    const variant = item.variantId
+      ? (variantById.get(item.variantId) ?? defaultVariantByProductId.get(item.productId))
+      : defaultVariantByProductId.get(item.productId);
+    if (!variant) {
+      return {
+        productId: item.productId,
+        variantId: item.variantId,
+        available: false,
+        currentPrice: null,
+        currentStock: 0,
+        priceChanged: false,
+      };
+    }
+    const currentPrice = getVariantPrice(variant);
+    const currentStock = variant.stock ?? product.stock;
     return {
       productId: item.productId,
       variantId: item.variantId,

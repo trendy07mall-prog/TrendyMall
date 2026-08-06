@@ -17,7 +17,7 @@ import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { RecordRecentlyViewed } from "@/components/product/RecordRecentlyViewed";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { getEffectivePrice } from "@/lib/utils";
+import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { SITE_URL as siteUrl } from "@/lib/site";
 
 export async function generateMetadata({
@@ -99,6 +99,13 @@ export default async function ProductPage({
       ? ("already_reviewed" as const)
       : ("can_review" as const);
 
+  // Same default-variant tie-break as ProductPurchaseSection's own
+  // defaultDimensions (first in stock, in sort_order, else first overall)
+  // -- the JSON-LD/recently-viewed price shown here must match what the
+  // page itself opens on.
+  const defaultVariant = variants.length > 0 ? pickWinningVariant(variants) : null;
+  const defaultVariantPrice = defaultVariant ? getVariantPrice(defaultVariant) : 0;
+
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -111,7 +118,7 @@ export default async function ProductPage({
       "@type": "Offer",
       url: `${siteUrl}/product/${product.slug}`,
       priceCurrency: "LKR",
-      price: getEffectivePrice(product),
+      price: defaultVariantPrice,
       availability:
         product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
@@ -161,7 +168,7 @@ export default async function ProductPage({
         slug={product.slug}
         name={product.name}
         image={imageUrls[0] ?? null}
-        price={getEffectivePrice(product)}
+        price={defaultVariantPrice}
       />
     </div>
   );

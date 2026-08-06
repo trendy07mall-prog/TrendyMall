@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { resolveCardDisplay } from "@/lib/data/products";
+import type { VariantPriceRow } from "@/lib/data/products";
 import type { ProductWithPrimaryImage } from "@/types";
 
 // A "use server" file, not a plain data-fetcher in lib/data/products.ts —
@@ -47,20 +49,29 @@ export async function getCartRecommendations(
   if (candidates.length === 0) return [];
 
   const ids = candidates.map((p) => p.id);
-  const [{ data: images, error: imagesError }, { data: ratings, error: ratingsError }] =
-    await Promise.all([
-      supabase
-        .from("product_images")
-        .select("product_id, image_url, sort_order")
-        .in("product_id", ids)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("product_rating_summary")
-        .select("product_id, avg_rating, review_count")
-        .in("product_id", ids),
-    ]);
+  const [
+    { data: images, error: imagesError },
+    { data: ratings, error: ratingsError },
+    { data: variantRows, error: variantsError },
+  ] = await Promise.all([
+    supabase
+      .from("product_images")
+      .select("product_id, image_url, sort_order")
+      .in("product_id", ids)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("product_rating_summary")
+      .select("product_id, avg_rating, review_count")
+      .in("product_id", ids),
+    supabase
+      .from("product_variants")
+      .select("id, product_id, regular_price, sale_price, stock, is_default, variant_image_url")
+      .in("product_id", ids)
+      .eq("is_active", true),
+  ]);
   if (imagesError) throw imagesError;
   if (ratingsError) throw ratingsError;
+  if (variantsError) throw variantsError;
 
   const primaryImageByProductId = new Map<string, string>();
   for (const image of images ?? []) {
@@ -69,12 +80,27 @@ export async function getCartRecommendations(
     }
   }
   const ratingByProductId = new Map((ratings ?? []).map((r) => [r.product_id, r] as const));
+  const variantsByProductId = new Map<string, VariantPriceRow[]>();
+  for (const v of (variantRows ?? []) as VariantPriceRow[]) {
+    const list = variantsByProductId.get(v.product_id) ?? [];
+    list.push(v);
+    variantsByProductId.set(v.product_id, list);
+  }
 
   return candidates.map((product) => {
     const rating = ratingByProductId.get(product.id);
+    const variants = variantsByProductId.get(product.id) ?? [];
+    const display =
+      variants.length > 0
+        ? resolveCardDisplay(variants)
+        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
     return {
       ...product,
-      image: primaryImageByProductId.get(product.id) ?? null,
+      image: display.image ?? primaryImageByProductId.get(product.id) ?? null,
+      actual_price: display.actualPrice,
+      special_price: display.specialPrice,
+      hasMultiplePrices: display.hasMultiplePrices,
+      defaultVariantId: display.variantId,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       // Not fetched here -- this recommendations widget doesn't need tag

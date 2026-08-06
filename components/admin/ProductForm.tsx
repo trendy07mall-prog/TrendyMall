@@ -20,8 +20,7 @@ import { BrandField } from "./product-form/BrandField";
 import { TagsField } from "./product-form/TagsField";
 import { AttributesField } from "./product-form/AttributesField";
 import { SpecFieldsEditor } from "./product-form/SpecFieldsEditor";
-import { PricingFields } from "./product-form/PricingFields";
-import { VariantsEditor, type VariantDraft } from "./product-form/VariantsEditor";
+import { VariantsEditor, BLANK_VARIANT_DRAFT, type VariantDraft } from "./product-form/VariantsEditor";
 import { WhatsInBoxEditor } from "./product-form/WhatsInBoxEditor";
 import { GalleryUploader } from "./product-form/GalleryUploader";
 
@@ -84,18 +83,25 @@ export function ProductForm({
   const [galleryUrls, setGalleryUrls] = useState<string[]>(
     (images ?? []).map((i) => i.image_url),
   );
-  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>(
-    (variants ?? []).map((v) => ({
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>(() => {
+    const existing = (variants ?? []).map((v) => ({
       id: v.id,
-      colorName: v.color_name,
-      colorHex: v.color_hex,
+      colorName: v.color_name ?? "",
+      colorHex: v.color_hex ?? "",
       stock: v.stock?.toString() ?? "",
-      price: v.price?.toString() ?? "",
+      regularPrice: v.regular_price?.toString() ?? "",
+      salePrice: v.sale_price?.toString() ?? "",
       sku: v.sku ?? "",
       imageUrls: v.imageUrls,
       attributeValueIds: v.attributeValueIds,
-    })),
-  );
+    }));
+    // A brand-new product (or, defensively, an existing one somehow saved
+    // with zero variants) starts with one blank row rather than an empty
+    // section -- every product needs at least one variant to hold its
+    // price now, so this is what makes that requirement visible from the
+    // start instead of only surfacing as a save-time error.
+    return existing.length > 0 ? existing : [{ ...BLANK_VARIANT_DRAFT }];
+  });
   const [attributeValueIds, setAttributeValueIds] = useState<string[]>(defaultAttributeValueIds);
 
   // Only non-color attributes can define a variant combination -- Color
@@ -149,11 +155,6 @@ export function ProductForm({
         templatesWithFields={templatesWithFields}
         categoryId={categoryId}
         defaultValues={defaultSpecValues}
-      />
-
-      <PricingFields
-        defaultActualPrice={product?.actual_price}
-        defaultSpecialPrice={product?.special_price}
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -313,7 +314,15 @@ export function ProductForm({
         name="galleryImageUrls"
         value={JSON.stringify(galleryUrls)}
       />
-      <input type="hidden" name="variants" value={JSON.stringify(variantDrafts)} />
+      {/* If the admin removes every row, this still submits one blank
+          draft rather than an empty array -- syncProductVariants (server
+          side) then gives a clear "needs a price" error instead of
+          silently saving a product with zero variants. */}
+      <input
+        type="hidden"
+        name="variants"
+        value={JSON.stringify(variantDrafts.length > 0 ? variantDrafts : [BLANK_VARIANT_DRAFT])}
+      />
 
       {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
 

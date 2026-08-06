@@ -82,7 +82,14 @@ export function ProductCard({
           ))}
         </div>
         <div className="absolute top-2 right-2">
-          <WishlistButton product={product} image={product.image} />
+          <WishlistButton
+            productId={product.id}
+            slug={product.slug}
+            name={product.name}
+            price={product.special_price ?? product.actual_price}
+            variantId={product.defaultVariantId || null}
+            image={product.image}
+          />
         </div>
       </div>
 
@@ -118,6 +125,9 @@ export function ProductCard({
               the site's usual gap-2 for the same reason. */}
           <div className="flex items-center justify-between gap-1">
             <div className="shrink-0">
+              {product.hasMultiplePrices && (
+                <p className="text-[10px] text-[var(--muted)]">Starting from</p>
+              )}
               <PriceDisplay
                 actualPrice={product.actual_price}
                 specialPrice={product.special_price}
