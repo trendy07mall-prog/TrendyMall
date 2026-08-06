@@ -73,10 +73,25 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
+  // Always the admin client here, regardless of which branch above
+  // resolved invoiceOrder -- authorization for this order was already
+  // decided above (owner-RLS match or the get_guest_order_by_id check);
+  // this is a data fetch, not a re-decision. Using the owner-authenticated
+  // client instead would run this join under coupons' own RLS
+  // (is_admin() OR active-and-in-window), silently hiding the code on an
+  // otherwise-legitimate invoice for a coupon that's since expired or been
+  // deactivated.
+  const { data: redemption } = await createAdminClient()
+    .from("coupon_redemptions")
+    .select("coupons(code)")
+    .eq("order_id", invoiceOrder.id)
+    .maybeSingle();
+
   const pdfBuffer = await renderInvoicePdf({
     order: invoiceOrder,
     items: items ?? [],
     address: address ?? null,
+    couponCode: redemption?.coupons?.code ?? null,
   });
 
   return new Response(new Uint8Array(pdfBuffer), {

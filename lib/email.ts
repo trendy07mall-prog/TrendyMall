@@ -31,6 +31,7 @@ interface OrderEmailData {
   customerName: string;
   customerEmail: string;
   items: OrderEmailItem[];
+  subtotal: number;
   shippingFee: number;
   // Used only to derive the "why" label below the fee (describeDeliveryFee)
   // — the fee itself is always shippingFee above, the order's own stored,
@@ -39,6 +40,11 @@ interface OrderEmailData {
   shippingPostalCode: string | null;
   deliveryMethod: "standard" | "pickup";
   paymentMethod: "cod" | "bank_transfer" | "payhere";
+  // Both already computed/stored at order creation -- rendered as-is below,
+  // never recomputed, so this always matches what the customer was actually
+  // charged even if coupon rules change later.
+  discount: number;
+  couponCode: string | null;
   total: number;
 }
 
@@ -67,10 +73,24 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
     deliveryMethod: order.deliveryMethod,
   }).reason;
 
+  const subtotalRow = `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Subtotal</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.subtotal)}</td></tr>`;
+
   const deliveryRow =
     order.deliveryMethod === "pickup"
-      ? `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">Store Pickup</td></tr>`
-      : `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Delivery (${deliveryReason})</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.shippingFee)}</td></tr>`;
+      ? `<tr><td style="padding: 4px 0;">Delivery</td><td style="padding: 4px 0; text-align: right;">Store Pickup</td></tr>`
+      : `<tr><td style="padding: 4px 0;">Delivery (${deliveryReason})</td><td style="padding: 4px 0; text-align: right;">${formatPrice(order.shippingFee)}</td></tr>`;
+
+  // Coupon/discount rows only appear when a coupon was actually applied —
+  // same `discount > 0` gate components/order/OrderSummaryCard.tsx already
+  // uses, so a plain, non-discounted order's email looks exactly as it did
+  // before these rows existed.
+  const couponRow = order.couponCode
+    ? `<tr><td style="padding: 4px 0;">Coupon</td><td style="padding: 4px 0; text-align: right;">${order.couponCode}</td></tr>`
+    : "";
+  const discountRow =
+    order.discount > 0
+      ? `<tr><td style="padding: 4px 0;">Discount</td><td style="padding: 4px 0; text-align: right;">-${formatPrice(order.discount)}</td></tr>`
+      : "";
 
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
@@ -79,10 +99,13 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
       ${intro}
       <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px;">
         ${itemsHtml}
+        ${subtotalRow}
+        ${couponRow}
         ${deliveryRow}
-        <tr style="font-weight: bold;">
-          <td style="padding: 4px 0;">Total</td>
-          <td style="padding: 4px 0; text-align: right;">${formatPrice(order.total)}</td>
+        ${discountRow}
+        <tr style="font-weight: bold; border-top: 1px solid #ddd;">
+          <td style="padding: 8px 0 4px;">Total</td>
+          <td style="padding: 8px 0 4px; text-align: right;">${formatPrice(order.total)}</td>
         </tr>
       </table>
     </div>

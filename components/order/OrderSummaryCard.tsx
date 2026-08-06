@@ -64,6 +64,12 @@ export function OrderSummaryCard({ order }: { order: GuestOrderDetail }) {
             {order.deliveryMethod === "pickup" ? "Store Pickup" : formatPrice(order.shippingFee)}
           </span>
         </div>
+        {order.couponCode && (
+          <div className="flex justify-between text-[var(--muted)]">
+            <span>Coupon</span>
+            <span>{order.couponCode}</span>
+          </div>
+        )}
         {order.discount > 0 && (
           <div className="flex justify-between text-[var(--color-discount)]">
             <span>Discount</span>

@@ -213,7 +213,7 @@ export async function createOrder(
 
       const { data: order } = await supabase
         .from("orders")
-        .select("shipping_fee, total")
+        .select("shipping_fee, total, subtotal, discount")
         .eq("id", row.order_id)
         .maybeSingle();
 
@@ -227,11 +227,14 @@ export async function createOrder(
             quantity: item.quantity,
             subtotal: item.subtotal,
           })),
+          subtotal: order.subtotal,
           shippingFee: order.shipping_fee,
           shippingDistrict: input.shippingDistrict,
           shippingPostalCode: input.shippingPostalCode,
           deliveryMethod: input.deliveryMethod,
           paymentMethod: input.paymentMethod,
+          discount: order.discount,
+          couponCode: input.couponCode,
           total: order.total,
         });
       }
@@ -258,11 +261,14 @@ export async function createOrder(
             quantity: item.quantity,
             subtotal: item.subtotal,
           })),
+          subtotal: guestOrder.subtotal,
           shippingFee: guestOrder.shippingFee,
           shippingDistrict: input.shippingDistrict,
           shippingPostalCode: input.shippingPostalCode,
           deliveryMethod: input.deliveryMethod,
           paymentMethod: input.paymentMethod,
+          discount: guestOrder.discount,
+          couponCode: input.couponCode,
           total: guestOrder.total,
         });
       }

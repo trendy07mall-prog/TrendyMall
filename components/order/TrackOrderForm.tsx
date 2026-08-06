@@ -119,14 +119,30 @@ export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: st
             ))}
           </ul>
 
-          <div className="mt-4 flex flex-col gap-1">
+          <div className="mt-4 flex flex-col gap-2 border-t border-[var(--border)] pt-4 text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatPrice(order.subtotal)}</span>
+            </div>
+            {order.couponCode && (
+              <div className="flex justify-between text-[var(--muted)]">
+                <span>Coupon</span>
+                <span>{order.couponCode}</span>
+              </div>
+            )}
             <div className="flex justify-between text-[var(--muted)]">
               <span>Delivery</span>
               <span>
                 {order.deliveryMethod === "pickup" ? "Store Pickup" : formatPrice(order.shippingFee)}
               </span>
             </div>
-            <div className="flex justify-between font-medium">
+            {order.discount > 0 && (
+              <div className="flex justify-between text-[var(--color-discount)]">
+                <span>Discount</span>
+                <span>-{formatPrice(order.discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-[var(--border)] pt-2 text-base font-medium">
               <span>Total</span>
               <span>{formatPrice(order.total)}</span>
             </div>

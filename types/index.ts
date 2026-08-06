@@ -138,6 +138,11 @@ export interface GuestOrderDetail {
   subtotal: number;
   shippingFee: number;
   discount: number;
+  // Only populated once sql/061 lands on all three RPCs -- the coupon that
+  // produced the discount above, if any (discount can be 0 with this null,
+  // or >0 with this null too, for non-coupon discounts if any are ever
+  // added -- always render discount off the amount, this off the code).
+  couponCode?: string | null;
   total: number;
   notes?: string | null;
   courier: string | null;

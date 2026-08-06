@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/ToastProvider";
 import { bulkConfirmOrders, bulkCancelOrders } from "@/lib/admin/orderActions";
 import { exportOrdersCsvByIds } from "@/lib/admin/orders-export";
+import { getBulkInvoicePdfBase64, getBulkShippingLabelsPdfBase64 } from "@/lib/admin/orders-bulk-print";
 import type { BulkOrderActionResult } from "@/lib/admin/orderActions";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
 
@@ -19,13 +20,9 @@ function downloadCsv(csv: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-// Print actions open each selected order's existing single-order PDF
-// route in a new tab, sequentially — reuses the one-PDF-per-order system
-// as-is (no merging library introduced) rather than a second bulk PDF path.
-function printEach(orderIds: string[], routeBase: string) {
-  for (const id of orderIds) {
-    window.open(`${routeBase}/${id}?disposition=inline`, "_blank");
-  }
+function base64ToBlob(base64: string, contentType: string): Blob {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  return new Blob([bytes], { type: contentType });
 }
 
 // Same sticky-bottom-bar shell as BulkActionBar.tsx (products), but the
@@ -75,16 +72,51 @@ export function OrderBulkActionBar({
     router.refresh();
   }
 
+  // The new tab has to open synchronously, inside this click handler, or
+  // browsers drop the "user gesture" context that lets window.open through
+  // at all -- opening it AFTER the awaited PDF-generation call below gets
+  // blocked exactly like the old one-window-per-order loop did. Instead,
+  // open a blank tab now and navigate it once the combined PDF is ready.
   function handlePrintInvoice() {
     setPending("print-invoice");
-    printEach(selectedIds, "/invoices");
-    setPending(null);
+    const win = window.open("", "_blank");
+    (async () => {
+      try {
+        const base64 = await getBulkInvoicePdfBase64(selectedIds);
+        if (!win) {
+          showToast("Enable popups to print invoices", "error");
+          return;
+        }
+        const blob = base64ToBlob(base64, "application/pdf");
+        win.location.href = URL.createObjectURL(blob);
+      } catch {
+        win?.close();
+        showToast("Failed to generate invoices", "error");
+      } finally {
+        setPending(null);
+      }
+    })();
   }
 
   function handlePrintShippingLabels() {
     setPending("print-labels");
-    printEach(selectedIds, "/shipping-labels");
-    setPending(null);
+    const win = window.open("", "_blank");
+    (async () => {
+      try {
+        const base64 = await getBulkShippingLabelsPdfBase64(selectedIds);
+        if (!win) {
+          showToast("Enable popups to print shipping labels", "error");
+          return;
+        }
+        const blob = base64ToBlob(base64, "application/pdf");
+        win.location.href = URL.createObjectURL(blob);
+      } catch {
+        win?.close();
+        showToast("Failed to generate shipping labels", "error");
+      } finally {
+        setPending(null);
+      }
+    })();
   }
 
   async function handleExport() {

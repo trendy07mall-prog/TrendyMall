@@ -50,9 +50,17 @@ export interface InvoiceProps {
   order: Order;
   items: OrderItem[];
   address: ShippingAddress | null;
+  // Only set when a coupon was actually redeemed on this order -- the
+  // discount amount below (order.discount) is always populated regardless,
+  // this is just the human-readable code that produced it, if any.
+  couponCode?: string | null;
 }
 
-function InvoiceDocument({ order, items, address }: InvoiceProps) {
+// One order's page body, with no <Document> wrapper of its own -- both the
+// single-order and bulk renderers below place one or more of these inside
+// a single shared <Document>, since @react-pdf/renderer requires exactly
+// one <Document> per PDF (not one per page).
+function InvoicePage({ order, items, address, couponCode }: InvoiceProps) {
   const deliveryLabel =
     order.delivery_method === "pickup"
       ? "Store Pickup"
@@ -61,7 +69,6 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
         : "Delivery";
 
   return (
-    <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.headerRow}>
           <View style={styles.brandRow}>
@@ -153,6 +160,12 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
               {order.delivery_method === "pickup" ? "Store Pickup" : formatPrice(order.shipping_fee)}
             </Text>
           </View>
+          {couponCode && (
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Coupon</Text>
+              <Text>{couponCode}</Text>
+            </View>
+          )}
           {order.discount > 0 && (
             <View style={styles.totalsRow}>
               <Text style={styles.totalsLabel}>Discount</Text>
@@ -169,10 +182,23 @@ function InvoiceDocument({ order, items, address }: InvoiceProps) {
           Order status: {ORDER_STATUS_LABELS[order.order_status]} · TrendyMall · trendy07mall@gmail.com
         </Text>
       </Page>
+  );
+}
+
+function InvoiceDocument({ orders }: { orders: InvoiceProps[] }) {
+  return (
+    <Document>
+      {orders.map((props, i) => (
+        <InvoicePage key={props.order.id ?? i} {...props} />
+      ))}
     </Document>
   );
 }
 
+export async function renderInvoicePdfBatch(orders: InvoiceProps[]): Promise<Buffer> {
+  return renderToBuffer(<InvoiceDocument orders={orders} />);
+}
+
 export async function renderInvoicePdf(props: InvoiceProps): Promise<Buffer> {
-  return renderToBuffer(<InvoiceDocument {...props} />);
+  return renderInvoicePdfBatch([props]);
 }

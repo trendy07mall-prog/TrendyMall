@@ -25,9 +25,11 @@ export interface ShippingLabelProps {
   address: ShippingAddress | null;
 }
 
-function ShippingLabelDocument({ order, address }: ShippingLabelProps) {
+// One order's label body, no <Document> wrapper -- see InvoicePDF.tsx's
+// InvoicePage for why (one shared <Document> for both the single-order and
+// bulk renderers, since @react-pdf/renderer needs exactly one per PDF).
+function ShippingLabelPage({ order, address }: ShippingLabelProps) {
   return (
-    <Document>
       <Page size="A6" style={styles.page}>
         <View style={styles.box}>
           <Text style={styles.fromLine}>From: TrendyMall</Text>
@@ -70,10 +72,23 @@ function ShippingLabelDocument({ order, address }: ShippingLabelProps) {
           </View>
         </View>
       </Page>
+  );
+}
+
+function ShippingLabelDocument({ labels }: { labels: ShippingLabelProps[] }) {
+  return (
+    <Document>
+      {labels.map((props, i) => (
+        <ShippingLabelPage key={props.order.id ?? i} {...props} />
+      ))}
     </Document>
   );
 }
 
+export async function renderShippingLabelPdfBatch(labels: ShippingLabelProps[]): Promise<Buffer> {
+  return renderToBuffer(<ShippingLabelDocument labels={labels} />);
+}
+
 export async function renderShippingLabelPdf(props: ShippingLabelProps): Promise<Buffer> {
-  return renderToBuffer(<ShippingLabelDocument {...props} />);
+  return renderShippingLabelPdfBatch([props]);
 }
