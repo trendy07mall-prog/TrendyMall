@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
 import { AttributeSelector } from "@/components/product/AttributeSelector";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
@@ -17,6 +17,7 @@ import { StarRating } from "@/components/product/StarRating";
 import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
 import { ProductHighlights } from "@/components/product/ProductHighlights";
 import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
+import { FloatingPurchaseBar } from "@/components/product/FloatingPurchaseBar";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
@@ -187,6 +188,28 @@ export function ProductPurchaseSection({
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
+  // Drives the FloatingPurchaseBar's visibility -- true once the real
+  // in-page purchase block (quantity/errors/Add to Cart/Buy Now, ref'd
+  // below) has scrolled out of view. IntersectionObserver, not a
+  // scroll-position calculation, so it stays correct regardless of page
+  // length. rootMargin shrinks the effective viewport by the bottom nav's
+  // height so the target counts as "gone" once it's hidden behind the
+  // (opaque, always-on-this-route) nav, not just technically still inside
+  // the raw viewport rectangle.
+  const purchaseActionsRef = useRef<HTMLDivElement>(null);
+  const [floatingBarVisible, setFloatingBarVisible] = useState(false);
+
+  useEffect(() => {
+    const el = purchaseActionsRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFloatingBarVisible(!entry.isIntersecting),
+      { rootMargin: "0px 0px -90px 0px", threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const dimensions: { color?: string; [attributeId: string]: string | undefined } = {
     color: selectedColorKey ?? undefined,
   };
@@ -321,6 +344,7 @@ export function ProductPurchaseSection({
   const colorSelectionMissing = colorOptions.length > 0 && !selectedColorKey;
 
   return (
+    <>
     <div className="mt-8 grid gap-12 lg:grid-cols-2">
       <ProductGalleryWithVariants
         images={images}
@@ -419,7 +443,7 @@ export function ProductPurchaseSection({
           />
         ))}
 
-        <div className="mt-8 flex flex-col gap-4">
+        <div ref={purchaseActionsRef} className="mt-8 flex flex-col gap-4">
           {!outOfStock && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Quantity</span>
@@ -517,5 +541,21 @@ export function ProductPurchaseSection({
         />
       </div>
     </div>
+    {!outOfStock && (
+      <FloatingPurchaseBar
+        visible={floatingBarVisible}
+        product={product}
+        variant={resolvedVariant}
+        attributeSelections={attributeSelections}
+        image={primaryImage}
+        quantity={quantity}
+        outOfStock={outOfStock}
+        actualPrice={resolvedVariant?.regular_price ?? 0}
+        specialPrice={resolvedVariant?.sale_price ?? null}
+        selectionError={selectionError}
+        onBeforeAdd={handleBeforeAdd}
+      />
+    )}
+    </>
   );
 }

@@ -16,15 +16,20 @@ export function WhatsAppButton() {
 
   return (
     <div
-      className="group fixed right-5 z-[var(--z-whatsapp)] print:hidden sm:right-8"
+      className="group fixed right-5 z-[var(--z-whatsapp)] transition-[bottom] duration-[220ms] ease-in-out motion-reduce:transition-none print:hidden sm:right-8"
       // Shifts up above whatever sticky bottom bar the current page has
       // (--mobile-bottom-bar-offset, published by that page — see
       // app/cart/page.tsx / CheckoutForm.tsx), and respects the iPhone
       // home-indicator safe area — same calc() pattern already used by
-      // ToastProvider.tsx for the same reason.
+      // ToastProvider.tsx for the same reason. --pdp-floating-bar-height is
+      // a second, separate term: the PDP's bottom nav stays visible (unlike
+      // cart/checkout), so the PDP's floating purchase bar can't reuse
+      // --mobile-bottom-bar-offset (the nav already writes that one on this
+      // route) — published only while that bar is actually visible,
+      // defaults to 0px everywhere else.
       style={{
         bottom:
-          "calc(var(--whatsapp-fab-bottom-base) + env(safe-area-inset-bottom) + var(--mobile-bottom-bar-offset, 0px))",
+          "calc(var(--whatsapp-fab-bottom-base) + env(safe-area-inset-bottom) + var(--mobile-bottom-bar-offset, 0px) + var(--pdp-floating-bar-height, 0px))",
       }}
     >
       <span
