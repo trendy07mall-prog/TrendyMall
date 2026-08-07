@@ -23,11 +23,13 @@ export function SpecsTable({
   ]);
 
   return (
-    <dl className="flex flex-col gap-2 text-sm">
-      {rows.map(([label, val]) => (
+    <dl className="flex flex-col text-sm">
+      {rows.map(([label, val], index) => (
         <div
           key={label}
-          className="grid grid-cols-[minmax(110px,40%)_1fr] gap-x-4 border-b border-[var(--border)] py-2"
+          className={`grid grid-cols-[minmax(110px,40%)_1fr] gap-x-4 rounded-[var(--radius-sm)] px-3 py-2.5 ${
+            index % 2 === 1 ? "bg-black/[0.02]" : ""
+          }`}
         >
           <dt className="text-[var(--muted)]">{label}</dt>
           <dd className="min-w-0 font-medium break-words">{val}</dd>

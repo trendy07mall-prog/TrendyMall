@@ -18,17 +18,17 @@ export function RecentlyViewedSection({
 
   return (
     <section className="mt-16">
-      <h2 className="font-heading text-xl font-bold tracking-tight">
+      <h2 className="font-heading text-2xl font-bold tracking-tight">
         Recently Viewed
       </h2>
-      <div className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+      <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
         {visible.map((item) => (
           <Link
             key={item.productId}
             href={`/product/${item.slug}`}
             className="w-36 shrink-0 snap-start sm:w-44"
           >
-            <div className="relative aspect-square overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+            <div className="relative aspect-square overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border)] bg-black/5">
               {item.image ? (
                 <Image
                   src={item.image}

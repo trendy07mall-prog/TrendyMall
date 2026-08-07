@@ -10,10 +10,10 @@ export function RelatedProducts({
 
   return (
     <section className="mt-16">
-      <h2 className="font-heading text-xl font-bold tracking-tight">
+      <h2 className="font-heading text-2xl font-bold tracking-tight">
         You may also like
       </h2>
-      <div className="mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
+      <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2">
         {products.map((product) => (
           <div
             key={product.id}

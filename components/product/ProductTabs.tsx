@@ -36,7 +36,7 @@ export function ProductTabs({
 
   return (
     <div className="mt-12">
-      <div role="tablist" aria-label="Product information" className="flex gap-6 border-b border-[var(--border)]">
+      <div role="tablist" aria-label="Product information" className="flex gap-2 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -46,10 +46,10 @@ export function ProductTabs({
             aria-selected={active === tab.id}
             aria-controls={`panel-${tab.id}`}
             onClick={() => setActive(tab.id)}
-            className={`-mb-px border-b-2 pb-3 text-sm font-medium transition-colors ${
+            className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
               active === tab.id
-                ? "border-[var(--foreground)] text-[var(--foreground)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                ? "bg-[var(--foreground)] text-white"
+                : "text-[var(--muted)] hover:bg-black/5"
             }`}
           >
             {tab.label}
@@ -62,7 +62,7 @@ export function ProductTabs({
         id="panel-description"
         aria-labelledby="tab-description"
         hidden={active !== "description"}
-        className="prose-editor py-6 text-sm text-[var(--muted)]"
+        className="prose-editor mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-6 text-sm text-[var(--muted)]"
         // Sanitized server-side (sanitize-html) before it was ever
         // stored — see lib/admin/products.ts.
         dangerouslySetInnerHTML={{ __html: product.description }}
@@ -73,7 +73,7 @@ export function ProductTabs({
         id="panel-specifications"
         aria-labelledby="tab-specifications"
         hidden={active !== "specifications"}
-        className="py-6"
+        className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-6"
       >
         <SpecsTable product={product} categoryName={categoryName} specs={specs} />
       </div>
@@ -83,7 +83,7 @@ export function ProductTabs({
         id="panel-reviews"
         aria-labelledby="tab-reviews"
         hidden={active !== "reviews"}
-        className="py-6"
+        className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-6"
       >
         <ReviewsSection
           productId={product.id}
@@ -98,7 +98,7 @@ export function ProductTabs({
         id="panel-shipping"
         aria-labelledby="tab-shipping"
         hidden={active !== "shipping"}
-        className="py-6 text-sm text-[var(--muted)]"
+        className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-6 text-sm text-[var(--muted)]"
       >
         <p>
           Standard islandwide delivery takes 3–5 business days. Cash on
