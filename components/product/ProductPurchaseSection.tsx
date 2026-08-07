@@ -111,20 +111,50 @@ export function ProductPurchaseSection({
     });
   }
 
-  // The variant-defining attribute values a given variant actually carries
-  // -- shared by defaultDimensions (page load) and handleColorSelect
-  // (picking a color whose only variant(s) need a different value on some
-  // other dimension too).
+  // The attribute values a given variant "carries" -- for a variant-
+  // defining group this is the value actually linked to the variant; for a
+  // non-variant-defining group (a reference-only spec, e.g. a single-value
+  // "Mah" assigned at the product level, never tied to any specific
+  // variant -- the common case per the comment above) there's no
+  // variant-driven answer, so it defaults to that group's first value
+  // instead. That's always a safe pick: a non-variant-defining group has
+  // zero effect on price/stock/SKU/matching by definition, so ANY of its
+  // values is equally correct -- the alternative (leaving it unselected)
+  // is what blocked Add to Cart with "Please select a Mah" until the
+  // customer manually tapped a choice that changed nothing. Shared by
+  // defaultDimensions (page load) and handleColorSelect (picking a color
+  // whose only variant(s) need a different value on some other dimension
+  // too).
   function attributeValuesForVariant(variant: ProductVariantWithImages): Record<string, AttributeValue> {
     const attributeValues: Record<string, AttributeValue> = {};
     for (const group of attributes) {
-      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+      if (group.values.length === 0) continue;
+      if (!variantDefiningAttributeIds.has(group.attribute.id)) {
+        attributeValues[group.attribute.id] = group.values[0];
+        continue;
+      }
       const groupValueIds = new Set(group.values.map((v) => v.id));
       const matchedId = valueIdForGroup(variant, groupValueIds);
       const matchedValue = group.values.find((v) => v.id === matchedId);
       if (matchedValue) attributeValues[group.attribute.id] = matchedValue;
     }
     return attributeValues;
+  }
+
+  // A variant "fully" resolves the product's variant-defining attributes
+  // when it's actually linked to a value for every one of them -- normally
+  // true for every variant (that's what "variant-defining" means: at least
+  // one variant links to it), but a single variant added without a link
+  // for one of those groups would otherwise land the page on an
+  // unaddable-without-clicking selection despite this fix. Defensive, not
+  // yet triggered by any real product in the catalog.
+  function variantFullyResolvesAttributes(variant: ProductVariantWithImages): boolean {
+    const linkedIds = new Set(variant.attributeValueIds);
+    for (const group of attributes) {
+      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+      if (!group.values.some((v) => linkedIds.has(v.id))) return false;
+    }
+    return true;
   }
 
   function defaultDimensions(): {
@@ -135,8 +165,13 @@ export function ProductPurchaseSection({
     // Same algorithm the shop card uses to pick a product's displayed
     // variant (lib/utils.ts's pickWinningVariant) -- the PDP must land on
     // the exact variant the card already showed a price for, or the two
-    // surfaces show different numbers for the same product on load.
-    const defaultVariant = pickWinningVariant(variants);
+    // surfaces show different numbers for the same product on load. If
+    // that variant can't fully populate every variant-defining attribute
+    // (see above), fall back to the highest-ranked variant among those
+    // that can, rather than opening the page on a selection the customer
+    // can't add to cart without first fixing it themselves.
+    const fullyResolved = variants.filter(variantFullyResolvesAttributes);
+    const defaultVariant = pickWinningVariant(fullyResolved.length > 0 ? fullyResolved : variants);
     return {
       colorKey: colorOptions.length > 0 ? normalizeColor(defaultVariant.color_name) : null,
       attributeValues: attributeValuesForVariant(defaultVariant),
@@ -278,6 +313,13 @@ export function ProductPurchaseSection({
     })
     .filter((s): s is AttributeSelection => s !== null);
 
+  // Live, not gated behind a failed Add to Cart click -- lets the customer
+  // see which group needs attention before they ever hit the error
+  // message. Should never actually be true post page-load now that
+  // initialization populates every group (see attributeValuesForVariant),
+  // but stays as a visible safety net rather than a silent block.
+  const colorSelectionMissing = colorOptions.length > 0 && !selectedColorKey;
+
   return (
     <>
     <div className="mt-8 grid gap-12 lg:grid-cols-2">
@@ -288,6 +330,7 @@ export function ProductPurchaseSection({
         onColorSelect={handleColorSelect}
         resolvedVariant={resolvedVariant}
         name={product.name}
+        colorHasError={colorSelectionMissing}
       />
 
       <div>
@@ -359,6 +402,7 @@ export function ProductPurchaseSection({
             values={group.values}
             selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
             onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
+            hasError={!selectedAttributeValues[group.attribute.id]}
             disabledIds={
               variantDefiningAttributeIds.has(group.attribute.id)
                 ? new Set(

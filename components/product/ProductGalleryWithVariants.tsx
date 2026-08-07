@@ -15,6 +15,7 @@ export function ProductGalleryWithVariants({
   onColorSelect,
   resolvedVariant,
   name,
+  colorHasError = false,
 }: {
   images: string[];
   colorOptions: ColorSwatchOption[];
@@ -22,6 +23,7 @@ export function ProductGalleryWithVariants({
   onColorSelect: (key: string) => void;
   resolvedVariant: ProductVariantWithImages | null;
   name: string;
+  colorHasError?: boolean;
 }) {
   // The resolved variant swaps the WHOLE gallery to its own image set (up
   // to 4, product_variant_images) -- falls back to the base product's
@@ -37,7 +39,12 @@ export function ProductGalleryWithVariants({
           thumbnail index) whenever the resolved variant changes, instead of
           syncing that reset via an effect. */}
       <ProductGallery key={resolvedVariant?.id ?? "base"} images={displayImages} name={name} />
-      <VariantSwatches options={colorOptions} selectedKey={selectedColorKey} onSelect={onColorSelect} />
+      <VariantSwatches
+        options={colorOptions}
+        selectedKey={selectedColorKey}
+        onSelect={onColorSelect}
+        hasError={colorHasError}
+      />
     </div>
   );
 }

@@ -13,10 +13,14 @@ export function VariantSwatches({
   options,
   selectedKey,
   onSelect,
+  hasError = false,
 }: {
   options: ColorSwatchOption[];
   selectedKey: string | null;
   onSelect: (key: string) => void;
+  // See AttributeSelector's identical prop -- live, pre-click visibility
+  // into an unselected group rather than only a post-click error message.
+  hasError?: boolean;
 }) {
   if (options.length === 0) return null;
 
@@ -24,10 +28,14 @@ export function VariantSwatches({
 
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium">
-        Color{selected ? `: ${selected.name}` : ""}
+      <p className={`text-sm font-medium ${hasError ? "text-[var(--color-discount)]" : ""}`}>
+        Color{selected ? `: ${selected.name}` : hasError ? " — please select" : ""}
       </p>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div
+        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] ${
+          hasError ? "ring-1 ring-[var(--color-discount)]" : ""
+        }`}
+      >
         {options.map((option) => (
           <button
             key={option.key}

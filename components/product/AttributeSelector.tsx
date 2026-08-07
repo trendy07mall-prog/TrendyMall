@@ -13,6 +13,7 @@ export function AttributeSelector({
   selectedId,
   onSelect,
   disabledIds,
+  hasError = false,
 }: {
   attribute: Attribute;
   values: AttributeValue[];
@@ -21,6 +22,13 @@ export function AttributeSelector({
   // Values with no matching variant given the rest of the current
   // selection -- an impossible combination, greyed out and unclickable.
   disabledIds?: Set<string>;
+  // True whenever this group is genuinely unselected right now -- driven
+  // live off selection state, not gated behind a failed Add to Cart click,
+  // so the customer sees which group needs attention before they hit the
+  // error message. Should never actually trigger post page-load now that
+  // initialization populates every group, but stays as a visible safety
+  // net for any future edge case rather than a silent block.
+  hasError?: boolean;
 }) {
   if (values.length === 0) return null;
 
@@ -28,11 +36,17 @@ export function AttributeSelector({
 
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium">
+      <p
+        className={`text-sm font-medium ${hasError ? "text-[var(--color-discount)]" : ""}`}
+      >
         {attribute.name}
-        {selected ? `: ${selected.value}` : ""}
+        {selected ? `: ${selected.value}` : hasError ? " — please select" : ""}
       </p>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div
+        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] ${
+          hasError ? "ring-1 ring-[var(--color-discount)]" : ""
+        }`}
+      >
         {values.map((value) => {
           const isDisabled = disabledIds?.has(value.id) ?? false;
           return (
