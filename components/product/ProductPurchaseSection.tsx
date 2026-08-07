@@ -16,7 +16,7 @@ import { ProductTabs } from "@/components/product/ProductTabs";
 import { StarRating } from "@/components/product/StarRating";
 import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
 import { ProductHighlights } from "@/components/product/ProductHighlights";
-import { MobilePurchaseBar } from "@/components/product/MobilePurchaseBar";
+import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
@@ -321,7 +321,6 @@ export function ProductPurchaseSection({
   const colorSelectionMissing = colorOptions.length > 0 && !selectedColorKey;
 
   return (
-    <>
     <div className="mt-8 grid gap-12 lg:grid-cols-2">
       <ProductGalleryWithVariants
         images={images}
@@ -333,7 +332,11 @@ export function ProductPurchaseSection({
         colorHasError={colorSelectionMissing}
       />
 
-      <div>
+      {/* min-w-0 overrides the grid item's default min-width:auto -- the
+          same "flexbox/grid content blowout" fix as ProductGalleryWithVariants,
+          otherwise the price line's flex-nowrap or the title's natural width
+          can push this column (and the whole page) wider than the viewport. */}
+      <div className="min-w-0">
         {tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (
@@ -351,9 +354,10 @@ export function ProductPurchaseSection({
             {product.brand}
           </p>
         )}
-        <h1 className="font-heading mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-3xl">
-          {product.name}
-        </h1>
+        <ProductTitleClamp
+          title={product.name}
+          className="font-heading mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-3xl"
+        />
 
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
           {/* Only rendered for products with real, approved reviews -- an
@@ -513,18 +517,5 @@ export function ProductPurchaseSection({
         />
       </div>
     </div>
-    {!outOfStock && (
-      <MobilePurchaseBar
-        product={product}
-        variant={resolvedVariant}
-        attributeSelections={attributeSelections}
-        image={primaryImage}
-        quantity={quantity}
-        actualPrice={resolvedVariant?.regular_price ?? 0}
-        specialPrice={resolvedVariant?.sale_price ?? null}
-        onBeforeAdd={handleBeforeAdd}
-      />
-    )}
-    </>
   );
 }

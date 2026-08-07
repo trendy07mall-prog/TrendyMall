@@ -34,7 +34,10 @@ export function ProductGalleryWithVariants({
     resolvedVariant && resolvedVariant.images.length > 0 ? resolvedVariant.images : images;
 
   return (
-    <div>
+    // min-w-0 overrides the grid item's default min-width:auto -- without
+    // it, this column's intrinsic content width (e.g. the thumbnail row)
+    // can blow out past the grid track and push the whole page wider.
+    <div className="min-w-0">
       {/* key forces a remount (resetting the gallery's internal "active"
           thumbnail index) whenever the resolved variant changes, instead of
           syncing that reset via an effect. */}

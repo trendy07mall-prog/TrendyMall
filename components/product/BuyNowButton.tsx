@@ -45,7 +45,7 @@ export function BuyNowButton({
         });
         router.push("/checkout");
       }}
-      className="flex-1 rounded-[var(--radius-btn)] border border-[var(--foreground)] px-6 py-3 text-sm font-semibold transition-colors hover:bg-black/5 disabled:opacity-40"
+      className="min-w-0 flex-1 rounded-[var(--radius-btn)] border border-[var(--foreground)] px-6 py-3 text-center text-sm font-semibold transition-colors hover:bg-black/5 disabled:opacity-40"
     >
       Buy Now
     </button>

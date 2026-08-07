@@ -36,7 +36,7 @@ export function WhatsAppOrderButton({
     <button
       type="button"
       onClick={handleClick}
-      className="flex flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] px-6 py-3 text-sm font-semibold transition-colors hover:bg-black/5"
+      className="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] px-6 py-3 text-center text-sm font-semibold transition-colors hover:bg-black/5"
     >
       <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
       Order via WhatsApp

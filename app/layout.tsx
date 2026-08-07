@@ -100,20 +100,7 @@ export default async function RootLayout({
       lang="en"
       className={`${manrope.variable} ${inter.variable} h-full antialiased`}
     >
-      <body
-        className="min-h-full flex flex-col"
-        // Trailing space AFTER Footer, not before it -- padding on <main>
-        // shifts total document height, but so does the scroll position
-        // that counts as "the bottom," so the two cancel out and a footer
-        // element's position relative to the viewport at max-scroll is
-        // unaffected by anything before Footer in the flow (confirmed by
-        // measuring: Footer's Subscribe button sat at an identical viewport
-        // position with or without extra <main> padding). Only padding
-        // AFTER Footer actually pushes it up and out of the WhatsApp FAB's
-        // path once the FAB is lifted to clear the PDP's sticky purchase
-        // bar. Defaults to 0px everywhere the bar isn't mounted.
-        style={{ paddingBottom: "var(--pdp-purchase-bar-height, 0px)" }}
-      >
+      <body className="min-h-full flex flex-col">
         <JsonLd data={organizationSchema} />
         <GoogleAnalytics />
         <MetaPixel />
@@ -129,10 +116,7 @@ export default async function RootLayout({
                 </ConditionalChrome>
                 <main
                   className="flex flex-1 flex-col"
-                  style={{
-                    paddingBottom:
-                      "calc(var(--mobile-nav-height, 0px) + var(--pdp-purchase-bar-height, 0px))",
-                  }}
+                  style={{ paddingBottom: "var(--mobile-nav-height, 0px)" }}
                 >
                   <ViewTransition>{children}</ViewTransition>
                 </main>
