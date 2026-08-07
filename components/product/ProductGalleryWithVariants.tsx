@@ -1,29 +1,23 @@
 "use client";
 
 import { ProductGallery } from "@/components/product/ProductGallery";
-import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 
 // Purely presentational now -- color selection state and the full
 // combination lookup (which variant is actually active) both live in
 // ProductPurchaseSection, since price/stock/attribute-disabling all need
-// the same resolved variant this gallery displays.
+// the same resolved variant this gallery displays. Color swatches
+// themselves render in ProductPurchaseSection too (grouped together with
+// the other variant selectors), not here -- this component's only job is
+// the gallery synced to the resolved variant.
 export function ProductGalleryWithVariants({
   images,
-  colorOptions,
-  selectedColorKey,
-  onColorSelect,
   resolvedVariant,
   name,
-  colorHasError = false,
 }: {
   images: string[];
-  colorOptions: ColorSwatchOption[];
-  selectedColorKey: string | null;
-  onColorSelect: (key: string) => void;
   resolvedVariant: ProductVariantWithImages | null;
   name: string;
-  colorHasError?: boolean;
 }) {
   // The resolved variant swaps the WHOLE gallery to its own image set (up
   // to 4, product_variant_images) -- falls back to the base product's
@@ -42,12 +36,6 @@ export function ProductGalleryWithVariants({
           thumbnail index) whenever the resolved variant changes, instead of
           syncing that reset via an effect. */}
       <ProductGallery key={resolvedVariant?.id ?? "base"} images={displayImages} name={name} />
-      <VariantSwatches
-        options={colorOptions}
-        selectedKey={selectedColorKey}
-        onSelect={onColorSelect}
-        hasError={colorHasError}
-      />
     </div>
   );
 }

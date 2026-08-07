@@ -20,7 +20,7 @@ import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
 import { FloatingPurchaseBar } from "@/components/product/FloatingPurchaseBar";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
-import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
+import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
@@ -293,6 +293,61 @@ export function ProductPurchaseSection({
     return matches.length === 0 || matches.every((v) => v.stock === 0);
   }
 
+  // Flags any variant-defining group whose disabled-options set just
+  // changed as a side effect of a DIFFERENT selector (e.g. Mah's options
+  // after a Color tap) -- a group's own disabled set never depends on its
+  // own current selection, only on other dimensions, so this naturally
+  // never flags the control the customer just tapped themselves.
+  //
+  // disabledSnapshot itself is plain derived data, cheap to recompute every
+  // render. The diff/flash-timer logic, though, has to live inside an
+  // effect keyed on a STABLE string (disabledSnapshotKey), not on
+  // disabledSnapshot directly (a new object identity every render, which
+  // would make the effect re-run on every render regardless of whether
+  // availability actually changed) and not ref reads/writes during render
+  // (this project's lint config -- react-hooks/refs -- rejects that; same
+  // "no side effects during the render phase" family of rule as the
+  // set-state-in-effect one that caught the CartContext bug earlier).
+  const disabledSnapshot: Record<string, string> = {};
+  for (const group of attributes) {
+    if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
+    disabledSnapshot[group.attribute.id] = group.values
+      .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
+      .map((v) => v.id)
+      .sort()
+      .join(",");
+  }
+  const disabledSnapshotKey = Object.entries(disabledSnapshot)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([id, val]) => `${id}:${val}`)
+    .join("|");
+
+  const prevDisabledRef = useRef<Record<string, string> | null>(null);
+  const [flashingIds, setFlashingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const prev = prevDisabledRef.current;
+    prevDisabledRef.current = disabledSnapshot;
+    if (!prev) return;
+    const changed = new Set<string>();
+    for (const id of Object.keys(disabledSnapshot)) {
+      if (prev[id] !== disabledSnapshot[id]) changed.add(id);
+    }
+    if (changed.size === 0) return;
+    // One-off sync of derived UI state to an external-ish change
+    // (disabledSnapshotKey), same legitimate case CartContext.tsx already
+    // disables this rule for -- there's no callback/subscription to defer
+    // this into, the whole point is flagging it the instant it changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFlashingIds(changed);
+    const timer = setTimeout(() => setFlashingIds(new Set()), 300);
+    return () => clearTimeout(timer);
+    // disabledSnapshotKey is the complete, stable summary of everything
+    // this effect reads (disabledSnapshot is recomputed from the exact
+    // same source data every render, just not a stable object identity).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabledSnapshotKey]);
+
   // A single color (or none at all -- the invisible "default" variant)
   // means there's no real choice to present, so no swatch section at all,
   // not a one-option selector.
@@ -348,12 +403,8 @@ export function ProductPurchaseSection({
     <div className="mt-8 grid gap-12 lg:grid-cols-2">
       <ProductGalleryWithVariants
         images={images}
-        colorOptions={colorSwatchOptions}
-        selectedColorKey={selectedColorKey}
-        onColorSelect={handleColorSelect}
         resolvedVariant={resolvedVariant}
         name={product.name}
-        colorHasError={colorSelectionMissing}
       />
 
       {/* min-w-0 overrides the grid item's default min-width:auto -- the
@@ -414,14 +465,17 @@ export function ProductPurchaseSection({
           {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
         </p>
 
-        {!outOfStock && (
-          <DeliveryInfoCard
-            deliveryLabel={getEstimatedDeliveryRange().label}
-            codAvailable={product.cod_available}
-          />
-        )}
-
-        <ProductHighlights specs={specs} />
+        {/* All variant selectors grouped together, immediately below price/
+            stock -- Color and Mah (and any future Size/Storage) render
+            adjacent to each other so changing one visibly updates the
+            others in the same screenful, instead of Color sitting up by
+            the gallery while the rest lived ~1000px further down. */}
+        <VariantSwatches
+          options={colorSwatchOptions}
+          selectedKey={selectedColorKey}
+          onSelect={handleColorSelect}
+          hasError={colorSelectionMissing}
+        />
 
         {attributes.map((group) => (
           <AttributeSelector
@@ -431,6 +485,7 @@ export function ProductPurchaseSection({
             selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
             onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
             hasError={!selectedAttributeValues[group.attribute.id]}
+            flash={flashingIds.has(group.attribute.id)}
             disabledIds={
               variantDefiningAttributeIds.has(group.attribute.id)
                 ? new Set(
@@ -520,6 +575,19 @@ export function ProductPurchaseSection({
 
           <ShareButtons productName={product.name} />
         </div>
+
+        {/* Supporting information, not purchase decisions -- moved below
+            the purchase actions so it no longer sits between the variant
+            selectors and the buttons/quantity that need to be seen
+            together. */}
+        {!outOfStock && (
+          <DeliveryInfoCard
+            deliveryLabel={getEstimatedDeliveryRange().label}
+            codAvailable={product.cod_available}
+          />
+        )}
+
+        <ProductHighlights specs={specs} />
 
         <WhatsInBox items={product.whats_in_box} />
 

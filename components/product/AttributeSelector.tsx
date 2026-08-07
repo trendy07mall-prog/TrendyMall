@@ -14,6 +14,7 @@ export function AttributeSelector({
   onSelect,
   disabledIds,
   hasError = false,
+  flash = false,
 }: {
   attribute: Attribute;
   values: AttributeValue[];
@@ -29,6 +30,11 @@ export function AttributeSelector({
   // initialization populates every group, but stays as a visible safety
   // net for any future edge case rather than a silent block.
   hasError?: boolean;
+  // True for ~300ms right after THIS group's available options changed as
+  // a side effect of a different selector (e.g. Mah's options after a
+  // Color change) -- lets the customer perceive the connection between two
+  // now-adjacent selectors instead of only noticing on close inspection.
+  flash?: boolean;
 }) {
   if (values.length === 0) return null;
 
@@ -43,8 +49,12 @@ export function AttributeSelector({
         {selected ? `: ${selected.value}` : hasError ? " — please select" : ""}
       </p>
       <div
-        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] ${
-          hasError ? "ring-1 ring-[var(--color-discount)]" : ""
+        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] transition-shadow duration-300 ease-in-out motion-reduce:transition-none ${
+          hasError
+            ? "ring-1 ring-[var(--color-discount)]"
+            : flash
+              ? "ring-2 ring-[var(--color-warning)]"
+              : ""
         }`}
       >
         {values.map((value) => {
@@ -62,7 +72,11 @@ export function AttributeSelector({
                 value.id === selectedId
                   ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
                   : isDisabled
-                    ? "cursor-not-allowed border-[var(--border)] text-[var(--muted)] line-through opacity-40"
+                    ? // Filled, borderless, muted -- deliberately distinct from
+                      // the plain-bordered "available" pill below (which used
+                      // to share the same border color, making a disabled
+                      // option too easy to misread as simply unselected).
+                      "cursor-not-allowed border-transparent bg-black/[0.06] text-[var(--muted)] line-through"
                     : "border-[var(--border)] hover:border-[var(--foreground)]"
               }`}
             >
