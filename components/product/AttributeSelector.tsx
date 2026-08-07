@@ -44,7 +44,7 @@ export function AttributeSelector({
               disabled={isDisabled}
               title={isDisabled ? `${value.value} (unavailable)` : undefined}
               onClick={() => !isDisabled && onSelect(value)}
-              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-150 ease-in-out ${
                 value.id === selectedId
                   ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
                   : isDisabled

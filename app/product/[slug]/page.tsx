@@ -134,7 +134,7 @@ export default async function ProductPage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-10">
       <JsonLd data={productSchema} />
       <Breadcrumbs
         items={[

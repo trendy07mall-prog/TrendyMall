@@ -35,14 +35,33 @@ const FEATURES = [
   },
 ];
 
-export function TrustBadges({ compact = false }: { compact?: boolean }) {
+export function TrustBadges({
+  compact = false,
+  codAvailable,
+  warrantyAvailable,
+}: {
+  compact?: boolean;
+  codAvailable?: boolean;
+  warrantyAvailable?: boolean;
+}) {
   if (compact) {
+    // A PDP-specific badge list -- distinct from FEATURES above (which
+    // stays untouched for the homepage) since Cash on Delivery and
+    // Warranty are real per-product flags here, not always-on claims.
+    const compactBadges = [
+      { icon: "✅", title: "100% Genuine" },
+      { icon: "🚚", title: "Islandwide Delivery" },
+      { icon: "🔒", title: "Secure Checkout — Your data is encrypted" },
+      ...(codAvailable ? [{ icon: "💰", title: "Cash on Delivery" }] : []),
+      ...(warrantyAvailable ? [{ icon: "🛡️", title: "Warranty Included" }] : []),
+      { icon: "💬", title: "Fast Support Daily 10am–4pm" },
+    ];
     return (
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-[var(--muted)]">
-        {FEATURES.slice(0, 3).map((feature) => (
-          <span key={feature.title} className="flex items-center gap-1.5">
-            <span aria-hidden="true">{feature.icon}</span>
-            {feature.title}
+        {compactBadges.map((badge) => (
+          <span key={badge.title} className="flex items-center gap-1.5">
+            <span aria-hidden="true">{badge.icon}</span>
+            {badge.title}
           </span>
         ))}
       </div>

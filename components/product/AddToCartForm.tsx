@@ -13,6 +13,7 @@ export function AddToCartForm({
   quantity,
   outOfStock = false,
   onBeforeAdd,
+  className,
 }: {
   product: Product;
   variant?: ProductVariant | null;
@@ -24,6 +25,7 @@ export function AddToCartForm({
   // prompt, e.g. "select a color") instead of adding an incomplete
   // selection to the cart.
   onBeforeAdd?: () => boolean;
+  className?: string;
 }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -49,7 +51,10 @@ export function AddToCartForm({
         setAdded(true);
         setTimeout(() => setAdded(false), 1500);
       }}
-      className="rounded-full border border-[var(--foreground)] px-6 py-3 text-sm font-medium transition-transform hover:scale-[1.03] disabled:opacity-40"
+      className={
+        className ??
+        "w-full rounded-[var(--radius-btn)] bg-[var(--foreground)] px-6 py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.02] disabled:opacity-40"
+      }
     >
       {outOfStock ? "Out of stock" : added ? "Added ✓" : "Add to Cart"}
     </button>

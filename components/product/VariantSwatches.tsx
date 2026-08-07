@@ -38,10 +38,10 @@ export function VariantSwatches({
             aria-disabled={option.disabled}
             disabled={option.disabled}
             onClick={() => !option.disabled && onSelect(option.key)}
-            className={`relative h-8 w-8 rounded-full border-2 transition-transform ${
+            className={`relative h-10 w-10 rounded-full border-[3px] transition-transform duration-150 ease-in-out ${
               option.key === selectedKey
                 ? "border-[var(--foreground)] scale-110"
-                : "border-[var(--border)]"
+                : "border-[var(--border)] hover:scale-105 hover:border-[var(--border-hover)]"
             } ${option.disabled ? "cursor-not-allowed opacity-40" : ""}`}
             style={{ backgroundColor: option.hex }}
           >

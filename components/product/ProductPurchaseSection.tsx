@@ -13,6 +13,10 @@ import { NotifyMeForm } from "@/components/product/NotifyMeForm";
 import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
+import { StarRating } from "@/components/product/StarRating";
+import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
+import { ProductHighlights } from "@/components/product/ProductHighlights";
+import { MobilePurchaseBar } from "@/components/product/MobilePurchaseBar";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ColorSwatchOption } from "@/components/product/VariantSwatches";
@@ -275,7 +279,8 @@ export function ProductPurchaseSection({
     .filter((s): s is AttributeSelection => s !== null);
 
   return (
-    <div className="mt-6 grid gap-10 sm:grid-cols-2">
+    <>
+    <div className="mt-8 grid gap-12 lg:grid-cols-2">
       <ProductGalleryWithVariants
         images={images}
         colorOptions={colorSwatchOptions}
@@ -287,7 +292,7 @@ export function ProductPurchaseSection({
 
       <div>
         {tags.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
+          <div className="mb-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (
               <span
                 key={tag.slug}
@@ -298,23 +303,54 @@ export function ProductPurchaseSection({
             ))}
           </div>
         )}
-        <h1 className="font-heading text-2xl font-bold tracking-tight">
+        {product.brand && (
+          <p className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
+            {product.brand}
+          </p>
+        )}
+        <h1 className="font-heading mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-3xl">
           {product.name}
         </h1>
-        <div className="mt-2">
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {/* Only rendered for products with real, approved reviews -- an
+              empty/zero-star row here would be exactly the fabricated-looking
+              signal the no-fake-reviews rule exists to prevent. The full
+              Reviews tab below still has its own always-visible empty state
+              today (ProductTabs/ReviewsSection) -- out of scope for this
+              phase, which only touches the title block. */}
+          {ratingSummary && ratingSummary.review_count > 0 && (
+            <div className="flex items-center gap-1.5">
+              <StarRating rating={ratingSummary.avg_rating} size="sm" />
+              <span className="text-sm text-[var(--muted)]">
+                {ratingSummary.avg_rating.toFixed(1)} ({ratingSummary.review_count})
+              </span>
+            </div>
+          )}
+          {product.sku && (
+            <span className="text-xs text-[var(--muted)]">SKU: {product.sku}</span>
+          )}
+        </div>
+
+        <div className="mt-4">
           <PriceDisplay
             actualPrice={resolvedVariant?.regular_price ?? 0}
             specialPrice={resolvedVariant?.sale_price ?? null}
+            size="md"
           />
         </div>
-        <p className="mt-2 text-sm text-[var(--muted)]">
+        <p className="mt-3 text-sm text-[var(--muted)]">
           {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
         </p>
+
         {!outOfStock && (
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            {getEstimatedDeliveryRange().label}
-          </p>
+          <DeliveryInfoCard
+            deliveryLabel={getEstimatedDeliveryRange().label}
+            codAvailable={product.cod_available}
+          />
         )}
+
+        <ProductHighlights specs={specs} />
 
         {attributes.map((group) => (
           <AttributeSelector
@@ -344,7 +380,7 @@ export function ProductPurchaseSection({
                   type="button"
                   aria-label="Decrease quantity"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="flex h-9 w-9 items-center justify-center text-lg outline-none"
+                  className="flex h-10 w-10 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
                 >
                   −
                 </button>
@@ -355,7 +391,7 @@ export function ProductPurchaseSection({
                   type="button"
                   aria-label="Increase quantity"
                   onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
-                  className="flex h-9 w-9 items-center justify-center text-lg outline-none"
+                  className="flex h-10 w-10 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
                 >
                   +
                 </button>
@@ -379,7 +415,7 @@ export function ProductPurchaseSection({
             onBeforeAdd={handleBeforeAdd}
           />
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-3">
             <BuyNowButton
               product={product}
               variant={resolvedVariant}
@@ -396,6 +432,7 @@ export function ProductPurchaseSection({
               price={resolvedVariant ? getVariantPrice(resolvedVariant) : 0}
               variantId={resolvedVariant?.id ?? null}
               image={primaryImage}
+              className="transition-brand flex h-12 w-12 shrink-0 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] bg-white hover:bg-black/5"
             />
             {!outOfStock && (
               <WhatsAppOrderButton
@@ -415,7 +452,11 @@ export function ProductPurchaseSection({
         <WhatsInBox items={product.whats_in_box} />
 
         <div className="mt-8">
-          <TrustBadges compact />
+          <TrustBadges
+            compact
+            codAvailable={product.cod_available}
+            warrantyAvailable={product.warranty_available}
+          />
         </div>
 
         <ProductTabs
@@ -428,5 +469,18 @@ export function ProductPurchaseSection({
         />
       </div>
     </div>
+    {!outOfStock && (
+      <MobilePurchaseBar
+        product={product}
+        variant={resolvedVariant}
+        attributeSelections={attributeSelections}
+        image={primaryImage}
+        quantity={quantity}
+        actualPrice={resolvedVariant?.regular_price ?? 0}
+        specialPrice={resolvedVariant?.sale_price ?? null}
+        onBeforeAdd={handleBeforeAdd}
+      />
+    )}
+    </>
   );
 }
