@@ -188,7 +188,10 @@ export function ProductGallery({
               src={current}
               alt={name}
               fill
-              sizes="100vw"
+              // Matches the real max-w-3xl (768px) cap this container never
+              // exceeds -- "100vw" was requesting widths (1920px+) this
+              // image can never actually display at.
+              sizes="(max-width: 768px) 100vw, 768px"
               className="object-contain"
             />
           </div>

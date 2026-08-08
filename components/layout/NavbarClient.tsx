@@ -225,12 +225,16 @@ export function NavbarClient({
               the icon row needs every spare pixel to fit next to the logo
               at 320px (width/height props stay full-size for a correct
               intrinsic aspect ratio — only the display size is smaller). */}
+          {/* unoptimized: static 563x334 source, displayed at a fixed
+              small size -- no benefit from Next's Image Optimization
+              pipeline, and this renders on every single page. */}
           <Image
             src="/images/logo/trendymall-logo.png"
             alt="TrendyMall"
             width={67}
             height={40}
             priority
+            unoptimized
             className="h-8 w-auto sm:h-10"
           />
         </Link>
@@ -435,6 +439,7 @@ export function NavbarClient({
                 alt="TrendyMall"
                 width={47}
                 height={28}
+                unoptimized
               />
               <button
                 type="button"

@@ -34,7 +34,10 @@ export function RecentlyViewedSection({
                   src={item.image}
                   alt={item.name}
                   fill
-                  sizes="180px"
+                  // Matches the real w-36 sm:w-44 container (144px / 176px)
+                  // -- the flat 180px was requesting one size larger than
+                  // ever actually displayed at any width.
+                  sizes="(max-width: 640px) 144px, 176px"
                   className="object-cover"
                 />
               ) : (

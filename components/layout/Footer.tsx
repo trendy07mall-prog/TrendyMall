@@ -26,7 +26,19 @@ export async function Footer() {
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-14">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <Image src="/images/logo/trendymall-logo.png" alt="TrendyMall" width={67} height={40} />
+            {/* unoptimized: a static 563x334 source file displayed at a
+                fixed 67x40 -- well over 8x the display size already, so
+                the browser downscales it directly with no loss of
+                sharpness at any real pixel density, and it doesn't need
+                to go through Next's Image Optimization pipeline for a
+                fixed-size decorative logo rendered on every page. */}
+            <Image
+              src="/images/logo/trendymall-logo.png"
+              alt="TrendyMall"
+              width={67}
+              height={40}
+              unoptimized
+            />
             <p className="mt-3 text-sm text-[var(--muted)]">
               Sri Lanka&apos;s trusted destination for premium mobile phone
               accessories.
