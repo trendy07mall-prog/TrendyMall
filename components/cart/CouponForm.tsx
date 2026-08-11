@@ -12,7 +12,7 @@ export function CouponForm({
 }: {
   subtotal: number;
   deliveryFee: number;
-  onPreview: (discount: number, label: string) => void;
+  onPreview: (discount: number, label: string, isFreeShipping: boolean) => void;
 }) {
   const { couponCode, applyCoupon, removeCoupon } = useCart();
   const [input, setInput] = useState("");
@@ -32,13 +32,13 @@ export function CouponForm({
 
     if (result.error || result.discount == null) {
       setError(result.error ?? "Invalid coupon code.");
-      onPreview(0, "");
+      onPreview(0, "", false);
       return;
     }
 
     applyCoupon(code);
     setLabel(result.label ?? "");
-    onPreview(result.discount, result.label ?? "");
+    onPreview(result.discount, result.label ?? "", result.isFreeShipping ?? false);
   }
 
   // The cart page's own `discount` state (and this form's `label`) both
@@ -68,7 +68,7 @@ export function CouponForm({
     setInput("");
     setLabel(null);
     setError(null);
-    onPreview(0, "");
+    onPreview(0, "", false);
   }
 
   if (couponCode) {

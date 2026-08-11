@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVariantPrice } from "@/lib/utils";
-import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
+import { getActiveCampaignPricesForVariants, hasActiveFreeShippingCampaign } from "@/lib/data/campaigns";
 
 export interface CartItemValidation {
   productId: string;
@@ -97,4 +97,16 @@ export async function getCartValidation(
       priceChanged: Math.abs(currentPrice - item.price) > 0.01,
     };
   });
+}
+
+// Whether the cart's current contents unlock free shipping via an active
+// campaign -- checked by both /cart (display) and checkout (authoritative
+// preview, mirrored again server-side in create_order_atomic which is the
+// real source of truth). Thin wrapper so client components never import
+// lib/data/campaigns (a server-only module) directly.
+export async function getCartFreeShipping(variantIds: (string | null)[]): Promise<boolean> {
+  const ids = variantIds.filter((id): id is string => !!id);
+  if (ids.length === 0) return false;
+  const supabase = await createClient();
+  return hasActiveFreeShippingCampaign(supabase, ids);
 }

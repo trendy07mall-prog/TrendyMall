@@ -59,6 +59,9 @@ interface CartContextValue {
   addItem: (item: CartItem) => void;
   removeItem: (productId: string, variantId: string | null) => void;
   updateQuantity: (productId: string, variantId: string | null, quantity: number) => void;
+  // Patches in freshly-fetched prices for lines that changed (e.g. a
+  // campaign started/ended) -- local-only, see the implementation for why.
+  syncPrices: (updates: { productId: string; variantId: string | null; price: number }[]) => void;
   // Resolves once the server-side clear has finished for a logged-in
   // customer (immediately for a guest) — never rejects, so callers that
   // await it (e.g. checkout's post-order-success flow) can rely on the
@@ -221,6 +224,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [isLoggedIn, items],
   );
 
+  // Patches in freshly-fetched prices (from getCartValidation, which is
+  // already campaign-aware) for whichever lines changed since they were
+  // added -- local state only, never synced to the server, since
+  // cart_items has no price column of its own (price is a display-only
+  // client snapshot, always re-derived authoritatively at order time).
+  const syncPrices = useCallback(
+    (updates: { productId: string; variantId: string | null; price: number }[]) => {
+      if (updates.length === 0) return;
+      setItems((prev) =>
+        prev.map((i) => {
+          const update = updates.find((u) => sameLine(i, u));
+          return update ? { ...i, price: update.price } : i;
+        }),
+      );
+    },
+    [],
+  );
+
   const clear = useCallback(async () => {
     setItems([]);
     setCouponCode(null);
@@ -252,6 +273,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       addItem,
       removeItem,
       updateQuantity,
+      syncPrices,
       clear,
       subtotal,
       count,
@@ -266,6 +288,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       addItem,
       removeItem,
       updateQuantity,
+      syncPrices,
       clear,
       subtotal,
       count,

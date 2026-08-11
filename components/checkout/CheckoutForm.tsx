@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
+import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
@@ -78,7 +79,7 @@ export function CheckoutForm({
   // fully editable input, never read-only/hidden. Empty for a guest.
   defaultEmail?: string;
 }) {
-  const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes } = useCart();
+  const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes, syncPrices } = useCart();
   const router = useRouter();
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -126,6 +127,7 @@ export function CheckoutForm({
     code: string;
     discount: number;
     label: string;
+    isFreeShipping: boolean;
   } | null>(null);
   // True only for the mount-time auto-preview of a coupon carried over from
   // the cart — while this is in flight the blank "Coupon code" input must
@@ -142,8 +144,31 @@ export function CheckoutForm({
     postalCode: addressFields.postalCode,
     deliveryMethod,
   });
-  const discount = appliedCoupon?.discount ?? 0;
+  // A campaign's free-shipping waiver and a free_shipping-type coupon can
+  // both be "active" without conflicting -- the campaign only tops up
+  // whatever portion of shippingFee the coupon hasn't already covered, so
+  // the same delivery fee is never waived twice. clientShippingFee sent to
+  // createOrder stays the real fee either way (matches what
+  // create_order_atomic treats as v_delivery_fee before any discount).
+  const [freeShippingCampaign, setFreeShippingCampaign] = useState(false);
+  const shippingWaivedByCoupon = appliedCoupon?.isFreeShipping ? shippingFee : 0;
+  const campaignShippingWaiver =
+    freeShippingCampaign && deliveryMethod !== "pickup" ? Math.max(0, shippingFee - shippingWaivedByCoupon) : 0;
+  const discount = (appliedCoupon?.discount ?? 0) + campaignShippingWaiver;
   const total = Math.max(0, subtotal + shippingFee - discount);
+
+  const itemsKey = items.map((i) => `${i.productId}:${i.variantId ?? "base"}:${i.quantity}`).join(",");
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+    getCartFreeShipping(items.map((i) => i.variantId)).then((result) => {
+      if (!cancelled) setFreeShippingCampaign(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
 
   // Restores a mid-checkout draft (contact/notes/payment reference/delivery
   // method — not payment method or the file upload, which can't be
@@ -240,7 +265,12 @@ export function CheckoutForm({
       return;
     }
 
-    setAppliedCoupon({ code, discount: result.discount, label: result.label ?? "" });
+    setAppliedCoupon({
+      code,
+      discount: result.discount,
+      label: result.label ?? "",
+      isFreeShipping: result.isFreeShipping ?? false,
+    });
   }
 
   // Auto-preview a coupon already applied on the cart page, once, so its
@@ -336,6 +366,25 @@ export function CheckoutForm({
     if (!validateAll()) return;
 
     setPending(true);
+
+    // Proactive, not reactive: without this, the first sign of a price
+    // that changed since it was added to cart (a campaign starting/ending
+    // mid-session) would be create_order_atomic's generic rejection.
+    // Checking here first means the customer sees the corrected total
+    // immediately and can just resubmit, instead of retrying blind against
+    // a total that will fail again.
+    const revalidation = await getCartValidation(
+      items.map((i) => ({ productId: i.productId, variantId: i.variantId, price: i.price, quantity: i.quantity })),
+    );
+    const changed = revalidation.filter((r) => r.priceChanged && r.currentPrice != null);
+    if (changed.length > 0) {
+      syncPrices(
+        changed.map((r) => ({ productId: r.productId, variantId: r.variantId, price: r.currentPrice as number })),
+      );
+      setPending(false);
+      setSubmitError("Some prices in your cart just changed — please review your order below and try again.");
+      return;
+    }
 
     const resolvedAddress = await addressRef.current!.resolveForSubmit();
     if (resolvedAddress.error) {
@@ -715,11 +764,13 @@ export function CheckoutForm({
                 {deliveryMethod === "standard" && addressFields.district.trim() && (
                   <span className="block text-xs text-[var(--muted)]">
                     {deliveryReason.startsWith("Colombo") ? `Delivery to ${deliveryReason}` : deliveryReason} —{" "}
-                    {formatPrice(shippingFee)}
+                    {campaignShippingWaiver > 0 ? "Free (Promotion)" : formatPrice(shippingFee)}
                   </span>
                 )}
               </span>
-              <span>{deliveryMethod === "pickup" ? "Free" : formatPrice(shippingFee)}</span>
+              <span>
+                {deliveryMethod === "pickup" || campaignShippingWaiver > 0 ? "Free" : formatPrice(shippingFee)}
+              </span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between text-[var(--color-discount)]">

@@ -1060,6 +1060,7 @@ export interface Database {
           variant_name: string | null;
           variant_color_hex: string | null;
           attribute_selections: unknown | null;
+          campaign_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -1075,6 +1076,7 @@ export interface Database {
           variant_name?: string | null;
           variant_color_hex?: string | null;
           attribute_selections?: unknown | null;
+          campaign_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1090,6 +1092,7 @@ export interface Database {
           variant_name?: string | null;
           variant_color_hex?: string | null;
           attribute_selections?: unknown | null;
+          campaign_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -1112,6 +1115,13 @@ export interface Database {
             columns: ["variant_id"];
             isOneToOne: false;
             referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
             referencedColumns: ["id"];
           },
         ];

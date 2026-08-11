@@ -8,7 +8,7 @@ import { cartLineKey, formatPrice } from "@/lib/utils";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee } from "@/lib/delivery-fee";
 import { getMyDefaultAddress } from "@/lib/addresses";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
-import { getCartValidation } from "@/lib/cart-validation";
+import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { CartItemCard } from "@/components/cart/CartItemCard";
 import { CouponForm } from "@/components/cart/CouponForm";
@@ -17,15 +17,18 @@ import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/ToastProvider";
 import { ShoppingBagIcon, LockIcon } from "@/components/ui/Icon";
 import type { CartItemValidation } from "@/lib/cart-validation";
 import type { DeliveryArea } from "@/components/cart/DeliveryAreaToggle";
 import type { CustomerAddress, ProductWithPrimaryImage } from "@/types";
 
 export default function CartPage() {
-  const { items, subtotal, notes, setNotes } = useCart();
+  const { items, subtotal, notes, setNotes, syncPrices } = useCart();
   const router = useRouter();
+  const { showToast } = useToast();
   const [validation, setValidation] = useState<Map<string, CartItemValidation>>(new Map());
+  const [freeShipping, setFreeShipping] = useState(false);
   const [recommendations, setRecommendations] = useState<ProductWithPrimaryImage[]>([]);
   // Compared against `itemsKey` at render time (rather than a separate
   // `loading` boolean flipped inside the effect) so nothing needs to call
@@ -35,6 +38,7 @@ export default function CartPage() {
   const [deliveryArea, setDeliveryArea] = useState<DeliveryArea>(null);
   const [defaultAddress, setDefaultAddress] = useState<CustomerAddress | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [couponIsFreeShipping, setCouponIsFreeShipping] = useState(false);
   const [redirecting, startRedirect] = useTransition();
   const stickyBarRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +65,41 @@ export default function CartPage() {
     ).then((results) => {
       if (cancelled) return;
       setValidation(new Map(results.map((r) => [cartLineKey(r.productId, r.variantId), r])));
+
+      // A campaign starting/ending while an item sat in the cart is the
+      // one case getCartValidation already detects (currentPrice/
+      // priceChanged) but nothing consumed until now -- sync it in place
+      // and say so, rather than silently showing a stale number.
+      const changed = results.filter((r) => r.priceChanged && r.currentPrice != null);
+      if (changed.length > 0) {
+        syncPrices(
+          changed.map((r) => ({
+            productId: r.productId,
+            variantId: r.variantId,
+            price: r.currentPrice as number,
+          })),
+        );
+        const names = changed
+          .map((r) => items.find((i) => cartLineKey(i.productId, i.variantId) === cartLineKey(r.productId, r.variantId))?.name)
+          .filter((n): n is string => !!n);
+        showToast(
+          changed.length === 1 && names[0]
+            ? `Price updated for ${names[0]}`
+            : `Prices updated for ${changed.length} items`,
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+    getCartFreeShipping(items.map((i) => i.variantId)).then((result) => {
+      if (!cancelled) setFreeShipping(result);
     });
     return () => {
       cancelled = true;
@@ -153,7 +192,15 @@ export default function CartPage() {
       : deliveryArea === "colombo"
         ? RATE_IN_ZONE
         : null;
-  const total = Math.max(0, subtotal + (deliveryFee ?? 0) - discount);
+  // A free_shipping-type coupon (discount already === deliveryFee, see
+  // CouponForm) and a campaign's free-shipping waiver can both be "active"
+  // at once without conflicting -- but naively subtracting both would
+  // double-waive the same delivery fee. The campaign only contributes
+  // whatever portion the coupon hasn't already covered.
+  const deliveryFeeValue = deliveryFee ?? 0;
+  const shippingWaivedByCoupon = couponIsFreeShipping ? deliveryFeeValue : 0;
+  const campaignShippingWaiver = freeShipping ? Math.max(0, deliveryFeeValue - shippingWaivedByCoupon) : 0;
+  const total = Math.max(0, subtotal + deliveryFeeValue - discount - campaignShippingWaiver);
   // A bare total with no delivery area selected would silently omit a
   // real Rs.255-400 charge — read as "delivery is free" and then surprise
   // the customer at checkout. Both the desktop summary and the mobile
@@ -161,7 +208,7 @@ export default function CartPage() {
   // computed formatPrice(total)) so they're structurally incapable of
   // disagreeing, not just carefully kept in sync by hand.
   const totalDisplay =
-    deliveryFee === null
+    deliveryFee === null && !freeShipping
       ? `${formatPrice(Math.max(0, subtotal - discount))} + delivery`
       : formatPrice(total);
 
@@ -256,7 +303,9 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between text-[var(--muted)]">
               <span>Delivery</span>
-              {defaultAddress ? (
+              {freeShipping ? (
+                <span className="font-medium text-[var(--color-discount)]">Free (Promotion)</span>
+              ) : defaultAddress ? (
                 <span>{formatPrice(defaultAddressFee ?? 0)}</span>
               ) : deliveryArea === null ? (
                 <span>
@@ -280,7 +329,10 @@ export default function CartPage() {
             <CouponForm
               subtotal={subtotal}
               deliveryFee={deliveryFee ?? 0}
-              onPreview={(nextDiscount) => setDiscount(nextDiscount)}
+              onPreview={(nextDiscount, _label, isFreeShipping) => {
+                setDiscount(nextDiscount);
+                setCouponIsFreeShipping(isFreeShipping);
+              }}
             />
           </div>
 

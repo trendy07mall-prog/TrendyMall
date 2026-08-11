@@ -7,6 +7,10 @@ export interface CouponPreviewResult {
   discount?: number;
   label?: string;
   error?: string;
+  // Only true for a free_shipping-type coupon -- lets callers avoid
+  // double-counting when a campaign's own free-shipping waiver also
+  // applies to the same cart, without string-matching `label`.
+  isFreeShipping?: boolean;
 }
 
 // A preview only — the coupons_select_valid_or_admin RLS policy (sql/020)
@@ -71,5 +75,5 @@ export async function previewCoupon(
   if (coupon.type === "fixed") {
     return { discount: Math.min(coupon.value, subtotal), label: `${formatPrice(coupon.value)} off` };
   }
-  return { discount: deliveryFee, label: "Free shipping" };
+  return { discount: deliveryFee, label: "Free shipping", isFreeShipping: true };
 }

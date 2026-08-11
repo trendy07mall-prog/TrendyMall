@@ -226,3 +226,35 @@ export async function getActiveCampaignProductIds(
   }
   return [...ids];
 }
+
+// Checkout/cart delivery-fee waiver -- same gating conditions as
+// getActiveCampaignPricesForVariants, plus free_shipping_enabled, but only
+// needs a yes/no answer (any qualifying campaign_item unlocks free
+// shipping for the whole order), not a per-variant price map. Kept
+// separate from the price-resolution functions above rather than folded
+// in -- a different question with a different (boolean vs. per-variant)
+// shape.
+export async function hasActiveFreeShippingCampaign(
+  supabase: SupabaseServerClient,
+  variantIds: string[],
+): Promise<boolean> {
+  if (variantIds.length === 0) return false;
+
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("variant_id, campaigns!inner(status, is_archived, start_at, end_at, free_shipping_enabled)")
+    .in("variant_id", variantIds)
+    .eq("is_active", true)
+    .eq("campaigns.status", "published")
+    .eq("campaigns.is_archived", false)
+    .eq("campaigns.free_shipping_enabled", true)
+    .lte("campaigns.start_at", nowIso);
+  if (error) throw error;
+
+  const now = Date.now();
+  return (data ?? []).some((row) => {
+    const endAt = (row.campaigns as unknown as { end_at: string | null }).end_at;
+    return endAt == null || new Date(endAt).getTime() > now;
+  });
+}
