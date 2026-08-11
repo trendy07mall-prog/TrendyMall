@@ -93,6 +93,8 @@ export async function getCartRecommendations(
       campaign_price: campaign?.campaignPrice ?? null,
       campaign_id: campaign?.campaignId ?? null,
       campaign_badge_label: campaign?.badgeLabel ?? null,
+      campaign_name: campaign?.campaignName ?? null,
+      campaign_end_at: campaign?.campaignEndAt ?? null,
     });
     variantsByProductId.set(v.product_id, list);
   }
@@ -111,6 +113,8 @@ export async function getCartRecommendations(
             image: null,
             campaignId: null,
             badgeLabel: null,
+            campaignName: null,
+            campaignEndAt: null,
           };
     return {
       ...product,
@@ -121,6 +125,12 @@ export async function getCartRecommendations(
       defaultVariantId: display.variantId,
       campaignId: display.campaignId,
       badgeLabel: display.badgeLabel,
+      campaignName: display.campaignName,
+      campaignEndAt: display.campaignEndAt,
+      // Not fetched here -- this lightweight widget skips the sold-count
+      // aggregate query; CampaignInfoBlock treats null the same as "no
+      // count to show," never a fabricated number.
+      soldCount: null,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       // Not fetched here -- this recommendations widget doesn't need tag

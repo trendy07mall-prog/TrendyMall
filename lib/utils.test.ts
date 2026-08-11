@@ -74,15 +74,17 @@ describe("pickWinningVariant", () => {
 // in lib/data/products.test.ts, via pickWinningVariant's winner-selection
 // first -- these call it directly instead, isolating the band logic itself
 // from winner selection.
+const NO_EXTRA = { badgeLabel: null, campaignName: null, campaignEndAt: null };
+
 describe("resolveEffectivePriceBand", () => {
   test("no sale, no campaign: regular price, source regular", () => {
     const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: null });
-    assert.deepEqual(result, { specialPrice: null, campaignId: null, priceSource: "regular", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: null, campaignId: null, priceSource: "regular", ...NO_EXTRA });
   });
 
   test("sale price present, no campaign: sale wins", () => {
     const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: 80 });
-    assert.deepEqual(result, { specialPrice: 80, campaignId: null, priceSource: "sale", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: 80, campaignId: null, priceSource: "sale", ...NO_EXTRA });
   });
 
   test("campaign beats both regular and sale", () => {
@@ -92,7 +94,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 50,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 50, campaignId: "c1", priceSource: "campaign", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: 50, campaignId: "c1", priceSource: "campaign", ...NO_EXTRA });
   });
 
   test("campaign beats regular but not sale: sale wins, campaignId null", () => {
@@ -102,7 +104,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 90,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", ...NO_EXTRA });
   });
 
   test("exact tie between campaign and sale: sale wins (merchant's own price)", () => {
@@ -112,7 +114,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 70,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", ...NO_EXTRA });
   });
 
   test("campaign present, no sale_price at all: compares against regular_price", () => {
@@ -122,7 +124,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 60,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 60, campaignId: "c1", priceSource: "campaign", badgeLabel: null });
+    assert.deepEqual(result, { specialPrice: 60, campaignId: "c1", priceSource: "campaign", ...NO_EXTRA });
   });
 
   test("campaign wins with a badge label: badgeLabel is surfaced", () => {
@@ -138,6 +140,8 @@ describe("resolveEffectivePriceBand", () => {
       campaignId: "c1",
       priceSource: "campaign",
       badgeLabel: "FLASH SALE",
+      campaignName: null,
+      campaignEndAt: null,
     });
   });
 
@@ -150,5 +154,31 @@ describe("resolveEffectivePriceBand", () => {
       campaign_badge_label: "FLASH SALE",
     });
     assert.equal(result.badgeLabel, null);
+  });
+
+  test("campaign wins with a name and end_at: both are surfaced", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 80,
+      campaign_price: 50,
+      campaign_id: "c1",
+      campaign_name: "Big Bang Flash Sale",
+      campaign_end_at: "2026-06-20T00:00:00Z",
+    });
+    assert.equal(result.campaignName, "Big Bang Flash Sale");
+    assert.equal(result.campaignEndAt, "2026-06-20T00:00:00Z");
+  });
+
+  test("campaign loses to sale: name/end_at never leak through either", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 70,
+      campaign_price: 90,
+      campaign_id: "c1",
+      campaign_name: "Big Bang Flash Sale",
+      campaign_end_at: "2026-06-20T00:00:00Z",
+    });
+    assert.equal(result.campaignName, null);
+    assert.equal(result.campaignEndAt, null);
   });
 });

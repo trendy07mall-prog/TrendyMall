@@ -11,13 +11,24 @@ export interface CampaignPriceInfo {
   // along with the same per-variant "lowest price wins" resolution rather
   // than filtering at the SQL level.
   badgeLabel: string | null;
+  // Unconditional (unlike badgeLabel) -- name/end_at are basic facts about
+  // whichever campaign is winning, not gated by any admin display toggle.
+  // Free to carry along: the campaigns join already selects end_at for the
+  // gating check below, this just adds one more column.
+  campaignName: string;
+  campaignEndAt: string | null;
 }
 
 type CampaignItemJoinRow = {
   variant_id: string;
   campaign_price: number;
   campaign_id: string;
-  campaigns: { end_at: string | null; show_badge: boolean; badge_label: string | null };
+  campaigns: {
+    name: string;
+    end_at: string | null;
+    show_badge: boolean;
+    badge_label: string | null;
+  };
 };
 
 // Pure, DB-free: "lowest campaign_price wins" across possibly-multiple
@@ -43,6 +54,8 @@ export function selectLowestActiveCampaignPrices(
         campaignId: row.campaign_id,
         campaignPrice: row.campaign_price,
         badgeLabel,
+        campaignName: row.campaigns.name,
+        campaignEndAt: row.campaigns.end_at,
       });
     }
   }
@@ -72,7 +85,7 @@ export async function getActiveCampaignPricesForVariants(
   const { data, error } = await supabase
     .from("campaign_items")
     .select(
-      "variant_id, campaign_price, campaign_id, campaigns!inner(status, is_archived, start_at, end_at, show_badge, badge_label)",
+      "variant_id, campaign_price, campaign_id, campaigns!inner(name, status, is_archived, start_at, end_at, show_badge, badge_label)",
     )
     .in("variant_id", variantIds)
     .eq("is_active", true)
@@ -281,4 +294,71 @@ export async function hasActiveFreeShippingCampaign(
     const endAt = (row.campaigns as unknown as { end_at: string | null }).end_at;
     return endAt == null || new Date(endAt).getTime() > now;
   });
+}
+
+// Real, computed live per page load -- no counter to maintain (see the
+// campaign-info-block plan's data audit). One batched aggregate across
+// every campaign id the current page actually needs (never per-campaign),
+// summed by campaign_id in JS -- this codebase's established "small store,
+// aggregate in JS" convention (e.g. resolvePriceFilterProductIds). "Real
+// sale" uses the exact same order_status exclusion app/admin/page.tsx's own
+// revenue cards use, so a cart-added-but-never-paid line never inflates the
+// count.
+export async function getCampaignSoldCounts(
+  supabase: SupabaseServerClient,
+  campaignIds: string[],
+): Promise<Map<string, number>> {
+  if (campaignIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("campaign_id, quantity, orders!inner(order_status)")
+    .in("campaign_id", campaignIds)
+    .not("orders.order_status", "in", "(cancelled,returned)");
+  if (error) throw error;
+
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as unknown as { campaign_id: string; quantity: number }[]) {
+    counts.set(row.campaign_id, (counts.get(row.campaign_id) ?? 0) + row.quantity);
+  }
+  return counts;
+}
+
+export interface CampaignSectionData {
+  campaign: Campaign;
+  productIds: string[];
+}
+
+// One batched campaign_items query across every homepage-eligible campaign
+// at once (never one query per campaign) -- groups product ids by
+// campaign_id, preserving the caller's campaign order. Deliberately does
+// NOT hydrate products itself: that would need getProductsByIds from
+// lib/data/products.ts, which already imports getActiveCampaignPricesForVariants/
+// getCampaignSoldCounts from this module -- importing it back here would be
+// circular. Instead this returns id groups only, exactly like
+// getCampaignPageData already does for the single-campaign page, and the
+// caller batch-hydrates the union of every group's productIds in one
+// getProductsByIds call.
+export async function getCampaignSections(campaigns: Campaign[]): Promise<CampaignSectionData[]> {
+  if (campaigns.length === 0) return [];
+
+  const supabase = await createClient();
+  const campaignIds = campaigns.map((c) => c.id);
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("campaign_id, product_id")
+    .in("campaign_id", campaignIds)
+    .eq("is_active", true);
+  if (error) throw error;
+
+  const productIdsByCampaignId = new Map<string, string[]>();
+  for (const row of data ?? []) {
+    const list = productIdsByCampaignId.get(row.campaign_id) ?? [];
+    if (!list.includes(row.product_id)) list.push(row.product_id);
+    productIdsByCampaignId.set(row.campaign_id, list);
+  }
+
+  return campaigns
+    .map((campaign) => ({ campaign, productIds: productIdsByCampaignId.get(campaign.id) ?? [] }))
+    .filter((group) => group.productIds.length > 0);
 }

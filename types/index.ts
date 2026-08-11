@@ -82,6 +82,15 @@ export interface ProductWithPrimaryImage extends Product {
   // when that campaign has show_badge enabled -- null whenever campaignId is
   // null, and null even with a winning campaign if its own show_badge is off.
   badgeLabel: string | null;
+  // Name/end_at of the winning campaign (unconditional, unlike badgeLabel --
+  // not gated by any admin display toggle) -- null whenever campaignId is
+  // null. Powers CampaignInfoBlock's heading + live countdown.
+  campaignName: string | null;
+  campaignEndAt: string | null;
+  // Units sold under the winning campaign specifically, computed live from
+  // real orders (see getCampaignSoldCounts) -- null whenever campaignId is
+  // null, never a fabricated number.
+  soldCount: number | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

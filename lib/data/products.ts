@@ -6,7 +6,11 @@ import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
 import { pickWinningVariant, getVariantPrice, getDiscountPercent, resolveEffectivePriceBand } from "@/lib/utils";
-import { getActiveCampaignPricesForVariants, getActiveCampaignProductIds } from "@/lib/data/campaigns";
+import {
+  getActiveCampaignPricesForVariants,
+  getActiveCampaignProductIds,
+  getCampaignSoldCounts,
+} from "@/lib/data/campaigns";
 import type {
   Attribute,
   AttributeValue,
@@ -131,6 +135,8 @@ export interface VariantPriceRow {
   campaign_price?: number | null;
   campaign_id?: string | null;
   campaign_badge_label?: string | null;
+  campaign_name?: string | null;
+  campaign_end_at?: string | null;
 }
 
 export function resolveCardDisplay(variants: VariantPriceRow[]): {
@@ -143,6 +149,8 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   priceSource: "regular" | "sale" | "campaign";
   discountPercent: number | null;
   badgeLabel: string | null;
+  campaignName: string | null;
+  campaignEndAt: string | null;
 } {
   // Effective price (not raw sale_price ?? regular_price) so two variants
   // identically priced on regular/sale but differing only by an active
@@ -151,7 +159,8 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   const hasMultiplePrices = distinctPrices.size > 1;
 
   const winner = pickWinningVariant(variants);
-  const { specialPrice, campaignId, priceSource, badgeLabel } = resolveEffectivePriceBand(winner);
+  const { specialPrice, campaignId, priceSource, badgeLabel, campaignName, campaignEndAt } =
+    resolveEffectivePriceBand(winner);
 
   return {
     actualPrice: winner.regular_price,
@@ -163,6 +172,8 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
     priceSource,
     discountPercent: getDiscountPercent(winner.regular_price, specialPrice),
     badgeLabel,
+    campaignName,
+    campaignEndAt,
   };
 }
 
@@ -239,11 +250,13 @@ async function attachPrimaryImages(
       campaign_price: campaign?.campaignPrice ?? null,
       campaign_id: campaign?.campaignId ?? null,
       campaign_badge_label: campaign?.badgeLabel ?? null,
+      campaign_name: campaign?.campaignName ?? null,
+      campaign_end_at: campaign?.campaignEndAt ?? null,
     });
     variantsByProductId.set(v.product_id, list);
   }
 
-  return products.map((product) => {
+  const withDisplay = products.map((product) => {
     const rating = ratingByProductId.get(product.id);
     const variants = variantsByProductId.get(product.id) ?? [];
     const display =
@@ -257,21 +270,39 @@ async function attachPrimaryImages(
             image: null,
             campaignId: null,
             badgeLabel: null,
+            campaignName: null,
+            campaignEndAt: null,
           };
-    return {
-      ...product,
-      image: display.image ?? primaryByProductId.get(product.id) ?? null,
-      actual_price: display.actualPrice,
-      special_price: display.specialPrice,
-      hasMultiplePrices: display.hasMultiplePrices,
-      defaultVariantId: display.variantId,
-      campaignId: display.campaignId,
-      badgeLabel: display.badgeLabel,
-      avgRating: rating?.avg_rating ?? 0,
-      reviewCount: rating?.review_count ?? 0,
-      tags: tagsByProductId.get(product.id) ?? [],
-    };
+    return { product, rating, display };
   });
+
+  // Sold count is genuinely separate data (an order_items/orders aggregate,
+  // nothing to do with pricing) -- deliberately NOT folded into
+  // getActiveCampaignPricesForVariants, which every cart/checkout/admin
+  // caller also depends on and shouldn't pay for data only this
+  // customer-facing display path needs. One batched query for whichever
+  // campaigns actually won on this page, not one per product.
+  const distinctCampaignIds = [
+    ...new Set(withDisplay.map((d) => d.display.campaignId).filter((id): id is string => id != null)),
+  ];
+  const soldCounts = await getCampaignSoldCounts(supabase, distinctCampaignIds);
+
+  return withDisplay.map(({ product, rating, display }) => ({
+    ...product,
+    image: display.image ?? primaryByProductId.get(product.id) ?? null,
+    actual_price: display.actualPrice,
+    special_price: display.specialPrice,
+    hasMultiplePrices: display.hasMultiplePrices,
+    defaultVariantId: display.variantId,
+    campaignId: display.campaignId,
+    badgeLabel: display.badgeLabel,
+    campaignName: display.campaignName,
+    campaignEndAt: display.campaignEndAt,
+    soldCount: display.campaignId ? (soldCounts.get(display.campaignId) ?? null) : null,
+    avgRating: rating?.avg_rating ?? 0,
+    reviewCount: rating?.review_count ?? 0,
+    tags: tagsByProductId.get(product.id) ?? [],
+  }));
 }
 
 // Applies every filter that maps directly to a WHERE-equivalent Supabase
@@ -826,6 +857,10 @@ export type ProductVariantWithImages = ProductVariant & {
   attributeValueIds: string[];
   campaign_price: number | null;
   campaign_id: string | null;
+  campaign_badge_label: string | null;
+  campaign_name: string | null;
+  campaign_end_at: string | null;
+  campaign_sold_count: number | null;
 };
 
 export interface ProductDetail {
@@ -913,6 +948,17 @@ export const getProductDetailBySlug = cache(
       attributeValueIdsByVariantId.set(row.variant_id, list);
     }
 
+    // A product page has 0 or 1 distinct winning campaigns across all its
+    // variants in practice, but this stays a batched lookup (not per
+    // variant) for the same reason attachPrimaryImages's is -- one extra
+    // query for the page, never one per variant.
+    const distinctCampaignIds = [
+      ...new Set(
+        [...campaignPricesByVariantId.values()].map((c) => c.campaignId).filter((id): id is string => id != null),
+      ),
+    ];
+    const soldCounts = await getCampaignSoldCounts(supabase, distinctCampaignIds);
+
     const variantsWithImages: ProductVariantWithImages[] = (variants ?? []).map((v) => {
       const campaign = campaignPricesByVariantId.get(v.id);
       return {
@@ -921,6 +967,10 @@ export const getProductDetailBySlug = cache(
         attributeValueIds: attributeValueIdsByVariantId.get(v.id) ?? [],
         campaign_price: campaign?.campaignPrice ?? null,
         campaign_id: campaign?.campaignId ?? null,
+        campaign_badge_label: campaign?.badgeLabel ?? null,
+        campaign_name: campaign?.campaignName ?? null,
+        campaign_end_at: campaign?.campaignEndAt ?? null,
+        campaign_sold_count: campaign?.campaignId ? (soldCounts.get(campaign.campaignId) ?? null) : null,
       };
     });
 

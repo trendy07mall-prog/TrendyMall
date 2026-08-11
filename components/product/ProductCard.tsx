@@ -4,6 +4,7 @@ import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
+import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { getDiscountPercent } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ProductWithPrimaryImage } from "@/types";
@@ -120,6 +121,14 @@ export function ProductCard({
       </div>
 
       <div className={`flex flex-1 flex-col ${isShop ? "mt-2.5 gap-2" : hideDeliveryEstimate ? "mt-3" : "mt-3 gap-3"}`}>
+        {product.campaignId && product.campaignName && (
+          <CampaignInfoBlock
+            campaignName={product.campaignName}
+            campaignEndAt={product.campaignEndAt}
+            soldCount={product.soldCount}
+            compact
+          />
+        )}
         <div>
           {product.brand && (
             <p className="text-[10px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">

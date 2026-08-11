@@ -12,6 +12,7 @@ import { ShareButtons } from "@/components/product/ShareButtons";
 import { NotifyMeForm } from "@/components/product/NotifyMeForm";
 import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
+import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { StarRating } from "@/components/product/StarRating";
 import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
@@ -419,6 +420,15 @@ export function ProductPurchaseSection({
           otherwise the price line's flex-nowrap or the title's natural width
           can push this column (and the whole page) wider than the viewport. */}
       <div className="min-w-0">
+        {priceBand?.campaignId && priceBand.campaignName && (
+          <div className="mb-3">
+            <CampaignInfoBlock
+              campaignName={priceBand.campaignName}
+              campaignEndAt={priceBand.campaignEndAt}
+              soldCount={resolvedVariant?.campaign_sold_count ?? null}
+            />
+          </div>
+        )}
         {tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (

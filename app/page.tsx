@@ -3,11 +3,12 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
-import { getNewArrivals } from "@/lib/data/products";
-import { getHomepageCampaigns } from "@/lib/data/campaigns";
+import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
+import { getHomepageCampaigns, getCampaignSections } from "@/lib/data/campaigns";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
+import { ActiveCampaignSections } from "@/components/marketing/ActiveCampaignSections";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
@@ -16,6 +17,7 @@ import { CustomerReviews } from "@/components/marketing/CustomerReviews";
 import { HomeNewsletter } from "@/components/marketing/HomeNewsletter";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { FadeIn } from "@/components/motion/FadeIn";
+import type { ProductWithPrimaryImage } from "@/types";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -55,6 +57,27 @@ export default async function HomePage() {
     supabase.auth.getUser(),
   ]);
 
+  // One batched campaign_items query (getCampaignSections) plus one batched
+  // getProductsByIds call for the union of every campaign's product ids --
+  // flat query count regardless of how many campaigns/products are active,
+  // never one query per campaign or per product.
+  const campaignSectionGroups = await getCampaignSections(homepageCampaigns);
+  const allCampaignProductIds = [...new Set(campaignSectionGroups.flatMap((g) => g.productIds))];
+  const campaignProducts =
+    allCampaignProductIds.length > 0 ? await getProductsByIds(allCampaignProductIds) : [];
+  const campaignProductsById = new Map(campaignProducts.map((p) => [p.id, p]));
+  const campaignSections = campaignSectionGroups
+    .map((group) => ({
+      campaign: group.campaign,
+      // A campaign's items can outlive a product being unpublished --
+      // filter(Boolean) drops those rather than rendering a hole in the
+      // carousel.
+      products: group.productIds
+        .map((id) => campaignProductsById.get(id))
+        .filter((p): p is ProductWithPrimaryImage => p != null),
+    }))
+    .filter((section) => section.products.length > 0);
+
   return (
     <div className={`home-fonts ${poppins.variable} flex flex-1 flex-col`}>
       <HeroSlider />
@@ -66,6 +89,8 @@ export default async function HomePage() {
           Rotates through every qualifying campaign (each slide links to its
           own /campaign/[slug]) rather than picking just one. */}
       <CampaignBannerCarousel campaigns={homepageCampaigns} />
+
+      <ActiveCampaignSections sections={campaignSections} />
 
       <ServiceCards />
 
