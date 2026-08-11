@@ -85,21 +85,40 @@ export async function saveCampaign(
     return { error: "Add at least one product before publishing. Save as draft instead." };
   }
 
+  // Admin-only feature, but never trust the client's own request size --
+  // an unbounded insert from a scripted/forged call is cheap to guard
+  // against even though a real admin session is trusted otherwise.
+  if (items.length > 1000) {
+    return { error: "A campaign can include at most 1000 products at once." };
+  }
+
   // Re-validate server-side that every submitted variantId genuinely
   // belongs to its submitted productId -- never trust the client's
   // FormData for this, same principle create_order_atomic already
-  // enforces for orders.
+  // enforces for orders. Also re-checks here (not just in
+  // CampaignItemsTable.tsx's client-side warning) that every campaign_price
+  // actually undercuts the variant's current price -- a campaign can only
+  // ever reduce price, never merely match or exceed it.
   if (items.length > 0) {
     const variantIds = [...new Set(items.map((i) => i.variantId))];
     const { data: variantRows, error: variantErr } = await supabase
       .from("product_variants")
-      .select("id, product_id")
+      .select("id, product_id, color_name, regular_price, sale_price, products(name)")
       .in("id", variantIds);
     if (variantErr) return { error: variantErr.message };
-    const ownerByVariant = new Map((variantRows ?? []).map((v) => [v.id, v.product_id]));
+    const variantById = new Map((variantRows ?? []).map((v) => [v.id, v]));
     for (const item of items) {
-      if (ownerByVariant.get(item.variantId) !== item.productId) {
+      const variant = variantById.get(item.variantId);
+      if (!variant || variant.product_id !== item.productId) {
         return { error: "One of the selected variants no longer matches its product — please re-add it." };
+      }
+      const currentPrice = variant.sale_price ?? variant.regular_price;
+      if (item.campaignPrice >= currentPrice) {
+        const productName = (variant.products as { name: string } | null)?.name ?? "a product";
+        const label = variant.color_name ? `${productName} (${variant.color_name})` : productName;
+        return {
+          error: `Campaign price for ${label} must be lower than its current price (Rs ${currentPrice}).`,
+        };
       }
     }
   }

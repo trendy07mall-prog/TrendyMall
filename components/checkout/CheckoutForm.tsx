@@ -338,7 +338,24 @@ export function CheckoutForm({
 
     const formData = new FormData();
     formData.set("file", file);
-    const result = await uploadPaymentSlip(formData);
+
+    // A request that fails before uploadPaymentSlip's own code runs (e.g.
+    // exceeding the platform's request body limit) throws rather than
+    // returning {error} -- without this catch, slipUploading would stay
+    // true forever with no message shown, and the form's submit button
+    // stays disabled indefinitely (see the disabled={... || slipUploading}
+    // checks below).
+    let result;
+    try {
+      result = await uploadPaymentSlip(formData);
+    } catch {
+      setSlipUploading(false);
+      setSlipError("Upload failed — please try a smaller file or try again.");
+      setSlipPath(null);
+      setSlipFileName(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
 
     setSlipUploading(false);
 

@@ -5,6 +5,13 @@ import { requireAdminClient } from "@/lib/admin/guard";
 const ALLOWED_PREFIXES = ["categories", "brands", "products", "variants", "editor", "campaigns"] as const;
 type UploadPrefix = (typeof ALLOWED_PREFIXES)[number];
 
+// Same constants as lib/uploadPaymentSlip.ts -- checked here too, on top of
+// the product-images bucket's own file_size_limit/allowed_mime_types
+// (sql/065), for the same defense-in-depth reasoning: a client's
+// accept="image/*" is only a UI hint, not a real constraint.
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+
 export interface UploadImageResult {
   url?: string;
   error?: string;
@@ -27,6 +34,12 @@ export async function uploadAdminImage(
 
   if (!(file instanceof File) || file.size === 0) {
     return { error: "No file provided." };
+  }
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return { error: "Upload a JPG, PNG, or WEBP image." };
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    return { error: "File must be under 5MB." };
   }
 
   const path = `${prefix}/${crypto.randomUUID()}-${file.name}`;

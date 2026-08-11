@@ -32,7 +32,19 @@ export function SingleImageUploader({
 
     const formData = new FormData();
     formData.set("file", file);
-    const result = await uploadAdminImage("campaigns", formData);
+
+    // A request that fails before uploadAdminImage's own code runs (e.g.
+    // exceeding the platform's request body limit) throws rather than
+    // returning {error} -- without this catch, `uploading` would stay
+    // true forever with no message shown.
+    let result;
+    try {
+      result = await uploadAdminImage("campaigns", formData);
+    } catch {
+      setUploading(false);
+      setError("Upload failed — please try a smaller file or try again.");
+      return;
+    }
 
     setUploading(false);
     if (result.error) {
