@@ -164,14 +164,14 @@ export async function getAllCampaignSlugs(): Promise<string[]> {
     .map((c) => c.slug);
 }
 
-// The homepage banner needs a genuinely ACTIVE campaign right now (not
+// The homepage banner needs genuinely ACTIVE campaigns right now (not
 // merely "visible," the way the public RLS policy is), so start_at/end_at
 // are both checked here -- a scheduled or already-ended campaign shouldn't
-// occupy homepage real estate even if flagged show_on_homepage. Picks the
-// one ending soonest if more than one qualifies, rather than building a
-// second carousel for an edge case this store's catalog scale won't
-// realistically produce.
-export async function getHomepageCampaign(): Promise<Campaign | null> {
+// occupy homepage real estate even if flagged show_on_homepage. Returns
+// every qualifying campaign (not just one) so the homepage can rotate
+// through all of them -- sorted soonest-ending first, nulls (never-ending)
+// last, matching the tie-break the single-campaign version used to apply.
+export async function getHomepageCampaigns(): Promise<Campaign[]> {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
@@ -185,12 +185,12 @@ export async function getHomepageCampaign(): Promise<Campaign | null> {
 
   const now = Date.now();
   const active = (data ?? []).filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now);
-  if (active.length === 0) return null;
 
-  return active.reduce((soonest, c) => {
-    if (c.end_at == null) return soonest;
-    if (soonest.end_at == null) return c;
-    return new Date(c.end_at).getTime() < new Date(soonest.end_at).getTime() ? c : soonest;
+  return active.sort((a, b) => {
+    if (a.end_at == null && b.end_at == null) return 0;
+    if (a.end_at == null) return 1;
+    if (b.end_at == null) return -1;
+    return new Date(a.end_at).getTime() - new Date(b.end_at).getTime();
   });
 }
 

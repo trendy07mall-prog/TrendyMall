@@ -4,10 +4,10 @@ import localFont from "next/font/local";
 import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals } from "@/lib/data/products";
-import { getHomepageCampaign } from "@/lib/data/campaigns";
+import { getHomepageCampaigns } from "@/lib/data/campaigns";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
-import { CampaignBanner } from "@/components/marketing/CampaignBanner";
+import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
@@ -48,10 +48,10 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [categories, newArrivals, homepageCampaign, { data: { user } }] = await Promise.all([
+  const [categories, newArrivals, homepageCampaigns, { data: { user } }] = await Promise.all([
     getCategories({ depth: 0 }),
     getNewArrivals(10),
-    getHomepageCampaign(),
+    getHomepageCampaigns(),
     supabase.auth.getUser(),
   ]);
 
@@ -61,21 +61,11 @@ export default async function HomePage() {
 
       {/* A separate, distinctly-positioned signal from ServiceCards' own
           "Special Price Sale" card below -- that card stays sale_price-only
-          and unchanged; this only ever renders a genuinely admin-curated,
-          currently-active campaign, never derived from the same data. */}
-      {homepageCampaign && (
-        // Link wraps CampaignBanner with no layout classes of its own --
-        // CampaignBanner's own internal container (mx-auto/max-w/px-6,
-        // same as HeroSlider's self-contained pattern) already handles all
-        // spacing; adding a second set here would double the padding.
-        <Link href={`/campaign/${homepageCampaign.slug}`} className="block">
-          <CampaignBanner
-            desktopUrl={homepageCampaign.desktop_banner_url}
-            mobileUrl={homepageCampaign.mobile_banner_url}
-            alt={homepageCampaign.name}
-          />
-        </Link>
-      )}
+          and unchanged; this only ever renders genuinely admin-curated,
+          currently-active campaigns, never derived from the same data.
+          Rotates through every qualifying campaign (each slide links to its
+          own /campaign/[slug]) rather than picking just one. */}
+      <CampaignBannerCarousel campaigns={homepageCampaigns} />
 
       <ServiceCards />
 
