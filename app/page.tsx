@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import localFont from "next/font/local";
 import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals } from "@/lib/data/products";
@@ -23,10 +23,14 @@ export const metadata: Metadata = {
 
 // Homepage-only heading font (see .home-fonts in globals.css) — every
 // other page keeps Manrope headings via the root layout, untouched.
-const poppins = Poppins({
+// Self-hosted, same reasoning as app/layout.tsx's manrope/inter.
+const poppins = localFont({
+  src: [
+    { path: "./fonts/poppins-700.woff2", weight: "700" },
+    { path: "./fonts/poppins-800.woff2", weight: "800" },
+  ],
   variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["700", "800"],
+  display: "swap",
 });
 
 function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: string }) {

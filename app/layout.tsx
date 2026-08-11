@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ViewTransition } from "react";
-import { Manrope, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { RecentlyViewedProvider } from "@/context/RecentlyViewedContext";
@@ -21,16 +21,27 @@ import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const manrope = Manrope({
+// Self-hosted (not next/font/google) -- avoids a build/dev-time dependency
+// on fetching from fonts.gstatic.com. Files are the same Inter/Manrope
+// static woff2s Google serves, just vendored locally (via @fontsource,
+// latin subset only, only the weights actually used below).
+const manrope = localFont({
+  src: [
+    { path: "./fonts/manrope-700.woff2", weight: "700" },
+    { path: "./fonts/manrope-800.woff2", weight: "800" },
+  ],
   variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["700", "800"],
+  display: "swap",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: [
+    { path: "./fonts/inter-400.woff2", weight: "400" },
+    { path: "./fonts/inter-500.woff2", weight: "500" },
+    { path: "./fonts/inter-600.woff2", weight: "600" },
+  ],
   variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
