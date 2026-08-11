@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { getVariantPrice, pickWinningVariant } from "./utils";
+import { getVariantPrice, pickWinningVariant, resolveEffectivePriceBand } from "./utils";
 
 describe("getVariantPrice", () => {
   test("no campaign_price: identical to old sale_price ?? regular_price behavior", () => {
@@ -67,5 +67,61 @@ describe("pickWinningVariant", () => {
       { id: "b", regular_price: 80, sale_price: null, stock: 5, is_default: false },
     ];
     assert.equal(pickWinningVariant(variants).id, "b");
+  });
+});
+
+// Exercised indirectly (once per scenario) by resolveCardDisplay's own tests
+// in lib/data/products.test.ts, via pickWinningVariant's winner-selection
+// first -- these call it directly instead, isolating the band logic itself
+// from winner selection.
+describe("resolveEffectivePriceBand", () => {
+  test("no sale, no campaign: regular price, source regular", () => {
+    const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: null });
+    assert.deepEqual(result, { specialPrice: null, campaignId: null, priceSource: "regular" });
+  });
+
+  test("sale price present, no campaign: sale wins", () => {
+    const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: 80 });
+    assert.deepEqual(result, { specialPrice: 80, campaignId: null, priceSource: "sale" });
+  });
+
+  test("campaign beats both regular and sale", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 80,
+      campaign_price: 50,
+      campaign_id: "c1",
+    });
+    assert.deepEqual(result, { specialPrice: 50, campaignId: "c1", priceSource: "campaign" });
+  });
+
+  test("campaign beats regular but not sale: sale wins, campaignId null", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 70,
+      campaign_price: 90,
+      campaign_id: "c1",
+    });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale" });
+  });
+
+  test("exact tie between campaign and sale: sale wins (merchant's own price)", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 70,
+      campaign_price: 70,
+      campaign_id: "c1",
+    });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale" });
+  });
+
+  test("campaign present, no sale_price at all: compares against regular_price", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: null,
+      campaign_price: 60,
+      campaign_id: "c1",
+    });
+    assert.deepEqual(result, { specialPrice: 60, campaignId: "c1", priceSource: "campaign" });
   });
 });

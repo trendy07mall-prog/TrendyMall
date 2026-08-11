@@ -1,6 +1,7 @@
 "use client";
 
 import { formatPrice } from "@/lib/utils";
+import { campaignPriceUndercuts } from "@/lib/campaign-pricing";
 import type { ItemDraft, SectionDraft } from "@/components/admin/CampaignForm";
 
 export function CampaignItemsTable({
@@ -40,7 +41,7 @@ export function CampaignItemsTable({
         <tbody>
           {items.map((item) => {
             const currentPrice = item.salePrice ?? item.regularPrice;
-            const noDiscount = item.campaignPrice >= currentPrice;
+            const noDiscount = !campaignPriceUndercuts(item.campaignPrice, item.regularPrice, item.salePrice);
             return (
               <tr key={item.clientKey} className="border-b border-[var(--border)]">
                 <td className="py-2 pr-4">

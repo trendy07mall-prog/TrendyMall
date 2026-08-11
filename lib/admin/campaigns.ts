@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify } from "@/lib/utils";
 import { sriLankaInputToUtcIso } from "@/lib/campaign-datetime";
+import { campaignPriceUndercuts } from "@/lib/campaign-pricing";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import type { CampaignPromotionType } from "@/types";
 
@@ -112,8 +113,8 @@ export async function saveCampaign(
       if (!variant || variant.product_id !== item.productId) {
         return { error: "One of the selected variants no longer matches its product — please re-add it." };
       }
-      const currentPrice = variant.sale_price ?? variant.regular_price;
-      if (item.campaignPrice >= currentPrice) {
+      if (!campaignPriceUndercuts(item.campaignPrice, variant.regular_price, variant.sale_price)) {
+        const currentPrice = variant.sale_price ?? variant.regular_price;
         const productName = (variant.products as { name: string } | null)?.name ?? "a product";
         const label = variant.color_name ? `${productName} (${variant.color_name})` : productName;
         return {
