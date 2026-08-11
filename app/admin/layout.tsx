@@ -1,7 +1,18 @@
+import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ToastProvider } from "@/components/admin/ToastProvider";
+
+// Overrides the root's theme-color (app/manifest.ts sets #111111, matching
+// the storefront's black AnnouncementBar so mobile browser chrome blends
+// in seamlessly there) -- admin has no black header for that tint to
+// blend into, so on admin routes it read as a stray bar above the plain
+// white header. This segment's viewport takes precedence over the root's
+// for everything under /admin.
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+};
 
 export default async function AdminLayout({
   children,

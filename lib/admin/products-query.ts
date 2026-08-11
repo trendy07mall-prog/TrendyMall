@@ -126,17 +126,37 @@ async function getAdminSearchMatchIds(
   return [...ids];
 }
 
+// The full (active + inactive) row for a product's variant, powering the
+// admin list's quick-toggle expansion -- deliberately a small subset, not
+// a full VariantsEditor-equivalent shape (color name + SKU is enough for
+// staff to tell variants apart in a quick list; the full edit form remains
+// the place for exhaustive per-variant detail).
+export interface AdminVariantRow {
+  id: string;
+  colorName: string | null;
+  sku: string | null;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
 export interface AdminProductRow extends Product {
   image: string | null;
   actual_price: number;
   special_price: number | null;
   hasMultiplePrices: boolean;
   defaultVariantId: string;
+  variants: AdminVariantRow[];
 }
 
 // Mirrors lib/data/products.ts's attachPrimaryImages (image + computed
 // display price off variants), minus the ratings join the admin table
-// doesn't need.
+// doesn't need. Unlike the storefront version, this fetches ALL variants
+// (not just is_active=true) -- the catalog is tiny (a few dozen variants
+// total), and the admin quick-toggle expansion needs to see and reactivate
+// inactive ones, not just display active-only pricing. The price/image
+// calc below still only ever sees the active subset, filtered in memory,
+// so existing row output (actual_price/special_price/hasMultiplePrices) is
+// unchanged from before this feature.
 async function attachPrimaryImages(
   supabase: SupabaseServerClient,
   products: Product[],
@@ -152,9 +172,10 @@ async function attachPrimaryImages(
       .order("sort_order", { ascending: true }),
     supabase
       .from("product_variants")
-      .select("id, product_id, regular_price, sale_price, stock, is_default, variant_image_url")
-      .in("product_id", ids)
-      .eq("is_active", true),
+      .select(
+        "id, product_id, regular_price, sale_price, stock, is_default, is_active, variant_image_url, color_name, sku",
+      )
+      .in("product_id", ids),
   ]);
 
   const primaryByProductId = new Map<string, string>();
@@ -164,18 +185,25 @@ async function attachPrimaryImages(
     }
   }
 
-  const variantsByProductId = new Map<string, VariantPriceRow[]>();
-  for (const v of (variantRows ?? []) as VariantPriceRow[]) {
+  type FullVariantRow = VariantPriceRow & {
+    is_active: boolean;
+    color_name: string | null;
+    sku: string | null;
+  };
+
+  const variantsByProductId = new Map<string, FullVariantRow[]>();
+  for (const v of (variantRows ?? []) as FullVariantRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
     list.push(v);
     variantsByProductId.set(v.product_id, list);
   }
 
   return products.map((product) => {
-    const variants = variantsByProductId.get(product.id) ?? [];
+    const allVariants = variantsByProductId.get(product.id) ?? [];
+    const activeVariants = allVariants.filter((v) => v.is_active);
     const display =
-      variants.length > 0
-        ? resolveCardDisplay(variants)
+      activeVariants.length > 0
+        ? resolveCardDisplay(activeVariants)
         : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
     return {
       ...product,
@@ -184,6 +212,13 @@ async function attachPrimaryImages(
       special_price: display.specialPrice,
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
+      variants: allVariants.map((v) => ({
+        id: v.id,
+        colorName: v.color_name,
+        sku: v.sku,
+        isActive: v.is_active,
+        isDefault: v.is_default,
+      })),
     };
   });
 }

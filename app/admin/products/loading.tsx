@@ -5,9 +5,9 @@ const SKELETON_ROWS = Array.from({ length: 8 });
 export default function AdminProductsLoading() {
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Skeleton className="h-8 w-32" />
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Skeleton className="h-9 w-32 rounded-full" />
           <Skeleton className="h-9 w-24 rounded-full" />
           <Skeleton className="h-9 w-24 rounded-full" />

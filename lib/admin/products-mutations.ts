@@ -73,6 +73,30 @@ export async function quickUpdateVariantPrice(
   return { success: true };
 }
 
+// Lets staff deactivate one color/capacity without hiding the whole
+// product -- every storefront query that resolves price/availability
+// already filters is_active=true (getProductDetailBySlug, the shop/
+// category/search card query, price/on-sale facets, cart recommendations),
+// so flipping this is enough on its own: the variant simply stops
+// existing in any of those result sets. create_order_atomic also
+// re-checks is_active at order-creation time, so a stale client can't
+// buy a deactivated variant either way.
+export async function quickUpdateVariantActive(
+  variantId: string,
+  isActive: boolean,
+): Promise<QuickEditResult> {
+  const supabase = await requireAdminClient();
+
+  const { error } = await supabase
+    .from("product_variants")
+    .update({ is_active: isActive })
+    .eq("id", variantId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/products");
+  return { success: true };
+}
+
 export type DuplicateResult = { newProductId: string } | { error: string };
 
 async function duplicateOne(

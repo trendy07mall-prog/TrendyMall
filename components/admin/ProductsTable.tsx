@@ -3,17 +3,48 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { SearchIcon, ImageIcon, TrashIcon } from "@/components/ui/Icon";
+import { SearchIcon, ImageIcon, TrashIcon, ChevronDownIcon } from "@/components/ui/Icon";
 import { StockBadge } from "@/components/admin/StockBadge";
 import { ProductStatusBadge } from "@/components/admin/ProductStatusBadge";
 import { QuickEditPrice } from "@/components/admin/QuickEditPrice";
 import { QuickEditStock } from "@/components/admin/QuickEditStock";
 import { QuickEditStatus } from "@/components/admin/QuickEditStatus";
 import { QuickEditFeatured } from "@/components/admin/QuickEditFeatured";
+import { QuickEditVariantActive } from "@/components/admin/QuickEditVariantActive";
 import { ProductActionsMenu } from "@/components/admin/ProductActionsMenu";
 import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { Pagination } from "@/components/product/Pagination";
-import type { AdminProductRow } from "@/lib/admin/products-query";
+import type { AdminProductRow, AdminVariantRow } from "@/lib/admin/products-query";
+
+// Shared by the desktop expanded row and the mobile expanded section --
+// deactivating the last active variant is allowed (per the "rather than
+// letting this happen silently" instruction, a warning, not a block), so
+// this always renders every variant regardless of current state.
+function VariantList({ variants }: { variants: AdminVariantRow[] }) {
+  const allInactive = variants.length > 0 && !variants.some((v) => v.isActive);
+  return (
+    <div className="flex flex-col gap-2">
+      {allInactive && (
+        <p role="alert" className="text-xs font-medium text-[var(--color-discount)]">
+          All variants inactive — product cannot be purchased
+        </p>
+      )}
+      <div className="flex flex-col divide-y divide-[var(--border)]">
+        {variants.map((variant) => (
+          <div key={variant.id} className="flex items-center justify-between gap-3 py-1.5">
+            <span className="text-sm">
+              {variant.colorName || variant.sku || "Default"}
+              {variant.isDefault && (
+                <span className="ml-1.5 text-xs text-[var(--muted)]">(default)</span>
+              )}
+            </span>
+            <QuickEditVariantActive variantId={variant.id} isActive={variant.isActive} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ProductsTable({
   products,
@@ -37,6 +68,7 @@ export function ProductsTable({
   hasActiveFilters: boolean;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const allSelected = products.length > 0 && products.every((p) => selectedIds.has(p.id));
 
@@ -104,15 +136,25 @@ export function ProductsTable({
               <th className="py-2 pr-4">Stock</th>
               <th className="py-2 pr-4">Status</th>
               <th className="py-2 pr-4">Featured</th>
+              <th className="py-2 pr-4">Variants</th>
               <th className="py-2">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {products.map((product) => {
+          {products.map((product) => {
               const lowStock = product.stock > 0 && product.stock < 5;
+              const hasMultipleVariants = product.variants.length > 1;
+              const noActiveVariants =
+                product.variants.length > 0 && !product.variants.some((v) => v.isActive);
+              const isExpanded = expandedId === product.id;
               return (
+                // A <tbody> per product (not one shared <tbody> for the
+                // whole table) -- multiple <tbody> elements as direct
+                // <table> children are valid HTML, and it's what lets each
+                // product's optional expansion row sit immediately below
+                // ITS OWN row instead of only being addable at the end of
+                // the table.
+                <tbody key={product.id}>
                 <tr
-                  key={product.id}
                   className={`border-b border-[var(--border)] ${lowStock ? "bg-[var(--color-warning)]/5" : ""}`}
                 >
                   <td className="py-2 pr-2 align-top">
@@ -172,6 +214,27 @@ export function ProductsTable({
                       <QuickEditFeatured productId={product.id} isFeatured={product.is_featured} />
                     )}
                   </td>
+                  <td className="py-2 pr-4 align-top">
+                    {hasMultipleVariants ? (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedId(isExpanded ? null : product.id)}
+                        aria-expanded={isExpanded}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          noActiveVariants
+                            ? "border-[var(--color-discount)] text-[var(--color-discount)]"
+                            : "border-[var(--border)] hover:border-[var(--border-hover)]"
+                        }`}
+                      >
+                        {product.variants.length}
+                        <ChevronDownIcon
+                          className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    ) : (
+                      <span className="text-xs text-[var(--muted)]">—</span>
+                    )}
+                  </td>
                   <td className="py-2 align-top">
                     <ProductActionsMenu
                       productId={product.id}
@@ -181,11 +244,22 @@ export function ProductsTable({
                     />
                   </td>
                 </tr>
+                {isExpanded && hasMultipleVariants && (
+                  <tr className="border-b border-[var(--border)] bg-black/[0.02]">
+                    <td colSpan={10} className="px-4 py-3">
+                      <div className="max-w-md">
+                        <VariantList variants={product.variants} />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </tbody>
               );
             })}
-            {products.length === 0 && (
+          {products.length === 0 && (
+            <tbody>
               <tr>
-                <td colSpan={9} className="py-16">
+                <td colSpan={10} className="py-16">
                   <div className="flex flex-col items-center gap-3 text-center">
                     <emptyState.Icon className="h-8 w-8 text-[var(--muted)]" />
                     <p className="text-sm text-[var(--muted)]">{emptyState.title}</p>
@@ -203,8 +277,8 @@ export function ProductsTable({
                   </div>
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          )}
         </table>
       </div>
 
@@ -212,13 +286,18 @@ export function ProductsTable({
       <div className="mt-4 flex flex-col gap-3 lg:hidden">
         {products.map((product) => {
           const lowStock = product.stock > 0 && product.stock < 5;
+          const hasMultipleVariants = product.variants.length > 1;
+          const noActiveVariants =
+            product.variants.length > 0 && !product.variants.some((v) => v.isActive);
+          const isExpanded = expandedId === product.id;
           return (
             <div
               key={product.id}
-              className={`flex gap-3 rounded-[var(--radius-card)] border border-[var(--border)] p-3 ${
+              className={`rounded-[var(--radius-card)] border border-[var(--border)] ${
                 lowStock ? "bg-[var(--color-warning)]/5" : ""
               }`}
             >
+            <div className="flex gap-3 p-3">
               <input
                 type="checkbox"
                 checked={selectedIds.has(product.id)}
@@ -277,7 +356,30 @@ export function ProductsTable({
                     </>
                   )}
                 </div>
+                {hasMultipleVariants && (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isExpanded ? null : product.id)}
+                    aria-expanded={isExpanded}
+                    className={`flex h-11 items-center gap-1 self-start rounded-full border px-2.5 text-xs font-medium transition-colors ${
+                      noActiveVariants
+                        ? "border-[var(--color-discount)] text-[var(--color-discount)]"
+                        : "border-[var(--border)] hover:border-[var(--border-hover)]"
+                    }`}
+                  >
+                    {product.variants.length} variants
+                    <ChevronDownIcon
+                      className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                )}
               </div>
+            </div>
+            {isExpanded && hasMultipleVariants && (
+              <div className="border-t border-[var(--border)] p-3">
+                <VariantList variants={product.variants} />
+              </div>
+            )}
             </div>
           );
         })}
