@@ -61,6 +61,10 @@ export function QuickFilterChips({
     apply({ ...state, onSale: !state.onSale });
   }
 
+  function toggleCampaign() {
+    apply({ ...state, campaign: !state.campaign });
+  }
+
   function applyPricePreset(preset: (typeof PRICE_PRESETS)[number]) {
     const isActive = state.minPrice === preset.minPrice && state.maxPrice === preset.maxPrice;
     apply({
@@ -90,6 +94,9 @@ export function QuickFilterChips({
       </button>
       <button type="button" onClick={toggleOnSale} className={chipClass(state.onSale)}>
         On Sale
+      </button>
+      <button type="button" onClick={toggleCampaign} className={chipClass(state.campaign)}>
+        On Campaign
       </button>
       {PRICE_PRESETS.map((preset) => (
         <button

@@ -18,7 +18,7 @@ import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
 import { ProductHighlights } from "@/components/product/ProductHighlights";
 import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
 import { FloatingPurchaseBar } from "@/components/product/FloatingPurchaseBar";
-import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
+import { getVariantPrice, pickWinningVariant, resolveEffectivePriceBand } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
@@ -221,6 +221,13 @@ export function ProductPurchaseSection({
   // reads off this, so nothing can ever go stale or fall back silently to
   // the wrong variant.
   const resolvedVariant = variants.length > 0 ? (findMatchingVariants(dimensions)[0] ?? null) : null;
+  // Same price-band resolution resolveCardDisplay uses server-side for
+  // cards -- reused, not reimplemented, so the PDP and the shop card never
+  // disagree about which price band (regular/sale/campaign) wins. Pure
+  // function of whatever resolvedVariant currently is, so switching to a
+  // non-campaign variant automatically falls back with no residual
+  // campaign price/badge -- no extra state, nothing to go stale.
+  const priceBand = resolvedVariant ? resolveEffectivePriceBand(resolvedVariant) : null;
 
   const effectiveStock =
     resolvedVariant?.stock != null ? resolvedVariant.stock : product.stock;
@@ -457,7 +464,7 @@ export function ProductPurchaseSection({
         <div className="mt-4">
           <PriceDisplay
             actualPrice={resolvedVariant?.regular_price ?? 0}
-            specialPrice={resolvedVariant?.sale_price ?? null}
+            specialPrice={priceBand?.specialPrice ?? null}
             size="md"
           />
         </div>
@@ -619,7 +626,7 @@ export function ProductPurchaseSection({
         quantity={quantity}
         outOfStock={outOfStock}
         actualPrice={resolvedVariant?.regular_price ?? 0}
-        specialPrice={resolvedVariant?.sale_price ?? null}
+        specialPrice={priceBand?.specialPrice ?? null}
         selectionError={selectionError}
         onBeforeAdd={handleBeforeAdd}
       />

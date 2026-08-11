@@ -5,8 +5,8 @@ import { newArrivalCutoff } from "@/lib/product-filters";
 import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
-import { pickWinningVariant, getVariantPrice, getDiscountPercent } from "@/lib/utils";
-import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
+import { pickWinningVariant, getVariantPrice, getDiscountPercent, resolveEffectivePriceBand } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants, getActiveCampaignProductIds } from "@/lib/data/campaigns";
 import type {
   Attribute,
   AttributeValue,
@@ -86,6 +86,20 @@ async function resolveOnSaleProductIds(
   return [...new Set((data ?? []).map((v) => v.product_id))];
 }
 
+// "On Campaign" -- a plain AND-narrowing id-list, same shape as
+// resolveTagProductIds/resolveAttributeValueProductIds/
+// resolvePriceFilterProductIds (composed into narrowingIdLists), NOT folded
+// into the OR-composed promoConditions group above: "in an active campaign
+// right now" is a straightforward inclusion filter, not a member of the
+// onSale/newArrival/featured OR relationship.
+async function resolveCampaignProductIds(
+  supabase: SupabaseServerClient,
+  filters: ProductListFilters,
+): Promise<string[] | undefined> {
+  if (!filters.campaign) return undefined;
+  return getActiveCampaignProductIds(supabase);
+}
+
 // The variant a listing card shows: lowest sale_price among active variants
 // that have one, else lowest regular_price -- a single-variant product
 // collapses to simply "that variant," not a special case. Falls back to the
@@ -121,23 +135,7 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   const hasMultiplePrices = distinctPrices.size > 1;
 
   const winner = pickWinningVariant(variants);
-
-  // A campaign_price only "wins" display if it actually undercuts both
-  // regular_price and whatever sale_price already is. A real tie
-  // (campaign_price === sale_price) keeps priceSource "sale" -- it's the
-  // merchant's own price, and the number shown is identical either way.
-  const campaignBeats =
-    winner.campaign_price != null &&
-    winner.campaign_price < winner.regular_price &&
-    winner.campaign_price < (winner.sale_price ?? Infinity);
-
-  const priceSource: "regular" | "sale" | "campaign" = campaignBeats
-    ? "campaign"
-    : winner.sale_price != null
-      ? "sale"
-      : "regular";
-  const specialPrice = campaignBeats ? (winner.campaign_price as number) : winner.sale_price;
-  const campaignId = campaignBeats ? (winner.campaign_id ?? null) : null;
+  const { specialPrice, campaignId, priceSource } = resolveEffectivePriceBand(winner);
 
   return {
     actualPrice: winner.regular_price,
@@ -356,11 +354,12 @@ export async function getProductsByCategory(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
-  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
     resolvePriceFilterProductIds(supabase, filters),
     resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
   ]);
   const { data, error } = await applyDbFilters(
     supabase
@@ -369,7 +368,7 @@ export async function getProductsByCategory(
       .in("category_id", categoryIds)
       .eq("status", "published").eq("is_deleted", false),
     filters,
-    [tagProductIds, attributeProductIds, priceProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
     onSaleProductIds,
   );
 
@@ -382,16 +381,17 @@ export async function getAllProducts(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {
   const supabase = await createClient();
-  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
     resolvePriceFilterProductIds(supabase, filters),
     resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
   ]);
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false),
     filters,
-    [tagProductIds, attributeProductIds, priceProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
     onSaleProductIds,
   );
 
@@ -427,11 +427,12 @@ export async function getFacetCounts(
   const filtersWithoutBrand: ProductListFilters = { ...filters, brands: undefined, brandIds: undefined };
   const filtersWithoutTag: ProductListFilters = { ...filters, tagIds: undefined };
   const filtersWithoutAttribute: ProductListFilters = { ...filters, attributeValueIds: undefined };
-  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
     resolvePriceFilterProductIds(supabase, filters),
     resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
   ]);
 
   let categories: FacetCounts["categories"] = [];
@@ -444,7 +445,7 @@ export async function getFacetCounts(
       applyDbFilters(
         categoryCountQuery,
         filtersWithoutCategory,
-        [tagProductIds, attributeProductIds, priceProductIds],
+        [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
         onSaleProductIds,
       ),
     ]);
@@ -476,7 +477,7 @@ export async function getFacetCounts(
     applyDbFilters(
       brandQuery,
       filtersWithoutBrand,
-      [tagProductIds, attributeProductIds, priceProductIds],
+      [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
       onSaleProductIds,
     ),
     supabase.from("brands").select("id, name").eq("is_active", true),
@@ -501,7 +502,7 @@ export async function getFacetCounts(
   const { data: tagEligibleProducts } = await applyDbFilters(
     tagCountQuery,
     filtersWithoutTag,
-    [attributeProductIds, priceProductIds],
+    [attributeProductIds, priceProductIds, campaignProductIds],
     onSaleProductIds,
   );
   const tagEligibleProductIds = (tagEligibleProducts ?? []).map((p: { id: string }) => p.id);
@@ -532,7 +533,7 @@ export async function getFacetCounts(
   const { data: attributeEligibleProducts } = await applyDbFilters(
     attributeCountQuery,
     filtersWithoutAttribute,
-    [tagProductIds, priceProductIds],
+    [tagProductIds, priceProductIds, campaignProductIds],
     onSaleProductIds,
   );
   const attributeEligibleProductIds = (attributeEligibleProducts ?? []).map((p: { id: string }) => p.id);
@@ -694,17 +695,18 @@ export async function searchProducts(
   const supabase = await createClient();
   const matchIds = await getSearchMatchIds(query);
   if (matchIds.length === 0) return [];
-  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds] = await Promise.all([
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
     resolveTagProductIds(filters),
     resolveAttributeValueProductIds(filters),
     resolvePriceFilterProductIds(supabase, filters),
     resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
   ]);
 
   const { data, error } = await applyDbFilters(
     supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false).in("id", matchIds),
     filters,
-    [tagProductIds, attributeProductIds, priceProductIds],
+    [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
     onSaleProductIds,
   );
   if (error) throw error;

@@ -76,6 +76,41 @@ export function pickWinningVariant<
   return tied.length > 1 ? (tied.find((v) => v.is_default) ?? lowest) : lowest;
 }
 
+// Which price band actually wins for ONE variant, and why -- shared by
+// resolveCardDisplay (lib/data/products.ts, server-side card resolution)
+// and ProductPurchaseSection.tsx (client-side PDP display) so both surfaces
+// derive campaign pricing the exact same way, never two parallel
+// implementations. A campaign_price only "wins" display if it actually
+// undercuts both regular_price and whatever sale_price already is -- a
+// real tie (campaign_price === sale_price) keeps priceSource "sale," since
+// it's the merchant's own price and the number shown is identical either
+// way.
+export function resolveEffectivePriceBand(variant: {
+  regular_price: number;
+  sale_price: number | null;
+  campaign_price?: number | null;
+  campaign_id?: string | null;
+}): {
+  specialPrice: number | null;
+  campaignId: string | null;
+  priceSource: "regular" | "sale" | "campaign";
+} {
+  const campaignBeats =
+    variant.campaign_price != null &&
+    variant.campaign_price < variant.regular_price &&
+    variant.campaign_price < (variant.sale_price ?? Infinity);
+
+  const priceSource: "regular" | "sale" | "campaign" = campaignBeats
+    ? "campaign"
+    : variant.sale_price != null
+      ? "sale"
+      : "regular";
+  const specialPrice = campaignBeats ? (variant.campaign_price as number) : variant.sale_price;
+  const campaignId = campaignBeats ? (variant.campaign_id ?? null) : null;
+
+  return { specialPrice, campaignId, priceSource };
+}
+
 // Same identity a cart line has everywhere: a product on its own, or a
 // product pinned to one specific variant. Shared by cart-sync.ts,
 // cart-validation.ts, and every cart/checkout list that needs a stable

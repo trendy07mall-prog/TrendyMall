@@ -253,6 +253,14 @@ export function FilterGroups({
         </label>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
+            checked={state.campaign}
+            variant={variant}
+            onChange={(checked) => onChange({ campaign: checked })}
+          />
+          On Campaign
+        </label>
+        <label className="flex items-center gap-2 py-1.5 text-sm">
+          <Checkbox
             checked={state.newArrival}
             variant={variant}
             onChange={(checked) => onChange({ newArrival: checked })}

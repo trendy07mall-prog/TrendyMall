@@ -58,6 +58,7 @@ export interface ProductFilterState {
   onSale: boolean;
   newArrival: boolean;
   featured: boolean;
+  campaign: boolean;
   sort: SortOption;
 }
 
@@ -81,6 +82,7 @@ export interface ProductListFilters {
   onSale?: boolean;
   newArrival?: boolean;
   featured?: boolean;
+  campaign?: boolean;
   sort: SortOption;
 }
 
@@ -107,6 +109,7 @@ export function parseProductFilterState(
     onSale: flag("onSale"),
     newArrival: flag("newArrival"),
     featured: flag("featured"),
+    campaign: flag("campaign"),
     sort: (SORT_OPTIONS as string[]).includes(sortRaw) ? (sortRaw as SortOption) : "newest",
   };
 }
@@ -139,6 +142,7 @@ export function filterStateToParams(
   if (state.onSale) params.set("onSale", "1");
   if (state.newArrival) params.set("newArrival", "1");
   if (state.featured) params.set("featured", "1");
+  if (state.campaign) params.set("campaign", "1");
   if (state.sort !== "newest") params.set("sort", state.sort);
   return params;
 }
@@ -193,6 +197,7 @@ export function toProductListFilters(
     onSale: state.onSale || undefined,
     newArrival: state.newArrival || undefined,
     featured: state.featured || undefined,
+    campaign: state.campaign || undefined,
     sort: state.sort,
   };
 }
@@ -212,7 +217,8 @@ export function countActiveFilters(state: ProductFilterState): number {
     (state.warranty ? 1 : 0) +
     (state.onSale ? 1 : 0) +
     (state.newArrival ? 1 : 0) +
-    (state.featured ? 1 : 0)
+    (state.featured ? 1 : 0) +
+    (state.campaign ? 1 : 0)
   );
 }
 
@@ -232,5 +238,6 @@ export const EMPTY_FILTER_STATE: ProductFilterState = {
   onSale: false,
   newArrival: false,
   featured: false,
+  campaign: false,
   sort: "newest",
 };

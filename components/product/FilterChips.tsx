@@ -114,6 +114,9 @@ export function FilterChips({
     ...(state.onSale
       ? [{ key: "onSale", label: "On Sale", apply: (s: ProductFilterState) => ({ ...s, onSale: false }) }]
       : []),
+    ...(state.campaign
+      ? [{ key: "campaign", label: "On Campaign", apply: (s: ProductFilterState) => ({ ...s, campaign: false }) }]
+      : []),
     ...(state.newArrival
       ? [
           {

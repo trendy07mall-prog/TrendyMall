@@ -163,3 +163,66 @@ export async function getAllCampaignSlugs(): Promise<string[]> {
     .filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now)
     .map((c) => c.slug);
 }
+
+// The homepage banner needs a genuinely ACTIVE campaign right now (not
+// merely "visible," the way the public RLS policy is), so start_at/end_at
+// are both checked here -- a scheduled or already-ended campaign shouldn't
+// occupy homepage real estate even if flagged show_on_homepage. Picks the
+// one ending soonest if more than one qualifies, rather than building a
+// second carousel for an edge case this store's catalog scale won't
+// realistically produce.
+export async function getHomepageCampaign(): Promise<Campaign | null> {
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("show_on_homepage", true)
+    .eq("status", "published")
+    .eq("is_archived", false)
+    .lte("start_at", nowIso);
+  if (error) throw error;
+
+  const now = Date.now();
+  const active = (data ?? []).filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now);
+  if (active.length === 0) return null;
+
+  return active.reduce((soonest, c) => {
+    if (c.end_at == null) return soonest;
+    if (soonest.end_at == null) return c;
+    return new Date(c.end_at).getTime() < new Date(soonest.end_at).getTime() ? c : soonest;
+  });
+}
+
+// Shop/category/search "On Campaign" filter -- same gating conditions as
+// getActiveCampaignPricesForVariants, but returns distinct product_ids
+// rather than per-variant prices, since this feeds a plain AND-narrowing
+// id-list filter (like tags/attributes/price), not a price resolution.
+// Takes the caller's own client (same convention as
+// getActiveCampaignPricesForVariants) rather than creating a new one, since
+// callers in lib/data/products.ts already have one for the same request.
+export async function getActiveCampaignProductIds(
+  supabase: SupabaseServerClient,
+): Promise<string[]> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("product_id, campaigns!inner(status, is_archived, start_at, end_at)")
+    .eq("is_active", true)
+    .eq("campaigns.status", "published")
+    .eq("campaigns.is_archived", false)
+    .lte("campaigns.start_at", nowIso);
+  if (error) throw error;
+
+  const now = Date.now();
+  const ids = new Set<string>();
+  for (const row of (data ?? []) as unknown as {
+    product_id: string;
+    campaigns: { end_at: string | null };
+  }[]) {
+    const endAt = row.campaigns.end_at;
+    if (endAt != null && new Date(endAt).getTime() <= now) continue;
+    ids.add(row.product_id);
+  }
+  return [...ids];
+}
