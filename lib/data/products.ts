@@ -732,6 +732,28 @@ export async function getRelatedProducts(
   return attachPrimaryImages(supabase, data);
 }
 
+// Fetches a specific, caller-ordered set of products -- for the campaign
+// landing page's sections, where the order is curated by an admin, not
+// derivable from any DB column. Supabase's .in() does not preserve the
+// input array's order, so the result is re-sorted to match `ids` after
+// attachPrimaryImages runs (same pricing/image/rating pipeline every other
+// listing function already uses, so campaign pricing is automatically
+// correct with no new pricing code here).
+export async function getProductsByIds(ids: string[]): Promise<ProductWithPrimaryImage[]> {
+  if (ids.length === 0) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .in("id", ids)
+    .eq("status", "published").eq("is_deleted", false);
+
+  if (error) throw error;
+  const withImages = await attachPrimaryImages(supabase, data);
+  const byId = new Map(withImages.map((p) => [p.id, p]));
+  return ids.map((id) => byId.get(id)).filter((p): p is ProductWithPrimaryImage => p != null);
+}
+
 // Looks up a stale product slug in product_slug_redirects and returns the
 // product's current published slug, or null if there's no redirect (or the
 // product is no longer published). Only called when a direct slug lookup

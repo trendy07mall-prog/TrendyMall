@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getCategories } from "@/lib/data/categories";
 import { getAllProductSlugs } from "@/lib/data/products";
+import { getAllCampaignSlugs } from "@/lib/data/campaigns";
 import { SITE_URL as siteUrl } from "@/lib/site";
 
 const STATIC_ROUTES = [
@@ -18,9 +19,10 @@ const STATIC_ROUTES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, productSlugs] = await Promise.all([
+  const [categories, productSlugs, campaignSlugs] = await Promise.all([
     getCategories(),
     getAllProductSlugs(),
+    getAllCampaignSlugs(),
   ]);
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((path) => ({
@@ -38,5 +40,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: new Date(),
   }));
 
-  return [...staticEntries, ...categoryEntries, ...productEntries];
+  const campaignEntries: MetadataRoute.Sitemap = campaignSlugs.map((slug) => ({
+    url: `${siteUrl}/campaign/${slug}`,
+    lastModified: new Date(),
+  }));
+
+  return [...staticEntries, ...categoryEntries, ...productEntries, ...campaignEntries];
 }
