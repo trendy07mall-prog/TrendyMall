@@ -130,6 +130,7 @@ export interface VariantPriceRow {
   variant_image_url: string | null;
   campaign_price?: number | null;
   campaign_id?: string | null;
+  campaign_badge_label?: string | null;
 }
 
 export function resolveCardDisplay(variants: VariantPriceRow[]): {
@@ -141,6 +142,7 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   campaignId: string | null;
   priceSource: "regular" | "sale" | "campaign";
   discountPercent: number | null;
+  badgeLabel: string | null;
 } {
   // Effective price (not raw sale_price ?? regular_price) so two variants
   // identically priced on regular/sale but differing only by an active
@@ -149,7 +151,7 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   const hasMultiplePrices = distinctPrices.size > 1;
 
   const winner = pickWinningVariant(variants);
-  const { specialPrice, campaignId, priceSource } = resolveEffectivePriceBand(winner);
+  const { specialPrice, campaignId, priceSource, badgeLabel } = resolveEffectivePriceBand(winner);
 
   return {
     actualPrice: winner.regular_price,
@@ -160,6 +162,7 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
     campaignId,
     priceSource,
     discountPercent: getDiscountPercent(winner.regular_price, specialPrice),
+    badgeLabel,
   };
 }
 
@@ -231,7 +234,12 @@ async function attachPrimaryImages(
   for (const v of (variantRows ?? []) as VariantPriceRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
     const campaign = campaignPrices.get(v.id);
-    list.push({ ...v, campaign_price: campaign?.campaignPrice ?? null, campaign_id: campaign?.campaignId ?? null });
+    list.push({
+      ...v,
+      campaign_price: campaign?.campaignPrice ?? null,
+      campaign_id: campaign?.campaignId ?? null,
+      campaign_badge_label: campaign?.badgeLabel ?? null,
+    });
     variantsByProductId.set(v.product_id, list);
   }
 
@@ -248,6 +256,7 @@ async function attachPrimaryImages(
             variantId: "",
             image: null,
             campaignId: null,
+            badgeLabel: null,
           };
     return {
       ...product,
@@ -257,6 +266,7 @@ async function attachPrimaryImages(
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
       campaignId: display.campaignId,
+      badgeLabel: display.badgeLabel,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       tags: tagsByProductId.get(product.id) ?? [],

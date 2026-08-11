@@ -84,6 +84,11 @@ export function ProductCard({
           )}
         </Link>
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          {product.badgeLabel && (
+            <span className="rounded-full bg-[var(--color-warning)] px-[10px] py-[3px] text-[11px] font-semibold text-white">
+              {product.badgeLabel}
+            </span>
+          )}
           {discountPercent != null && (
             <span
               className={`flex items-center rounded-full bg-[var(--color-discount)] font-semibold text-white ${

@@ -78,6 +78,10 @@ export interface ProductWithPrimaryImage extends Product {
   // discounts distinctly from a plain sale; unused (always null) until
   // then, but populated now so no data-layer change is needed later.
   campaignId: string | null;
+  // Admin-authored text (e.g. "FLASH SALE") from the winning campaign, only
+  // when that campaign has show_badge enabled -- null whenever campaignId is
+  // null, and null even with a winning campaign if its own show_badge is off.
+  badgeLabel: string | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

@@ -90,10 +90,12 @@ export function resolveEffectivePriceBand(variant: {
   sale_price: number | null;
   campaign_price?: number | null;
   campaign_id?: string | null;
+  campaign_badge_label?: string | null;
 }): {
   specialPrice: number | null;
   campaignId: string | null;
   priceSource: "regular" | "sale" | "campaign";
+  badgeLabel: string | null;
 } {
   const campaignBeats =
     variant.campaign_price != null &&
@@ -107,8 +109,9 @@ export function resolveEffectivePriceBand(variant: {
       : "regular";
   const specialPrice = campaignBeats ? (variant.campaign_price as number) : variant.sale_price;
   const campaignId = campaignBeats ? (variant.campaign_id ?? null) : null;
+  const badgeLabel = campaignBeats ? (variant.campaign_badge_label ?? null) : null;
 
-  return { specialPrice, campaignId, priceSource };
+  return { specialPrice, campaignId, priceSource, badgeLabel };
 }
 
 // Same identity a cart line has everywhere: a product on its own, or a

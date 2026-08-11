@@ -9,7 +9,9 @@ import { getCategories } from "@/lib/data/categories";
 import { getBrands } from "@/lib/data/brands";
 import { getTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
+import { getShopCampaigns } from "@/lib/data/campaigns";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
+import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { FilterSidebar } from "@/components/product/FilterSidebar";
 import { MobileFilterSortBar } from "@/components/product/MobileFilterSortBar";
@@ -50,11 +52,12 @@ export default async function ShopPage({
   ]);
   const filters = toProductListFilters(state, categories, brands, tags, attributeValues);
 
-  const [products, totalCount, facetCounts, hasReviews] = await Promise.all([
+  const [products, totalCount, facetCounts, hasReviews, shopCampaigns] = await Promise.all([
     getAllProducts(filters),
     getPublishedProductCount(),
     getFacetCounts(filters, { includeCategoryFacet: true }),
     hasAnyApprovedReviews(),
+    getShopCampaigns(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
@@ -116,6 +119,11 @@ export default async function ShopPage({
           </div>
         ))}
       </div>
+
+      {/* CampaignBannerCarousel has its own internal spacing (pt-6, same as
+          its homepage placement) and returns null for an empty array, so no
+          wrapper/conditional is needed here either. */}
+      <CampaignBannerCarousel campaigns={shopCampaigns} />
 
       <div className="mt-6">
         <QuickFilterChips basePath="/shop" state={state} />

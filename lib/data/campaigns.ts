@@ -6,13 +6,18 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 export interface CampaignPriceInfo {
   campaignId: string;
   campaignPrice: number;
+  // Only set when the winning campaign has show_badge=true AND a non-empty
+  // badge_label -- a visibility toggle independent of pricing, so it rides
+  // along with the same per-variant "lowest price wins" resolution rather
+  // than filtering at the SQL level.
+  badgeLabel: string | null;
 }
 
 type CampaignItemJoinRow = {
   variant_id: string;
   campaign_price: number;
   campaign_id: string;
-  campaigns: { end_at: string | null };
+  campaigns: { end_at: string | null; show_badge: boolean; badge_label: string | null };
 };
 
 // Pure, DB-free: "lowest campaign_price wins" across possibly-multiple
@@ -32,7 +37,13 @@ export function selectLowestActiveCampaignPrices(
     if (endAt != null && new Date(endAt).getTime() <= now.getTime()) continue;
     const existing = result.get(row.variant_id);
     if (!existing || row.campaign_price < existing.campaignPrice) {
-      result.set(row.variant_id, { campaignId: row.campaign_id, campaignPrice: row.campaign_price });
+      const badgeLabel =
+        row.campaigns.show_badge && row.campaigns.badge_label ? row.campaigns.badge_label : null;
+      result.set(row.variant_id, {
+        campaignId: row.campaign_id,
+        campaignPrice: row.campaign_price,
+        badgeLabel,
+      });
     }
   }
   return result;
@@ -60,7 +71,9 @@ export async function getActiveCampaignPricesForVariants(
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("campaign_items")
-    .select("variant_id, campaign_price, campaign_id, campaigns!inner(status, is_archived, start_at, end_at)")
+    .select(
+      "variant_id, campaign_price, campaign_id, campaigns!inner(status, is_archived, start_at, end_at, show_badge, badge_label)",
+    )
     .in("variant_id", variantIds)
     .eq("is_active", true)
     .eq("campaigns.status", "published")
@@ -164,20 +177,23 @@ export async function getAllCampaignSlugs(): Promise<string[]> {
     .map((c) => c.slug);
 }
 
-// The homepage banner needs genuinely ACTIVE campaigns right now (not
-// merely "visible," the way the public RLS policy is), so start_at/end_at
-// are both checked here -- a scheduled or already-ended campaign shouldn't
-// occupy homepage real estate even if flagged show_on_homepage. Returns
-// every qualifying campaign (not just one) so the homepage can rotate
+// A banner placement (homepage, shop, ...) needs genuinely ACTIVE campaigns
+// right now (not merely "visible," the way the public RLS policy is), so
+// start_at/end_at are both checked here -- a scheduled or already-ended
+// campaign shouldn't occupy real estate even if flagged for this placement.
+// Returns every qualifying campaign (not just one) so the caller can rotate
 // through all of them -- sorted soonest-ending first, nulls (never-ending)
-// last, matching the tie-break the single-campaign version used to apply.
-export async function getHomepageCampaigns(): Promise<Campaign[]> {
+// last. Parameterized on which placement column to filter rather than
+// duplicating this whole query per placement (homepage vs. shop today).
+async function getActiveCampaignsForPlacement(
+  placementField: "show_on_homepage" | "show_in_shop",
+): Promise<Campaign[]> {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("campaigns")
     .select("*")
-    .eq("show_on_homepage", true)
+    .eq(placementField, true)
     .eq("status", "published")
     .eq("is_archived", false)
     .lte("start_at", nowIso);
@@ -192,6 +208,14 @@ export async function getHomepageCampaigns(): Promise<Campaign[]> {
     if (b.end_at == null) return -1;
     return new Date(a.end_at).getTime() - new Date(b.end_at).getTime();
   });
+}
+
+export async function getHomepageCampaigns(): Promise<Campaign[]> {
+  return getActiveCampaignsForPlacement("show_on_homepage");
+}
+
+export async function getShopCampaigns(): Promise<Campaign[]> {
+  return getActiveCampaignsForPlacement("show_in_shop");
 }
 
 // Shop/category/search "On Campaign" filter -- same gating conditions as

@@ -88,7 +88,12 @@ export async function getCartRecommendations(
   for (const v of (variantRows ?? []) as VariantPriceRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
     const campaign = campaignPrices.get(v.id);
-    list.push({ ...v, campaign_price: campaign?.campaignPrice ?? null, campaign_id: campaign?.campaignId ?? null });
+    list.push({
+      ...v,
+      campaign_price: campaign?.campaignPrice ?? null,
+      campaign_id: campaign?.campaignId ?? null,
+      campaign_badge_label: campaign?.badgeLabel ?? null,
+    });
     variantsByProductId.set(v.product_id, list);
   }
 
@@ -105,6 +110,7 @@ export async function getCartRecommendations(
             variantId: "",
             image: null,
             campaignId: null,
+            badgeLabel: null,
           };
     return {
       ...product,
@@ -114,6 +120,7 @@ export async function getCartRecommendations(
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
       campaignId: display.campaignId,
+      badgeLabel: display.badgeLabel,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       // Not fetched here -- this recommendations widget doesn't need tag

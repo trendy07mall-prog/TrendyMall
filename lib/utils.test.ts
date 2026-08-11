@@ -77,12 +77,12 @@ describe("pickWinningVariant", () => {
 describe("resolveEffectivePriceBand", () => {
   test("no sale, no campaign: regular price, source regular", () => {
     const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: null });
-    assert.deepEqual(result, { specialPrice: null, campaignId: null, priceSource: "regular" });
+    assert.deepEqual(result, { specialPrice: null, campaignId: null, priceSource: "regular", badgeLabel: null });
   });
 
   test("sale price present, no campaign: sale wins", () => {
     const result = resolveEffectivePriceBand({ regular_price: 100, sale_price: 80 });
-    assert.deepEqual(result, { specialPrice: 80, campaignId: null, priceSource: "sale" });
+    assert.deepEqual(result, { specialPrice: 80, campaignId: null, priceSource: "sale", badgeLabel: null });
   });
 
   test("campaign beats both regular and sale", () => {
@@ -92,7 +92,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 50,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 50, campaignId: "c1", priceSource: "campaign" });
+    assert.deepEqual(result, { specialPrice: 50, campaignId: "c1", priceSource: "campaign", badgeLabel: null });
   });
 
   test("campaign beats regular but not sale: sale wins, campaignId null", () => {
@@ -102,7 +102,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 90,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale" });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", badgeLabel: null });
   });
 
   test("exact tie between campaign and sale: sale wins (merchant's own price)", () => {
@@ -112,7 +112,7 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 70,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale" });
+    assert.deepEqual(result, { specialPrice: 70, campaignId: null, priceSource: "sale", badgeLabel: null });
   });
 
   test("campaign present, no sale_price at all: compares against regular_price", () => {
@@ -122,6 +122,33 @@ describe("resolveEffectivePriceBand", () => {
       campaign_price: 60,
       campaign_id: "c1",
     });
-    assert.deepEqual(result, { specialPrice: 60, campaignId: "c1", priceSource: "campaign" });
+    assert.deepEqual(result, { specialPrice: 60, campaignId: "c1", priceSource: "campaign", badgeLabel: null });
+  });
+
+  test("campaign wins with a badge label: badgeLabel is surfaced", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 80,
+      campaign_price: 50,
+      campaign_id: "c1",
+      campaign_badge_label: "FLASH SALE",
+    });
+    assert.deepEqual(result, {
+      specialPrice: 50,
+      campaignId: "c1",
+      priceSource: "campaign",
+      badgeLabel: "FLASH SALE",
+    });
+  });
+
+  test("campaign loses to sale: badge label never leaks through even if present", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 70,
+      campaign_price: 90,
+      campaign_id: "c1",
+      campaign_badge_label: "FLASH SALE",
+    });
+    assert.equal(result.badgeLabel, null);
   });
 });
