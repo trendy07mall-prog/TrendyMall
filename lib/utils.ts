@@ -21,11 +21,20 @@ export function slugify(input: string, maxLength = 60): string {
 // Price lives ONLY on the variant now — every product has at least one
 // (an invisible "default" variant for products with no real color/size
 // choice), so there is no product-level fallback to fall back to anymore.
+// campaign_price is an OPTIONAL, additive layer (populated by
+// lib/data/campaigns.ts's getActiveCampaignPricesForVariants, spread onto
+// the variant object before this is called) -- when absent, Math.min's
+// second argument is Infinity and this is byte-identical to before
+// campaigns existed. A campaign can only ever lower the effective price,
+// never raise it, matching the "campaign_price never overwrites
+// regular_price/sale_price" rule -- this function still just READS
+// whatever's cheapest, it never mutates either column.
 export function getVariantPrice(variant: {
   regular_price: number;
   sale_price: number | null;
+  campaign_price?: number | null;
 }): number {
-  return variant.sale_price ?? variant.regular_price;
+  return Math.min(variant.sale_price ?? variant.regular_price, variant.campaign_price ?? Infinity);
 }
 
 // The single "which variant represents this product" algorithm, shared by
@@ -37,12 +46,14 @@ export function getVariantPrice(variant: {
 // advertising an out-of-stock variant's price is misleading, and the PDP
 // can't usefully default to something the customer can't buy); only
 // considers out-of-stock rows if every variant is out of stock. Within
-// that pool: cheapest on-sale price wins if any variant is on sale, else
-// cheapest regular price; ties break on is_default.
+// that pool: cheapest effective price wins if any variant is discounted
+// (via sale_price OR an active campaign_price), else cheapest regular
+// price; ties break on is_default.
 export function pickWinningVariant<
   T extends {
     regular_price: number;
     sale_price: number | null;
+    campaign_price?: number | null;
     stock: number | null;
     is_default: boolean;
   },
@@ -50,14 +61,18 @@ export function pickWinningVariant<
   const inStock = variants.filter((v) => v.stock == null || v.stock > 0);
   const pool = inStock.length > 0 ? inStock : variants;
 
-  const onSale = pool.filter((v) => v.sale_price != null);
-  const candidates = onSale.length > 0 ? onSale : pool;
-  const lowest = candidates.reduce((min, v) =>
-    (v.sale_price ?? v.regular_price) < (min.sale_price ?? min.regular_price) ? v : min,
+  // "Discounted" means sale_price set OR an active campaign that actually
+  // undercuts regular_price. Deliberately kept as a literal OR (not
+  // "getVariantPrice(v) < v.regular_price") so a pre-existing bad-data
+  // edge case -- a variant with sale_price >= regular_price -- keeps
+  // behaving exactly as it did before campaigns existed: still treated as
+  // "on sale" and included in the pool.
+  const discounted = pool.filter(
+    (v) => v.sale_price != null || (v.campaign_price != null && v.campaign_price < v.regular_price),
   );
-  const tied = candidates.filter(
-    (v) => (v.sale_price ?? v.regular_price) === (lowest.sale_price ?? lowest.regular_price),
-  );
+  const candidates = discounted.length > 0 ? discounted : pool;
+  const lowest = candidates.reduce((min, v) => (getVariantPrice(v) < getVariantPrice(min) ? v : min));
+  const tied = candidates.filter((v) => getVariantPrice(v) === getVariantPrice(lowest));
   return tied.length > 1 ? (tied.find((v) => v.is_default) ?? lowest) : lowest;
 }
 

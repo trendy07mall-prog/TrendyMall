@@ -7,6 +7,8 @@ import type {
   PaymentGateway,
   CouponType,
   ProductStatus,
+  CampaignStatus,
+  CampaignPromotionType,
 } from "./database.types";
 
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
@@ -35,6 +37,9 @@ export type SiteBanner = Database["public"]["Tables"]["site_banner"]["Row"];
 export type BankTransferSettings = Database["public"]["Tables"]["bank_transfer_settings"]["Row"];
 export type ProductRatingSummary = Database["public"]["Views"]["product_rating_summary"]["Row"];
 export type ProductSalesSummary = Database["public"]["Views"]["product_sales_summary"]["Row"];
+export type Campaign = Database["public"]["Tables"]["campaigns"]["Row"];
+export type CampaignSection = Database["public"]["Tables"]["campaign_sections"]["Row"];
+export type CampaignItem = Database["public"]["Tables"]["campaign_items"]["Row"];
 export type {
   OrderStatus,
   PaymentStatus,
@@ -43,6 +48,8 @@ export type {
   PaymentGateway,
   CouponType,
   ProductStatus,
+  CampaignStatus,
+  CampaignPromotionType,
 };
 
 // Product listing/card contexts (category grid, search, new arrivals, shop)
@@ -66,6 +73,11 @@ export interface ProductWithPrimaryImage extends Product {
   // The variant whose price/image this card is showing -- what
   // QuickAddButton/WishlistButton add when there's no color picker to ask.
   defaultVariantId: string;
+  // Non-null when special_price came from an active campaign rather than
+  // the variant's own sale_price -- Phase 5 uses this to badge campaign
+  // discounts distinctly from a plain sale; unused (always null) until
+  // then, but populated now so no data-layer change is needed later.
+  campaignId: string | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

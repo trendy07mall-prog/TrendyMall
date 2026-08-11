@@ -16,6 +16,7 @@ import {
   UserIcon,
   StarIcon,
   PercentIcon,
+  BadgePercentIcon,
   MailIcon,
   ImageIcon,
   ChartBarIcon,
@@ -71,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/reviews", label: "Reviews", icon: StarIcon },
       { href: "/admin/coupons", label: "Coupons", icon: PercentIcon },
+      { href: "/admin/campaigns", label: "Campaigns", icon: BadgePercentIcon },
       { href: "/admin/subscribers", label: "Subscribers", icon: MailIcon },
       { href: "/admin/banner", label: "Banner", icon: ImageIcon },
     ],

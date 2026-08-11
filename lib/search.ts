@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVariantPrice } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 
 export interface ProductSuggestion {
   id: string;
@@ -54,7 +55,7 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
         .order("sort_order", { ascending: true }),
       supabase
         .from("product_variants")
-        .select("product_id, regular_price, sale_price")
+        .select("id, product_id, regular_price, sale_price")
         .in("product_id", productIds)
         .eq("is_default", true),
     ]);
@@ -63,8 +64,11 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
         imageByProductId.set(image.product_id, image.image_url);
       }
     }
+    const defaultVariantIds = (defaultVariants ?? []).map((v) => v.id);
+    const campaignPrices = await getActiveCampaignPricesForVariants(supabase, defaultVariantIds);
     for (const v of defaultVariants ?? []) {
-      priceByProductId.set(v.product_id, getVariantPrice(v));
+      const c = campaignPrices.get(v.id);
+      priceByProductId.set(v.product_id, getVariantPrice({ ...v, campaign_price: c?.campaignPrice ?? null }));
     }
   }
 

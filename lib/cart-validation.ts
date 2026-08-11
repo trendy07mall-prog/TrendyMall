@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVariantPrice } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 
 export interface CartItemValidation {
   productId: string;
@@ -43,9 +44,21 @@ export async function getCartValidation(
       .eq("is_default", true),
   ]);
 
+  const fetchedVariantIds = [
+    ...(variants ?? []).map((v) => v.id),
+    ...(defaultVariants ?? []).map((v) => v.id),
+  ];
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, fetchedVariantIds);
+  const withCampaign = <T extends { id: string }>(v: T) => {
+    const c = campaignPrices.get(v.id);
+    return { ...v, campaign_price: c?.campaignPrice ?? null, campaign_id: c?.campaignId ?? null };
+  };
+
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
-  const variantById = new Map((variants ?? []).map((v) => [v.id, v]));
-  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
+  const variantById = new Map((variants ?? []).map((v) => [v.id, withCampaign(v)]));
+  const defaultVariantByProductId = new Map(
+    (defaultVariants ?? []).map((v) => [v.product_id, withCampaign(v)]),
+  );
 
   return items.map((item) => {
     const product = byId.get(item.productId);

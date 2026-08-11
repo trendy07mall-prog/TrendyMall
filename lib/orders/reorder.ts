@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVariantPrice } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 import type { AttributeSelection, CartItem } from "@/types";
 
 export interface ReorderResult {
@@ -73,9 +74,21 @@ export async function getReorderItems(orderId: string): Promise<ReorderResult | 
       .eq("is_default", true),
   ]);
 
+  const fetchedVariantIds = [
+    ...(variants ?? []).map((v) => v.id),
+    ...(defaultVariants ?? []).map((v) => v.id),
+  ];
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, fetchedVariantIds);
+  const withCampaign = <T extends { id: string }>(v: T) => {
+    const c = campaignPrices.get(v.id);
+    return { ...v, campaign_price: c?.campaignPrice ?? null, campaign_id: c?.campaignId ?? null };
+  };
+
   const productMap = new Map((products ?? []).map((p) => [p.id, p]));
-  const variantMap = new Map((variants ?? []).map((v) => [v.id, v]));
-  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
+  const variantMap = new Map((variants ?? []).map((v) => [v.id, withCampaign(v)]));
+  const defaultVariantByProductId = new Map(
+    (defaultVariants ?? []).map((v) => [v.product_id, withCampaign(v)]),
+  );
   const items: CartItem[] = [];
   let unavailableCount = 0;
 

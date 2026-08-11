@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVariantPrice } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 import type { AttributeSelection, CartItem } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -61,6 +62,16 @@ async function fetchValidatedServerCart(
   if (rowVariantsError) throw rowVariantsError;
   if (defaultVariantsError) throw defaultVariantsError;
 
+  const fetchedVariantIds = [
+    ...(rowVariants ?? []).map((v) => v.id),
+    ...(defaultVariants ?? []).map((v) => v.id),
+  ];
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, fetchedVariantIds);
+  const withCampaign = <T extends { id: string }>(v: T) => {
+    const c = campaignPrices.get(v.id);
+    return { ...v, campaign_price: c?.campaignPrice ?? null, campaign_id: c?.campaignId ?? null };
+  };
+
   const primaryImageByProductId = new Map<string, string>();
   for (const image of images ?? []) {
     if (!primaryImageByProductId.has(image.product_id)) {
@@ -68,8 +79,10 @@ async function fetchValidatedServerCart(
     }
   }
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
-  const variantById = new Map((rowVariants ?? []).map((v) => [v.id, v]));
-  const defaultVariantByProductId = new Map((defaultVariants ?? []).map((v) => [v.product_id, v]));
+  const variantById = new Map((rowVariants ?? []).map((v) => [v.id, withCampaign(v)]));
+  const defaultVariantByProductId = new Map(
+    (defaultVariants ?? []).map((v) => [v.product_id, withCampaign(v)]),
+  );
 
   const validated: CartItem[] = [];
   for (const row of rows) {
@@ -170,6 +183,16 @@ export async function mergeCartOnLogin(
   if (guestVariantsError) throw guestVariantsError;
   if (guestDefaultVariantsError) throw guestDefaultVariantsError;
 
+  const guestFetchedVariantIds = [
+    ...(guestVariants ?? []).map((v) => v.id),
+    ...(guestDefaultVariants ?? []).map((v) => v.id),
+  ];
+  const guestCampaignPrices = await getActiveCampaignPricesForVariants(supabase, guestFetchedVariantIds);
+  const withGuestCampaign = <T extends { id: string }>(v: T) => {
+    const c = guestCampaignPrices.get(v.id);
+    return { ...v, campaign_price: c?.campaignPrice ?? null, campaign_id: c?.campaignId ?? null };
+  };
+
   const guestImageByProductId = new Map<string, string>();
   for (const image of guestImages ?? []) {
     if (!guestImageByProductId.has(image.product_id)) {
@@ -177,9 +200,9 @@ export async function mergeCartOnLogin(
     }
   }
   const guestProductById = new Map((guestProducts ?? []).map((p) => [p.id, p]));
-  const guestVariantById = new Map((guestVariants ?? []).map((v) => [v.id, v]));
+  const guestVariantById = new Map((guestVariants ?? []).map((v) => [v.id, withGuestCampaign(v)]));
   const guestDefaultVariantByProductId = new Map(
-    (guestDefaultVariants ?? []).map((v) => [v.product_id, v]),
+    (guestDefaultVariants ?? []).map((v) => [v.product_id, withGuestCampaign(v)]),
   );
 
   const merged = new Map<string, CartItem>(

@@ -42,6 +42,10 @@ export type CouponType = "percentage" | "fixed" | "free_shipping";
 
 export type ProductStatus = "draft" | "published";
 
+export type CampaignStatus = "draft" | "published" | "disabled";
+
+export type CampaignPromotionType = "product_discount" | "flash_sale" | "free_shipping" | "coupon";
+
 export interface Database {
   public: {
     Tables: {
@@ -1400,6 +1404,196 @@ export interface Database {
           },
           {
             foreignKeyName: "cart_items_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaigns: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          status: CampaignStatus;
+          is_archived: boolean;
+          promotion_type: CampaignPromotionType;
+          start_at: string;
+          end_at: string | null;
+          free_shipping_enabled: boolean;
+          desktop_banner_url: string | null;
+          mobile_banner_url: string | null;
+          thumbnail_url: string | null;
+          show_on_homepage: boolean;
+          show_in_shop: boolean;
+          show_badge: boolean;
+          badge_label: string | null;
+          show_countdown: boolean;
+          meta_title: string | null;
+          meta_description: string | null;
+          og_image_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          description?: string | null;
+          status?: CampaignStatus;
+          is_archived?: boolean;
+          promotion_type: CampaignPromotionType;
+          start_at: string;
+          end_at?: string | null;
+          free_shipping_enabled?: boolean;
+          desktop_banner_url?: string | null;
+          mobile_banner_url?: string | null;
+          thumbnail_url?: string | null;
+          show_on_homepage?: boolean;
+          show_in_shop?: boolean;
+          show_badge?: boolean;
+          badge_label?: string | null;
+          show_countdown?: boolean;
+          meta_title?: string | null;
+          meta_description?: string | null;
+          og_image_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string | null;
+          status?: CampaignStatus;
+          is_archived?: boolean;
+          promotion_type?: CampaignPromotionType;
+          start_at?: string;
+          end_at?: string | null;
+          free_shipping_enabled?: boolean;
+          desktop_banner_url?: string | null;
+          mobile_banner_url?: string | null;
+          thumbnail_url?: string | null;
+          show_on_homepage?: boolean;
+          show_in_shop?: boolean;
+          show_badge?: boolean;
+          badge_label?: string | null;
+          show_countdown?: boolean;
+          meta_title?: string | null;
+          meta_description?: string | null;
+          og_image_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      campaign_sections: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          name: string;
+          sort_order: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          name: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          name?: string;
+          sort_order?: number;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sections_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaign_items: {
+        Row: {
+          id: string;
+          campaign_id: string;
+          section_id: string | null;
+          product_id: string;
+          variant_id: string;
+          campaign_price: number;
+          discount_percentage: number | null;
+          reference_price_snapshot: number | null;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          section_id?: string | null;
+          product_id: string;
+          variant_id: string;
+          campaign_price: number;
+          discount_percentage?: number | null;
+          reference_price_snapshot?: number | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          campaign_id?: string;
+          section_id?: string | null;
+          product_id?: string;
+          variant_id?: string;
+          campaign_price?: number;
+          discount_percentage?: number | null;
+          reference_price_snapshot?: number | null;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_items_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_items_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "campaign_sections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_items_variant_id_fkey";
             columns: ["variant_id"];
             isOneToOne: false;
             referencedRelation: "product_variants";

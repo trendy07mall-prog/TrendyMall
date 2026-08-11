@@ -5,7 +5,8 @@ import { newArrivalCutoff } from "@/lib/product-filters";
 import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
-import { pickWinningVariant } from "@/lib/utils";
+import { pickWinningVariant, getVariantPrice, getDiscountPercent } from "@/lib/utils";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 import type {
   Attribute,
   AttributeValue,
@@ -99,6 +100,8 @@ export interface VariantPriceRow {
   stock: number | null;
   is_default: boolean;
   variant_image_url: string | null;
+  campaign_price?: number | null;
+  campaign_id?: string | null;
 }
 
 export function resolveCardDisplay(variants: VariantPriceRow[]): {
@@ -107,18 +110,44 @@ export function resolveCardDisplay(variants: VariantPriceRow[]): {
   hasMultiplePrices: boolean;
   variantId: string;
   image: string | null;
+  campaignId: string | null;
+  priceSource: "regular" | "sale" | "campaign";
+  discountPercent: number | null;
 } {
-  const distinctPrices = new Set(variants.map((v) => v.sale_price ?? v.regular_price));
+  // Effective price (not raw sale_price ?? regular_price) so two variants
+  // identically priced on regular/sale but differing only by an active
+  // campaign still register as "multiple prices."
+  const distinctPrices = new Set(variants.map((v) => getVariantPrice(v)));
   const hasMultiplePrices = distinctPrices.size > 1;
 
   const winner = pickWinningVariant(variants);
 
+  // A campaign_price only "wins" display if it actually undercuts both
+  // regular_price and whatever sale_price already is. A real tie
+  // (campaign_price === sale_price) keeps priceSource "sale" -- it's the
+  // merchant's own price, and the number shown is identical either way.
+  const campaignBeats =
+    winner.campaign_price != null &&
+    winner.campaign_price < winner.regular_price &&
+    winner.campaign_price < (winner.sale_price ?? Infinity);
+
+  const priceSource: "regular" | "sale" | "campaign" = campaignBeats
+    ? "campaign"
+    : winner.sale_price != null
+      ? "sale"
+      : "regular";
+  const specialPrice = campaignBeats ? (winner.campaign_price as number) : winner.sale_price;
+  const campaignId = campaignBeats ? (winner.campaign_id ?? null) : null;
+
   return {
     actualPrice: winner.regular_price,
-    specialPrice: winner.sale_price,
+    specialPrice,
     hasMultiplePrices,
     variantId: winner.id,
     image: winner.variant_image_url,
+    campaignId,
+    priceSource,
+    discountPercent: getDiscountPercent(winner.regular_price, specialPrice),
   };
 }
 
@@ -160,6 +189,12 @@ async function attachPrimaryImages(
   if (tagsError) throw tagsError;
   if (variantsError) throw variantsError;
 
+  // Variant ids aren't known until variantRows resolves above, so this
+  // can't join the Promise.all -- one additional batched query, per page
+  // load (not per product), for every variant on the page at once.
+  const variantIds = (variantRows ?? []).map((v) => v.id);
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, variantIds);
+
   const primaryByProductId = new Map<string, string>();
   for (const image of images ?? []) {
     if (!primaryByProductId.has(image.product_id)) {
@@ -183,7 +218,8 @@ async function attachPrimaryImages(
   const variantsByProductId = new Map<string, VariantPriceRow[]>();
   for (const v of (variantRows ?? []) as VariantPriceRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
-    list.push(v);
+    const campaign = campaignPrices.get(v.id);
+    list.push({ ...v, campaign_price: campaign?.campaignPrice ?? null, campaign_id: campaign?.campaignId ?? null });
     variantsByProductId.set(v.product_id, list);
   }
 
@@ -193,7 +229,14 @@ async function attachPrimaryImages(
     const display =
       variants.length > 0
         ? resolveCardDisplay(variants)
-        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
+        : {
+            actualPrice: 0,
+            specialPrice: null,
+            hasMultiplePrices: false,
+            variantId: "",
+            image: null,
+            campaignId: null,
+          };
     return {
       ...product,
       image: display.image ?? primaryByProductId.get(product.id) ?? null,
@@ -201,6 +244,7 @@ async function attachPrimaryImages(
       special_price: display.specialPrice,
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
+      campaignId: display.campaignId,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       tags: tagsByProductId.get(product.id) ?? [],
@@ -732,6 +776,8 @@ export async function getAllProductSlugs(): Promise<string[]> {
 export type ProductVariantWithImages = ProductVariant & {
   images: string[];
   attributeValueIds: string[];
+  campaign_price: number | null;
+  campaign_id: string | null;
 };
 
 export interface ProductDetail {
@@ -779,15 +825,31 @@ export const getProductDetailBySlug = cache(
     if (variantsError) throw variantsError;
 
     const variantIds = (variants ?? []).map((v) => v.id);
-    const { data: variantImages, error: variantImagesError } =
+    const [
+      { data: variantImages, error: variantImagesError },
+      { data: variantAttributeValues, error: variantAttributeValuesError },
+      campaignPricesByVariantId,
+    ] = await Promise.all([
       variantIds.length > 0
-        ? await supabase
+        ? supabase
             .from("product_variant_images")
             .select("variant_id, image_url, sort_order")
             .in("variant_id", variantIds)
             .order("sort_order", { ascending: true })
-        : { data: [] as { variant_id: string; image_url: string; sort_order: number }[], error: null };
+        : Promise.resolve({
+            data: [] as { variant_id: string; image_url: string; sort_order: number }[],
+            error: null,
+          }),
+      variantIds.length > 0
+        ? supabase
+            .from("product_variant_attribute_values")
+            .select("variant_id, attribute_value_id")
+            .in("variant_id", variantIds)
+        : Promise.resolve({ data: [] as { variant_id: string; attribute_value_id: string }[], error: null }),
+      getActiveCampaignPricesForVariants(supabase, variantIds),
+    ]);
     if (variantImagesError) throw variantImagesError;
+    if (variantAttributeValuesError) throw variantAttributeValuesError;
 
     const imagesByVariantId = new Map<string, string[]>();
     for (const row of variantImages ?? []) {
@@ -796,15 +858,6 @@ export const getProductDetailBySlug = cache(
       imagesByVariantId.set(row.variant_id, list);
     }
 
-    const { data: variantAttributeValues, error: variantAttributeValuesError } =
-      variantIds.length > 0
-        ? await supabase
-            .from("product_variant_attribute_values")
-            .select("variant_id, attribute_value_id")
-            .in("variant_id", variantIds)
-        : { data: [] as { variant_id: string; attribute_value_id: string }[], error: null };
-    if (variantAttributeValuesError) throw variantAttributeValuesError;
-
     const attributeValueIdsByVariantId = new Map<string, string[]>();
     for (const row of variantAttributeValues ?? []) {
       const list = attributeValueIdsByVariantId.get(row.variant_id) ?? [];
@@ -812,11 +865,16 @@ export const getProductDetailBySlug = cache(
       attributeValueIdsByVariantId.set(row.variant_id, list);
     }
 
-    const variantsWithImages: ProductVariantWithImages[] = (variants ?? []).map((v) => ({
-      ...v,
-      images: imagesByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
-      attributeValueIds: attributeValueIdsByVariantId.get(v.id) ?? [],
-    }));
+    const variantsWithImages: ProductVariantWithImages[] = (variants ?? []).map((v) => {
+      const campaign = campaignPricesByVariantId.get(v.id);
+      return {
+        ...v,
+        images: imagesByVariantId.get(v.id) ?? (v.variant_image_url ? [v.variant_image_url] : []),
+        attributeValueIds: attributeValueIdsByVariantId.get(v.id) ?? [],
+        campaign_price: campaign?.campaignPrice ?? null,
+        campaign_id: campaign?.campaignId ?? null,
+      };
+    });
 
     return { product, images: images ?? [], variants: variantsWithImages, attributes };
   },

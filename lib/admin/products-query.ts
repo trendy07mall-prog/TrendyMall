@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { resolveCardDisplay } from "@/lib/data/products";
 import type { VariantPriceRow } from "@/lib/data/products";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 import type { AdminProductFilterState, AdminSortOption } from "@/lib/admin/product-filters";
 import type { Product } from "@/types";
 
@@ -101,7 +102,7 @@ async function sortByBestSelling<T extends Product>(
 // Mirrors getSearchMatchIds in lib/data/products.ts (direct field matches
 // unioned with a category-name match) — admin doesn't need the storefront's
 // tsvector ranking, just a working substring match across name/sku/brand.
-async function getAdminSearchMatchIds(
+export async function getAdminSearchMatchIds(
   supabase: SupabaseServerClient,
   search: string,
 ): Promise<string[]> {
@@ -145,6 +146,7 @@ export interface AdminProductRow extends Product {
   special_price: number | null;
   hasMultiplePrices: boolean;
   defaultVariantId: string;
+  campaignId: string | null;
   variants: AdminVariantRow[];
 }
 
@@ -191,10 +193,20 @@ async function attachPrimaryImages(
     sku: string | null;
   };
 
+  // Only active variants can ever have a live campaign price, so this is
+  // scoped to the same subset resolveCardDisplay below actually sees --
+  // no point batch-fetching campaign prices for inactive variants that
+  // never factor into actual_price/special_price anyway.
+  const activeVariantIds = (variantRows ?? [])
+    .filter((v) => (v as FullVariantRow).is_active)
+    .map((v) => v.id);
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, activeVariantIds);
+
   const variantsByProductId = new Map<string, FullVariantRow[]>();
   for (const v of (variantRows ?? []) as FullVariantRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
-    list.push(v);
+    const campaign = campaignPrices.get(v.id);
+    list.push({ ...v, campaign_price: campaign?.campaignPrice ?? null, campaign_id: campaign?.campaignId ?? null });
     variantsByProductId.set(v.product_id, list);
   }
 
@@ -204,7 +216,14 @@ async function attachPrimaryImages(
     const display =
       activeVariants.length > 0
         ? resolveCardDisplay(activeVariants)
-        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
+        : {
+            actualPrice: 0,
+            specialPrice: null,
+            hasMultiplePrices: false,
+            variantId: "",
+            image: null,
+            campaignId: null,
+          };
     return {
       ...product,
       image: primaryByProductId.get(product.id) ?? null,
@@ -212,6 +231,7 @@ async function attachPrimaryImages(
       special_price: display.specialPrice,
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
+      campaignId: display.campaignId,
       variants: allVariants.map((v) => ({
         id: v.id,
         colorName: v.color_name,

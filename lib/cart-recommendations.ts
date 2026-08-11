@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { resolveCardDisplay } from "@/lib/data/products";
 import type { VariantPriceRow } from "@/lib/data/products";
+import { getActiveCampaignPricesForVariants } from "@/lib/data/campaigns";
 import type { ProductWithPrimaryImage } from "@/types";
 
 // A "use server" file, not a plain data-fetcher in lib/data/products.ts —
@@ -73,6 +74,9 @@ export async function getCartRecommendations(
   if (ratingsError) throw ratingsError;
   if (variantsError) throw variantsError;
 
+  const variantIds = (variantRows ?? []).map((v) => v.id);
+  const campaignPrices = await getActiveCampaignPricesForVariants(supabase, variantIds);
+
   const primaryImageByProductId = new Map<string, string>();
   for (const image of images ?? []) {
     if (!primaryImageByProductId.has(image.product_id)) {
@@ -83,7 +87,8 @@ export async function getCartRecommendations(
   const variantsByProductId = new Map<string, VariantPriceRow[]>();
   for (const v of (variantRows ?? []) as VariantPriceRow[]) {
     const list = variantsByProductId.get(v.product_id) ?? [];
-    list.push(v);
+    const campaign = campaignPrices.get(v.id);
+    list.push({ ...v, campaign_price: campaign?.campaignPrice ?? null, campaign_id: campaign?.campaignId ?? null });
     variantsByProductId.set(v.product_id, list);
   }
 
@@ -93,7 +98,14 @@ export async function getCartRecommendations(
     const display =
       variants.length > 0
         ? resolveCardDisplay(variants)
-        : { actualPrice: 0, specialPrice: null, hasMultiplePrices: false, variantId: "", image: null };
+        : {
+            actualPrice: 0,
+            specialPrice: null,
+            hasMultiplePrices: false,
+            variantId: "",
+            image: null,
+            campaignId: null,
+          };
     return {
       ...product,
       image: display.image ?? primaryImageByProductId.get(product.id) ?? null,
@@ -101,6 +113,7 @@ export async function getCartRecommendations(
       special_price: display.specialPrice,
       hasMultiplePrices: display.hasMultiplePrices,
       defaultVariantId: display.variantId,
+      campaignId: display.campaignId,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       // Not fetched here -- this recommendations widget doesn't need tag

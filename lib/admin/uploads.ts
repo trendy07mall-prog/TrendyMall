@@ -2,7 +2,7 @@
 
 import { requireAdminClient } from "@/lib/admin/guard";
 
-const ALLOWED_PREFIXES = ["categories", "brands", "products", "variants", "editor"] as const;
+const ALLOWED_PREFIXES = ["categories", "brands", "products", "variants", "editor", "campaigns"] as const;
 type UploadPrefix = (typeof ALLOWED_PREFIXES)[number];
 
 export interface UploadImageResult {
