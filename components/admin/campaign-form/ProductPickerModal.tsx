@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { searchProductsForPicker, getCategoriesForPicker } from "@/lib/admin/campaigns-query";
-import type { PickerProduct } from "@/lib/admin/campaigns-query";
+import {
+  searchProductsForPicker,
+  getCategoriesForPicker,
+  getActiveCampaignOverlaps,
+} from "@/lib/admin/campaigns-query";
+import type { PickerProduct, CampaignOverlapInfo } from "@/lib/admin/campaigns-query";
 import type { Category } from "@/types";
 import { formatPrice } from "@/lib/utils";
 
@@ -22,10 +26,12 @@ export function ProductPickerModal({
   onClose,
   onAdd,
   alreadyAddedVariantIds,
+  excludeCampaignId,
 }: {
   onClose: () => void;
   onAdd: (picks: PickedVariant[]) => void;
   alreadyAddedVariantIds: Set<string>;
+  excludeCampaignId: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
@@ -34,6 +40,7 @@ export function ProductPickerModal({
   const [products, setProducts] = useState<PickerProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Map<string, PickedVariant>>(new Map());
+  const [overlaps, setOverlaps] = useState<Map<string, CampaignOverlapInfo[]>>(new Map());
 
   useEffect(() => {
     getCategoriesForPicker().then(setCategories).catch(() => {});
@@ -52,13 +59,20 @@ export function ProductPickerModal({
         if (ignore) return;
         setProducts(results);
         setLoading(false);
+
+        // One batched query for every variant in this result set, not
+        // per-row -- same "batch, never loop" discipline as Phase 2.
+        const variantIds = results.flatMap((p) => p.variants.map((v) => v.id));
+        getActiveCampaignOverlaps(variantIds, excludeCampaignId).then((map) => {
+          if (!ignore) setOverlaps(map);
+        });
       });
     }, 300);
     return () => {
       ignore = true;
       clearTimeout(timer);
     };
-  }, [search, categoryId]);
+  }, [search, categoryId, excludeCampaignId]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -168,39 +182,44 @@ export function ProductPickerModal({
                 <div className="mt-1 flex flex-col divide-y divide-[var(--border)]">
                   {product.variants.map((variant) => {
                     const alreadyAdded = alreadyAddedVariantIds.has(variant.id);
+                    const variantOverlaps = overlaps.get(variant.id) ?? [];
                     return (
-                      <label
-                        key={variant.id}
-                        className={`flex items-center justify-between gap-3 py-1.5 text-sm ${
-                          alreadyAdded ? "opacity-50" : ""
-                        }`}
-                      >
-                        <span className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            disabled={alreadyAdded}
-                            checked={selected.has(variant.id)}
-                            onChange={() => toggle(product, variant)}
-                          />
-                          {variant.colorName || variant.sku || "Default"}
-                          {alreadyAdded && (
-                            <span className="text-xs text-[var(--muted)]">(already added)</span>
-                          )}
-                          {!variant.isActive && (
-                            <span className="text-xs text-[var(--color-discount)]">(inactive)</span>
-                          )}
-                        </span>
-                        <span className="text-[var(--muted)]">
-                          {variant.salePrice != null ? (
-                            <>
-                              <span className="line-through">{formatPrice(variant.regularPrice)}</span>{" "}
-                              {formatPrice(variant.salePrice)}
-                            </>
-                          ) : (
-                            formatPrice(variant.regularPrice)
-                          )}
-                        </span>
-                      </label>
+                      <div key={variant.id} className={`py-1.5 ${alreadyAdded ? "opacity-50" : ""}`}>
+                        <label className="flex items-center justify-between gap-3 text-sm">
+                          <span className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              disabled={alreadyAdded}
+                              checked={selected.has(variant.id)}
+                              onChange={() => toggle(product, variant)}
+                            />
+                            {variant.colorName || variant.sku || "Default"}
+                            {alreadyAdded && (
+                              <span className="text-xs text-[var(--muted)]">(already added)</span>
+                            )}
+                            {!variant.isActive && (
+                              <span className="text-xs text-[var(--color-discount)]">(inactive)</span>
+                            )}
+                          </span>
+                          <span className="text-[var(--muted)]">
+                            {variant.salePrice != null ? (
+                              <>
+                                <span className="line-through">{formatPrice(variant.regularPrice)}</span>{" "}
+                                {formatPrice(variant.salePrice)}
+                              </>
+                            ) : (
+                              formatPrice(variant.regularPrice)
+                            )}
+                          </span>
+                        </label>
+                        {variantOverlaps.length > 0 && (
+                          <p className="pl-6 text-xs text-[var(--color-warning)]">
+                            Also in <span className="font-medium">{variantOverlaps[0].campaignName}</span> — {formatPrice(variantOverlaps[0].campaignPrice)}
+                            {variantOverlaps[0].endAt && `, until ${new Date(variantOverlaps[0].endAt).toLocaleDateString()}`}
+                            {variantOverlaps.length > 1 && ` (+${variantOverlaps.length - 1} more)`}
+                          </p>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

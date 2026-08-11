@@ -8,6 +8,8 @@ import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import { SectionsEditor } from "@/components/admin/campaign-form/SectionsEditor";
 import { ProductPickerModal } from "@/components/admin/campaign-form/ProductPickerModal";
 import type { PickedVariant } from "@/components/admin/campaign-form/ProductPickerModal";
+import { BulkApplyModal } from "@/components/admin/campaign-form/BulkApplyModal";
+import type { BulkPickedVariant } from "@/components/admin/campaign-form/BulkApplyModal";
 import { CampaignItemsTable } from "@/components/admin/campaign-form/CampaignItemsTable";
 import { CampaignPreviewPanel } from "@/components/admin/campaign-form/CampaignPreviewPanel";
 import type { CampaignEditData } from "@/lib/admin/campaigns-query";
@@ -119,6 +121,8 @@ export function CampaignForm({
   const [sections, setSections] = useState<SectionDraft[]>(() => buildInitialSections(initial));
   const [items, setItems] = useState<ItemDraft[]>(() => buildInitialItems(initial, sections));
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [bulkApplyOpen, setBulkApplyOpen] = useState(false);
+  const excludeCampaignId = initial?.campaign.id ?? null;
 
   function handleNameChange(value: string) {
     setName(value);
@@ -132,6 +136,24 @@ export function CampaignForm({
       variantId: p.variantId,
       sectionClientKey: null,
       campaignPrice: p.salePrice ?? p.regularPrice,
+      referencePriceSnapshot: p.salePrice ?? p.regularPrice,
+      isActive: true,
+      sortOrder: items.length + i,
+      productName: p.productName,
+      variantLabel: p.variantLabel,
+      regularPrice: p.regularPrice,
+      salePrice: p.salePrice,
+    }));
+    setItems([...items, ...newItems]);
+  }
+
+  function handleBulkApplied(picks: BulkPickedVariant[]) {
+    const newItems: ItemDraft[] = picks.map((p, i) => ({
+      clientKey: crypto.randomUUID(),
+      productId: p.productId,
+      variantId: p.variantId,
+      sectionClientKey: null,
+      campaignPrice: p.campaignPrice,
       referencePriceSnapshot: p.salePrice ?? p.regularPrice,
       isActive: true,
       sortOrder: items.length + i,
@@ -312,13 +334,22 @@ export function CampaignForm({
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">Products</h2>
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
-          >
-            + Add products
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setBulkApplyOpen(true)}
+              className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
+            >
+              + Bulk apply
+            </button>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
+            >
+              + Add products
+            </button>
+          </div>
         </div>
         <CampaignItemsTable items={items} sections={sections} onChange={setItems} />
       </section>
@@ -327,6 +358,15 @@ export function CampaignForm({
         <ProductPickerModal
           onClose={() => setPickerOpen(false)}
           onAdd={handlePicked}
+          alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
+          excludeCampaignId={excludeCampaignId}
+        />
+      )}
+
+      {bulkApplyOpen && (
+        <BulkApplyModal
+          onClose={() => setBulkApplyOpen(false)}
+          onAdd={handleBulkApplied}
           alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
         />
       )}

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CampaignForm } from "@/components/admin/CampaignForm";
-import { toggleCampaignStatus } from "@/lib/admin/campaigns";
+import { toggleCampaignStatus, duplicateCampaign } from "@/lib/admin/campaigns";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import { useToast } from "@/components/admin/ToastProvider";
 import { getCampaignRuntimeStatus, RUNTIME_STATUS_LABEL } from "@/lib/campaign-status";
@@ -45,6 +45,17 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
       if (result.error) showToast(result.error, "error");
       else {
         showToast(next === "published" ? "Campaign published" : "Campaign disabled");
+        router.refresh();
+      }
+    });
+  }
+
+  function handleDuplicate(campaign: AdminCampaignRow) {
+    startTransition(async () => {
+      const result = await duplicateCampaign(campaign.id);
+      if (result.error) showToast(result.error, "error");
+      else {
+        showToast("Campaign duplicated as a new draft");
         router.refresh();
       }
     });
@@ -152,6 +163,14 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
                           Publish
                         </button>
                       )}
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => handleDuplicate(campaign)}
+                        className="text-sm underline disabled:opacity-50"
+                      >
+                        Duplicate
+                      </button>
                     </div>
                   </td>
                 </tr>

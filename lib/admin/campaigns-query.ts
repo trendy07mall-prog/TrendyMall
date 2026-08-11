@@ -108,6 +108,120 @@ export async function searchProductsForPicker(
   return products.map((p) => ({ ...p, variants: variantsByProduct.get(p.id) ?? [] }));
 }
 
+// Bulk-apply scope query -- same join shape as searchProductsForPicker but
+// deliberately uncapped (a bulk operation needs the WHOLE matching set, not
+// a page of it) and restricted to active variants only, since an inactive
+// variant can't be discounted into anything purchasable. Scoped by exactly
+// one of categoryId/productIds -- the bulk-apply UI treats "entire category"
+// and "selected products" as mutually exclusive modes, matching the "a
+// category (or multiple products)" wording in the spec this implements.
+export async function getVariantsForBulkScope(
+  categoryId?: string,
+  productIds?: string[],
+): Promise<PickerProduct[]> {
+  const supabase = await requireAdminClient();
+
+  let query = supabase.from("products").select("id, name, sku, brand").eq("is_deleted", false).order("name");
+  if (productIds && productIds.length > 0) {
+    query = query.in("id", productIds);
+  } else if (categoryId) {
+    query = query.eq("category_id", categoryId);
+  } else {
+    return [];
+  }
+
+  const { data: products, error } = await query;
+  if (error) throw error;
+  if (!products || products.length === 0) return [];
+
+  const { data: variantRows, error: variantsError } = await supabase
+    .from("product_variants")
+    .select("id, product_id, color_name, sku, regular_price, sale_price, is_active")
+    .in(
+      "product_id",
+      products.map((p) => p.id),
+    )
+    .eq("is_active", true);
+  if (variantsError) throw variantsError;
+
+  const variantsByProduct = new Map<string, PickerVariant[]>();
+  for (const v of variantRows ?? []) {
+    const list = variantsByProduct.get(v.product_id) ?? [];
+    list.push({
+      id: v.id,
+      colorName: v.color_name,
+      sku: v.sku,
+      regularPrice: v.regular_price,
+      salePrice: v.sale_price,
+      isActive: v.is_active,
+    });
+    variantsByProduct.set(v.product_id, list);
+  }
+
+  return products.map((p) => ({ ...p, variants: variantsByProduct.get(p.id) ?? [] }));
+}
+
+export interface CampaignOverlapInfo {
+  campaignId: string;
+  campaignName: string;
+  startAt: string;
+  endAt: string | null;
+  campaignPrice: number;
+}
+
+// Same gating shape as lib/data/campaigns.ts's getActiveCampaignPricesForVariants
+// (status='published', is_archived=false, start_at<=now, end_at null-or-future,
+// campaign_items.is_active=true), but returns EVERY matching campaign per
+// variant rather than just the cheapest -- this is for admin visibility
+// ("you're about to double-discount this"), not price resolution, so the
+// admin needs to see all of them, not have them collapsed to one winner.
+// excludeCampaignId omits the campaign currently being edited, so a
+// campaign never warns about containing its own items.
+export async function getActiveCampaignOverlaps(
+  variantIds: string[],
+  excludeCampaignId?: string | null,
+): Promise<Map<string, CampaignOverlapInfo[]>> {
+  const result = new Map<string, CampaignOverlapInfo[]>();
+  if (variantIds.length === 0) return result;
+
+  const supabase = await requireAdminClient();
+  const nowIso = new Date().toISOString();
+  let query = supabase
+    .from("campaign_items")
+    .select(
+      "variant_id, campaign_price, campaigns!inner(id, name, status, is_archived, start_at, end_at)",
+    )
+    .in("variant_id", variantIds)
+    .eq("is_active", true)
+    .eq("campaigns.status", "published")
+    .eq("campaigns.is_archived", false)
+    .lte("campaigns.start_at", nowIso);
+  if (excludeCampaignId) query = query.neq("campaign_id", excludeCampaignId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const now = Date.now();
+  for (const row of (data ?? []) as unknown as {
+    variant_id: string;
+    campaign_price: number;
+    campaigns: { id: string; name: string; start_at: string; end_at: string | null };
+  }[]) {
+    const endAt = row.campaigns.end_at;
+    if (endAt != null && new Date(endAt).getTime() <= now) continue;
+    const list = result.get(row.variant_id) ?? [];
+    list.push({
+      campaignId: row.campaigns.id,
+      campaignName: row.campaigns.name,
+      startAt: row.campaigns.start_at,
+      endAt,
+      campaignPrice: row.campaign_price,
+    });
+    result.set(row.variant_id, list);
+  }
+  return result;
+}
+
 export interface CampaignEditData {
   campaign: Campaign;
   sections: CampaignSection[];

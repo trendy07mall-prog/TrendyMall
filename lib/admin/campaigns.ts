@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify } from "@/lib/utils";
 import { sriLankaInputToUtcIso } from "@/lib/campaign-datetime";
+import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import type { CampaignPromotionType } from "@/types";
 
 export type CampaignFormState = { error: string } | undefined;
@@ -201,6 +202,78 @@ export async function toggleCampaignArchived(id: string, isArchived: boolean): P
     .update({ is_archived: isArchived, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) return { error: error.message };
+  revalidatePath("/admin/campaigns");
+  return {};
+}
+
+// Copies structure, sections, product/variant selections, campaign prices,
+// and display settings into a new campaign with a new id and slug -- dates
+// and campaign prices are copied verbatim (left for the admin to adjust,
+// not blanked out), status always resets to draft so a duplicate never
+// goes live by accident, and there are no order references to worry about
+// carrying over (this is a fresh campaign, not a snapshot of one that's
+// been ordered from).
+export async function duplicateCampaign(id: string): Promise<{ error?: string }> {
+  const supabase = await requireAdminClient();
+
+  const source = await getCampaignForEdit(id);
+  if (!source) return { error: "Campaign not found." };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to exclude from the insert payload below
+  const { id: _id, created_at: _createdAt, updated_at: _updatedAt, slug, ...rest } = source.campaign;
+  const baseSlug = slugify(`${slug}-copy`);
+
+  let saved: { id: string } | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const candidateSlug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+    const { data, error } = await supabase
+      .from("campaigns")
+      .insert({ ...rest, slug: candidateSlug, status: "draft", updated_at: new Date().toISOString() })
+      .select("id")
+      .single();
+    if (!error && data) {
+      saved = data;
+      break;
+    }
+    if (error && error.code !== "23505") return { error: error.message };
+  }
+  if (!saved) return { error: "Could not duplicate campaign — please try again." };
+  const newCampaignId = saved.id;
+
+  const keyToNewSectionId = new Map<string, string>();
+  if (source.sections.length > 0) {
+    const { data: insertedSections, error: sectionErr } = await supabase
+      .from("campaign_sections")
+      .insert(
+        source.sections.map((s) => ({
+          campaign_id: newCampaignId,
+          name: s.name,
+          sort_order: s.sort_order,
+          is_active: s.is_active,
+        })),
+      )
+      .select("id");
+    if (sectionErr) return { error: sectionErr.message };
+    insertedSections?.forEach((row, i) => keyToNewSectionId.set(source.sections[i].id, row.id));
+  }
+
+  if (source.items.length > 0) {
+    const { error: itemErr } = await supabase.from("campaign_items").insert(
+      source.items.map((item) => ({
+        campaign_id: newCampaignId,
+        section_id: item.section_id ? (keyToNewSectionId.get(item.section_id) ?? null) : null,
+        product_id: item.product_id,
+        variant_id: item.variant_id,
+        campaign_price: item.campaign_price,
+        discount_percentage: item.discount_percentage,
+        reference_price_snapshot: item.reference_price_snapshot,
+        is_active: item.is_active,
+        sort_order: item.sort_order,
+      })),
+    );
+    if (itemErr) return { error: itemErr.message };
+  }
+
   revalidatePath("/admin/campaigns");
   return {};
 }
