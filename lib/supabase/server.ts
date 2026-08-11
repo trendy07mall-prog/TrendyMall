@@ -1,8 +1,17 @@
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database.types";
 
-export async function createClient() {
+// Request-scoped, not cross-request -- React's cache() is cleared for every
+// new incoming request, so there's no risk of one session's client leaking
+// into another's. This just means every data function that calls
+// createClient() during the same render gets back the SAME client instance
+// instead of a fresh one each time, which is the prerequisite for cache()
+// on any function that takes this client as an argument (its own cache key
+// includes the client reference -- a new instance per call would never
+// match, even with otherwise-identical arguments).
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -26,4 +35,4 @@ export async function createClient() {
       },
     },
   );
-}
+});

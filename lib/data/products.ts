@@ -26,65 +26,77 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // multiple `.in("id", ...)` on the same column composes as an intersection,
 // so an active tag filter AND an active attribute filter correctly narrow
 // together), the same mechanism /search's restrictToIds already uses.
-async function resolveTagProductIds(filters: ProductListFilters): Promise<string[] | undefined> {
-  if (!filters.tagIds?.length) return undefined;
-  return getProductIdsForTags(filters.tagIds);
-}
+// Wrapped in cache() -- getAllProducts/getProductsByCategory/searchProducts
+// and getFacetCounts are both called with the SAME filters object reference
+// per page (e.g. app/shop/page.tsx builds it once), so within one request
+// the second call returns the memoized result instead of re-querying.
+const resolveTagProductIds = cache(
+  async (filters: ProductListFilters): Promise<string[] | undefined> => {
+    if (!filters.tagIds?.length) return undefined;
+    return getProductIdsForTags(filters.tagIds);
+  },
+);
 
-async function resolveAttributeValueProductIds(filters: ProductListFilters): Promise<string[] | undefined> {
-  if (!filters.attributeValueIds?.length) return undefined;
-  return getProductIdsForAttributeValues(filters.attributeValueIds);
-}
+const resolveAttributeValueProductIds = cache(
+  async (filters: ProductListFilters): Promise<string[] | undefined> => {
+    if (!filters.attributeValueIds?.length) return undefined;
+    return getProductIdsForAttributeValues(filters.attributeValueIds);
+  },
+);
 
 // Price now lives only on product_variants, so a price-range filter can no
 // longer be a plain .gte/.lte on `products` -- resolved here (same
 // "small store, aggregate in JS" approach the rest of this file already
 // uses for facet counts) to a product-id list, then composed via the same
 // `.in("id", ...)` narrowing every other join-table-backed filter uses.
-async function resolvePriceFilterProductIds(
-  supabase: SupabaseServerClient,
-  filters: ProductListFilters,
-): Promise<string[] | undefined> {
-  if (filters.minPrice == null && filters.maxPrice == null) return undefined;
+const resolvePriceFilterProductIds = cache(
+  async (
+    supabase: SupabaseServerClient,
+    filters: ProductListFilters,
+  ): Promise<string[] | undefined> => {
+    if (filters.minPrice == null && filters.maxPrice == null) return undefined;
 
-  const { data } = await supabase
-    .from("product_variants")
-    .select("product_id, regular_price, sale_price")
-    .eq("is_active", true);
+    const { data } = await supabase
+      .from("product_variants")
+      .select("product_id, regular_price, sale_price")
+      .eq("is_active", true);
 
-  const minPriceByProduct = new Map<string, number>();
-  for (const v of data ?? []) {
-    const effective = v.sale_price ?? v.regular_price;
-    const prev = minPriceByProduct.get(v.product_id);
-    if (prev == null || effective < prev) minPriceByProduct.set(v.product_id, effective);
-  }
+    const minPriceByProduct = new Map<string, number>();
+    for (const v of data ?? []) {
+      const effective = v.sale_price ?? v.regular_price;
+      const prev = minPriceByProduct.get(v.product_id);
+      if (prev == null || effective < prev) minPriceByProduct.set(v.product_id, effective);
+    }
 
-  const ids: string[] = [];
-  for (const [productId, price] of minPriceByProduct) {
-    if (filters.minPrice != null && price < filters.minPrice) continue;
-    if (filters.maxPrice != null && price > filters.maxPrice) continue;
-    ids.push(productId);
-  }
-  return ids;
-}
+    const ids: string[] = [];
+    for (const [productId, price] of minPriceByProduct) {
+      if (filters.minPrice != null && price < filters.minPrice) continue;
+      if (filters.maxPrice != null && price > filters.maxPrice) continue;
+      ids.push(productId);
+    }
+    return ids;
+  },
+);
 
 // "On Sale" used to be a plain `special_price.not.is.null` column check,
 // OR'd together with newArrival/featured (see the promoConditions .or()
 // below) -- resolved to an id list the same way, then folded into that
 // same .or() string as an `id.in.(...)` term so the OR relationship with
 // newArrival/featured is preserved exactly as it was.
-async function resolveOnSaleProductIds(
-  supabase: SupabaseServerClient,
-  filters: ProductListFilters,
-): Promise<string[] | undefined> {
-  if (!filters.onSale) return undefined;
-  const { data } = await supabase
-    .from("product_variants")
-    .select("product_id")
-    .eq("is_active", true)
-    .not("sale_price", "is", null);
-  return [...new Set((data ?? []).map((v) => v.product_id))];
-}
+const resolveOnSaleProductIds = cache(
+  async (
+    supabase: SupabaseServerClient,
+    filters: ProductListFilters,
+  ): Promise<string[] | undefined> => {
+    if (!filters.onSale) return undefined;
+    const { data } = await supabase
+      .from("product_variants")
+      .select("product_id")
+      .eq("is_active", true)
+      .not("sale_price", "is", null);
+    return [...new Set((data ?? []).map((v) => v.product_id))];
+  },
+);
 
 // "On Campaign" -- a plain AND-narrowing id-list, same shape as
 // resolveTagProductIds/resolveAttributeValueProductIds/
@@ -92,13 +104,15 @@ async function resolveOnSaleProductIds(
 // into the OR-composed promoConditions group above: "in an active campaign
 // right now" is a straightforward inclusion filter, not a member of the
 // onSale/newArrival/featured OR relationship.
-async function resolveCampaignProductIds(
-  supabase: SupabaseServerClient,
-  filters: ProductListFilters,
-): Promise<string[] | undefined> {
-  if (!filters.campaign) return undefined;
-  return getActiveCampaignProductIds(supabase);
-}
+const resolveCampaignProductIds = cache(
+  async (
+    supabase: SupabaseServerClient,
+    filters: ProductListFilters,
+  ): Promise<string[] | undefined> => {
+    if (!filters.campaign) return undefined;
+    return getActiveCampaignProductIds(supabase);
+  },
+);
 
 // The variant a listing card shows: lowest sale_price among active variants
 // that have one, else lowest regular_price -- a single-variant product

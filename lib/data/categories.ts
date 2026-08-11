@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Category } from "@/types";
 
@@ -20,18 +21,21 @@ export async function getCategories(options?: {
   return data;
 }
 
-export async function getCategoryBySlug(
-  slug: string,
-): Promise<Category | null> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
+// Wrapped in cache() -- app/category/[...slug]/page.tsx calls this once in
+// generateMetadata and again in the page body with the same slug string;
+// the second call returns the memoized result instead of re-querying.
+export const getCategoryBySlug = cache(
+  async (slug: string): Promise<Category | null> => {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
 
-  return data;
-}
+    return data;
+  },
+);
 
 export async function getCategoryById(id: string): Promise<Category | null> {
   const supabase = await createClient();
