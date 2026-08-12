@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { sriLankaInputToUtcIso, utcIsoToSriLankaInputValue } from "./campaign-datetime";
+import { sriLankaInputToUtcIso, utcIsoToSriLankaInputValue, getBusinessHoursStatus } from "./campaign-datetime";
 
 describe("sriLankaInputToUtcIso / utcIsoToSriLankaInputValue round-trip", () => {
   test("a Sri Lanka wall-clock value round-trips back to itself", () => {
@@ -38,5 +38,40 @@ describe("utcIsoToSriLankaInputValue", () => {
 
   test("null input returns empty string", () => {
     assert.equal(utcIsoToSriLankaInputValue(null), "");
+  });
+});
+
+// Builds a real Date for a given Sri Lanka wall-clock moment by reusing the
+// already-tested sriLankaInputToUtcIso, rather than hand-computing offsets
+// a second time in the test itself.
+function atSriLankaTime(localValue: string): Date {
+  return new Date(sriLankaInputToUtcIso(localValue) as string);
+}
+
+describe("getBusinessHoursStatus", () => {
+  test("midday: open", () => {
+    const result = getBusinessHoursStatus(atSriLankaTime("2026-06-15T12:00"));
+    assert.deepEqual(result, { isOpen: true, label: "Open now" });
+  });
+
+  test("midnight: closed", () => {
+    const result = getBusinessHoursStatus(atSriLankaTime("2026-06-15T00:00"));
+    assert.deepEqual(result, { isOpen: false, label: "Opens at 10:00 AM" });
+  });
+
+  test("boundary: 09:59 is still closed", () => {
+    assert.equal(getBusinessHoursStatus(atSriLankaTime("2026-06-15T09:59")).isOpen, false);
+  });
+
+  test("boundary: exactly 10:00 counts as open", () => {
+    assert.equal(getBusinessHoursStatus(atSriLankaTime("2026-06-15T10:00")).isOpen, true);
+  });
+
+  test("boundary: 15:59 is still open", () => {
+    assert.equal(getBusinessHoursStatus(atSriLankaTime("2026-06-15T15:59")).isOpen, true);
+  });
+
+  test("boundary: exactly 16:00 counts as closed", () => {
+    assert.equal(getBusinessHoursStatus(atSriLankaTime("2026-06-15T16:00")).isOpen, false);
   });
 });

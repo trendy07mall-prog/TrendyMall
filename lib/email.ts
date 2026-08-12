@@ -191,6 +191,63 @@ export async function sendPaymentVerifiedEmail(order: {
   }
 }
 
+// Unlike the sends above, this one is NOT best-effort/silent -- sending
+// this email is the entire point of the contact form, so the caller (the
+// Server Action) needs a real success/failure result to drive the form's
+// success/error UI, rather than the customer clicking "Send" and never
+// finding out whether it worked.
+export async function sendContactFormEmail(data: {
+  name: string;
+  contact: string;
+  orderNumber: string | null;
+  message: string;
+}): Promise<{ success: boolean }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) {
+    console.error("sendContactFormEmail: RESEND_API_KEY/RESEND_FROM_EMAIL not configured");
+    return { success: false };
+  }
+
+  // Reply-To goes straight to the customer when what they entered actually
+  // looks like an email address, so hitting "Reply" in the owner's inbox
+  // reaches them directly -- falls back to OWNER_EMAIL (same as every other
+  // send in this file) when they entered a phone number instead.
+  const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.contact) ? data.contact : OWNER_EMAIL;
+
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo,
+      subject: `Contact form message from ${data.name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>New contact form message</h2>
+          <p><strong>Name:</strong> ${escapeHtml(data.name)}</p>
+          <p><strong>Contact:</strong> ${escapeHtml(data.contact)}</p>
+          ${data.orderNumber ? `<p><strong>Order number:</strong> ${escapeHtml(data.orderNumber)}</p>` : ""}
+          <p><strong>Message:</strong></p>
+          <p style="white-space: pre-wrap;">${escapeHtml(data.message)}</p>
+        </div>
+      `,
+    });
+    if (error) {
+      console.error("sendContactFormEmail: rejected by Resend", error);
+      return { success: false };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("sendContactFormEmail failed", error);
+    return { success: false };
+  }
+}
+
 // Best-effort, same as the others. Generic — takes a pre-resolved human
 // label rather than an OrderStatus union, since the admin actions
 // (lib/admin/orderActions.ts) key off order_status/payment_status instead.

@@ -6,6 +6,26 @@ import { CloseIcon, TruckIcon, CashIcon, WhatsAppIcon } from "@/components/ui/Ic
 const STORAGE_KEY = "trendymall-announcement-dismissed";
 const ROTATE_MS = 4000;
 
+// This bar is the only thing on the storefront matching app/manifest.ts's
+// theme_color (#111111) -- mobile browsers use that as a fallback chrome
+// tint whenever no explicit <meta name="theme-color"> is present, which is
+// correct while this bar is showing but leaves a stray dark bar above the
+// (white) header once it's dismissed. Keeping an explicit meta tag in sync
+// with this component's own dismissed state fixes it at the one place that
+// actually knows which state is true, rather than a per-page guess -- same
+// fix /admin already applies statically via its own viewport export, since
+// it never shows this bar at all.
+function syncThemeColor(dismissed: boolean) {
+  const content = dismissed ? "#ffffff" : "#111111";
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", content);
+}
+
 const MESSAGES = [
   { icon: TruckIcon, text: "Colombo 1–15: Rs.255" },
   { icon: TruckIcon, text: "Outside Colombo: Rs.400" },
@@ -42,12 +62,15 @@ export function AnnouncementBar() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
+    let isDismissed = false;
     try {
+      isDismissed = window.localStorage.getItem(STORAGE_KEY) === "1";
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (window.localStorage.getItem(STORAGE_KEY) === "1") setDismissed(true);
+      if (isDismissed) setDismissed(true);
     } catch {
       // ignore
     }
+    syncThemeColor(isDismissed);
     setHydrated(true);
   }, []);
 
@@ -108,6 +131,7 @@ export function AnnouncementBar() {
           } catch {
             // ignore
           }
+          syncThemeColor(true);
           setDismissed(true);
         }}
         className="absolute top-1/2 right-3 -translate-y-1/2 opacity-80 transition-opacity hover:opacity-100"

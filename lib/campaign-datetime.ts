@@ -6,7 +6,7 @@
 // datetime-local field is "this is Sri Lanka time," the offset is applied
 // explicitly here instead, so the result is correct regardless of what
 // timezone the Node process itself is running in.
-const SRI_LANKA_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+export const SRI_LANKA_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 // "2026-06-15T12:00" (meant as Sri Lanka time) -> correct UTC ISO string.
 export function sriLankaInputToUtcIso(localValue: string): string | null {
@@ -26,4 +26,18 @@ export function utcIsoToSriLankaInputValue(iso: string | null): string {
   if (!iso) return "";
   const shiftedMs = new Date(iso).getTime() + SRI_LANKA_OFFSET_MS;
   return new Date(shiftedMs).toISOString().slice(0, 16);
+}
+
+// Real store hours, "Daily, 10 AM - 4 PM" Sri Lanka time -- computed
+// against the real current time (never hardcoded "open"), same
+// shift-then-read-UTC-components technique as utcIsoToSriLankaInputValue,
+// so this is correct regardless of what timezone the server process itself
+// runs in.
+const OPEN_HOUR = 10;
+const CLOSE_HOUR = 16;
+
+export function getBusinessHoursStatus(now: Date = new Date()): { isOpen: boolean; label: string } {
+  const slHour = new Date(now.getTime() + SRI_LANKA_OFFSET_MS).getUTCHours();
+  const isOpen = slHour >= OPEN_HOUR && slHour < CLOSE_HOUR;
+  return { isOpen, label: isOpen ? "Open now" : "Opens at 10:00 AM" };
 }
