@@ -174,12 +174,17 @@ export function ProductCard({
             {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
                 lets the price box get compressed smaller than its own text,
                 which visually collides with the stock badge instead of
-                wrapping) is what keeps this row on one line, at full size,
-                at every price/stock combination and every grid density this
-                card renders at (New Arrivals' wider cards down to /shop's
-                narrower 4-up columns) -- gap-1 is deliberately tighter than
-                the site's usual gap-2 for the same reason. */}
-            <div className="flex items-center justify-between gap-1">
+                wrapping) keeps this row at full, un-truncated size at every
+                price/stock combination -- gap-1 is deliberately tighter than
+                the site's usual gap-2 for the same reason. flex-wrap (base
+                only, sm:flex-nowrap above) is the overflow escape valve for
+                the one case shrink-0 can't otherwise handle: a 2-column
+                grid at ~320px, where price + stock badge combined can
+                genuinely exceed the card's content width -- CSS only wraps
+                when a row actually doesn't fit, so this is a no-op at every
+                width/grid density that already had room (New Arrivals'
+                wider cards, /shop's 4-up columns, sm+ grids). */}
+            <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 sm:flex-nowrap">
               <div className="shrink-0">
                 {product.hasMultiplePrices && (
                   <p className="text-[10px] text-[var(--muted)]">Starting from</p>
