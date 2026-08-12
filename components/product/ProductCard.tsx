@@ -165,7 +165,7 @@ export function ProductCard({
             <PriceDisplay
               actualPrice={product.actual_price}
               specialPrice={product.special_price}
-              size="lg"
+              size="sm"
               showDiscountBadge={false}
             />
           </div>
