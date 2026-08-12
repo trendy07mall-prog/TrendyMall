@@ -1,152 +1,158 @@
 import { createClient } from "@/lib/supabase/server";
+import { getDashboardData, type DashboardRange } from "@/lib/admin/dashboard-query";
 import { formatPrice } from "@/lib/utils";
+import { CashIcon, CartIcon, UserIcon, CreditCardIcon } from "@/components/ui/Icon";
+import { DashboardHeader } from "@/components/admin/dashboard/DashboardHeader";
+import { KpiCard } from "@/components/admin/dashboard/KpiCard";
+import { SalesChart } from "@/components/admin/dashboard/SalesChart";
+import { RangeTabs } from "@/components/admin/dashboard/RangeTabs";
+import { RunningCampaignsSection } from "@/components/admin/dashboard/RunningCampaignsSection";
+import { OrdersOverviewSection } from "@/components/admin/dashboard/OrdersOverviewSection";
+import { FinanceSection } from "@/components/admin/dashboard/FinanceSection";
+import { RecentActivitySection } from "@/components/admin/dashboard/RecentActivitySection";
+import { BestSellersSection } from "@/components/admin/dashboard/BestSellersSection";
+import { InventoryAlertsSection } from "@/components/admin/dashboard/InventoryAlertsSection";
+import { QuickActionsSection } from "@/components/admin/dashboard/QuickActionsSection";
 
-export default async function AdminDashboardPage() {
-  const supabase = await createClient();
+const VALID_RANGES: DashboardRange[] = ["today", "7d", "month", "custom"];
+const VALID_CHART_DAYS = [7, 30, 90] as const;
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const [
-    { count: productCount },
-    { data: todayOrders },
-    { data: monthlyOrders },
-    { data: revenueOrders },
-    { count: ordersThisMonth },
-    { count: pendingPayments },
-    { count: completedPayments },
-    { count: cancelledOrders },
-    { count: refunds },
-    { data: lowStock },
-    { data: orderItems },
-  ] = await Promise.all([
-    supabase
-      .from("products")
-      .select("*", { count: "exact", head: true })
-      .eq("is_deleted", false),
-    supabase
-      .from("orders")
-      .select("total")
-      .gte("created_at", startOfToday.toISOString())
-      .not("order_status", "in", "(cancelled,returned)"),
-    supabase
-      .from("orders")
-      .select("total")
-      .gte("created_at", startOfMonth.toISOString())
-      .not("order_status", "in", "(cancelled,returned)"),
-    supabase
-      .from("orders")
-      .select("total")
-      .not("order_status", "in", "(cancelled,returned)"),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startOfMonth.toISOString()),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .in("payment_status", ["pending", "awaiting_verification"]),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("payment_status", "paid"),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("order_status", "cancelled"),
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("payment_status", "refunded"),
-    supabase
-      .from("products")
-      .select("id, name, stock")
-      .eq("is_deleted", false)
-      .lt("stock", 5)
-      .order("stock", { ascending: true }),
-    supabase.from("order_items").select("product_name, quantity"),
-  ]);
-
-  const todaySales = (todayOrders ?? []).reduce((sum, o) => sum + o.total, 0);
-  const monthlySales = (monthlyOrders ?? []).reduce((sum, o) => sum + o.total, 0);
-  const totalRevenue = (revenueOrders ?? []).reduce((sum, o) => sum + o.total, 0);
-
-  const salesByProduct = new Map<string, number>();
-  for (const item of orderItems ?? []) {
-    salesByProduct.set(
-      item.product_name,
-      (salesByProduct.get(item.product_name) ?? 0) + item.quantity,
-    );
-  }
-  const bestSellers = [...salesByProduct.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <h1 className="font-heading text-2xl font-bold tracking-tight">Dashboard</h1>
-
-      <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3">
-        <StatTile label="Today's sales" value={formatPrice(todaySales)} />
-        <StatTile label="This month's sales" value={formatPrice(monthlySales)} />
-        <StatTile label="Total revenue" value={formatPrice(totalRevenue)} />
-        <StatTile label="Orders this month" value={ordersThisMonth ?? 0} />
-        <StatTile label="Pending payments" value={pendingPayments ?? 0} />
-        <StatTile label="Completed payments" value={completedPayments ?? 0} />
-        <StatTile label="Cancelled orders" value={cancelledOrders ?? 0} />
-        <StatTile label="Refunds" value={refunds ?? 0} />
-        <StatTile label="Products" value={productCount ?? 0} />
-        <StatTile label="Low stock (<5)" value={lowStock?.length ?? 0} />
-      </div>
-
-      <div className="mt-8 grid gap-8 sm:grid-cols-2">
-        {bestSellers.length > 0 && (
-          <div>
-            <h2 className="text-lg font-medium">Best sellers</h2>
-            <ul className="mt-4 flex flex-col gap-2">
-              {bestSellers.map(([name, quantity]) => (
-                <li
-                  key={name}
-                  className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
-                >
-                  <span>{name}</span>
-                  <span>{quantity} sold</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {lowStock && lowStock.length > 0 && (
-          <div>
-            <h2 className="text-lg font-medium">Low stock</h2>
-            <ul className="mt-4 flex flex-col gap-2">
-              {lowStock.map((product) => (
-                <li
-                  key={product.id}
-                  className="flex justify-between border-b border-[var(--border)] pb-2 text-sm"
-                >
-                  <span>{product.name}</span>
-                  <span>{product.stock} left</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
+    <section className="flex min-w-0 flex-col gap-4">
+      <h2 className="text-lg font-semibold text-[#0F2D52]">{title}</h2>
+      {children}
+    </section>
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number | string }) {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const asString = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+  const rangeParam = asString(sp.range);
+  const range: DashboardRange = VALID_RANGES.includes(rangeParam as DashboardRange)
+    ? (rangeParam as DashboardRange)
+    : "today";
+
+  const chartRangeParam = Number(asString(sp.chartRange));
+  const chartRangeDays = (VALID_CHART_DAYS as readonly number[]).includes(chartRangeParam)
+    ? (chartRangeParam as 7 | 30 | 90)
+    : 7;
+
+  const customFrom = asString(sp.customFrom);
+  const customTo = asString(sp.customTo);
+
+  const currentParams: Record<string, string | undefined> = {
+    range: asString(sp.range),
+    chartRange: asString(sp.chartRange),
+  };
+
+  const supabase = await createClient();
+  const [{ data: { user } }, data] = await Promise.all([
+    supabase.auth.getUser(),
+    getDashboardData(range, chartRangeDays, customFrom, customTo),
+  ]);
+
+  let adminName = "Admin";
+  if (user) {
+    const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    adminName = profile?.full_name || user.email?.split("@")[0] || "Admin";
+  }
+
   return (
-    <div className="bg-white px-6 py-8">
-      <p className="text-3xl font-semibold">{value}</p>
-      <p className="mt-1 text-sm text-[var(--muted)]">{label}</p>
+    <div className="flex min-w-0 flex-col gap-10 pb-10">
+      <DashboardHeader
+        adminName={adminName}
+        newOrdersCount={data.newOrdersCount}
+        range={range}
+        currentParams={currentParams}
+        customFrom={customFrom}
+        customTo={customTo}
+      />
+
+      <Section title={`${data.rangeLabel} Overview`}>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            icon={CashIcon}
+            label={`${data.rangeLabel} Sales`}
+            value={formatPrice(data.periodSales)}
+            trendPercent={data.periodSalesChangePercent}
+            accent="navy"
+          />
+          <KpiCard icon={CartIcon} label={`${data.rangeLabel} Orders`} value={data.periodOrdersCount} accent="blue" />
+          <KpiCard icon={UserIcon} label="New Customers" value={data.newCustomersCount} accent="emerald" />
+          <KpiCard
+            icon={CreditCardIcon}
+            label="Pending Payments"
+            value={formatPrice(data.pendingPaymentsTotal)}
+            href="/admin/orders?paymentStatus=pending"
+            accent="orange"
+          />
+        </div>
+      </Section>
+
+      <Section title="Sales Overview">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-white p-4">
+          <div className="flex justify-end">
+            <RangeTabs
+              options={[
+                { value: "7", label: "7 Days" },
+                { value: "30", label: "30 Days" },
+                { value: "90", label: "90 Days" },
+              ]}
+              activeValue={String(chartRangeDays)}
+              paramName="chartRange"
+              currentParams={currentParams}
+            />
+          </div>
+          <div className="mt-4">
+            <SalesChart data={data.salesSeries} />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Running Campaigns">
+        <RunningCampaignsSection campaigns={data.runningCampaigns} />
+      </Section>
+
+      <Section title="Orders Overview">
+        <OrdersOverviewSection statusCounts={data.orderStatusCounts} recentOrders={data.recentOrders} />
+      </Section>
+
+      <Section title="Finance">
+        <FinanceSection
+          revenue={data.revenue}
+          paidTotal={data.paidTotal}
+          pendingTotal={data.pendingPaymentsTotal}
+          refundsTotal={data.refundsTotal}
+          gross={data.gross}
+          discounts={data.discounts}
+          delivery={data.delivery}
+          net={data.net}
+        />
+      </Section>
+
+      <Section title="Recent Activity">
+        <RecentActivitySection reviews={data.recentReviews} subscribers={data.newSubscribers} />
+      </Section>
+
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <Section title="Best Sellers">
+          <BestSellersSection bestSellers={data.bestSellers} />
+        </Section>
+        <Section title={`Inventory Alerts (${data.lowStockProducts.length})`}>
+          <InventoryAlertsSection lowStock={data.lowStockProducts} />
+        </Section>
+      </div>
+
+      <Section title="Quick Actions">
+        <QuickActionsSection />
+      </Section>
     </div>
   );
 }

@@ -35,11 +35,21 @@ const DRAWER_TRANSITION_MS = 300;
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+export interface SidebarBadgeCounts {
+  orders: number;
+  reviews: number;
+  campaigns: number;
+}
+
 interface NavItem {
   href: string;
   label: string;
   icon: (props: { className?: string }) => React.ReactElement;
   soon?: boolean;
+  // Keys into SidebarBadgeCounts -- only items with real, live-computed
+  // data get a badge (see lib/admin/sidebar-badges.ts); nothing here is a
+  // decorative/fake number.
+  badgeKey?: keyof SidebarBadgeCounts;
 }
 
 interface NavGroup {
@@ -63,16 +73,16 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Sales",
     items: [
-      { href: "/admin/orders", label: "Orders", icon: CartIcon },
+      { href: "/admin/orders", label: "Orders", icon: CartIcon, badgeKey: "orders" },
       { href: "/admin/customers", label: "Customers", icon: UserIcon },
     ],
   },
   {
     label: "Marketing",
     items: [
-      { href: "/admin/reviews", label: "Reviews", icon: StarIcon },
+      { href: "/admin/reviews", label: "Reviews", icon: StarIcon, badgeKey: "reviews" },
       { href: "/admin/coupons", label: "Coupons", icon: PercentIcon },
-      { href: "/admin/campaigns", label: "Campaigns", icon: BadgePercentIcon },
+      { href: "/admin/campaigns", label: "Campaigns", icon: BadgePercentIcon, badgeKey: "campaigns" },
       { href: "/admin/subscribers", label: "Subscribers", icon: MailIcon },
       { href: "/admin/banner", label: "Banner", icon: ImageIcon },
     ],
@@ -95,9 +105,11 @@ const NAV_GROUPS: NavGroup[] = [
 function NavLinks({
   collapsed,
   onNavigate,
+  badges,
 }: {
   collapsed: boolean;
   onNavigate?: () => void;
+  badges: SidebarBadgeCounts;
 }) {
   const pathname = usePathname();
 
@@ -113,6 +125,7 @@ function NavLinks({
           <div className={`flex flex-col gap-0.5 ${group.label && !collapsed ? "mt-2" : ""}`}>
             {group.items.map((item) => {
               const isActive = pathname === item.href;
+              const badgeCount = item.badgeKey ? badges[item.badgeKey] : 0;
               return (
                 <Link
                   key={item.href}
@@ -120,18 +133,32 @@ function NavLinks({
                   onClick={onNavigate}
                   title={collapsed ? item.label : undefined}
                   className={`transition-brand flex items-center gap-3 rounded-[var(--radius-btn)] px-3 py-2 text-sm font-medium ${
-                    isActive
-                      ? "bg-[var(--foreground)] text-white"
-                      : "text-[var(--foreground)] hover:bg-black/5"
+                    isActive ? "bg-[#0F2D52] text-white" : "text-[var(--foreground)] hover:bg-black/5"
                   }`}
                 >
-                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="relative shrink-0">
+                    <item.icon className="h-4 w-4" />
+                    {collapsed && badgeCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-[var(--color-discount)] px-0.5 text-[9px] font-semibold text-white">
+                        {badgeCount}
+                      </span>
+                    )}
+                  </span>
                   {!collapsed && (
                     <span className="flex flex-1 items-center justify-between gap-2">
                       {item.label}
                       {item.soon && (
                         <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)]">
                           Soon
+                        </span>
+                      )}
+                      {!item.soon && badgeCount > 0 && (
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                            isActive ? "bg-white/20 text-white" : "bg-[var(--color-discount)]/10 text-[var(--color-discount)]"
+                          }`}
+                        >
+                          {badgeCount}
                         </span>
                       )}
                     </span>
@@ -146,7 +173,7 @@ function NavLinks({
   );
 }
 
-export function AdminSidebar() {
+export function AdminSidebar({ badges }: { badges: SidebarBadgeCounts }) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -316,7 +343,7 @@ export function AdminSidebar() {
           </button>
         </div>
         <div className="mt-6 flex-1 overflow-y-auto">
-          <NavLinks collapsed={collapsed} />
+          <NavLinks collapsed={collapsed} badges={badges} />
         </div>
         <Link
           href="/"
@@ -362,7 +389,7 @@ export function AdminSidebar() {
               </button>
             </div>
             <div className="mt-6 flex-1">
-              <NavLinks collapsed={false} onNavigate={closeDrawer} />
+              <NavLinks collapsed={false} onNavigate={closeDrawer} badges={badges} />
             </div>
             <Link
               href="/"
