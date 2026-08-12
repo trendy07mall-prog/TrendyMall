@@ -11,14 +11,13 @@ export function PriceDisplay({
   size?: "sm" | "md" | "lg";
   showDiscountBadge?: boolean;
 }) {
-  // "sm" (card grid) needs both a smaller font AND the redundant currency
-  // prefix dropped from the muted strikethrough price to fit two 4-digit
-  // prices + a stock label on one line at /shop's narrowest real column
-  // width (lg:grid-cols-4 + filter sidebar, ~187px) -- font size alone
-  // was still ~5-10px short there (measured directly). Verified against
-  // every real catalog price plus a synthetic 5-digit worst case; a
-  // genuine 5-digit price would still overflow that narrowest grid, but
-  // nothing in the current catalog goes past 4 digits.
+  // "sm" (card grid) needs a smaller font to fit two 4-digit prices + a
+  // stock label on one line at /shop's narrowest real column width
+  // (lg:grid-cols-4 + filter sidebar, ~187px). The strikethrough price
+  // used to also drop its "Rs" prefix here to buy extra width, but the
+  // site-wide no-decimals rule already shortens every price string by
+  // ~3 characters ("Rs 1,999.00" -> "Rs 1,999"), which recovers that
+  // width -- both prices keep "Rs" now, consistent with every other size.
   // "lg" (the /shop redesign's bigger card) intentionally does NOT try to
   // fit on one line with a stock pill the way "sm" does -- ProductCard
   // stacks price and stock vertically for this size instead, so there's no
@@ -66,9 +65,7 @@ export function PriceDisplay({
 
     return (
       <span className="flex flex-nowrap items-baseline gap-0.5">
-        <span className={`${wasClass} shrink-0 text-[var(--muted)] line-through`}>
-          {size === "sm" ? wasText.replace(/^[^\d]+/, "") : wasText}
-        </span>
+        <span className={`${wasClass} shrink-0 text-[var(--muted)] line-through`}>{wasText}</span>
         <span className={`${priceClass} shrink-0`}>{formatPrice(specialPrice)}</span>
         {badge}
       </span>

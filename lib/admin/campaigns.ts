@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
-import { slugify } from "@/lib/utils";
+import { slugify, formatPrice } from "@/lib/utils";
 import { sriLankaInputToUtcIso } from "@/lib/campaign-datetime";
 import { campaignPriceUndercuts } from "@/lib/campaign-pricing";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
@@ -118,7 +118,7 @@ export async function saveCampaign(
         const productName = (variant.products as { name: string } | null)?.name ?? "a product";
         const label = variant.color_name ? `${productName} (${variant.color_name})` : productName;
         return {
-          error: `Campaign price for ${label} must be lower than its current price (Rs ${currentPrice}).`,
+          error: `Campaign price for ${label} must be lower than its current price (${formatPrice(currentPrice)}).`,
         };
       }
     }

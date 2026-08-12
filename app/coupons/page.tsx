@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getActiveCoupons } from "@/lib/data/coupons";
 import { formatCouponDiscount, formatCouponValidUntil } from "@/lib/coupon-display";
+import { formatPrice } from "@/lib/utils";
 import { CopyCodeButton } from "@/components/coupon/CopyCodeButton";
 import { TicketPercentIcon } from "@/components/ui/Icon";
 
@@ -47,7 +48,7 @@ export default async function CouponsPage() {
                 <p className="text-sm font-semibold">{formatCouponDiscount(coupon)}</p>
                 {coupon.min_order_value > 0 && (
                   <p className="text-xs text-[var(--muted)]">
-                    Minimum order: Rs. {coupon.min_order_value.toLocaleString()}
+                    Minimum order: {formatPrice(coupon.min_order_value)}
                   </p>
                 )}
                 {validUntil && <p className="text-xs text-[var(--muted)]">{validUntil}</p>}

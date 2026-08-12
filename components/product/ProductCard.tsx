@@ -202,7 +202,13 @@ export function ProductCard({
           </div>
         )}
 
-        <div className={isShop ? "mt-auto" : hideDeliveryEstimate ? "mt-3" : "mt-auto"}>
+        {/* Always bottom-pinned, regardless of variant/hideDeliveryEstimate --
+            the amount of optional content above (campaign block, brand,
+            rating, delivery line) varies per card, but mt-auto absorbs all
+            of it so the button lands at the same row position across every
+            card in a grid row (CSS Grid stretches all cards in a row to
+            equal height by default). */}
+        <div className="mt-auto">
           <QuickAddButton product={product} variant={variant} />
         </div>
       </div>

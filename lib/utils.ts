@@ -1,8 +1,16 @@
+// Site-wide display rule: "Rs" prefix, no decimals, on every price shown
+// anywhere (original/struck-through and current/sale alike) -- rounds to
+// the nearest whole rupee (Intl's default fraction-digit rounding is
+// round-half-away-from-zero) purely for display. Stored values, cart math,
+// discount/coupon calculations, and checkout totals are never touched by
+// this -- they keep full numeric precision; only the rendered text drops
+// decimals.
 const priceFormatter = new Intl.NumberFormat("en-LK", {
   style: "currency",
   currency: "LKR",
   currencyDisplay: "narrowSymbol",
-  minimumFractionDigits: 2,
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
 export function formatPrice(amount: number): string {
