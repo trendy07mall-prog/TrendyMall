@@ -13,6 +13,7 @@ export function SortBar({
   showHighestRated,
   extraQuery,
   viewToggle,
+  searchInput,
   variant = "default",
 }: {
   basePath: string;
@@ -22,6 +23,10 @@ export function SortBar({
   showHighestRated: boolean;
   extraQuery?: Record<string, string>;
   viewToggle?: React.ReactNode;
+  // Optional left-hand toolbar slot (ShopSearchInput) -- only ever passed
+  // from app/shop/page.tsx, so /category and /search render exactly as
+  // before (undefined here changes nothing about their layout).
+  searchInput?: React.ReactNode;
   // "shop" opts into the /shop redesign's toolbar shell + "{count}
   // Products" wording — shared by /category and /search too, which omit
   // this and keep today's "Showing X of Y product(s)" text/appearance.
@@ -41,14 +46,15 @@ export function SortBar({
 
   return (
     <div
-      className={`hidden items-center sm:flex ${isShop ? "justify-end" : "justify-between"} ${
-        isShop ? "rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4" : ""
+      className={`hidden items-center justify-between sm:flex ${
+        isShop ? "gap-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4" : ""
       }`}
     >
       {/* "shop" drops the product-count text entirely per the compact
           redesign -- the /category and /search default variant keeps its
-          "Showing X of Y product(s)" text unchanged. */}
-      {!isShop && (
+          "Showing X of Y product(s)" text unchanged. searchInput (shop
+          only) takes that same left-hand slot instead when present. */}
+      {isShop ? searchInput : (
         <p className="text-sm text-[var(--muted)]">
           Showing {resultCount} of {totalCount} product{totalCount === 1 ? "" : "s"}
         </p>

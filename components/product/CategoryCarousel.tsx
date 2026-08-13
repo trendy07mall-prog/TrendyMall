@@ -49,7 +49,7 @@ export function CategoryCarousel({
   }
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1">
+    <div className="flex gap-4 overflow-x-auto pb-1">
       {visible.map((category) => {
         const active = state.categorySlugs.includes(category.slug);
         return (
@@ -58,34 +58,40 @@ export function CategoryCarousel({
             type="button"
             onClick={() => toggle(category.slug)}
             aria-pressed={active}
-            className={`flex shrink-0 items-center gap-2.5 rounded-[16px] border p-2 pr-4 text-left transition-colors ${
-              active
-                ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
-                : "border-[var(--border)] bg-[var(--color-card)] hover:border-[var(--color-warning)]"
-            }`}
+            className="flex w-20 shrink-0 flex-col items-center gap-2 text-center"
           >
-            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[10px] bg-black/5">
+            <span
+              className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition-colors ${
+                active
+                  ? "border-[#0F2D52] bg-[#0F2D52]"
+                  : "border-transparent bg-[#0F2D52]/8 hover:border-[var(--color-warning)]"
+              }`}
+            >
               {category.image_path ? (
                 <Image
                   src={category.image_path}
                   alt=""
                   fill
                   loading="lazy"
-                  sizes="40px"
+                  sizes="64px"
                   className="object-cover"
                 />
               ) : (
                 <span
                   aria-hidden="true"
-                  className={`flex h-full w-full items-center justify-center text-sm font-bold ${
-                    active ? "text-white/60" : "text-black/20"
-                  }`}
+                  className={`text-lg font-bold ${active ? "text-white/70" : "text-[#0F2D52]/40"}`}
                 >
                   {category.name.charAt(0)}
                 </span>
               )}
             </span>
-            <span className="text-sm font-medium whitespace-nowrap">{category.name}</span>
+            <span
+              className={`line-clamp-2 text-xs leading-tight font-semibold ${
+                active ? "text-[#0F2D52]" : "text-[var(--foreground)]"
+              }`}
+            >
+              {category.name}
+            </span>
           </button>
         );
       })}

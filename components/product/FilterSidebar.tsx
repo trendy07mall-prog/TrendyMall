@@ -41,16 +41,30 @@ export function FilterSidebar({
   return (
     <aside className="hidden w-64 shrink-0 lg:block">
       <div
-        className={`sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] shadow-[var(--shadow-card)] ${
-          variant === "shop" ? "rounded-[var(--radius-lg)]" : "rounded-[var(--radius-card)]"
+        className={`sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto border border-[var(--border)] bg-[var(--color-card)] shadow-[var(--shadow-card)] ${
+          variant === "shop"
+            ? "rounded-[var(--radius-lg)] p-6"
+            : "rounded-[var(--radius-card)] p-[var(--card-padding)]"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Filters</h2>
+        <div className={`flex items-center justify-between ${variant === "shop" ? "pb-1" : ""}`}>
+          <h2
+            className={
+              variant === "shop"
+                ? "text-base font-bold tracking-tight"
+                : "text-sm font-semibold"
+            }
+          >
+            Filters
+          </h2>
           <button
             type="button"
             onClick={() => apply({ ...EMPTY_FILTER_STATE, sort: state.sort })}
-            className="text-xs text-[var(--muted)] underline"
+            className={
+              variant === "shop"
+                ? "text-xs font-medium text-[var(--color-warning)] hover:underline"
+                : "text-xs text-[var(--muted)] underline"
+            }
           >
             Clear all
           </button>

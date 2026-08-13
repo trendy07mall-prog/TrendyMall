@@ -5,6 +5,7 @@ import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
 import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
+import { EyeIcon } from "@/components/ui/Icon";
 import { getDiscountPercent } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ProductWithPrimaryImage } from "@/types";
@@ -118,6 +119,21 @@ export function ProductCard({
             image={product.image}
           />
         </div>
+        {/* Desktop-hover-only quick view -- no quick-view modal exists
+            anywhere in the codebase, so this links straight to the product
+            page per the fallback. hidden by default (mobile has no hover
+            state to reveal it on), opacity-0 + group-hover on sm+ so it
+            never appears in the card's resting state. Sits opposite the
+            WishlistButton corner and well clear of QuickAddButton, which
+            is pinned to the bottom of the card body below (mt-auto), not
+            inside this image wrapper -- no hitbox overlap. */}
+        <Link
+          href={`/product/${product.slug}`}
+          aria-label={`Quick view ${product.name}`}
+          className="absolute right-2 bottom-2 hidden h-9 w-9 items-center justify-center rounded-full bg-white text-[var(--foreground)] opacity-0 shadow-[var(--shadow-card)] transition-opacity duration-200 group-hover:opacity-100 sm:flex hover:bg-[var(--foreground)] hover:text-white"
+        >
+          <EyeIcon className="h-4 w-4" />
+        </Link>
       </div>
 
       <div className={`flex flex-1 flex-col ${isShop ? "mt-2.5 gap-2" : hideDeliveryEstimate ? "mt-3" : "mt-3 gap-3"}`}>

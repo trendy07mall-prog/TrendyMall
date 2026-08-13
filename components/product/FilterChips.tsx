@@ -18,6 +18,7 @@ export function FilterChips({
   tags = [],
   attributes = [],
   extraQuery,
+  variant = "default",
 }: {
   basePath: string;
   state: ProductFilterState;
@@ -25,8 +26,13 @@ export function FilterChips({
   tags?: { slug: string; name: string }[];
   attributes?: { attributeName: string; attributeSlug: string; values: { name: string; slug: string; count: number }[] }[];
   extraQuery?: Record<string, string>;
+  // "shop" opts into the /shop redesign's larger pills + "Field: Value"
+  // labels (e.g. "Category: Power Bank") — /category and /search omit
+  // this and keep today's plain-value labels/sizing untouched.
+  variant?: "default" | "shop";
 }) {
   const router = useRouter();
+  const isShop = variant === "shop";
   const categoryNameBySlug = new Map(categories.map((c) => [c.slug, c.name]));
   const tagNameBySlug = new Map(tags.map((t) => [t.slug, t.name]));
   const attributeValueNameBySlug = new Map(
@@ -36,7 +42,7 @@ export function FilterChips({
   const chips: Chip[] = [
     ...state.categorySlugs.map((slug) => ({
       key: `category-${slug}`,
-      label: categoryNameBySlug.get(slug) ?? slug,
+      label: `${isShop ? "Category: " : ""}${categoryNameBySlug.get(slug) ?? slug}`,
       apply: (s: ProductFilterState) => ({
         ...s,
         categorySlugs: s.categorySlugs.filter((c) => c !== slug),
@@ -44,12 +50,12 @@ export function FilterChips({
     })),
     ...state.brands.map((brand) => ({
       key: `brand-${brand}`,
-      label: brand,
+      label: `${isShop ? "Brand: " : ""}${brand}`,
       apply: (s: ProductFilterState) => ({ ...s, brands: s.brands.filter((b) => b !== brand) }),
     })),
     ...state.tagSlugs.map((slug) => ({
       key: `tag-${slug}`,
-      label: tagNameBySlug.get(slug) ?? slug,
+      label: `${isShop ? "Tag: " : ""}${tagNameBySlug.get(slug) ?? slug}`,
       apply: (s: ProductFilterState) => ({ ...s, tagSlugs: s.tagSlugs.filter((t) => t !== slug) }),
     })),
     ...state.attributeValueSlugs.map((slug) => ({
@@ -139,22 +145,39 @@ export function FilterChips({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div
+      className={`flex flex-wrap items-center gap-2 ${
+        isShop ? "rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-3" : ""
+      }`}
+    >
+      {isShop && (
+        <span className="pr-1 text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
+          Filters:
+        </span>
+      )}
       {chips.map((chip) => (
         <button
           key={chip.key}
           type="button"
           onClick={() => go(chip.apply(state))}
-          className="flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-xs transition-colors hover:bg-black/5"
+          className={
+            isShop
+              ? "flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--background)] px-3.5 py-2 text-sm font-medium transition-colors hover:border-[var(--color-warning)] hover:bg-black/5"
+              : "flex items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1.5 text-xs transition-colors hover:bg-black/5"
+          }
         >
           {chip.label}
-          <CloseIcon className="h-3 w-3" />
+          <CloseIcon className={isShop ? "h-3.5 w-3.5" : "h-3 w-3"} />
         </button>
       ))}
       <button
         type="button"
         onClick={() => go({ ...EMPTY_FILTER_STATE, sort: state.sort })}
-        className="text-xs text-[var(--muted)] underline"
+        className={
+          isShop
+            ? "text-sm font-semibold text-[var(--color-warning)] hover:underline"
+            : "text-xs text-[var(--muted)] underline"
+        }
       >
         Clear all
       </button>

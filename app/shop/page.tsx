@@ -3,7 +3,9 @@ import {
   getAllProducts,
   getFacetCounts,
   getPublishedProductCount,
+  getSearchMatchIds,
   hasAnyApprovedReviews,
+  searchProducts,
 } from "@/lib/data/products";
 import { getCategories } from "@/lib/data/categories";
 import { getBrands } from "@/lib/data/brands";
@@ -19,6 +21,10 @@ import { FilterChips } from "@/components/product/FilterChips";
 import { SortBar } from "@/components/product/SortBar";
 import { QuickFilterChips } from "@/components/product/QuickFilterChips";
 import { CategoryCarousel } from "@/components/product/CategoryCarousel";
+import { BrandStrip } from "@/components/product/BrandStrip";
+import { ShopStatStrip } from "@/components/product/ShopStatStrip";
+import { ShopQuickJumpNav } from "@/components/product/ShopQuickJumpNav";
+import { ShopSearchInput } from "@/components/product/ShopSearchInput";
 import { ViewToggle } from "@/components/product/ViewToggle";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { Pagination } from "@/components/product/Pagination";
@@ -29,9 +35,6 @@ export const metadata: Metadata = {
   title: "Shop All Accessories",
   description:
     "Browse the full TrendyMall catalogue of mobile phone accessories — earbuds, speakers, power banks, and headphones.",
-  // Static, not per-filter — every filter/sort combination on this page
-  // canonicalizes back to the clean base URL, so Google doesn't index each
-  // query-param combination as a separate page.
   alternates: { canonical: "/shop" },
 };
 
@@ -44,6 +47,9 @@ export default async function ShopPage({
 }) {
   const sp = await searchParams;
   const state = parseProductFilterState(sp);
+  const q = typeof sp.q === "string" ? sp.q.trim() : "";
+  const extraQuery = q ? { q } : undefined;
+
   const [categories, brands, tags, attributeValues] = await Promise.all([
     getCategories(),
     getBrands(),
@@ -52,13 +58,25 @@ export default async function ShopPage({
   ]);
   const filters = toProductListFilters(state, categories, brands, tags, attributeValues);
 
+  // Search-within-results reuses /search's exact matching mechanism
+  // (getSearchMatchIds/searchProducts + getFacetCounts's restrictToIds) --
+  // no new filter/search logic, just the same functions invoked from a
+  // second page. Without a `q`, every query below runs exactly as it did
+  // before this redesign.
+  const matchIds = q ? await getSearchMatchIds(q) : null;
+
   const [products, totalCount, facetCounts, hasReviews, shopCampaigns] = await Promise.all([
-    getAllProducts(filters),
+    matchIds ? searchProducts(q, filters) : getAllProducts(filters),
     getPublishedProductCount(),
-    getFacetCounts(filters, { includeCategoryFacet: true }),
+    getFacetCounts(filters, {
+      includeCategoryFacet: true,
+      ...(matchIds ? { restrictToIds: matchIds } : {}),
+    }),
     hasAnyApprovedReviews(),
     getShopCampaigns(),
   ]);
+
+  const hasActiveCampaign = shopCampaigns.length > 0;
 
   const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
   const requestedPage = Number(sp.page);
@@ -72,20 +90,19 @@ export default async function ShopPage({
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
-      <div className="min-h-[140px] rounded-[20px] border border-[var(--border)] bg-[var(--color-card)] px-8 py-10">
-        <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
-        <p className="mt-4 text-xs font-semibold tracking-widest text-[var(--color-text-secondary)] uppercase">
-          Shop
-        </p>
-        <h1 className="text-[42px] font-bold uppercase">
-          {state.onSale ? "Special Price Sale" : "Shop All"}
-        </h1>
-        <p className="mt-2 text-[15px] text-[var(--muted)]">
-          {state.onSale
-            ? `Showing ${products.length} product${products.length === 1 ? "" : "s"} with special pricing.`
-            : "Every product we carry, in one place."}
-        </p>
-      </div>
+      {/* Hero sits directly on the page background -- no card container. */}
+      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
+      <p className="mt-4 text-xs font-semibold tracking-widest text-[var(--color-text-secondary)] uppercase">
+        Shop
+      </p>
+      <h1 className="text-[42px] font-bold uppercase">
+        {state.onSale ? "Special Price Sale" : "Shop All"}
+      </h1>
+      <p className="mt-2 text-[15px] text-[var(--muted)]">
+        {state.onSale
+          ? `Showing ${products.length} product${products.length === 1 ? "" : "s"} with special pricing.`
+          : "Every product we carry, in one place."}
+      </p>
 
       {/* Live counts only -- no fabricated stats like a review-score
           percentage we have no aggregate data to support. "Categories"
@@ -98,47 +115,51 @@ export default async function ShopPage({
           confirmed directly against the live data, so brands.length is
           already correct as-is. Products from the same
           getPublishedProductCount() the toolbar's own count is built from. */}
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { icon: ShoppingBagIcon, value: String(totalCount), label: "Products" },
-          {
-            icon: FolderIcon,
-            value: String(facetCounts.categories.filter((c) => c.count > 0).length),
-            label: "Categories",
-          },
-          { icon: StoreIcon, value: String(brands.length), label: "Brands" },
-          { icon: TruckIcon, value: "Islandwide", label: "Delivery" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="flex flex-col items-center gap-1.5 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] px-3 py-4 text-center"
-          >
-            <stat.icon className="h-6 w-6 text-[var(--color-warning)]" />
-            <p className="text-2xl font-bold">{stat.value}</p>
-            <p className="text-[13px] text-[var(--color-text-secondary)]">{stat.label}</p>
-          </div>
-        ))}
+      <div className="mt-8">
+        <ShopStatStrip
+          stats={[
+            { icon: ShoppingBagIcon, value: String(totalCount), label: "Products" },
+            {
+              icon: FolderIcon,
+              value: String(facetCounts.categories.filter((c) => c.count > 0).length),
+              label: "Categories",
+            },
+            { icon: StoreIcon, value: String(brands.length), label: "Brands" },
+            { icon: TruckIcon, value: "Islandwide", label: "Delivery" },
+          ]}
+        />
       </div>
 
-      {/* CampaignBannerCarousel has its own internal spacing (pt-6, same as
-          its homepage placement) and returns null for an empty array, so no
-          wrapper/conditional is needed here either. */}
-      <CampaignBannerCarousel campaigns={shopCampaigns} />
+      <div className="mt-8">
+        <CampaignBannerCarousel campaigns={shopCampaigns} />
+      </div>
+
+      <ShopQuickJumpNav state={state} hasActiveCampaign={hasActiveCampaign} extraQuery={extraQuery} />
 
       <div className="mt-6">
-        <QuickFilterChips basePath="/shop" state={state} />
+        <QuickFilterChips
+          basePath="/shop"
+          state={state}
+          extraQuery={extraQuery}
+          showCampaignChip={hasActiveCampaign}
+        />
       </div>
 
-      <div className="mt-3">
+      <div className="mt-6">
         <CategoryCarousel
           basePath="/shop"
           state={state}
           categories={categories}
           counts={facetCounts.categories}
+          extraQuery={extraQuery}
         />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4">
+        <BrandStrip basePath="/shop" state={state} brands={facetCounts.brands} extraQuery={extraQuery} />
+      </div>
+
+      <div className="mt-8">
         <MobileFilterSortBar
           basePath="/shop"
           state={state}
@@ -148,6 +169,7 @@ export default async function ShopPage({
           attributes={facetCounts.attributes}
           showCategoryFacet
           showRatingFacet={hasReviews}
+          extraQuery={extraQuery}
           variant="shop"
         />
       </div>
@@ -163,6 +185,7 @@ export default async function ShopPage({
             attributes={facetCounts.attributes}
             showCategoryFacet
             showRatingFacet={hasReviews}
+            extraQuery={extraQuery}
             variant="shop"
           />
 
@@ -174,14 +197,18 @@ export default async function ShopPage({
                 categories={facetCounts.categories}
                 tags={facetCounts.tags}
                 attributes={facetCounts.attributes}
+                extraQuery={extraQuery}
+                variant="shop"
               />
               <SortBar
                 basePath="/shop"
                 state={state}
                 resultCount={products.length}
-                totalCount={totalCount}
+                totalCount={matchIds ? matchIds.length : totalCount}
                 showHighestRated={hasReviews}
+                extraQuery={extraQuery}
                 viewToggle={<ViewToggle />}
+                searchInput={<ShopSearchInput basePath="/shop" state={state} initialQuery={q} />}
                 variant="shop"
               />
             </div>
@@ -189,9 +216,11 @@ export default async function ShopPage({
               <ProductGrid
                 products={pagedProducts}
                 emptyMessage={
-                  state.onSale
-                    ? "No special offers right now — check back soon."
-                    : undefined
+                  q
+                    ? `No products found for "${q}".`
+                    : state.onSale
+                      ? "No special offers right now — check back soon."
+                      : undefined
                 }
                 variant="shop"
               />

@@ -60,9 +60,11 @@ export function FilterGroups({
   variant?: "default" | "shop";
 }) {
   return (
-    <div className="flex flex-col divide-y divide-[var(--border)]">
+    <div
+      className={`flex flex-col divide-y divide-[var(--border)] ${variant === "shop" ? "gap-0" : ""}`}
+    >
       {showCategoryFacet && categories.length > 0 && (
-        <FilterGroup title="Category">
+        <FilterGroup title="Category" variant={variant}>
           {categories.map((category) => (
             <CheckboxRow
               key={category.slug}
@@ -84,7 +86,7 @@ export function FilterGroups({
       )}
 
       {brands.length > 0 && (
-        <FilterGroup title="Brand">
+        <FilterGroup title="Brand" variant={variant}>
           {brands.map((brand) => (
             <CheckboxRow
               key={brand.name}
@@ -105,7 +107,7 @@ export function FilterGroups({
       )}
 
       {tags.length > 0 && (
-        <FilterGroup title="Tags">
+        <FilterGroup title="Tags" variant={variant}>
           {tags.map((tag) => (
             <CheckboxRow
               key={tag.slug}
@@ -126,7 +128,7 @@ export function FilterGroups({
       )}
 
       {attributes.map((attribute) => (
-        <FilterGroup key={attribute.attributeSlug} title={attribute.attributeName}>
+        <FilterGroup key={attribute.attributeSlug} title={attribute.attributeName} variant={variant}>
           {attribute.values.map((value) => (
             <CheckboxRow
               key={value.slug}
@@ -146,11 +148,12 @@ export function FilterGroups({
         </FilterGroup>
       ))}
 
-      <FilterGroup title="Price (LKR)">
+      <FilterGroup title="Price (LKR)" variant={variant}>
         <PriceRangeSlider
           min={state.minPrice ? Number(state.minPrice) : 0}
           max={state.maxPrice ? Number(state.maxPrice) : PRICE_DOMAIN_MAX}
           domainMax={PRICE_DOMAIN_MAX}
+          variant={variant}
           onCommit={(min, max) =>
             onChange({
               minPrice: min > 0 ? String(min) : "",
@@ -180,7 +183,7 @@ export function FilterGroups({
       </FilterGroup>
 
       {showRatingFacet && (
-        <FilterGroup title="Rating">
+        <FilterGroup title="Rating" variant={variant}>
           {[4, 3, 2].map((threshold) => (
             <label key={threshold} className="flex items-center gap-2 py-1.5 text-sm">
               <Radio
@@ -204,7 +207,7 @@ export function FilterGroups({
         </FilterGroup>
       )}
 
-      <FilterGroup title="Availability">
+      <FilterGroup title="Availability" variant={variant}>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox
             checked={state.inStock}
@@ -223,7 +226,7 @@ export function FilterGroups({
         </label>
       </FilterGroup>
 
-      <FilterGroup title="Service">
+      <FilterGroup title="Service" variant={variant}>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox checked={state.cod} variant={variant} onChange={(checked) => onChange({ cod: checked })} />
           Cash on Delivery
@@ -246,7 +249,7 @@ export function FilterGroups({
         </label>
       </FilterGroup>
 
-      <FilterGroup title="Promotion">
+      <FilterGroup title="Promotion" variant={variant}>
         <label className="flex items-center gap-2 py-1.5 text-sm">
           <Checkbox checked={state.onSale} variant={variant} onChange={(checked) => onChange({ onSale: checked })} />
           On Sale
@@ -280,15 +283,26 @@ export function FilterGroups({
   );
 }
 
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+function FilterGroup({
+  title,
+  children,
+  variant = "default",
+}: {
+  title: string;
+  children: React.ReactNode;
+  variant?: "default" | "shop";
+}) {
   const [open, setOpen] = useState(true);
+  const isShop = variant === "shop";
   return (
-    <div className="py-4 first:pt-0">
+    <div className={isShop ? "py-5 first:pt-0" : "py-4 first:pt-0"}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between text-sm font-semibold"
+        className={`flex w-full items-center justify-between ${
+          isShop ? "text-[13px] font-bold tracking-wide text-[var(--foreground)] uppercase" : "text-sm font-semibold"
+        }`}
       >
         {title}
         <ChevronDownIcon
@@ -297,7 +311,7 @@ function FilterGroup({ title, children }: { title: string; children: React.React
       </button>
       <div className={`transition-brand grid ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="flex flex-col gap-0.5 overflow-hidden">
-          <div className="mt-3">{children}</div>
+          <div className={isShop ? "mt-4" : "mt-3"}>{children}</div>
         </div>
       </div>
     </div>
@@ -373,12 +387,14 @@ function CheckboxRow({
   variant?: "default" | "shop";
 }) {
   const disabled = count === 0 && !checked;
+  const isShop = variant === "shop";
+  const indentStep = isShop ? 18 : 16;
   return (
     <label
-      style={indent > 0 ? { marginLeft: indent * 16, paddingLeft: 10 } : undefined}
+      style={indent > 0 ? { marginLeft: indent * indentStep, paddingLeft: isShop ? 12 : 10 } : undefined}
       className={`flex items-center justify-between gap-2 text-sm ${disabled ? "opacity-40" : ""} ${
-        indent > 0 ? "border-l border-[var(--border)]" : ""
-      } ${variant === "shop" ? "py-2" : "py-1.5"}`}
+        indent > 0 ? `border-l ${isShop ? "border-[var(--color-warning)]/30" : "border-[var(--border)]"}` : ""
+      } ${isShop ? "py-2" : "py-1.5"}`}
     >
       <span className="flex items-center gap-2">
         <Checkbox checked={checked} disabled={disabled} onChange={onChange} variant={variant} />
@@ -386,7 +402,7 @@ function CheckboxRow({
       </span>
       <span
         className={`text-xs text-[var(--muted)] ${
-          variant === "shop" ? "rounded-full bg-[var(--background)] px-1.5 py-0.5" : ""
+          isShop ? "rounded-full bg-[var(--background)] px-1.5 py-0.5" : ""
         }`}
       >
         {count}

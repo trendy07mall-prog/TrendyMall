@@ -26,10 +26,15 @@ export function QuickFilterChips({
   basePath,
   state,
   extraQuery,
+  showCampaignChip = true,
 }: {
   basePath: string;
   state: ProductFilterState;
   extraQuery?: Record<string, string>;
+  // Only true when a campaign is actually active right now (app/shop/page.tsx
+  // passes shopCampaigns.length > 0) -- a chip that always filtered to
+  // zero results would be a fake control, not a real one.
+  showCampaignChip?: boolean;
 }) {
   const router = useRouter();
 
@@ -75,14 +80,25 @@ export function QuickFilterChips({
   }
 
   const chipClass = (active: boolean) =>
-    `shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+    `shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
       active
         ? "bg-[var(--foreground)] text-white"
         : "border border-[var(--border)] bg-[var(--color-card)] hover:border-[var(--color-warning)]"
     }`;
 
+  // On Sale/On Campaign get a distinct, subtle orange treatment (even
+  // while inactive) so the two promotional filters read as different from
+  // the neutral ones above -- active state switches to solid orange
+  // instead of the neutral black every other chip uses.
+  const promoChipClass = (active: boolean) =>
+    `shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
+      active
+        ? "bg-[var(--color-warning)] text-white"
+        : "border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:border-[var(--color-warning)]"
+    }`;
+
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1">
+    <div className="flex gap-2.5 overflow-x-auto pb-1">
       <button type="button" onClick={toggleFeatured} className={chipClass(state.featured)}>
         Featured
       </button>
@@ -92,12 +108,14 @@ export function QuickFilterChips({
       <button type="button" onClick={toggleBestSeller} className={chipClass(isBestSellerActive)}>
         Best Seller
       </button>
-      <button type="button" onClick={toggleOnSale} className={chipClass(state.onSale)}>
+      <button type="button" onClick={toggleOnSale} className={promoChipClass(state.onSale)}>
         On Sale
       </button>
-      <button type="button" onClick={toggleCampaign} className={chipClass(state.campaign)}>
-        On Campaign
-      </button>
+      {showCampaignChip && (
+        <button type="button" onClick={toggleCampaign} className={promoChipClass(state.campaign)}>
+          On Campaign
+        </button>
+      )}
       {PRICE_PRESETS.map((preset) => (
         <button
           key={preset.label}
