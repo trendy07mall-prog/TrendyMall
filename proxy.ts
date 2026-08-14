@@ -14,6 +14,14 @@ import { NextResponse, type NextRequest } from "next/server";
 // whether a session exists, they don't require one).
 const PROTECTED_PREFIXES = ["/admin", "/account"];
 
+// Maintenance mode (Phase 5) never blocks these, regardless of the flag --
+// an admin must always be able to reach /login and /admin (or a locked-out
+// storefront becomes a locked-out owner too), /api must keep serving real
+// external callers (the PayHere webhook, the campaign-ending cron), and
+// /maintenance is the page itself (excluding it stops an infinite rewrite
+// loop).
+const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/login", "/api", "/maintenance"];
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -43,6 +51,40 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
+
+  const isMaintenanceBypass = MAINTENANCE_BYPASS_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
+  );
+  if (!isMaintenanceBypass) {
+    // One extra indexed primary-key read on every non-bypass request --
+    // the same lightweight client already built above, no second
+    // connection. Fails open (query error/no row -> not in maintenance)
+    // so a Supabase hiccup can never accidentally take the storefront
+    // down. The more expensive is_admin lookup only runs in the rare
+    // branch where maintenance is actually on.
+    const { data: maintenanceRow } = await supabase
+      .from("store_settings")
+      .select("value")
+      .eq("key", "maintenance.enabled")
+      .maybeSingle();
+    const maintenanceEnabled = maintenanceRow?.value === true;
+
+    if (maintenanceEnabled) {
+      let isAdmin = false;
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .maybeSingle();
+        isAdmin = Boolean(profile?.is_admin);
+      }
+      if (!isAdmin) {
+        return NextResponse.rewrite(new URL("/maintenance", request.url));
+      }
+    }
+  }
+
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`),
   );

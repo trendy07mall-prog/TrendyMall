@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
-import { sendOrderStatusEmail } from "@/lib/email";
+import { sendOrderStatusEmail, sendPaymentReceivedNotification } from "@/lib/email";
+import { getNotificationSettings } from "@/lib/data/settings";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { getWhatsAppUrl } from "@/lib/site";
 import type { OrderFulfillmentStatus, PaymentStatus } from "@/types";
@@ -66,7 +67,7 @@ export async function markOrderPaid(orderId: string): Promise<OrderActionResult>
     .from("orders")
     .update({ payment_status: "paid" })
     .eq("id", orderId)
-    .select("order_number, customer_name, customer_email")
+    .select("order_number, customer_name, customer_email, total")
     .maybeSingle();
 
   if (error) return { error: error.message };
@@ -78,6 +79,16 @@ export async function markOrderPaid(orderId: string): Promise<OrderActionResult>
     customerEmail: order.customer_email,
     label: "Payment Received",
   });
+
+  const notifications = await getNotificationSettings();
+  if (notifications.paymentReceivedEnabled) {
+    await sendPaymentReceivedNotification({
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      paymentMethod: "Cash on Delivery",
+      total: order.total,
+    });
+  }
 
   revalidateOrderPaths(orderId);
   return { success: true };

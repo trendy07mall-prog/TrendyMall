@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
-import { sendPaymentVerifiedEmail } from "@/lib/email";
+import { sendPaymentVerifiedEmail, sendPaymentReceivedNotification } from "@/lib/email";
+import { getNotificationSettings } from "@/lib/data/settings";
 
 export type VerifyPaymentResult = { success: true } | { error: string };
 
@@ -19,7 +20,7 @@ export async function verifyBankTransferPayment(orderId: string): Promise<Verify
     .update({ payment_status: "paid", order_status: "confirmed" })
     .eq("id", orderId)
     .eq("payment_status", "awaiting_verification")
-    .select("order_number, customer_name, customer_email")
+    .select("order_number, customer_name, customer_email, total")
     .maybeSingle();
 
   if (orderError) return { error: orderError.message };
@@ -35,6 +36,16 @@ export async function verifyBankTransferPayment(orderId: string): Promise<Verify
     customerName: order.customer_name,
     customerEmail: order.customer_email,
   });
+
+  const notifications = await getNotificationSettings();
+  if (notifications.paymentReceivedEnabled) {
+    await sendPaymentReceivedNotification({
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      paymentMethod: "Bank Transfer",
+      total: order.total,
+    });
+  }
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);

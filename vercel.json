@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/campaign-ending",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

@@ -124,6 +124,17 @@ export async function saveCampaign(
     }
   }
 
+  // Phase 5: the campaign-ending-soon cron stamps ending_soon_notified_at
+  // once it's emailed the owner about this campaign, so it never re-sends
+  // for the same campaign every day. If this save pushes end_at back out
+  // beyond that 24h window (or removes it entirely), that stamp is stale
+  // -- clear it so the campaign becomes eligible to notify again near its
+  // new end date. Left as `undefined` (omitted from the row entirely,
+  // supabase-js drops undefined keys) when end_at is still within the
+  // window, so a save mid-window can't accidentally erase a stamp the
+  // cron just set.
+  const endAtFarEnough = !endAt || new Date(endAt).getTime() - Date.now() > 24 * 60 * 60 * 1000;
+
   const row = {
     name,
     slug: slugify(slugRaw || name),
@@ -144,6 +155,7 @@ export async function saveCampaign(
     meta_title: String(formData.get("metaTitle") ?? "").trim() || null,
     meta_description: String(formData.get("metaDescription") ?? "").trim() || null,
     og_image_url: String(formData.get("ogImageUrl") ?? "").trim() || null,
+    ending_soon_notified_at: endAtFarEnough ? null : undefined,
     updated_at: new Date().toISOString(),
   };
 

@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { sendOrderConfirmationEmails } from "@/lib/email";
+import { sendOrderConfirmationEmails, sendLowStockNotification } from "@/lib/email";
+import { getNotificationSettings } from "@/lib/data/settings";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 import { isPayHereEnabled, getCheckoutUrl, generateCheckoutHash } from "@/lib/payhere";
@@ -205,6 +206,8 @@ export async function createOrder(
   // the order having already saved. This is exactly the bug this try/catch
   // closes off.
   try {
+    const notifications = await getNotificationSettings();
+
     if (user) {
       const { data: items } = await supabase
         .from("order_items")
@@ -218,25 +221,28 @@ export async function createOrder(
         .maybeSingle();
 
       if (order) {
-        await sendOrderConfirmationEmails({
-          orderNumber: row.order_number,
-          customerName: input.customerName,
-          customerEmail: input.customerEmail,
-          items: (items ?? []).map((item) => ({
-            name: item.product_name,
-            quantity: item.quantity,
-            subtotal: item.subtotal,
-          })),
-          subtotal: order.subtotal,
-          shippingFee: order.shipping_fee,
-          shippingDistrict: input.shippingDistrict,
-          shippingPostalCode: input.shippingPostalCode,
-          deliveryMethod: input.deliveryMethod,
-          paymentMethod: input.paymentMethod,
-          discount: order.discount,
-          couponCode: input.couponCode,
-          total: order.total,
-        });
+        await sendOrderConfirmationEmails(
+          {
+            orderNumber: row.order_number,
+            customerName: input.customerName,
+            customerEmail: input.customerEmail,
+            items: (items ?? []).map((item) => ({
+              name: item.product_name,
+              quantity: item.quantity,
+              subtotal: item.subtotal,
+            })),
+            subtotal: order.subtotal,
+            shippingFee: order.shipping_fee,
+            shippingDistrict: input.shippingDistrict,
+            shippingPostalCode: input.shippingPostalCode,
+            deliveryMethod: input.deliveryMethod,
+            paymentMethod: input.paymentMethod,
+            discount: order.discount,
+            couponCode: input.couponCode,
+            total: order.total,
+          },
+          notifications.newOrderEnabled,
+        );
       }
 
       // Best-effort — "remembers last-used method" (Phase 1's Payment
@@ -252,25 +258,45 @@ export async function createOrder(
       });
       const guestOrder = guestOrderRaw as GuestOrderDetail | null;
       if (guestOrder) {
-        await sendOrderConfirmationEmails({
-          orderNumber: row.order_number,
-          customerName: input.customerName,
-          customerEmail: input.customerEmail,
-          items: guestOrder.items.map((item) => ({
-            name: item.productName,
-            quantity: item.quantity,
-            subtotal: item.subtotal,
-          })),
-          subtotal: guestOrder.subtotal,
-          shippingFee: guestOrder.shippingFee,
-          shippingDistrict: input.shippingDistrict,
-          shippingPostalCode: input.shippingPostalCode,
-          deliveryMethod: input.deliveryMethod,
-          paymentMethod: input.paymentMethod,
-          discount: guestOrder.discount,
-          couponCode: input.couponCode,
-          total: guestOrder.total,
-        });
+        await sendOrderConfirmationEmails(
+          {
+            orderNumber: row.order_number,
+            customerName: input.customerName,
+            customerEmail: input.customerEmail,
+            items: guestOrder.items.map((item) => ({
+              name: item.productName,
+              quantity: item.quantity,
+              subtotal: item.subtotal,
+            })),
+            subtotal: guestOrder.subtotal,
+            shippingFee: guestOrder.shippingFee,
+            shippingDistrict: input.shippingDistrict,
+            shippingPostalCode: input.shippingPostalCode,
+            deliveryMethod: input.deliveryMethod,
+            paymentMethod: input.paymentMethod,
+            discount: guestOrder.discount,
+            couponCode: input.couponCode,
+            total: guestOrder.total,
+          },
+          notifications.newOrderEnabled,
+        );
+      }
+    }
+
+    // Low stock (Phase 5) -- re-checks only the products this order just
+    // touched, after create_order_atomic has already reduced their stock.
+    // Same threshold (<5) as the admin dashboard's existing passive
+    // "Inventory Alerts" list (lib/admin/dashboard-query.ts) -- one source
+    // of truth for what "low" means, not a second number to keep in sync.
+    if (notifications.lowStockEnabled) {
+      const productIds = [...new Set(input.items.map((item) => item.productId))];
+      const { data: lowStockProducts } = await supabase
+        .from("products")
+        .select("name, stock")
+        .in("id", productIds)
+        .lt("stock", 5);
+      if (lowStockProducts && lowStockProducts.length > 0) {
+        await sendLowStockNotification(lowStockProducts);
       }
     }
   } catch (sideEffectError) {

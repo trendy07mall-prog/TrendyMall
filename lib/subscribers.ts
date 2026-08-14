@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { sendNewSubscriberNotification } from "@/lib/email";
+import { getNotificationSettings } from "@/lib/data/settings";
 
 export interface SubscribeResult {
   ok?: boolean;
@@ -22,6 +24,16 @@ export async function subscribe(email: string): Promise<SubscribeResult> {
       return { ok: true, alreadySubscribed: true };
     }
     return { error: "Could not subscribe. Please try again." };
+  }
+
+  // Best-effort, never blocks the subscription itself.
+  try {
+    const notifications = await getNotificationSettings();
+    if (notifications.newSubscriberEnabled) {
+      await sendNewSubscriberNotification({ email: trimmed });
+    }
+  } catch (notifyError) {
+    console.error("subscribe: owner notification failed (subscription itself already saved)", notifyError);
   }
 
   return { ok: true };

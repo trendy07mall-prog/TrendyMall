@@ -125,7 +125,11 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean, zones: De
 // this, a bounced/rejected customer send is otherwise indistinguishable
 // from a working admin send from the outside — exactly what let the
 // customer-email-never-arrives bug go unnoticed.
-export async function sendOrderConfirmationEmails(order: OrderEmailData): Promise<void> {
+//
+// `notifyOwner` (Phase 5) gates only the owner's copy — the customer's
+// confirmation email always sends regardless, exactly as before this
+// parameter existed.
+export async function sendOrderConfirmationEmails(order: OrderEmailData, notifyOwner: boolean): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !fromEmail) return;
@@ -133,14 +137,7 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
   try {
     const zones = await getActiveDeliveryZones();
     const resend = new Resend(apiKey);
-    const results = await Promise.allSettled([
-      resend.emails.send({
-        from: fromHeader(fromEmail),
-        to: OWNER_EMAIL,
-        replyTo: OWNER_EMAIL,
-        subject: `New order ${order.orderNumber}`,
-        html: buildOrderEmailHtml(order, true, zones),
-      }),
+    const sends: Promise<Awaited<ReturnType<typeof resend.emails.send>>>[] = [
       resend.emails.send({
         from: fromHeader(fromEmail),
         to: order.customerEmail,
@@ -148,8 +145,21 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
         subject: `Your TrendyMall order ${order.orderNumber}`,
         html: buildOrderEmailHtml(order, false, zones),
       }),
-    ]);
-    const recipients = [OWNER_EMAIL, order.customerEmail];
+    ];
+    const recipients = [order.customerEmail];
+    if (notifyOwner) {
+      sends.push(
+        resend.emails.send({
+          from: fromHeader(fromEmail),
+          to: OWNER_EMAIL,
+          replyTo: OWNER_EMAIL,
+          subject: `New order ${order.orderNumber}`,
+          html: buildOrderEmailHtml(order, true, zones),
+        }),
+      );
+      recipients.push(OWNER_EMAIL);
+    }
+    const results = await Promise.allSettled(sends);
     results.forEach((result, i) => {
       if (result.status === "rejected") {
         console.error(`sendOrderConfirmationEmails: send to ${recipients[i]} failed`, result.reason);
@@ -288,5 +298,172 @@ export async function sendOrderStatusEmail(order: {
   } catch (error) {
     // Sending is best-effort — the status change already succeeded.
     console.error("sendOrderStatusEmail failed", error);
+  }
+}
+
+// Phase 5 owner notifications below — all four follow the exact same
+// shape as every send above: best-effort, never throws, silently no-ops
+// if Resend isn't configured, always `to: OWNER_EMAIL`. Each caller is
+// responsible for checking its own NotificationSettings toggle before
+// calling — these functions themselves don't read Settings, so they stay
+// pure send-if-called, same as sendOrderStatusEmail etc.
+
+export async function sendNewReviewNotification(review: {
+  productName: string;
+  reviewerEmail: string;
+  rating: number;
+  title: string | null;
+  comment: string | null;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo: OWNER_EMAIL,
+      subject: `New review — ${review.productName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>New review on ${review.productName}</h2>
+          <p><strong>${review.reviewerEmail}</strong> rated it ${review.rating}/5.</p>
+          ${review.title ? `<p><strong>${review.title}</strong></p>` : ""}
+          ${review.comment ? `<p>${review.comment}</p>` : ""}
+        </div>
+      `,
+    });
+    if (error) console.error("sendNewReviewNotification: rejected by Resend", error);
+  } catch (error) {
+    console.error("sendNewReviewNotification failed", error);
+  }
+}
+
+export async function sendNewSubscriberNotification(subscriber: { email: string }): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo: OWNER_EMAIL,
+      subject: "New newsletter subscriber",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>New subscriber</h2>
+          <p>${subscriber.email}</p>
+        </div>
+      `,
+    });
+    if (error) console.error("sendNewSubscriberNotification: rejected by Resend", error);
+  } catch (error) {
+    console.error("sendNewSubscriberNotification failed", error);
+  }
+}
+
+// One email per triggering order, not per product -- an order that drops
+// several items below the threshold at once shouldn't fragment into
+// several near-identical emails.
+export async function sendLowStockNotification(products: { name: string; stock: number }[]): Promise<void> {
+  if (products.length === 0) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const rows = products
+      .map((p) => `<li>${p.name} — ${p.stock} left</li>`)
+      .join("");
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo: OWNER_EMAIL,
+      subject: products.length === 1 ? `Low stock — ${products[0].name}` : `Low stock — ${products.length} products`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>Running low</h2>
+          <ul>${rows}</ul>
+        </div>
+      `,
+    });
+    if (error) console.error("sendLowStockNotification: rejected by Resend", error);
+  } catch (error) {
+    console.error("sendLowStockNotification failed", error);
+  }
+}
+
+export async function sendPaymentReceivedNotification(order: {
+  orderNumber: string;
+  customerName: string;
+  paymentMethod: string;
+  total: number;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo: OWNER_EMAIL,
+      subject: `Payment received — order ${order.orderNumber}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>Payment received</h2>
+          <p>Order ${order.orderNumber} (${order.customerName}) — ${formatPrice(order.total)} via ${order.paymentMethod}.</p>
+        </div>
+      `,
+    });
+    if (error) console.error("sendPaymentReceivedNotification: rejected by Resend", error);
+  } catch (error) {
+    console.error("sendPaymentReceivedNotification failed", error);
+  }
+}
+
+// One digest email listing every campaign ending within the cron's
+// window, not one email per campaign -- avoids inbox spam when several
+// campaigns happen to end around the same time.
+export async function sendCampaignEndingDigest(
+  campaigns: { name: string; endAt: string }[],
+): Promise<void> {
+  if (campaigns.length === 0) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !fromEmail) return;
+
+  try {
+    const resend = new Resend(apiKey);
+    const rows = campaigns
+      .map((c) => `<li>${c.name} — ends ${new Date(c.endAt).toLocaleString("en-LK", { timeZone: "Asia/Colombo" })}</li>`)
+      .join("");
+    const { error } = await resend.emails.send({
+      from: fromHeader(fromEmail),
+      to: OWNER_EMAIL,
+      replyTo: OWNER_EMAIL,
+      subject:
+        campaigns.length === 1 ? `Campaign ending soon — ${campaigns[0].name}` : `${campaigns.length} campaigns ending soon`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #111;">
+          ${EMAIL_LOGO_HTML}
+          <h2>Ending within 24 hours</h2>
+          <ul>${rows}</ul>
+        </div>
+      `,
+    });
+    if (error) console.error("sendCampaignEndingDigest: rejected by Resend", error);
+  } catch (error) {
+    console.error("sendCampaignEndingDigest failed", error);
   }
 }

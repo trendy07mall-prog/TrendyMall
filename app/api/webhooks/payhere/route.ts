@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyNotifySignature, isPayHereEnabled, PAYHERE_STATUS } from "@/lib/payhere";
-import { sendPaymentVerifiedEmail } from "@/lib/email";
+import { sendPaymentVerifiedEmail, sendPaymentReceivedNotification } from "@/lib/email";
+import { getNotificationSettings } from "@/lib/data/settings";
 
 // PayHere's notify_url — the reliable server-to-server payment
 // confirmation (never the customer's browser return_url). No user
@@ -97,6 +98,16 @@ export async function POST(request: Request) {
       customerName: order.customer_name,
       customerEmail: order.customer_email,
     });
+
+    const notifications = await getNotificationSettings();
+    if (notifications.paymentReceivedEnabled) {
+      await sendPaymentReceivedNotification({
+        orderNumber: order.order_number,
+        customerName: order.customer_name,
+        paymentMethod: "Card (PayHere)",
+        total: order.total,
+      });
+    }
   } else if (
     payload.status_code === PAYHERE_STATUS.CANCELLED ||
     payload.status_code === PAYHERE_STATUS.FAILED

@@ -1,3 +1,9 @@
+// "use server" (Phase 3) -- app/cart/page.tsx is a "use client" component
+// that needs getShippingSettings() directly (the free-shipping-threshold
+// estimate), the same way it already calls lib/cart-validation.ts's
+// Server Actions. Every existing Server Component caller from Phases 1-2
+// is unaffected -- calling a "use server" function directly from another
+// server-side function works exactly the same as before.
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
@@ -115,6 +121,23 @@ export interface SocialSettings {
   tiktokUrl: string;
   youtubeUrl: string;
   twitterUrl: string;
+}
+
+// Every toggle gates only the STORE OWNER'S copy of a notification --
+// customer-facing emails (order confirmation, payment verified, status
+// updates) are never affected by any of these, on or off.
+export interface NotificationSettings {
+  newOrderEnabled: boolean;
+  newReviewEnabled: boolean;
+  newSubscriberEnabled: boolean;
+  lowStockEnabled: boolean;
+  paymentReceivedEnabled: boolean;
+  campaignEndingEnabled: boolean;
+}
+
+export interface MaintenanceSettings {
+  enabled: boolean;
+  message: string;
 }
 
 // Hardcoded fallbacks -- the exact values every one of these fields
@@ -312,6 +335,26 @@ const SOCIAL_FALLBACK: SocialSettings = {
   twitterUrl: "",
 };
 
+// All six default on -- New Order already fires unconditionally today
+// (this just makes it toggleable without changing behavior), and for the
+// five genuinely new ones, the friendlier default is "tell the owner" --
+// an unwanted email costs nothing, a silently-missed low-stock or payment
+// alert is the worse failure mode.
+const NOTIFICATIONS_FALLBACK: NotificationSettings = {
+  newOrderEnabled: true,
+  newReviewEnabled: true,
+  newSubscriberEnabled: true,
+  lowStockEnabled: true,
+  paymentReceivedEnabled: true,
+  campaignEndingEnabled: true,
+};
+
+const MAINTENANCE_FALLBACK: MaintenanceSettings = {
+  enabled: false,
+  message:
+    "We're currently performing scheduled maintenance. We'll be back shortly — thanks for your patience.",
+};
+
 async function getGroupValues(group: string): Promise<Map<string, unknown>> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -457,6 +500,35 @@ export async function getSocialSettings(): Promise<SocialSettings> {
     tiktokUrl: (values.get("social.tiktok_url") as string) ?? SOCIAL_FALLBACK.tiktokUrl,
     youtubeUrl: (values.get("social.youtube_url") as string) ?? SOCIAL_FALLBACK.youtubeUrl,
     twitterUrl: (values.get("social.twitter_url") as string) ?? SOCIAL_FALLBACK.twitterUrl,
+  };
+}
+
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const values = await getGroupValues("notifications");
+  return {
+    newOrderEnabled:
+      (values.get("notifications.new_order_enabled") as boolean) ?? NOTIFICATIONS_FALLBACK.newOrderEnabled,
+    newReviewEnabled:
+      (values.get("notifications.new_review_enabled") as boolean) ?? NOTIFICATIONS_FALLBACK.newReviewEnabled,
+    newSubscriberEnabled:
+      (values.get("notifications.new_subscriber_enabled") as boolean) ??
+      NOTIFICATIONS_FALLBACK.newSubscriberEnabled,
+    lowStockEnabled:
+      (values.get("notifications.low_stock_enabled") as boolean) ?? NOTIFICATIONS_FALLBACK.lowStockEnabled,
+    paymentReceivedEnabled:
+      (values.get("notifications.payment_received_enabled") as boolean) ??
+      NOTIFICATIONS_FALLBACK.paymentReceivedEnabled,
+    campaignEndingEnabled:
+      (values.get("notifications.campaign_ending_enabled") as boolean) ??
+      NOTIFICATIONS_FALLBACK.campaignEndingEnabled,
+  };
+}
+
+export async function getMaintenanceSettings(): Promise<MaintenanceSettings> {
+  const values = await getGroupValues("maintenance");
+  return {
+    enabled: (values.get("maintenance.enabled") as boolean) ?? MAINTENANCE_FALLBACK.enabled,
+    message: (values.get("maintenance.message") as string) ?? MAINTENANCE_FALLBACK.message,
   };
 }
 
