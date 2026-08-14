@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // TEMPORARY (added 2026-08-14): Vercel's Image Transformations quota for
+    // Aug 2026 was exceeded (5,074/5,000 on the Hobby plan), which was
+    // breaking every next/image render in production. This disables
+    // on-the-fly optimization entirely (images serve as their original
+    // files -- no resizing/format conversion, so no quota cost) until the
+    // quota resets. Revert on/after 2026-09-06 by deleting this line --
+    // see SETUP.md's "Known temporary workarounds" section.
+    unoptimized: true,
     // HeroSlider requests quality={88}; Next 16 rejects any quality not
     // explicitly listed here (75 is the implicit default used everywhere
     // else via next/image's defaults).

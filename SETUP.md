@@ -3,6 +3,19 @@
 Everything you need to do manually to get TrendyMall running locally and in
 production. Follow the sections in order the first time.
 
+## Known temporary workarounds
+
+- **`images.unoptimized = true` (`next.config.ts`)** — set to `true` on
+  **2026-08-14** as a temporary fix for the Aug 2026 Image Transformations
+  quota (5,074/5,000 on Vercel's Hobby plan), which was breaking every
+  `next/image` render in production. This disables Vercel's on-the-fly
+  image resizing/format-conversion, so images serve as their original
+  files (larger, unoptimized, but free — zero Image Transformations used).
+  **Revert to normal Vercel image optimization on or after September 6,
+  2026**, once the monthly quota resets: delete the `unoptimized: true`
+  line (and its comment) from the `images: {}` block in `next.config.ts`,
+  commit, and push.
+
 ## 1. Create your Supabase project
 
 1. Go to [supabase.com](https://supabase.com), sign in, and click **New project**.
