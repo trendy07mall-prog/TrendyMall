@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
 };
 
+// Text-search queries against `general.address` ("Salawatta Road,
+// Wellampitiya, Sri Lanka") were resolving to Sedawatta -- a different,
+// phonetically similar Colombo-area suburb -- rather than our actual
+// location. Coordinates instead of free text remove that ambiguity
+// entirely. Confirmed against https://www.google.com/maps/place/Salawatta+Rd/@6.9355634,79.8914375
+const MAP_COORDINATES = "6.9355634,79.8963084";
+
 function InfoCard({
   href,
   icon: Icon,
@@ -64,7 +71,7 @@ export default async function ContactPage() {
   const phoneHref = `tel:${general.phone}`;
   const phoneDisplay = general.phone.replace(/^\+94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
   const emailHref = `mailto:${general.email}`;
-  const mapsHref = `https://www.google.com/maps?q=${encodeURIComponent(general.address)}`;
+  const mapsHref = `https://www.google.com/maps?q=${MAP_COORDINATES}`;
   const mapsEmbedSrc = `${mapsHref}&output=embed`;
 
   return (
