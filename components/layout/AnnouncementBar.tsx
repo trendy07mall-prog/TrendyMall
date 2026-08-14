@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { CloseIcon, TruckIcon, CashIcon, WhatsAppIcon } from "@/components/ui/Icon";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
+import { formatPrice } from "@/lib/utils";
+import type { AnnouncementMessage } from "@/lib/data/settings";
 
 const STORAGE_KEY = "trendymall-announcement-dismissed";
-const ROTATE_MS = 4000;
+
+const ICONS: Record<string, (props: { className?: string }) => React.ReactElement> = {
+  truck: TruckIcon,
+  cash: CashIcon,
+  whatsapp: WhatsAppIcon,
+};
 
 // This bar is the only thing on the storefront matching app/manifest.ts's
 // theme_color (#111111) -- mobile browsers use that as a fallback chrome
@@ -26,26 +34,32 @@ function syncThemeColor(dismissed: boolean) {
   meta.setAttribute("content", content);
 }
 
-const MESSAGES = [
-  { icon: TruckIcon, text: "Colombo 1–15: Rs.255" },
-  { icon: TruckIcon, text: "Outside Colombo: Rs.400" },
-  { icon: CashIcon, text: "Cash on Delivery" },
-  {
-    icon: WhatsAppIcon,
-    text: "Need Help? WhatsApp Us",
-    href: "https://wa.me/94775312484",
-  },
-] as const;
+// Delivery-rate entries always render the REAL rate from
+// lib/delivery-fee.ts and the WhatsApp entry always uses the real settings
+// number -- an admin can choose that a slot shows one of these, but can
+// never free-type the rate/number itself (Settings > Announcement).
+function resolveMessage(message: AnnouncementMessage, whatsappNumber: string) {
+  if (message.kind === "delivery_in_zone") {
+    return { text: `Colombo 1–15: ${formatPrice(RATE_IN_ZONE)}`, href: undefined };
+  }
+  if (message.kind === "delivery_outside_zone") {
+    return { text: `Outside Colombo: ${formatPrice(RATE_OUTSIDE_ZONE)}`, href: undefined };
+  }
+  if (message.kind === "whatsapp") {
+    return { text: message.text ?? "Need Help? WhatsApp Us", href: `https://wa.me/${whatsappNumber}` };
+  }
+  return { text: message.text ?? "", href: message.href };
+}
 
-function MessageContent({ item }: { item: (typeof MESSAGES)[number] }) {
-  const Icon = item.icon;
+function MessageContent({ item }: { item: { icon: string; text: string; href?: string } }) {
+  const Icon = ICONS[item.icon] ?? TruckIcon;
   const inner = (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
       <Icon className="h-3.5 w-3.5 shrink-0" />
       {item.text}
     </span>
   );
-  if ("href" in item && item.href) {
+  if (item.href) {
     return (
       <a href={item.href} target="_blank" rel="noopener noreferrer" className="hover:underline">
         {inner}
@@ -55,11 +69,28 @@ function MessageContent({ item }: { item: (typeof MESSAGES)[number] }) {
   return inner;
 }
 
-export function AnnouncementBar() {
+export function AnnouncementBar({
+  enabled,
+  messages,
+  autoRotate,
+  rotateSpeedMs,
+  whatsappNumber,
+}: {
+  enabled: boolean;
+  messages: AnnouncementMessage[];
+  autoRotate: boolean;
+  rotateSpeedMs: number;
+  whatsappNumber: string;
+}) {
   const [hydrated, setHydrated] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const resolved = messages.map((message) => ({
+    icon: message.icon ?? "truck",
+    ...resolveMessage(message, whatsappNumber),
+  }));
 
   useEffect(() => {
     let isDismissed = false;
@@ -70,8 +101,9 @@ export function AnnouncementBar() {
     } catch {
       // ignore
     }
-    syncThemeColor(isDismissed);
+    syncThemeColor(isDismissed && enabled);
     setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -86,31 +118,29 @@ export function AnnouncementBar() {
   }, []);
 
   useEffect(() => {
+    if (!autoRotate || resolved.length <= 1) return;
     const id = setInterval(() => {
-      setActiveIndex((i) => (i + 1) % MESSAGES.length);
-    }, ROTATE_MS);
+      setActiveIndex((i) => (i + 1) % resolved.length);
+    }, rotateSpeedMs);
     return () => clearInterval(id);
-  }, []);
+  }, [autoRotate, rotateSpeedMs, resolved.length]);
 
-  if (!hydrated || dismissed) return null;
+  if (!enabled || resolved.length === 0 || !hydrated || dismissed) return null;
 
   return (
     <div className="relative z-[var(--z-announcement)] flex items-center justify-center gap-4 bg-[var(--foreground)] px-10 py-2 text-xs text-white sm:text-sm print:hidden">
       <div className="hidden flex-wrap items-center justify-center gap-x-4 gap-y-1 sm:flex">
-        {MESSAGES.map((item, index) => (
-          <span
-            key={item.text}
-            className={index === 0 ? "" : "border-l border-white/20 pl-4"}
-          >
+        {resolved.map((item, index) => (
+          <span key={index} className={index === 0 ? "" : "border-l border-white/20 pl-4"}>
             <MessageContent item={item} />
           </span>
         ))}
       </div>
 
       <div className="relative h-4 w-full sm:hidden">
-        {MESSAGES.map((item, index) => (
+        {resolved.map((item, index) => (
           <span
-            key={item.text}
+            key={index}
             aria-hidden={index !== activeIndex}
             className={`transition-brand absolute inset-0 flex items-center justify-center ${
               index === activeIndex ? "opacity-100" : "pointer-events-none opacity-0"

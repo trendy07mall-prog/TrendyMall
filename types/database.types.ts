@@ -912,6 +912,84 @@ export interface Database {
         };
         Relationships: [];
       };
+      store_settings: {
+        Row: {
+          key: string;
+          value: unknown;
+          type: string;
+          group_name: string;
+          description: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          key: string;
+          value: unknown;
+          type: string;
+          group_name: string;
+          description?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          key?: string;
+          value?: unknown;
+          type?: string;
+          group_name?: string;
+          description?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      hero_slides: {
+        Row: {
+          id: string;
+          title: string;
+          subtitle: string | null;
+          button_text: string | null;
+          button_link: string | null;
+          desktop_image_url: string;
+          mobile_image_url: string;
+          status: string;
+          sort_order: number;
+          start_at: string | null;
+          end_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          subtitle?: string | null;
+          button_text?: string | null;
+          button_link?: string | null;
+          desktop_image_url: string;
+          mobile_image_url: string;
+          status?: string;
+          sort_order?: number;
+          start_at?: string | null;
+          end_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          subtitle?: string | null;
+          button_text?: string | null;
+          button_link?: string | null;
+          desktop_image_url?: string;
+          mobile_image_url?: string;
+          status?: string;
+          sort_order?: number;
+          start_at?: string | null;
+          end_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       reviews: {
         Row: {
           id: string;

@@ -2,7 +2,16 @@
 
 import { requireAdminClient } from "@/lib/admin/guard";
 
-const ALLOWED_PREFIXES = ["categories", "brands", "products", "variants", "editor", "campaigns"] as const;
+const ALLOWED_PREFIXES = [
+  "categories",
+  "brands",
+  "products",
+  "variants",
+  "editor",
+  "campaigns",
+  "settings",
+  "hero",
+] as const;
 type UploadPrefix = (typeof ALLOWED_PREFIXES)[number];
 
 // Same constants as lib/uploadPaymentSlip.ts -- checked here too, on top of

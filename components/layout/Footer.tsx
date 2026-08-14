@@ -2,6 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
+import { getBrandingSettings, getGeneralSettings } from "@/lib/data/settings";
+import { getWhatsAppUrl } from "@/lib/site";
+import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { BankIcon, CashIcon, CreditCardIcon, FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
 
 const COMPANY_LINKS = [
@@ -20,6 +23,10 @@ export async function Footer() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const [branding, general] = await Promise.all([getBrandingSettings(), getGeneralSettings()]);
+  const whatsappUrl = getWhatsAppUrl(undefined, general.whatsappNumber);
+  const whatsappDisplay = general.whatsappNumber.replace(/^94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+  const phoneDisplay = general.phone.replace(/^\+94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
 
   return (
     <footer className="border-t border-[var(--border)] bg-white print:hidden">
@@ -33,16 +40,13 @@ export async function Footer() {
                 to go through Next's Image Optimization pipeline for a
                 fixed-size decorative logo rendered on every page. */}
             <Image
-              src="/images/logo/trendymall-logo.png"
-              alt="TrendyMall"
+              src={branding.logoDesktopUrl}
+              alt={general.storeName}
               width={67}
               height={40}
               unoptimized
             />
-            <p className="mt-3 text-sm text-[var(--muted)]">
-              Sri Lanka&apos;s trusted destination for premium mobile phone
-              accessories.
-            </p>
+            <p className="mt-3 text-sm text-[var(--muted)]">{general.tagline}</p>
           </div>
 
           <div>
@@ -63,29 +67,26 @@ export async function Footer() {
             <ul className="mt-3 flex flex-col gap-2 text-sm text-[var(--muted)]">
               <li>
                 <a
-                  href="https://wa.me/94775312484"
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-[var(--foreground)]"
                 >
-                  WhatsApp: 077 531 2484
+                  WhatsApp: {whatsappDisplay}
                 </a>
               </li>
               <li>
-                <a href="tel:+94750187145" className="hover:text-[var(--foreground)]">
-                  Phone: 075 018 7145
+                <a href={`tel:${general.phone}`} className="hover:text-[var(--foreground)]">
+                  Phone: {phoneDisplay}
                 </a>
               </li>
               <li>
-                <a
-                  href="mailto:trendy07mall@gmail.com"
-                  className="hover:text-[var(--foreground)]"
-                >
-                  trendy07mall@gmail.com
+                <a href={`mailto:${general.email}`} className="hover:text-[var(--foreground)]">
+                  {general.email}
                 </a>
               </li>
-              <li>Salawatta Road, Wellampitiya, Sri Lanka</li>
-              <li>Open daily 10am – 4pm</li>
+              <li>{general.address}</li>
+              <li>{formatBusinessHoursSummary(general.businessHours)}</li>
             </ul>
 
             <div className="mt-4 flex items-center gap-3">
@@ -124,7 +125,7 @@ export async function Footer() {
 
         <div className="mt-12 flex flex-col gap-4 border-t border-[var(--border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-[var(--muted)]">
-            © {new Date().getFullYear()} TrendyMall. All rights reserved.
+            © {new Date().getFullYear()} {general.storeName}. All rights reserved.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
+import { getBrandingSettings } from "@/lib/data/settings";
 import { NavbarClient } from "@/components/layout/NavbarClient";
 
 export async function Navbar() {
@@ -7,6 +8,7 @@ export async function Navbar() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const branding = await getBrandingSettings();
 
   let isAdmin = false;
   if (user) {
@@ -22,5 +24,12 @@ export async function Navbar() {
   // list, not a nested flyout, so a deeply-nested tree would just clutter it.
   const categories = await getCategories({ depth: 0 });
 
-  return <NavbarClient user={user} isAdmin={isAdmin} categories={categories} />;
+  return (
+    <NavbarClient
+      user={user}
+      isAdmin={isAdmin}
+      categories={categories}
+      logoUrl={branding.logoDesktopUrl}
+    />
+  );
 }

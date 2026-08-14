@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ToastProvider } from "@/components/admin/ToastProvider";
 import { getSidebarBadges } from "@/lib/admin/sidebar-badges";
+import { getBrandingSettings } from "@/lib/data/settings";
 
 // Overrides the root's theme-color (app/manifest.ts sets #111111, matching
 // the storefront's black AnnouncementBar so mobile browser chrome blends
@@ -38,11 +39,12 @@ export default async function AdminLayout({
   // Fetched only after the auth/is_admin guard above -- three cheap
   // head-count queries, real data only (see lib/admin/sidebar-badges.ts).
   const badges = await getSidebarBadges();
+  const branding = await getBrandingSettings();
 
   return (
     <ToastProvider>
       <div className="flex min-h-full flex-1 flex-col lg:flex-row">
-        <AdminSidebar badges={badges} />
+        <AdminSidebar badges={badges} adminLogoUrl={branding.adminLogoUrl} />
         <div className="mx-auto w-full min-w-0 max-w-[var(--container-width)] flex-1 px-6 py-8">
           {children}
         </div>

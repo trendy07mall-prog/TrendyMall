@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
 import { getHomepageCampaigns, getCampaignSections } from "@/lib/data/campaigns";
+import { getGeneralSettings } from "@/lib/data/settings";
+import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
@@ -50,12 +52,14 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const [categories, newArrivals, homepageCampaigns, { data: { user } }] = await Promise.all([
+  const [categories, newArrivals, homepageCampaigns, general, { data: { user } }] = await Promise.all([
     getCategories({ depth: 0 }),
     getNewArrivals(10),
     getHomepageCampaigns(),
+    getGeneralSettings(),
     supabase.auth.getUser(),
   ]);
+  const businessHoursSummary = `WhatsApp or call us, ${formatBusinessHoursSummary(general.businessHours).replace("Daily,", "daily")}.`;
 
   // One batched campaign_items query (getCampaignSections) plus one batched
   // getProductsByIds call for the union of every campaign's product ids --
@@ -123,7 +127,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <WhyShopWithUs />
+      <WhyShopWithUs businessHoursSummary={businessHoursSummary} />
 
       <CustomerReviews />
 

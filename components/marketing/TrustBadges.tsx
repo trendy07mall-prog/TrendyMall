@@ -39,10 +39,17 @@ export function TrustBadges({
   compact = false,
   codAvailable,
   warrantyAvailable,
+  businessHoursSummary = "Fast Support Daily 10am–4pm",
 }: {
   compact?: boolean;
   codAvailable?: boolean;
   warrantyAvailable?: boolean;
+  // Settings-backed (general.business_hours), defaulting to today's live
+  // text. Not yet threaded through the PDP's ProductPurchaseSection ->
+  // ProductPage prop chain in Phase 1 (deliberately deferred, low-risk to
+  // add later) -- this component is ready to receive the real value
+  // whenever that's wired.
+  businessHoursSummary?: string;
 }) {
   if (compact) {
     // A PDP-specific badge list -- distinct from FEATURES above (which
@@ -54,7 +61,7 @@ export function TrustBadges({
       { icon: "🔒", title: "Secure Checkout — Your data is encrypted" },
       ...(codAvailable ? [{ icon: "💰", title: "Cash on Delivery" }] : []),
       ...(warrantyAvailable ? [{ icon: "🛡️", title: "Warranty Included" }] : []),
-      { icon: "💬", title: "Fast Support Daily 10am–4pm" },
+      { icon: "💬", title: businessHoursSummary },
     ];
     return (
       <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-[var(--muted)]">

@@ -17,6 +17,13 @@ export interface Slide {
   // images (e.g. campaign banners) has no equivalent pre-generated
   // placeholder, so placeholder="blur" is only applied when this is set.
   blurDataURL?: string;
+  // Optional text overlay (heading is `alt`) -- only rendered when
+  // `subtitle` or `buttonText` is set, so a slide with neither (every
+  // slide today) looks exactly like a plain image, unchanged. The button
+  // is a styled span, not a real nested <a> -- it shares the slide's own
+  // `href` as its destination, avoiding invalid nested-anchor markup.
+  subtitle?: string;
+  buttonText?: string;
 }
 
 // Fade-only per this project's hero spec — no zoom, scale, parallax, or
@@ -42,6 +49,9 @@ export function SlideCarousel({
   imageSizes,
   slideDuration = DEFAULT_SLIDE_DURATION,
   transitionDuration = DEFAULT_TRANSITION_DURATION,
+  autoplay = true,
+  showArrows = true,
+  showDots = true,
 }: {
   slides: Slide[];
   wrapperClassName: string;
@@ -49,6 +59,14 @@ export function SlideCarousel({
   imageSizes: string;
   slideDuration?: number;
   transitionDuration?: number;
+  // Settings-backed (homepage.hero_autoplay/hero_show_arrows/hero_show_dots)
+  // — all default to today's live behavior (unconditionally on). autoplay
+  // composes with, never overrides, the existing reduced-motion gate below.
+  // showArrows/showDots AND with the existing `isCarousel` check, so a
+  // single slide still never shows controls regardless of these.
+  autoplay?: boolean;
+  showArrows?: boolean;
+  showDots?: boolean;
 }) {
   const [active, setActive] = useState(0);
   const [hovering, setHovering] = useState(false);
@@ -98,12 +116,12 @@ export function SlideCarousel({
   // which is exactly "reset the countdown on manual interaction" with no
   // separate tracking needed.
   useEffect(() => {
-    if (!isCarousel || paused || reducedMotion) return;
+    if (!isCarousel || !autoplay || paused || reducedMotion) return;
     const id = setInterval(() => {
       goTo(active + 1);
     }, slideDuration);
     return () => clearInterval(id);
-  }, [active, paused, reducedMotion, goTo, isCarousel, slideDuration]);
+  }, [active, paused, reducedMotion, goTo, isCarousel, slideDuration, autoplay]);
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -201,6 +219,19 @@ export function SlideCarousel({
               sizes={imageSizes}
               className="object-cover object-center"
             />
+            {(slide.subtitle || slide.buttonText) && (
+              <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-6 py-6 sm:px-10 sm:py-10">
+                <p className="max-w-lg text-lg font-bold text-white drop-shadow-sm sm:text-2xl">{slide.alt}</p>
+                {slide.subtitle && (
+                  <p className="max-w-md text-sm text-white/90 drop-shadow-sm sm:text-base">{slide.subtitle}</p>
+                )}
+                {slide.buttonText && (
+                  <span className="mt-1 inline-flex items-center rounded-full bg-white px-5 py-2 text-sm font-semibold text-black">
+                    {slide.buttonText}
+                  </span>
+                )}
+              </div>
+            )}
           </motion.div>
         );
 
@@ -228,7 +259,7 @@ export function SlideCarousel({
         );
       })}
 
-      {isCarousel && (
+      {isCarousel && showArrows && (
         <>
           <button
             type="button"
@@ -246,8 +277,11 @@ export function SlideCarousel({
           >
             <ChevronRightIcon className="h-[18px] w-[18px] sm:h-5 sm:w-5 lg:h-[22px] lg:w-[22px]" />
           </button>
+        </>
+      )}
 
-          <div className="absolute bottom-0 left-1/2 flex h-11 -translate-x-1/2 items-center gap-1">
+      {isCarousel && showDots && (
+        <div className="absolute bottom-0 left-1/2 flex h-11 -translate-x-1/2 items-center gap-1">
             {slides.map((slide, index) => (
               // The visible pill stays small (h-2) — the button itself is a
               // full 44px touch target (this project's mobile touch-target
@@ -286,8 +320,7 @@ export function SlideCarousel({
               </button>
             ))}
           </div>
-        </>
-      )}
+        )}
     </section>
   );
 }

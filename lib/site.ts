@@ -10,15 +10,14 @@ export const SITE_URL =
     ? "https://www.trendymall.online"
     : "http://localhost:3000");
 
-// The store's WhatsApp number (already used, as the same literal, by
-// components/layout/WhatsAppButton.tsx and components/product/
-// WhatsAppOrderButton.tsx — exported here too since a checkout-failure
-// contact link needed a third copy and duplicating the literal a third
-// time wasn't worth it).
+// Fallback only -- the real number now lives in Settings
+// (general.whatsapp_number, see lib/data/settings.ts). Server components
+// that already fetch settings should pass that value as `number` below;
+// this constant only matters for the few call sites that don't (yet).
 export const WHATSAPP_NUMBER = "94775312484";
 
-export function getWhatsAppUrl(message?: string): string {
+export function getWhatsAppUrl(message?: string, number: string = WHATSAPP_NUMBER): string {
   return message
-    ? `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
-    : `https://wa.me/${WHATSAPP_NUMBER}`;
+    ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
+    : `https://wa.me/${number}`;
 }

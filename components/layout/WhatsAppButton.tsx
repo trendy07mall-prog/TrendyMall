@@ -4,15 +4,28 @@ import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { WhatsAppIcon } from "@/components/ui/Icon";
 
-const WHATSAPP_URL = "https://wa.me/94775312484";
-
-export function WhatsAppButton() {
+export function WhatsAppButton({
+  enabled = true,
+  number = "94775312484",
+  defaultMessage,
+}: {
+  // Settings-backed (contact.whatsapp_enabled / general.whatsapp_number /
+  // contact.whatsapp_default_message) — defaults match today's live values
+  // so this renders identically if Settings has nothing.
+  enabled?: boolean;
+  number?: string;
+  defaultMessage?: string;
+}) {
   // Nothing should compete with the primary CTA on checkout — every
   // checkout error state already has its own "Message us on WhatsApp"
   // link, so the FAB adds no value there and only risks covering the
   // Place Order button. Every other storefront page keeps it.
   const pathname = usePathname();
-  if (pathname?.startsWith("/checkout")) return null;
+  if (!enabled || pathname?.startsWith("/checkout")) return null;
+
+  const whatsappUrl = defaultMessage
+    ? `https://wa.me/${number}?text=${encodeURIComponent(defaultMessage)}`
+    : `https://wa.me/${number}`;
 
   return (
     <div
@@ -39,7 +52,7 @@ export function WhatsAppButton() {
         Chat with us on WhatsApp
       </span>
       <motion.a
-        href={WHATSAPP_URL}
+        href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Chat on WhatsApp"

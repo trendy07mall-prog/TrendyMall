@@ -58,10 +58,17 @@ export function NavbarClient({
   user,
   isAdmin,
   categories,
+  logoUrl = "/images/logo/trendymall-logo.png",
 }: {
   user: User | null;
   isAdmin: boolean;
   categories: Category[];
+  // Settings-backed (branding.logo_desktop_url) — same source image is used
+  // for both the header logo and the mobile drawer's logo below (there's no
+  // real desktop/mobile *swap* point in this component today, just two
+  // renders of the same file at different sizes), defaulting to today's
+  // live file if Settings has nothing.
+  logoUrl?: string;
 }) {
   const [scrolled, setScrolled] = useState(false);
   // Mounted (DOM present) vs. open (visual "shown" state) are tracked
@@ -229,7 +236,7 @@ export function NavbarClient({
               small size -- no benefit from Next's Image Optimization
               pipeline, and this renders on every single page. */}
           <Image
-            src="/images/logo/trendymall-logo.png"
+            src={logoUrl}
             alt="TrendyMall"
             width={67}
             height={40}
@@ -435,7 +442,7 @@ export function NavbarClient({
           >
             <div className="flex items-center justify-between">
               <Image
-                src="/images/logo/trendymall-logo.png"
+                src={logoUrl}
                 alt="TrendyMall"
                 width={47}
                 height={28}

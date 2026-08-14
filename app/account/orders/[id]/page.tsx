@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyOrderDetail } from "@/lib/orders/order-detail";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { formatPrice } from "@/lib/utils";
 import { getWhatsAppUrl } from "@/lib/site";
 import { OrderStatusBadges } from "@/components/order/OrderStatusBadges";
@@ -29,7 +30,7 @@ export default async function AccountOrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const order = await getMyOrderDetail(id);
+  const [order, zones] = await Promise.all([getMyOrderDetail(id), getActiveDeliveryZones()]);
   if (!order) notFound();
 
   // A product slug per item, for "link back to the product" — a small,
@@ -125,7 +126,7 @@ export default async function AccountOrderDetailPage({
         </section>
       )}
 
-      <OrderSummaryCard order={order} />
+      <OrderSummaryCard order={order} zones={zones} />
 
       <div className="flex flex-wrap gap-3">
         <a href={`/invoices/${id}`} className={actionClass}>

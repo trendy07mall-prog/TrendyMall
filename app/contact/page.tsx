@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MessageCircle, Phone, Mail, MapPin, Clock, ArrowRight } from "lucide-react";
-import { getBusinessHoursStatus } from "@/lib/campaign-datetime";
+import { getBusinessHoursStatusForWeek, formatBusinessHoursSummary } from "@/lib/campaign-datetime";
+import { getGeneralSettings } from "@/lib/data/settings";
+import { getWhatsAppUrl } from "@/lib/site";
 import { ContactForm } from "@/components/content/ContactForm";
 
 export const metadata: Metadata = {
@@ -10,18 +12,6 @@ export const metadata: Metadata = {
     "Get in touch with TrendyMall via WhatsApp, phone, or email. Salawatta Road, Wellampitiya, Sri Lanka.",
   alternates: { canonical: "/contact" },
 };
-
-const WHATSAPP_HREF = "https://wa.me/94775312484";
-const WHATSAPP_DISPLAY = "077 531 2484";
-const PHONE_HREF = "tel:+94750187145";
-const PHONE_DISPLAY = "075 018 7145";
-const EMAIL_HREF = "mailto:trendy07mall@gmail.com";
-const EMAIL_DISPLAY = "trendy07mall@gmail.com";
-const ADDRESS_DISPLAY = "Salawatta Road, Wellampitiya, Sri Lanka";
-const HOURS_DISPLAY = "Daily, 10 AM – 4 PM";
-const MAPS_QUERY = "Salawatta Road, Wellampitiya, Sri Lanka";
-const MAPS_HREF = `https://www.google.com/maps?q=${encodeURIComponent(MAPS_QUERY)}`;
-const MAPS_EMBED_SRC = `${MAPS_HREF}&output=embed`;
 
 function InfoCard({
   href,
@@ -62,8 +52,20 @@ function InfoCard({
   return <div className={className}>{content}</div>;
 }
 
-export default function ContactPage() {
-  const { isOpen, label: hoursStatusLabel } = getBusinessHoursStatus();
+export default async function ContactPage() {
+  const general = await getGeneralSettings();
+
+  const { isOpen, label: hoursStatusLabel } = getBusinessHoursStatusForWeek(general.businessHours);
+
+  const whatsappHref = getWhatsAppUrl(undefined, general.whatsappNumber);
+  const whatsappDisplay = general.whatsappNumber
+    .replace(/^94/, "0")
+    .replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+  const phoneHref = `tel:${general.phone}`;
+  const phoneDisplay = general.phone.replace(/^\+94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
+  const emailHref = `mailto:${general.email}`;
+  const mapsHref = `https://www.google.com/maps?q=${encodeURIComponent(general.address)}`;
+  const mapsEmbedSrc = `${mapsHref}&output=embed`;
 
   return (
     <div className="mx-auto w-full max-w-3xl flex-1 px-6 py-14">
@@ -76,7 +78,7 @@ export default function ContactPage() {
 
       <div className="mt-10 flex flex-col gap-4">
         <a
-          href={WHATSAPP_HREF}
+          href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className="flex min-h-11 items-center gap-4 rounded-2xl bg-[#0F2D52] p-5 shadow-[var(--shadow-card)] transition-[transform,filter] duration-200 hover:-translate-y-0.5 hover:brightness-110"
@@ -87,24 +89,24 @@ export default function ContactPage() {
           <span className="min-w-0 flex-1">
             <span className="block font-semibold text-white">Chat with us on WhatsApp</span>
             <span className="mt-0.5 block text-sm text-white/70">
-              Fastest way to reach us — {WHATSAPP_DISPLAY}
+              Fastest way to reach us — {whatsappDisplay}
             </span>
           </span>
           <ArrowRight className="h-5 w-5 shrink-0 text-white/70" aria-hidden="true" />
         </a>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <InfoCard href={PHONE_HREF} icon={Phone} label="Phone">
-            <p className="font-semibold text-[#0F2D52]">{PHONE_DISPLAY}</p>
+          <InfoCard href={phoneHref} icon={Phone} label="Phone">
+            <p className="font-semibold text-[#0F2D52]">{phoneDisplay}</p>
           </InfoCard>
-          <InfoCard href={EMAIL_HREF} icon={Mail} label="Email">
-            <p className="font-semibold text-[#0F2D52] break-all">{EMAIL_DISPLAY}</p>
+          <InfoCard href={emailHref} icon={Mail} label="Email">
+            <p className="font-semibold text-[#0F2D52] break-all">{general.email}</p>
           </InfoCard>
-          <InfoCard href={MAPS_HREF} icon={MapPin} label="Address">
-            <p className="font-medium">{ADDRESS_DISPLAY}</p>
+          <InfoCard href={mapsHref} icon={MapPin} label="Address">
+            <p className="font-medium">{general.address}</p>
           </InfoCard>
           <InfoCard icon={Clock} label="Business Hours">
-            <p className="font-medium">{HOURS_DISPLAY}</p>
+            <p className="font-medium">{formatBusinessHoursSummary(general.businessHours)}</p>
             <span
               className={`mt-2 inline-flex items-center gap-1.5 rounded-[var(--radius-full)] px-2.5 py-1 text-xs font-semibold ${
                 isOpen ? "bg-[var(--color-success)]/15 text-[var(--color-success)]" : "bg-black/5 text-[var(--color-text-secondary)]"
@@ -121,7 +123,7 @@ export default function ContactPage() {
 
         <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)]">
           <iframe
-            src={MAPS_EMBED_SRC}
+            src={mapsEmbedSrc}
             title="TrendyMall location"
             className="h-[180px] w-full border-0"
             loading="lazy"

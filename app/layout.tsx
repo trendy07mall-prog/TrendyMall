@@ -15,6 +15,8 @@ import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
+import { getAnnouncementSettings, getContactSettings, getGeneralSettings } from "@/lib/data/settings";
+import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
@@ -81,30 +83,35 @@ export const metadata: Metadata = {
   },
 };
 
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "TrendyMall",
-  url: SITE_URL,
-  logo: `${SITE_URL}/icon`,
-  sameAs: [
-    "https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr",
-    "https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr",
-  ],
-  contactPoint: {
-    "@type": "ContactPoint",
-    telephone: "+94750187145",
-    contactType: "customer service",
-    email: "trendy07mall@gmail.com",
-  },
-};
-
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const banner = await getActiveBanner();
+  const [banner, announcement, contact, general] = await Promise.all([
+    getActiveBanner(),
+    getAnnouncementSettings(),
+    getContactSettings(),
+    getGeneralSettings(),
+  ]);
+
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: general.storeName,
+    url: SITE_URL,
+    logo: `${SITE_URL}/icon`,
+    sameAs: [
+      "https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr",
+      "https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr",
+    ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: general.phone,
+      contactType: "customer service",
+      email: general.email,
+    },
+  };
 
   return (
     <html
@@ -132,7 +139,13 @@ export default async function RootLayout({
             <WishlistProvider>
               <RecentlyViewedProvider>
                 <ConditionalChrome>
-                  <AnnouncementBar />
+                  <AnnouncementBar
+                    enabled={announcement.enabled}
+                    messages={announcement.messages}
+                    autoRotate={announcement.autoRotate}
+                    rotateSpeedMs={announcement.rotateSpeedMs}
+                    whatsappNumber={general.whatsappNumber}
+                  />
                   <PromoBanner banner={banner} />
                   <Navbar />
                   <HomeSearchBar />
@@ -147,9 +160,13 @@ export default async function RootLayout({
                   <ViewTransition>{children}</ViewTransition>
                 </main>
                 <ConditionalChrome>
-                  <TrustSection />
+                  <TrustSection businessHoursSummary={formatBusinessHoursSummary(general.businessHours)} />
                   <Footer />
-                  <WhatsAppButton />
+                  <WhatsAppButton
+                    enabled={contact.whatsappEnabled}
+                    number={general.whatsappNumber}
+                    defaultMessage={contact.whatsappDefaultMessage}
+                  />
                   <MobileBottomNav />
                 </ConditionalChrome>
               </RecentlyViewedProvider>

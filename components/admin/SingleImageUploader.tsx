@@ -13,12 +13,17 @@ export function SingleImageUploader({
   value,
   onChange,
   hint,
+  prefix = "campaigns",
 }: {
   label: string;
   name: string;
   value: string | null;
   onChange: (url: string | null) => void;
   hint?: string;
+  // Storage prefix passed straight to uploadAdminImage — defaults to
+  // "campaigns" so the 3 existing CampaignForm.tsx call sites (which never
+  // passed this) keep uploading to the same place as before.
+  prefix?: "categories" | "brands" | "products" | "variants" | "editor" | "campaigns" | "settings" | "hero";
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +44,7 @@ export function SingleImageUploader({
     // true forever with no message shown.
     let result;
     try {
-      result = await uploadAdminImage("campaigns", formData);
+      result = await uploadAdminImage(prefix, formData);
     } catch {
       setUploading(false);
       setError("Upload failed — please try a smaller file or try again.");
