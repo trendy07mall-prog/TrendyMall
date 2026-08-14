@@ -4,6 +4,7 @@ import { getMaxDiscountPercent } from "@/lib/data/products";
 import { getFeaturedCoupon } from "@/lib/data/coupons";
 import { formatCouponDiscount, formatCouponValidUntil } from "@/lib/coupon-display";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { formatPrice } from "@/lib/utils";
 import { BadgePercentIcon, GemIcon, TicketPercentIcon, TruckIcon } from "@/components/ui/Icon";
 import { Carousel } from "@/components/marketing/Carousel";
@@ -57,8 +58,14 @@ function CardHeader({
 // overstate reality, so they're built to disappear/disable themselves
 // rather than lie. All four are dynamic now, not just the sale card.
 export async function ServiceCards() {
-  const [maxDiscount, coupon] = await Promise.all([getMaxDiscountPercent(), getFeaturedCoupon()]);
+  const [maxDiscount, coupon, zones] = await Promise.all([
+    getMaxDiscountPercent(),
+    getFeaturedCoupon(),
+    getActiveDeliveryZones(),
+  ]);
   const validUntil = coupon ? formatCouponValidUntil(coupon) : null;
+  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
+  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
 
   const cards: React.ReactNode[] = [];
 
@@ -91,7 +98,7 @@ export async function ServiceCards() {
         title="Delivery Rates"
       />
       <p className="line-clamp-2 flex-1 text-sm leading-[1.5] text-[var(--muted)]">
-        Colombo 1–15: {formatPrice(RATE_IN_ZONE)} · Other areas: {formatPrice(RATE_OUTSIDE_ZONE)}
+        Colombo 1–15: {formatPrice(inZoneRate)} · Other areas: {formatPrice(outsideZoneRate)}
       </p>
       <span className="text-sm font-semibold underline-offset-2 group-hover:underline">
         View Shipping Info →

@@ -6,6 +6,8 @@ import { getBankTransferSettings } from "@/lib/bankTransferSettings";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { getWhatsAppUrl } from "@/lib/site";
+import { getGeneralSettings, getShippingSettings } from "@/lib/data/settings";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { OrderSuccessCheck } from "@/components/order/OrderSuccessCheck";
 import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { OrderSummaryCard } from "@/components/order/OrderSummaryCard";
@@ -16,14 +18,6 @@ import { CreateAccountPrompt } from "@/components/checkout/CreateAccountPrompt";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { TruckIcon, ShoppingBagIcon, WhatsAppIcon } from "@/components/ui/Icon";
 import type { GuestOrderDetail, OrderFulfillmentStatus } from "@/types";
-
-// Store pickup's fixed location — same copy as CheckoutForm.tsx's
-// PICKUP_ADDRESS/PICKUP_HOURS. Duplicated, not extracted: this is only
-// the second place that needs it, and this codebase's own convention
-// (see lib/site.ts's WHATSAPP_NUMBER comment) is to extract on the third
-// use, not the second.
-const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
-const PICKUP_HOURS = "Daily, 10am – 4pm";
 
 // This page is reached at every stage of an order's life, not just right
 // after checkout — a delivered or cancelled order must never still say
@@ -59,7 +53,11 @@ export async function generateMetadata({
   };
 }
 
-function whatsNextSteps(order: GuestOrderDetail): string[] | null {
+function whatsNextSteps(
+  order: GuestOrderDetail,
+  pickupAddress: string,
+  pickupHours: string,
+): string[] | null {
   // Once the order is delivered/cancelled/returned/failed there's no
   // "next" to describe — the timeline's own failed-delivery panel
   // already explains that last one — so the whole section hides rather
@@ -68,7 +66,7 @@ function whatsNextSteps(order: GuestOrderDetail): string[] | null {
   if (order.deliveryMethod === "pickup") {
     return [
       "We're preparing your order",
-      `Pick it up at ${PICKUP_ADDRESS} (${PICKUP_HOURS})`,
+      `Pick it up at ${pickupAddress} (${pickupHours})`,
       "Bring your order number when you collect it",
     ];
   }
@@ -111,7 +109,7 @@ export default async function OrderConfirmationPage({
 
   if (!order) notFound();
 
-  const [bankDetails, recommendations] = await Promise.all([
+  const [bankDetails, recommendations, general, shipping, zones] = await Promise.all([
     order.paymentMethod === "bank_transfer" && order.paymentStatus === "awaiting_verification"
       ? getBankTransferSettings()
       : Promise.resolve(null),
@@ -119,7 +117,12 @@ export default async function OrderConfirmationPage({
       order.items.map((item) => item.productId).filter((id): id is string => Boolean(id)),
       4,
     ),
+    getGeneralSettings(),
+    getShippingSettings(),
+    getActiveDeliveryZones(),
   ]);
+  const pickupAddress = shipping.pickupAddress;
+  const pickupHours = shipping.pickupHours;
 
   const isDelivered = order.orderStatus === "delivered";
   // Delivered still shows this block (as a completed fact, not an
@@ -136,7 +139,7 @@ export default async function OrderConfirmationPage({
   const whatsappOrderMessage = `Hi, I have a question about my order ${order.orderNumber}`;
   const trackOrderHref = `/track-order?orderNumber=${encodeURIComponent(order.orderNumber)}`;
   const invoiceHref = order.orderId ? `/invoices/${order.orderId}` : undefined;
-  const nextSteps = whatsNextSteps(order);
+  const nextSteps = whatsNextSteps(order, pickupAddress, pickupHours);
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
@@ -180,8 +183,8 @@ export default async function OrderConfirmationPage({
               ) : (
                 <>
                   <p className="text-xs text-[var(--muted)] uppercase tracking-wide">Store pickup</p>
-                  <p className="mt-1 text-xl font-semibold tracking-tight">{PICKUP_ADDRESS}</p>
-                  <p className="mt-1 text-sm text-[var(--muted)]">{PICKUP_HOURS}</p>
+                  <p className="mt-1 text-xl font-semibold tracking-tight">{pickupAddress}</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">{pickupHours}</p>
                 </>
               )}
             </section>
@@ -215,6 +218,7 @@ export default async function OrderConfirmationPage({
                     <a
                       href={getWhatsAppUrl(
                         `Hi, I've sent the bank transfer for order ${order.orderNumber} — here's my slip.`,
+                        general.whatsappNumber,
                       )}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -244,6 +248,7 @@ export default async function OrderConfirmationPage({
                   <a
                     href={getWhatsAppUrl(
                       `Hi, I need to change something about my order ${order.orderNumber}`,
+                      general.whatsappNumber,
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -312,7 +317,7 @@ export default async function OrderConfirmationPage({
               Continue Shopping
             </Link>
             <a
-              href={getWhatsAppUrl(whatsappOrderMessage)}
+              href={getWhatsAppUrl(whatsappOrderMessage, general.whatsappNumber)}
               target="_blank"
               rel="noopener noreferrer"
               className="transition-brand inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] px-5 text-sm font-medium hover:bg-black/5"
@@ -324,7 +329,7 @@ export default async function OrderConfirmationPage({
         </div>
 
         <div className="print:hidden">
-          <OrderSummaryCard order={order} />
+          <OrderSummaryCard order={order} zones={zones} />
         </div>
       </div>
 

@@ -990,6 +990,48 @@ export interface Database {
         };
         Relationships: [];
       };
+      delivery_zones: {
+        Row: {
+          id: string;
+          name: string;
+          postal_code_start: string | null;
+          postal_code_end: string | null;
+          district_match: string | null;
+          rate: number;
+          is_default: boolean;
+          status: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          postal_code_start?: string | null;
+          postal_code_end?: string | null;
+          district_match?: string | null;
+          rate: number;
+          is_default?: boolean;
+          status?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          postal_code_start?: string | null;
+          postal_code_end?: string | null;
+          district_match?: string | null;
+          rate?: number;
+          is_default?: boolean;
+          status?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       reviews: {
         Row: {
           id: string;

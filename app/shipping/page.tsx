@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { PageShell } from "@/components/content/PageShell";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
+import { formatPrice } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Shipping Policy",
@@ -8,7 +11,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/shipping" },
 };
 
-export default function ShippingPage() {
+export default async function ShippingPage() {
+  const zones = await getActiveDeliveryZones();
+  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
+  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
+
   return (
     <PageShell title="Shipping Policy">
       <p>
@@ -39,11 +46,11 @@ export default function ShippingPage() {
               <td className="py-2 pr-4">
                 Colombo 01–15 (including Colombo Fort)
               </td>
-              <td className="py-2">Rs. 255</td>
+              <td className="py-2">{formatPrice(inZoneRate)}</td>
             </tr>
             <tr>
               <td className="py-2 pr-4">Outside Colombo</td>
-              <td className="py-2">Rs. 400</td>
+              <td className="py-2">{formatPrice(outsideZoneRate)}</td>
             </tr>
           </tbody>
         </table>

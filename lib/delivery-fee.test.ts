@@ -1,9 +1,33 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calculateDeliveryFee, normalizePostalCode } from "./delivery-fee";
+import type { DeliveryZone } from "./delivery-fee";
+
+// Mirrors sql/068's exact seed data -- the same 2 zones that reproduce
+// today's real live rule (Colombo 1-15 => 255, everything else => 400).
+const TEST_ZONES: DeliveryZone[] = [
+  {
+    id: "zone-colombo",
+    name: "Colombo 1-15",
+    postalCodeStart: "00100",
+    postalCodeEnd: "01500",
+    districtMatch: "Colombo",
+    rate: 255,
+    isDefault: false,
+  },
+  {
+    id: "zone-default",
+    name: "Other Sri Lanka",
+    postalCodeStart: null,
+    postalCodeEnd: null,
+    districtMatch: null,
+    rate: 400,
+    isDefault: true,
+  },
+];
 
 function fee(district: string, postalCode: string | null | undefined) {
-  return calculateDeliveryFee({ district, postalCode, deliveryMethod: "standard" });
+  return calculateDeliveryFee({ district, postalCode, deliveryMethod: "standard" }, TEST_ZONES);
 }
 
 test("Colombo postal codes at the range boundaries price at 255", () => {
@@ -44,8 +68,21 @@ test("Colombo district with a non-Colombo-city postal code prices at 400", () =>
 });
 
 test("Store Pickup is always free regardless of address", () => {
-  assert.equal(calculateDeliveryFee({ district: "Colombo", postalCode: "00100", deliveryMethod: "pickup" }), 0);
-  assert.equal(calculateDeliveryFee({ district: "Kandy", postalCode: null, deliveryMethod: "pickup" }), 0);
+  assert.equal(
+    calculateDeliveryFee({ district: "Colombo", postalCode: "00100", deliveryMethod: "pickup" }, TEST_ZONES),
+    0,
+  );
+  assert.equal(
+    calculateDeliveryFee({ district: "Kandy", postalCode: null, deliveryMethod: "pickup" }, TEST_ZONES),
+    0,
+  );
+});
+
+test("an empty/misconfigured zones array falls back to the RATE_OUTSIDE_ZONE constant, never throws", () => {
+  assert.equal(
+    calculateDeliveryFee({ district: "Colombo", postalCode: "00100", deliveryMethod: "standard" }, []),
+    400,
+  );
 });
 
 test("normalizePostalCode resolves every documented input shape", () => {

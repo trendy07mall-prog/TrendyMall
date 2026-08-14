@@ -42,6 +42,8 @@ export function ProductPurchaseSection({
   ratingSummary,
   reviewState,
   tags,
+  inZoneRate,
+  outsideZoneRate,
 }: {
   product: Product;
   images: string[];
@@ -53,6 +55,8 @@ export function ProductPurchaseSection({
   ratingSummary: ProductRatingSummary | null;
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
   tags: { name: string; slug: string }[];
+  inZoneRate: number;
+  outsideZoneRate: number;
 }) {
   // Color options are every distinct color across this product's variants
   // (deduped -- two variants can share a color, e.g. the same white in two
@@ -601,6 +605,8 @@ export function ProductPurchaseSection({
           <DeliveryInfoCard
             deliveryLabel={getEstimatedDeliveryRange().label}
             codAvailable={product.cod_available}
+            inZoneRate={inZoneRate}
+            outsideZoneRate={outsideZoneRate}
           />
         )}
 

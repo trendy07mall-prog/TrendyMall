@@ -9,6 +9,8 @@ import {
 import { getCategoryAncestors, getCategoryById } from "@/lib/data/categories";
 import { getProductTags } from "@/lib/data/tags";
 import { getProductSpecs } from "@/lib/data/spec-templates";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
 import { getProductRatingSummary, getProductReviews, hasUserReviewed } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
@@ -84,14 +86,21 @@ export default async function ProductPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs] = await Promise.all([
+  const [relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones] = await Promise.all([
     getRelatedProducts(product.category_id, product.id),
     getProductReviews(product.id),
     getProductRatingSummary(product.id),
     user ? hasUserReviewed(product.id, user.id) : Promise.resolve(false),
     getProductTags(product.id),
     getProductSpecs(product),
+    getActiveDeliveryZones(),
   ]);
+
+  // No address is known on the PDP -- this is the same generic
+  // Colombo/outside-Colombo split app/cart/page.tsx shows before an
+  // address is picked, not a real per-order calculation.
+  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
+  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
 
   const reviewState = !user
     ? ("not_logged_in" as const)
@@ -158,6 +167,8 @@ export default async function ProductPage({
         ratingSummary={ratingSummary}
         reviewState={reviewState}
         tags={tags}
+        inZoneRate={inZoneRate}
+        outsideZoneRate={outsideZoneRate}
       />
 
       <RelatedProducts products={relatedProducts} />

@@ -3,7 +3,8 @@ import "server-only";
 import path from "node:path";
 import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { formatPrice } from "@/lib/utils";
-import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
@@ -60,12 +61,12 @@ export interface InvoiceProps {
 // single-order and bulk renderers below place one or more of these inside
 // a single shared <Document>, since @react-pdf/renderer requires exactly
 // one <Document> per PDF (not one per page).
-function InvoicePage({ order, items, address, couponCode }: InvoiceProps) {
+function InvoicePage({ order, items, address, couponCode, zones }: InvoiceProps & { zones: DeliveryZone[] }) {
   const deliveryLabel =
     order.delivery_method === "pickup"
       ? "Store Pickup"
       : address
-        ? `Delivery (${describeDeliveryFee({ district: address.district, postalCode: address.postal_code, deliveryMethod: "standard" }).reason})`
+        ? `Delivery (${describeDeliveryFee({ district: address.district, postalCode: address.postal_code, deliveryMethod: "standard" }, zones).reason})`
         : "Delivery";
 
   return (
@@ -185,18 +186,19 @@ function InvoicePage({ order, items, address, couponCode }: InvoiceProps) {
   );
 }
 
-function InvoiceDocument({ orders }: { orders: InvoiceProps[] }) {
+function InvoiceDocument({ orders, zones }: { orders: InvoiceProps[]; zones: DeliveryZone[] }) {
   return (
     <Document>
       {orders.map((props, i) => (
-        <InvoicePage key={props.order.id ?? i} {...props} />
+        <InvoicePage key={props.order.id ?? i} {...props} zones={zones} />
       ))}
     </Document>
   );
 }
 
 export async function renderInvoicePdfBatch(orders: InvoiceProps[]): Promise<Buffer> {
-  return renderToBuffer(<InvoiceDocument orders={orders} />);
+  const zones = await getActiveDeliveryZones();
+  return renderToBuffer(<InvoiceDocument orders={orders} zones={zones} />);
 }
 
 export async function renderInvoicePdf(props: InvoiceProps): Promise<Buffer> {

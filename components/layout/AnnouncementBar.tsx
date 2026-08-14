@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CloseIcon, TruckIcon, CashIcon, WhatsAppIcon } from "@/components/ui/Icon";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, type DeliveryZone } from "@/lib/delivery-fee";
 import { formatPrice } from "@/lib/utils";
 import type { AnnouncementMessage } from "@/lib/data/settings";
 
@@ -34,16 +34,21 @@ function syncThemeColor(dismissed: boolean) {
   meta.setAttribute("content", content);
 }
 
-// Delivery-rate entries always render the REAL rate from
-// lib/delivery-fee.ts and the WhatsApp entry always uses the real settings
-// number -- an admin can choose that a slot shows one of these, but can
-// never free-type the rate/number itself (Settings > Announcement).
-function resolveMessage(message: AnnouncementMessage, whatsappNumber: string) {
+// Delivery-rate entries always render the REAL rate (Settings-driven
+// delivery_zones, Phase 3) and the WhatsApp entry always uses the real
+// settings number -- an admin can choose that a slot shows one of these,
+// but can never free-type the rate/number itself (Settings > Announcement).
+function resolveMessage(
+  message: AnnouncementMessage,
+  whatsappNumber: string,
+  inZoneRate: number,
+  outsideZoneRate: number,
+) {
   if (message.kind === "delivery_in_zone") {
-    return { text: `Colombo 1–15: ${formatPrice(RATE_IN_ZONE)}`, href: undefined };
+    return { text: `Colombo 1–15: ${formatPrice(inZoneRate)}`, href: undefined };
   }
   if (message.kind === "delivery_outside_zone") {
-    return { text: `Outside Colombo: ${formatPrice(RATE_OUTSIDE_ZONE)}`, href: undefined };
+    return { text: `Outside Colombo: ${formatPrice(outsideZoneRate)}`, href: undefined };
   }
   if (message.kind === "whatsapp") {
     return { text: message.text ?? "Need Help? WhatsApp Us", href: `https://wa.me/${whatsappNumber}` };
@@ -75,21 +80,25 @@ export function AnnouncementBar({
   autoRotate,
   rotateSpeedMs,
   whatsappNumber,
+  zones,
 }: {
   enabled: boolean;
   messages: AnnouncementMessage[];
   autoRotate: boolean;
   rotateSpeedMs: number;
   whatsappNumber: string;
+  zones: DeliveryZone[];
 }) {
   const [hydrated, setHydrated] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
+  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
   const resolved = messages.map((message) => ({
     icon: message.icon ?? "truck",
-    ...resolveMessage(message, whatsappNumber),
+    ...resolveMessage(message, whatsappNumber, inZoneRate, outsideZoneRate),
   }));
 
   useEffect(() => {

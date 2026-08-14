@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { cartLineKey, formatPrice } from "@/lib/utils";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee } from "@/lib/delivery-fee";
+import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { getMyDefaultAddress } from "@/lib/addresses";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
+import { getShippingSettings, type ShippingSettings } from "@/lib/data/settings";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { CartItemCard } from "@/components/cart/CartItemCard";
 import { CouponForm } from "@/components/cart/CouponForm";
@@ -37,6 +39,8 @@ export default function CartPage() {
   const [recommendationsKey, setRecommendationsKey] = useState<string | null>(null);
   const [deliveryArea, setDeliveryArea] = useState<DeliveryArea>(null);
   const [defaultAddress, setDefaultAddress] = useState<CustomerAddress | null>(null);
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
+  const [shippingSettings, setShippingSettings] = useState<ShippingSettings | null>(null);
   const [discount, setDiscount] = useState(0);
   const [couponIsFreeShipping, setCouponIsFreeShipping] = useState(false);
   const [redirecting, startRedirect] = useTransition();
@@ -164,6 +168,18 @@ export default function CartPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getActiveDeliveryZones(), getShippingSettings()]).then(([zoneResults, settings]) => {
+      if (cancelled) return;
+      setZones(zoneResults);
+      setShippingSettings(settings);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const unavailableItems = items.filter(
     (item) => validation.get(cartLineKey(item.productId, item.variantId))?.available === false,
   );
@@ -178,28 +194,45 @@ export default function CartPage() {
   // ("from Rs.255"), never a firm figure — a firm number here is what
   // created the reported mismatch. Once a default address is known, its
   // real district/postal code replaces the guess entirely.
+  // Zone-derived floor/ceiling for the toggle-based estimate, before an
+  // exact address is known — falls back to the hardcoded constants only
+  // until the zones fetch resolves (never blocks first paint on it).
+  const colomboZone = zones.find((zone) => zone.districtMatch === "Colombo");
+  const defaultZone = zones.find((zone) => zone.isDefault);
+  const inZoneRate = colomboZone?.rate ?? RATE_IN_ZONE;
+  const outsideZoneRate = defaultZone?.rate ?? RATE_OUTSIDE_ZONE;
+
   const defaultAddressFee = defaultAddress
-    ? calculateDeliveryFee({
-        district: defaultAddress.district,
-        postalCode: defaultAddress.postal_code,
-        deliveryMethod: "standard",
-      })
+    ? calculateDeliveryFee(
+        {
+          district: defaultAddress.district,
+          postalCode: defaultAddress.postal_code,
+          deliveryMethod: "standard",
+        },
+        zones,
+      )
     : null;
   const deliveryFee = defaultAddress
     ? defaultAddressFee
     : deliveryArea === "outside"
-      ? RATE_OUTSIDE_ZONE
+      ? outsideZoneRate
       : deliveryArea === "colombo"
-        ? RATE_IN_ZONE
+        ? inZoneRate
         : null;
+  // A sitewide free-shipping threshold (Settings) composes with the
+  // per-campaign waiver below via OR, never additively — whichever
+  // source(s) apply, the fee is waived exactly once.
+  const freeShippingFromThreshold =
+    !!shippingSettings?.freeShippingEnabled && subtotal >= (shippingSettings?.freeShippingMinAmount ?? 0);
+  const freeShippingActive = freeShipping || freeShippingFromThreshold;
   // A free_shipping-type coupon (discount already === deliveryFee, see
-  // CouponForm) and a campaign's free-shipping waiver can both be "active"
-  // at once without conflicting -- but naively subtracting both would
-  // double-waive the same delivery fee. The campaign only contributes
-  // whatever portion the coupon hasn't already covered.
+  // CouponForm) and a campaign's/threshold's free-shipping waiver can both
+  // be "active" at once without conflicting -- but naively subtracting both
+  // would double-waive the same delivery fee. The campaign/threshold only
+  // contributes whatever portion the coupon hasn't already covered.
   const deliveryFeeValue = deliveryFee ?? 0;
   const shippingWaivedByCoupon = couponIsFreeShipping ? deliveryFeeValue : 0;
-  const campaignShippingWaiver = freeShipping ? Math.max(0, deliveryFeeValue - shippingWaivedByCoupon) : 0;
+  const campaignShippingWaiver = freeShippingActive ? Math.max(0, deliveryFeeValue - shippingWaivedByCoupon) : 0;
   const total = Math.max(0, subtotal + deliveryFeeValue - discount - campaignShippingWaiver);
   // A bare total with no delivery area selected would silently omit a
   // real Rs.255-400 charge — read as "delivery is free" and then surprise
@@ -208,7 +241,7 @@ export default function CartPage() {
   // computed formatPrice(total)) so they're structurally incapable of
   // disagreeing, not just carefully kept in sync by hand.
   const totalDisplay =
-    deliveryFee === null && !freeShipping
+    deliveryFee === null && !freeShippingActive
       ? `${formatPrice(Math.max(0, subtotal - discount))} + delivery`
       : formatPrice(total);
 
@@ -303,18 +336,18 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between text-[var(--muted)]">
               <span>Delivery</span>
-              {freeShipping ? (
+              {freeShippingActive ? (
                 <span className="font-medium text-[var(--color-discount)]">Free (Promotion)</span>
               ) : defaultAddress ? (
                 <span>{formatPrice(defaultAddressFee ?? 0)}</span>
               ) : deliveryArea === null ? (
                 <span>
-                  {formatPrice(RATE_IN_ZONE)} – {formatPrice(RATE_OUTSIDE_ZONE)}
+                  {formatPrice(inZoneRate)} – {formatPrice(outsideZoneRate)}
                 </span>
               ) : deliveryArea === "colombo" ? (
-                <span>from {formatPrice(RATE_IN_ZONE)} — calculated at checkout</span>
+                <span>from {formatPrice(inZoneRate)} — calculated at checkout</span>
               ) : (
-                <span>{formatPrice(RATE_OUTSIDE_ZONE)}</span>
+                <span>{formatPrice(outsideZoneRate)}</span>
               )}
             </div>
             {discount > 0 && (

@@ -9,7 +9,7 @@ import { previewCoupon } from "@/lib/coupons";
 import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice } from "@/lib/utils";
-import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
@@ -21,9 +21,8 @@ import { getWhatsAppUrl } from "@/lib/site";
 import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
 import type { BankTransferSettings, CustomerAddress, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
+import type { ShippingSettings } from "@/lib/data/settings";
 
-const PICKUP_ADDRESS = "Salawatta Road, Wellampitiya";
-const PICKUP_HOURS = "Daily, 10am – 4pm";
 const DRAFT_STORAGE_KEY = "trendymall-checkout-draft";
 
 type PaymentMethod = "cod" | "bank_transfer" | "payhere";
@@ -56,16 +55,40 @@ const EMPTY_ADDRESS_FIELDS: CheckoutAddressFields = {
 
 type FieldErrors = Partial<Record<"email", string>>;
 
+// Picks the first genuinely selectable method — the customer's remembered
+// preference if it's still enabled, otherwise the first enabled method in
+// a fixed priority order. Never returns a method whose card is disabled,
+// even right after an admin has turned one off.
+function pickInitialPaymentMethod(
+  preferred: PaymentMethod | null,
+  enabled: Record<PaymentMethod, boolean>,
+): PaymentMethod {
+  if (preferred && enabled[preferred]) return preferred;
+  if (enabled.cod) return "cod";
+  if (enabled.bank_transfer) return "bank_transfer";
+  if (enabled.payhere) return "payhere";
+  // All three disabled is blocked by the admin Settings form's own
+  // save-time guard — this is only reached if that invariant is ever
+  // violated directly at the database layer.
+  return "cod";
+}
+
 export function CheckoutForm({
   bankDetails,
   payHereEnabled,
+  codEnabled,
+  bankTransferEnabled,
   addresses,
   preferredPaymentMethod,
   isLoggedIn,
   defaultEmail,
+  zones,
+  shippingSettings,
 }: {
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
+  codEnabled: boolean;
+  bankTransferEnabled: boolean;
   addresses: CustomerAddress[];
   // "Remembers last-used method" (Phase 1's Payment Preference field) —
   // never defaults to something currently unselectable (payhere while
@@ -78,6 +101,8 @@ export function CheckoutForm({
   // A logged-in customer's account email — prefilled but still a normal,
   // fully editable input, never read-only/hidden. Empty for a guest.
   defaultEmail?: string;
+  zones: DeliveryZone[];
+  shippingSettings: ShippingSettings;
 }) {
   const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes, syncPrices } = useCart();
   const router = useRouter();
@@ -89,10 +114,13 @@ export function CheckoutForm({
   }));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("standard");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
-    if (preferredPaymentMethod === "payhere" && !payHereEnabled) return "cod";
-    return preferredPaymentMethod ?? "cod";
-  });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() =>
+    pickInitialPaymentMethod(preferredPaymentMethod, {
+      cod: codEnabled,
+      bank_transfer: bankTransferEnabled,
+      payhere: payHereEnabled,
+    }),
+  );
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -139,21 +167,28 @@ export function CheckoutForm({
   // district — see lib/delivery-fee.ts for why (the city text field is
   // typo/synonym-prone; the postal code is Sri Lanka's real, unambiguous
   // system).
-  const { fee: shippingFee, reason: deliveryReason } = describeDeliveryFee({
-    district: addressFields.district,
-    postalCode: addressFields.postalCode,
-    deliveryMethod,
-  });
-  // A campaign's free-shipping waiver and a free_shipping-type coupon can
-  // both be "active" without conflicting -- the campaign only tops up
-  // whatever portion of shippingFee the coupon hasn't already covered, so
-  // the same delivery fee is never waived twice. clientShippingFee sent to
-  // createOrder stays the real fee either way (matches what
-  // create_order_atomic treats as v_delivery_fee before any discount).
+  const { fee: shippingFee, reason: deliveryReason } = describeDeliveryFee(
+    {
+      district: addressFields.district,
+      postalCode: addressFields.postalCode,
+      deliveryMethod,
+    },
+    zones,
+  );
+  // A campaign's free-shipping waiver, a sitewide free-shipping threshold
+  // (Settings), and a free_shipping-type coupon can all be "active" without
+  // conflicting -- together they only ever top up whatever portion of
+  // shippingFee the coupon hasn't already covered, so the same delivery fee
+  // is never waived twice. clientShippingFee sent to createOrder stays the
+  // real fee either way (matches what create_order_atomic treats as
+  // v_delivery_fee before any discount).
   const [freeShippingCampaign, setFreeShippingCampaign] = useState(false);
+  const freeShippingFromThreshold =
+    shippingSettings.freeShippingEnabled && subtotal >= shippingSettings.freeShippingMinAmount;
+  const freeShippingActive = freeShippingCampaign || freeShippingFromThreshold;
   const shippingWaivedByCoupon = appliedCoupon?.isFreeShipping ? shippingFee : 0;
   const campaignShippingWaiver =
-    freeShippingCampaign && deliveryMethod !== "pickup" ? Math.max(0, shippingFee - shippingWaivedByCoupon) : 0;
+    freeShippingActive && deliveryMethod !== "pickup" ? Math.max(0, shippingFee - shippingWaivedByCoupon) : 0;
   const discount = (appliedCoupon?.discount ?? 0) + campaignShippingWaiver;
   const total = Math.max(0, subtotal + shippingFee - discount);
 
@@ -187,7 +222,10 @@ export function CheckoutForm({
           notes: parsed.notes ?? prev.notes,
           paymentReference: parsed.paymentReference ?? prev.paymentReference,
         }));
-        if (parsed.deliveryMethod === "standard" || parsed.deliveryMethod === "pickup") {
+        if (
+          parsed.deliveryMethod === "standard" ||
+          (parsed.deliveryMethod === "pickup" && shippingSettings.pickupEnabled)
+        ) {
           setDeliveryMethod(parsed.deliveryMethod);
         }
         if (typeof parsed.idempotencyKey === "string" && parsed.idempotencyKey) {
@@ -202,6 +240,10 @@ export function CheckoutForm({
     // recognized server-side as the same attempt, not a fresh order.
     setIdempotencyKey(existingKey ?? crypto.randomUUID());
     setHydrated(true);
+    // shippingSettings comes from a server-fetched prop that never changes
+    // after mount — deliberately excluded, same as every other prop this
+    // effect reads only once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -410,6 +452,13 @@ export function CheckoutForm({
       return;
     }
     const shipping = resolvedAddress.fields;
+    // Pickup orders don't collect (or require) a real shipping address —
+    // create_order_atomic now trusts these fields verbatim for pickup
+    // (sql/068), so this is what makes the stored order/shipping_addresses
+    // rows say something meaningful instead of blank strings. Money is
+    // unaffected either way: the delivery fee for pickup stays
+    // server-hardcoded to 0 regardless of what's sent here.
+    const isPickup = deliveryMethod === "pickup";
 
     const result = await createOrder({
       customerName: `${shipping.firstName.trim()} ${shipping.lastName.trim()}`.trim(),
@@ -417,9 +466,9 @@ export function CheckoutForm({
       customerPhone: shipping.phone.trim(),
       shippingFirstName: shipping.firstName.trim(),
       shippingLastName: shipping.lastName.trim(),
-      shippingStreet: shipping.street.trim(),
-      shippingCity: shipping.city.trim(),
-      shippingDistrict: shipping.district,
+      shippingStreet: isPickup ? shippingSettings.pickupAddress : shipping.street.trim(),
+      shippingCity: isPickup ? shippingSettings.pickupName : shipping.city.trim(),
+      shippingDistrict: isPickup ? "Colombo" : shipping.district,
       shippingPostalCode:
         shipping.postalCode.trim() === OTHER_COLOMBO_ZONE_VALUE ? null : shipping.postalCode.trim() || null,
       deliveryMethod,
@@ -566,22 +615,25 @@ export function CheckoutForm({
                 />
                 Standard delivery
               </label>
-              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
-                <input
-                  type="radio"
-                  name="deliveryMethod"
-                  checked={deliveryMethod === "pickup"}
-                  onChange={() => setDeliveryMethod("pickup")}
-                />
-                Store Pickup — Free
-              </label>
+              {shippingSettings.pickupEnabled && (
+                <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
+                  <input
+                    type="radio"
+                    name="deliveryMethod"
+                    checked={deliveryMethod === "pickup"}
+                    onChange={() => setDeliveryMethod("pickup")}
+                  />
+                  Store Pickup — Free
+                </label>
+              )}
             </div>
 
-            {deliveryMethod === "pickup" && (
+            {deliveryMethod === "pickup" && shippingSettings.pickupEnabled && (
               <div className="mt-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-3 text-sm text-[var(--muted)]">
-                <p className="font-medium text-[var(--foreground)]">Pickup location</p>
-                <p className="mt-1">{PICKUP_ADDRESS}</p>
-                <p>{PICKUP_HOURS}</p>
+                <p className="font-medium text-[var(--foreground)]">{shippingSettings.pickupName}</p>
+                <p className="mt-1">{shippingSettings.pickupAddress}</p>
+                <p>{shippingSettings.pickupHours}</p>
+                {shippingSettings.pickupInstructions && <p className="mt-1">{shippingSettings.pickupInstructions}</p>}
               </div>
             )}
 
@@ -604,6 +656,8 @@ export function CheckoutForm({
                 title="Cash on Delivery"
                 description="Pay in cash when your order arrives"
                 selected={paymentMethod === "cod"}
+                disabled={!codEnabled}
+                comingSoon={!codEnabled}
                 onSelect={() => setPaymentMethod("cod")}
               />
               <PaymentMethodCard
@@ -611,6 +665,8 @@ export function CheckoutForm({
                 title="Bank Transfer"
                 description="Transfer to our account, then upload your slip"
                 selected={paymentMethod === "bank_transfer"}
+                disabled={!bankTransferEnabled}
+                comingSoon={!bankTransferEnabled}
                 onSelect={() => setPaymentMethod("bank_transfer")}
               />
               <PaymentMethodCard

@@ -1,19 +1,22 @@
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
-import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { GuestOrderDetail } from "@/types";
 
 // The sticky right-column card on /order-confirmation — same shell as
 // the checkout/cart order-summary sidebar (rounded-[20px], --shadow-card,
 // lg:sticky lg:top-24), just page-specific content.
-export function OrderSummaryCard({ order }: { order: GuestOrderDetail }) {
+export function OrderSummaryCard({ order, zones }: { order: GuestOrderDetail; zones: DeliveryZone[] }) {
   const deliveryReason = order.shippingAddressDetail
-    ? describeDeliveryFee({
-        district: order.shippingAddressDetail.district,
-        postalCode: order.shippingAddressDetail.postalCode,
-        deliveryMethod: order.deliveryMethod,
-      }).reason
+    ? describeDeliveryFee(
+        {
+          district: order.shippingAddressDetail.district,
+          postalCode: order.shippingAddressDetail.postalCode,
+          deliveryMethod: order.deliveryMethod,
+        },
+        zones,
+      ).reason
     : null;
 
   return (

@@ -16,6 +16,7 @@ import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
 import { getAnnouncementSettings, getContactSettings, getGeneralSettings } from "@/lib/data/settings";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -88,12 +89,16 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [banner, announcement, contact, general] = await Promise.all([
+  const [banner, announcement, contact, general, zones] = await Promise.all([
     getActiveBanner(),
     getAnnouncementSettings(),
     getContactSettings(),
     getGeneralSettings(),
+    getActiveDeliveryZones(),
   ]);
+
+  // Social URLs (sameAs) stay hardcoded until Phase 4 (Social settings) --
+  // General settings only covers phone/email today.
 
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -145,6 +150,7 @@ export default async function RootLayout({
                     autoRotate={announcement.autoRotate}
                     rotateSpeedMs={announcement.rotateSpeedMs}
                     whatsappNumber={general.whatsappNumber}
+                    zones={zones}
                   />
                   <PromoBanner banner={banner} />
                   <Navbar />

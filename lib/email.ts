@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { formatPrice } from "@/lib/utils";
-import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { SITE_URL } from "@/lib/site";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
@@ -48,7 +49,7 @@ interface OrderEmailData {
   total: number;
 }
 
-function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
+function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean, zones: DeliveryZone[]): string {
   const itemsHtml = order.items
     .map(
       (item) =>
@@ -67,11 +68,14 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean): string {
     ? `<p>New order from ${order.customerName} (${order.customerEmail}).</p>`
     : customerIntro;
 
-  const deliveryReason = describeDeliveryFee({
-    district: order.shippingDistrict,
-    postalCode: order.shippingPostalCode,
-    deliveryMethod: order.deliveryMethod,
-  }).reason;
+  const deliveryReason = describeDeliveryFee(
+    {
+      district: order.shippingDistrict,
+      postalCode: order.shippingPostalCode,
+      deliveryMethod: order.deliveryMethod,
+    },
+    zones,
+  ).reason;
 
   const subtotalRow = `<tr><td style="padding: 8px 0; border-top: 1px solid #ddd;">Subtotal</td><td style="padding: 8px 0; border-top: 1px solid #ddd; text-align: right;">${formatPrice(order.subtotal)}</td></tr>`;
 
@@ -127,6 +131,7 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
   if (!apiKey || !fromEmail) return;
 
   try {
+    const zones = await getActiveDeliveryZones();
     const resend = new Resend(apiKey);
     const results = await Promise.allSettled([
       resend.emails.send({
@@ -134,14 +139,14 @@ export async function sendOrderConfirmationEmails(order: OrderEmailData): Promis
         to: OWNER_EMAIL,
         replyTo: OWNER_EMAIL,
         subject: `New order ${order.orderNumber}`,
-        html: buildOrderEmailHtml(order, true),
+        html: buildOrderEmailHtml(order, true, zones),
       }),
       resend.emails.send({
         from: fromHeader(fromEmail),
         to: order.customerEmail,
         replyTo: OWNER_EMAIL,
         subject: `Your TrendyMall order ${order.orderNumber}`,
-        html: buildOrderEmailHtml(order, false),
+        html: buildOrderEmailHtml(order, false, zones),
       }),
     ]);
     const recipients = [OWNER_EMAIL, order.customerEmail];

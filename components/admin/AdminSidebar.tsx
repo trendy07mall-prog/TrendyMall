@@ -20,8 +20,6 @@ import {
   MailIcon,
   ImageIcon,
   ChartBarIcon,
-  TruckIcon,
-  CreditCardIcon,
   GearIcon,
   AlertTriangleIcon,
   MenuIcon,
@@ -94,9 +92,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Settings",
     items: [
-      { href: "/admin/shipping", label: "Shipping", icon: TruckIcon, soon: true },
-      { href: "/admin/payments", label: "Payments", icon: CreditCardIcon, soon: true },
-      { href: "/admin/settings", label: "Settings", icon: GearIcon, soon: true },
+      { href: "/admin/settings", label: "Settings", icon: GearIcon },
       { href: "/admin/debug", label: "Error Log", icon: AlertTriangleIcon },
     ],
   },
@@ -173,7 +169,15 @@ function NavLinks({
   );
 }
 
-export function AdminSidebar({ badges }: { badges: SidebarBadgeCounts }) {
+export function AdminSidebar({
+  badges,
+  adminLogoUrl = "/images/logo/trendymall-mark.png",
+}: {
+  badges: SidebarBadgeCounts;
+  // Settings-backed (branding.admin_logo_url), defaulting to today's live
+  // file if Settings has nothing.
+  adminLogoUrl?: string;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -311,7 +315,7 @@ export function AdminSidebar({ badges }: { badges: SidebarBadgeCounts }) {
           <MenuIcon className="h-5 w-5" />
         </button>
         <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
-          <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+          <Image src={adminLogoUrl} alt="" width={32} height={15} />
           Admin
         </span>
       </div>
@@ -325,7 +329,7 @@ export function AdminSidebar({ badges }: { badges: SidebarBadgeCounts }) {
         <div className="flex items-center justify-between px-1">
           {!collapsed && (
             <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
-              <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+              <Image src={adminLogoUrl} alt="" width={32} height={15} />
               Admin
             </span>
           )}
@@ -376,7 +380,7 @@ export function AdminSidebar({ badges }: { badges: SidebarBadgeCounts }) {
           >
             <div className="flex items-center justify-between px-1">
               <span className="flex items-center gap-2 font-heading text-sm font-bold tracking-tight">
-                <Image src="/images/logo/trendymall-mark.png" alt="" width={32} height={15} />
+                <Image src={adminLogoUrl} alt="" width={32} height={15} />
                 Admin
               </span>
               <button

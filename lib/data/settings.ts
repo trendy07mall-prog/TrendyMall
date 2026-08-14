@@ -69,6 +69,22 @@ export interface HomepageSettings {
   heroShowDots: boolean;
 }
 
+export interface ShippingSettings {
+  freeShippingEnabled: boolean;
+  freeShippingMinAmount: number;
+  pickupEnabled: boolean;
+  pickupName: string;
+  pickupAddress: string;
+  pickupInstructions: string;
+  pickupHours: string;
+}
+
+export interface PaymentSettings {
+  codEnabled: boolean;
+  bankTransferEnabled: boolean;
+  onlinePaymentEnabled: boolean;
+}
+
 // Hardcoded fallbacks -- the exact values every one of these fields
 // currently holds in the live site today (per the pre-implementation
 // audit). Used only if a settings row is ever missing/unreadable, so a
@@ -131,6 +147,29 @@ const HOMEPAGE_FALLBACK: HomepageSettings = {
   heroSlideDurationMs: 4000,
   heroShowArrows: true,
   heroShowDots: true,
+};
+
+// No sitewide free-shipping threshold existed before Phase 3 -- off by
+// default matches today's real behavior exactly (a no-op until an admin
+// turns it on). Pickup fields match CheckoutForm.tsx's own previous
+// PICKUP_ADDRESS/PICKUP_HOURS constants.
+const SHIPPING_FALLBACK: ShippingSettings = {
+  freeShippingEnabled: false,
+  freeShippingMinAmount: 0,
+  pickupEnabled: true,
+  pickupName: "TrendyMall Store",
+  pickupAddress: "Salawatta Road, Wellampitiya",
+  pickupInstructions: "",
+  pickupHours: "Daily, 10am – 4pm",
+};
+
+// All three methods are unconditionally available today (COD/Bank
+// Transfer have no toggle at all; Online Payment is separately gated by
+// the real isPayHereEnabled() env check regardless of this setting).
+const PAYMENT_FALLBACK: PaymentSettings = {
+  codEnabled: true,
+  bankTransferEnabled: true,
+  onlinePaymentEnabled: true,
 };
 
 async function getGroupValues(group: string): Promise<Map<string, unknown>> {
@@ -219,6 +258,33 @@ export async function getHomepageSettings(): Promise<HomepageSettings> {
       (values.get("homepage.hero_show_arrows") as boolean) ?? HOMEPAGE_FALLBACK.heroShowArrows,
     heroShowDots:
       (values.get("homepage.hero_show_dots") as boolean) ?? HOMEPAGE_FALLBACK.heroShowDots,
+  };
+}
+
+export async function getShippingSettings(): Promise<ShippingSettings> {
+  const values = await getGroupValues("shipping");
+  return {
+    freeShippingEnabled:
+      (values.get("shipping.free_shipping_enabled") as boolean) ?? SHIPPING_FALLBACK.freeShippingEnabled,
+    freeShippingMinAmount:
+      (values.get("shipping.free_shipping_min_amount") as number) ?? SHIPPING_FALLBACK.freeShippingMinAmount,
+    pickupEnabled: (values.get("shipping.pickup_enabled") as boolean) ?? SHIPPING_FALLBACK.pickupEnabled,
+    pickupName: (values.get("shipping.pickup_name") as string) ?? SHIPPING_FALLBACK.pickupName,
+    pickupAddress: (values.get("shipping.pickup_address") as string) ?? SHIPPING_FALLBACK.pickupAddress,
+    pickupInstructions:
+      (values.get("shipping.pickup_instructions") as string) ?? SHIPPING_FALLBACK.pickupInstructions,
+    pickupHours: (values.get("shipping.pickup_hours") as string) ?? SHIPPING_FALLBACK.pickupHours,
+  };
+}
+
+export async function getPaymentSettings(): Promise<PaymentSettings> {
+  const values = await getGroupValues("payment");
+  return {
+    codEnabled: (values.get("payment.cod_enabled") as boolean) ?? PAYMENT_FALLBACK.codEnabled,
+    bankTransferEnabled:
+      (values.get("payment.bank_transfer_enabled") as boolean) ?? PAYMENT_FALLBACK.bankTransferEnabled,
+    onlinePaymentEnabled:
+      (values.get("payment.online_payment_enabled") as boolean) ?? PAYMENT_FALLBACK.onlinePaymentEnabled,
   };
 }
 

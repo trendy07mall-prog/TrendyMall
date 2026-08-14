@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee } from "@/lib/delivery-fee";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { VerifyPaymentButton } from "@/components/admin/VerifyPaymentButton";
@@ -27,7 +28,7 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
-  const [{ data: items }, { data: payment }, { data: address }, { data: history }] = await Promise.all([
+  const [{ data: items }, { data: payment }, { data: address }, { data: history }, zones] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id),
     supabase.from("payments").select("*").eq("order_id", id).maybeSingle(),
     supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
@@ -37,17 +38,21 @@ export default async function AdminOrderDetailPage({
       .eq("order_id", id)
       .eq("field", "order_status")
       .order("created_at", { ascending: true }),
+    getActiveDeliveryZones(),
   ]);
 
   const deliveryLabel =
     order.delivery_method === "pickup"
       ? "Store Pickup"
       : address
-        ? describeDeliveryFee({
-            district: address.district,
-            postalCode: address.postal_code,
-            deliveryMethod: "standard",
-          }).reason
+        ? describeDeliveryFee(
+            {
+              district: address.district,
+              postalCode: address.postal_code,
+              deliveryMethod: "standard",
+            },
+            zones,
+          ).reason
         : null;
 
   let slipSignedUrl: string | null = null;
