@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { PageShell } from "@/components/content/PageShell";
+import { PolicyBody } from "@/components/content/PolicyBody";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
+import { getPoliciesSettings } from "@/lib/data/settings";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
 import { formatPrice } from "@/lib/utils";
 
@@ -12,26 +13,12 @@ export const metadata: Metadata = {
 };
 
 export default async function ShippingPage() {
-  const zones = await getActiveDeliveryZones();
+  const [policies, zones] = await Promise.all([getPoliciesSettings(), getActiveDeliveryZones()]);
   const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
   const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
 
   return (
-    <PageShell title="Shipping Policy">
-      <p>
-        At TrendyMall, we are committed to delivering your orders quickly and
-        securely across Sri Lanka.
-      </p>
-
-      <h2 className="font-heading mt-4 text-lg font-bold">Delivery Time</h2>
-      <ul className="list-disc pl-5">
-        <li>Standard islandwide delivery: 3–5 business days</li>
-        <li>
-          Orders are processed within 24 hours after confirmation (excluding
-          Sundays and public holidays)
-        </li>
-      </ul>
-
+    <PolicyBody title="Shipping Policy" html={policies.shippingBody}>
       <h2 className="font-heading mt-4 text-lg font-bold">Delivery Charges</h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[420px] border-collapse text-sm">
@@ -43,9 +30,7 @@ export default async function ShippingPage() {
           </thead>
           <tbody>
             <tr className="border-b border-[var(--border)]">
-              <td className="py-2 pr-4">
-                Colombo 01–15 (including Colombo Fort)
-              </td>
+              <td className="py-2 pr-4">Colombo 01–15 (including Colombo Fort)</td>
               <td className="py-2">{formatPrice(inZoneRate)}</td>
             </tr>
             <tr>
@@ -55,26 +40,6 @@ export default async function ShippingPage() {
           </tbody>
         </table>
       </div>
-
-      <h2 className="font-heading mt-4 text-lg font-bold">Cash on Delivery</h2>
-      <p>
-        Cash on Delivery (COD) is available for eligible orders across Sri
-        Lanka.
-      </p>
-
-      <h2 className="font-heading mt-4 text-lg font-bold">Order Tracking</h2>
-      <p>
-        Once your order has been dispatched, you will receive tracking
-        updates via WhatsApp, SMS, and email.
-      </p>
-
-      <h2 className="font-heading mt-4 text-lg font-bold">Delivery Coverage</h2>
-      <p>We deliver to all major cities and most areas across Sri Lanka.</p>
-
-      <p>
-        If you have any questions about your order or delivery, our customer
-        support team is always ready to assist you.
-      </p>
-    </PageShell>
+    </PolicyBody>
   );
 }

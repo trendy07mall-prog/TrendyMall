@@ -195,6 +195,39 @@ export function InstagramIcon({ className }: IconProps) {
   );
 }
 
+export function TikTokIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M16.5 3h-3v12.2a2.7 2.7 0 1 1-2.1-2.63V9.5a5.7 5.7 0 1 0 5.1 5.67V9.1a6.7 6.7 0 0 0 3.9 1.25V7.35A3.7 3.7 0 0 1 16.5 3Z" />
+    </svg>
+  );
+}
+
+export function YouTubeIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M22 12s0-3.1-.4-4.6a2.9 2.9 0 0 0-2-2C17.9 5 12 5 12 5s-5.9 0-7.6.4a2.9 2.9 0 0 0-2 2C2 8.9 2 12 2 12s0 3.1.4 4.6a2.9 2.9 0 0 0 2 2C6.1 19 12 19 12 19s5.9 0 7.6-.4a2.9 2.9 0 0 0 2-2C22 15.1 22 12 22 12Z" />
+      <path d="m10 15 5.2-3L10 9v6Z" fill="#fff" />
+    </svg>
+  );
+}
+
+export function TwitterIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4 4l16 16M20 4 4 20" />
+    </svg>
+  );
+}
+
 export function StarIcon({
   className,
   filled,

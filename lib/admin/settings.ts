@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import sanitizeHtml from "sanitize-html";
 import { requireAdminClient } from "@/lib/admin/guard";
+import type { PoliciesSettings } from "@/lib/data/settings";
 
 export type SettingType = "string" | "number" | "boolean" | "json" | "image" | "color";
 
@@ -50,4 +52,61 @@ export async function updateSettings(updates: SettingUpdate[]): Promise<UpdateSe
   revalidatePath("/admin/settings", "layout");
 
   return {};
+}
+
+// Policy bodies are the one settings group storing rich HTML rather than
+// plain values, so they get their own save entry point instead of going
+// through updateSettings() directly -- sanitization has to happen here,
+// server-side, since a client can call a Server Action directly with
+// arbitrary form data regardless of what the browser's editor UI produced.
+// Same allowlist reasoning as lib/admin/products.ts's
+// DESCRIPTION_SANITIZE_OPTIONS (sanitize-html, not isomorphic-dompurify,
+// which needs jsdom and breaks Vercel's serverless bundling), plus `a` --
+// policy content (unlike product descriptions) legitimately needs links
+// (Terms' cross-links to /shipping and /returns, admin-added links to
+// external policy references, etc.). `allowedSchemes` only restricts
+// scheme-prefixed URLs (blocks `javascript:`/`data:`); relative internal
+// links like "/shipping" are untouched by it.
+const POLICY_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p", "br", "strong", "em", "s", "code", "pre", "blockquote", "hr",
+    "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "img", "a",
+  ],
+  allowedAttributes: { img: ["src", "alt"], a: ["href", "target", "rel"] },
+  allowedSchemes: ["http", "https"],
+};
+
+export async function savePoliciesSettings(policies: PoliciesSettings): Promise<UpdateSettingsResult> {
+  return updateSettings([
+    {
+      key: "policies.shipping_body",
+      value: sanitizeHtml(policies.shippingBody, POLICY_SANITIZE_OPTIONS),
+      type: "string",
+      group_name: "policies",
+    },
+    {
+      key: "policies.returns_body",
+      value: sanitizeHtml(policies.returnsBody, POLICY_SANITIZE_OPTIONS),
+      type: "string",
+      group_name: "policies",
+    },
+    {
+      key: "policies.privacy_body",
+      value: sanitizeHtml(policies.privacyBody, POLICY_SANITIZE_OPTIONS),
+      type: "string",
+      group_name: "policies",
+    },
+    {
+      key: "policies.terms_body",
+      value: sanitizeHtml(policies.termsBody, POLICY_SANITIZE_OPTIONS),
+      type: "string",
+      group_name: "policies",
+    },
+    {
+      key: "policies.warranty_body",
+      value: sanitizeHtml(policies.warrantyBody, POLICY_SANITIZE_OPTIONS),
+      type: "string",
+      group_name: "policies",
+    },
+  ]);
 }

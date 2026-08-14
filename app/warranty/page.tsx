@@ -4,16 +4,16 @@ import { PolicyContactBlock } from "@/components/content/PolicyContactBlock";
 import { getGeneralSettings, getPoliciesSettings } from "@/lib/data/settings";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions",
-  description: "The terms and conditions for shopping with TrendyMall.",
-  alternates: { canonical: "/terms" },
+  title: "Warranty",
+  description: "TrendyMall's warranty coverage for eligible products.",
+  alternates: { canonical: "/warranty" },
 };
 
-export default async function TermsPage() {
+export default async function WarrantyPage() {
   const [policies, general] = await Promise.all([getPoliciesSettings(), getGeneralSettings()]);
 
   return (
-    <PolicyBody title="Terms & Conditions" html={policies.termsBody}>
+    <PolicyBody title="Warranty" html={policies.warrantyBody}>
       <PolicyContactBlock general={general} />
     </PolicyBody>
   );

@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
+import TiptapLink from "@tiptap/extension-link";
 import { uploadAdminImage } from "@/lib/admin/uploads";
 
 function ToolbarButton({
@@ -34,12 +35,23 @@ function ToolbarButton({
 export function RichTextEditor({
   value,
   onChange,
+  label = "Description",
 }: {
   value: string;
   onChange: (html: string) => void;
+  label?: string;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit, TiptapImage],
+    extensions: [
+      StarterKit,
+      TiptapImage,
+      // openOnClick: false -- a link inside the editor must be editable
+      // text, not a navigation trap, while an admin is actively writing.
+      // autolink: false -- typing a bare URL/email shouldn't silently
+      // become a link; only the toolbar button (an explicit action)
+      // creates one.
+      TiptapLink.configure({ openOnClick: false, autolink: false }),
+    ],
     content: value,
     immediatelyRender: false,
     editorProps: {
@@ -63,11 +75,27 @@ export function RichTextEditor({
     }
   }
 
+  // A prompt-based flow (matching the codebase's existing window.confirm
+  // usage elsewhere, e.g. delete buttons) rather than a modal -- setting a
+  // link is an occasional action, not worth a new dialog component.
+  // Clicking with the cursor already inside a link removes it instead
+  // (mirrors most rich-text editors' toggle behavior for this button).
+  function handleLinkToggle() {
+    if (!editor) return;
+    if (editor.isActive("link")) {
+      editor.chain().focus().unsetLink().run();
+      return;
+    }
+    const url = window.prompt("Link URL (e.g. /shipping or https://example.com)");
+    if (!url) return;
+    editor.chain().focus().setLink({ href: url }).run();
+  }
+
   if (!editor) return null;
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm font-medium">Description</label>
+      {label && <label className="text-sm font-medium">{label}</label>}
       <div className="rounded-[var(--radius-sm)] border border-[var(--border)]">
         <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border)] p-1.5">
           <ToolbarButton
@@ -97,6 +125,9 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           >
             1. List
+          </ToolbarButton>
+          <ToolbarButton label="Link" active={editor.isActive("link")} onClick={handleLinkToggle}>
+            Link
           </ToolbarButton>
           <label className="cursor-pointer rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm font-medium hover:bg-black/5">
             Image

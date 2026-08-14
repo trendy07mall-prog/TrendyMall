@@ -2,28 +2,53 @@ import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
-import { getBrandingSettings, getGeneralSettings } from "@/lib/data/settings";
+import { getBrandingSettings, getGeneralSettings, getSocialSettings } from "@/lib/data/settings";
 import { getWhatsAppUrl } from "@/lib/site";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
-import { BankIcon, CashIcon, CreditCardIcon, FacebookIcon, InstagramIcon } from "@/components/ui/Icon";
+import {
+  BankIcon,
+  CashIcon,
+  CreditCardIcon,
+  FacebookIcon,
+  InstagramIcon,
+  TikTokIcon,
+  YouTubeIcon,
+  TwitterIcon,
+} from "@/components/ui/Icon";
 
 const COMPANY_LINKS = [
   { href: "/about", label: "About Us" },
   { href: "/contact", label: "Contact" },
   { href: "/shipping", label: "Shipping Policy" },
   { href: "/returns", label: "Returns" },
+  { href: "/warranty", label: "Warranty" },
   { href: "/faq", label: "FAQ" },
   { href: "/track-order", label: "Track Order" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/terms", label: "Terms & Conditions" },
 ];
 
+const SOCIAL_ICONS = {
+  facebookUrl: { icon: FacebookIcon, label: "Facebook" },
+  instagramUrl: { icon: InstagramIcon, label: "Instagram" },
+  tiktokUrl: { icon: TikTokIcon, label: "TikTok" },
+  youtubeUrl: { icon: YouTubeIcon, label: "YouTube" },
+  twitterUrl: { icon: TwitterIcon, label: "X (Twitter)" },
+} as const;
+
 export async function Footer() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [branding, general] = await Promise.all([getBrandingSettings(), getGeneralSettings()]);
+  const [branding, general, social] = await Promise.all([
+    getBrandingSettings(),
+    getGeneralSettings(),
+    getSocialSettings(),
+  ]);
+  const socialLinks = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[])
+    .map((key) => ({ url: social[key], ...SOCIAL_ICONS[key] }))
+    .filter((entry) => entry.url);
   const whatsappUrl = getWhatsAppUrl(undefined, general.whatsappNumber);
   const whatsappDisplay = general.whatsappNumber.replace(/^94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
   const phoneDisplay = general.phone.replace(/^\+94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
@@ -89,26 +114,22 @@ export async function Footer() {
               <li>{formatBusinessHoursSummary(general.businessHours)}</li>
             </ul>
 
-            <div className="mt-4 flex items-center gap-3">
-              <a
-                href="https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TrendyMall on Facebook"
-                className="transition-brand flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] hover:-translate-y-0.5 hover:bg-black/5"
-              >
-                <FacebookIcon className="h-4 w-4" />
-              </a>
-              <a
-                href="https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TrendyMall on Instagram"
-                className="transition-brand flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] hover:-translate-y-0.5 hover:bg-black/5"
-              >
-                <InstagramIcon className="h-4 w-4" />
-              </a>
-            </div>
+            {socialLinks.length > 0 && (
+              <div className="mt-4 flex items-center gap-3">
+                {socialLinks.map(({ url, icon: Icon, label }) => (
+                  <a
+                    key={label}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`TrendyMall on ${label}`}
+                    className="transition-brand flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] hover:-translate-y-0.5 hover:bg-black/5"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

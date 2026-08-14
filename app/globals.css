@@ -327,3 +327,6 @@ input:-webkit-autofill:focus {
   font-weight: 700;
   color: var(--foreground);
 }
+.prose-editor a {
+  text-decoration: underline;
+}

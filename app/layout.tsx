@@ -15,7 +15,13 @@ import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
 import { getActiveBanner } from "@/lib/data/banner";
-import { getAnnouncementSettings, getContactSettings, getGeneralSettings } from "@/lib/data/settings";
+import {
+  getAnnouncementSettings,
+  getContactSettings,
+  getGeneralSettings,
+  getSeoSettings,
+  getSocialSettings,
+} from "@/lib/data/settings";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -47,14 +53,16 @@ const inter = localFont({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
-    template: "%s | TrendyMall",
-  },
-  description:
-    "Shop premium mobile phone accessories in Sri Lanka including chargers, earphones, power banks, phone cases, and more. Fast islandwide delivery and Cash on Delivery available.",
+// Settings-driven (Phase 4) -- generateMetadata (not a static `metadata`
+// export) since it needs to await getSeoSettings(). Only the site-wide
+// fallback layer: every per-page generateMetadata (product, category,
+// campaign, order-confirmation) already sets its own complete title/
+// description/openGraph/twitter/robots and takes priority over this
+// automatically via Next's metadata merging -- this must never be wired
+// into those.
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoSettings();
+
   // Deliberately no `alternates.canonical` here: Next.js metadata cascades
   // to every child page that doesn't set its own, and a root-level "/"
   // canonical would wrongly tell Google every page on the site is a
@@ -62,43 +70,48 @@ export const metadata: Metadata = {
   // (see app/page.tsx, app/shop/page.tsx, etc.) — pages that don't set one
   // simply emit no canonical tag, which is safe (the current, pre-existing
   // default), not wrong.
-  // No manual `images` here for either openGraph or twitter — the
+  // No manual `openGraph.images` when no custom image is set — the
   // opengraph-image.tsx file convention (app/opengraph-image.tsx) already
-  // auto-generates and injects og:image/twitter:image tags for any route
-  // that doesn't define its own; adding one manually risks a duplicate tag
-  // rather than a missing one.
-  openGraph: {
-    type: "website",
-    siteName: "TrendyMall",
-    title: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
-    description:
-      "Shop premium mobile phone accessories in Sri Lanka including chargers, earphones, power banks, phone cases, and more. Fast islandwide delivery and Cash on Delivery available.",
-    url: "/",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Premium Mobile Phone Accessories | TrendyMall Sri Lanka",
-    description:
-      "Shop premium mobile phone accessories in Sri Lanka. Fast islandwide delivery and Cash on Delivery available.",
-    images: ["/opengraph-image"],
-  },
-};
+  // auto-generates and injects og:image for any route that doesn't define
+  // its own; adding one manually risks a duplicate tag rather than a
+  // missing one. `seo.ogImageUrl`, when set, overrides both.
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: seo.siteTitleDefault,
+      template: seo.titleTemplate,
+    },
+    description: seo.metaDescription,
+    openGraph: {
+      type: "website",
+      siteName: "TrendyMall",
+      title: seo.siteTitleDefault,
+      description: seo.metaDescription,
+      url: "/",
+      ...(seo.ogImageUrl ? { images: [seo.ogImageUrl] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo.siteTitleDefault,
+      description: seo.metaDescription,
+      images: [seo.ogImageUrl || "/opengraph-image"],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [banner, announcement, contact, general, zones] = await Promise.all([
+  const [banner, announcement, contact, general, zones, social] = await Promise.all([
     getActiveBanner(),
     getAnnouncementSettings(),
     getContactSettings(),
     getGeneralSettings(),
     getActiveDeliveryZones(),
+    getSocialSettings(),
   ]);
-
-  // Social URLs (sameAs) stay hardcoded until Phase 4 (Social settings) --
-  // General settings only covers phone/email today.
 
   const organizationSchema = {
     "@context": "https://schema.org",
@@ -106,10 +119,9 @@ export default async function RootLayout({
     name: general.storeName,
     url: SITE_URL,
     logo: `${SITE_URL}/icon`,
-    sameAs: [
-      "https://www.facebook.com/share/18oKpTZ1fg/?mibextid=wwXIfr",
-      "https://www.instagram.com/trendy_.mall_._?igsh=MTE4M2IyM3lpeWs1YQ%3D%3D&utm_source=qr",
-    ],
+    sameAs: [social.facebookUrl, social.instagramUrl, social.tiktokUrl, social.youtubeUrl, social.twitterUrl].filter(
+      Boolean,
+    ),
     contactPoint: {
       "@type": "ContactPoint",
       telephone: general.phone,
