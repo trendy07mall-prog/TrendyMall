@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { CheckIcon } from "@/components/ui/Icon";
 
 export function PaymentMethodCard({
   icon: Icon,
@@ -27,7 +28,7 @@ export function PaymentMethodCard({
       aria-pressed={selected}
       className={`transition-brand flex w-full items-center gap-3 rounded-[var(--radius-card)] border p-4 text-left ${
         selected
-          ? "border-2 border-[var(--foreground)]"
+          ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
           : "border-[var(--border)] hover:border-[var(--border-hover)]"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
@@ -43,6 +44,7 @@ export function PaymentMethodCard({
         </span>
         <span className="block text-xs text-[var(--muted)]">{description}</span>
       </span>
+      {selected && <CheckIcon className="h-4 w-4 shrink-0 text-[var(--foreground)]" />}
     </button>
   );
 }

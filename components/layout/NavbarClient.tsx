@@ -85,6 +85,7 @@ export function NavbarClient({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
+  const isCheckout = pathname === "/checkout";
 
   useEffect(() => {
     function onScroll() {
@@ -220,10 +221,14 @@ export function NavbarClient({
       <header
         ref={headerRef}
         className={`sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-colors duration-200 print:hidden ${
-        scrolled ? "border-[var(--border)]" : "border-transparent"
+        isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
       }`}
     >
-      <div className="mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 py-5 sm:px-6">
+      <div
+        className={`mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 sm:px-6 ${
+          isCheckout ? "py-2.5" : "py-5"
+        }`}
+      >
         <Link href="/" className="flex items-center">
           {/* The wordmark is baked into this logo image (unlike the old
               icon-only mark) — no adjacent "TrendyMall" text needed, the
@@ -242,7 +247,7 @@ export function NavbarClient({
             height={40}
             priority
             unoptimized
-            className="h-8 w-auto sm:h-10"
+            className={isCheckout ? "h-6 w-auto sm:h-7" : "h-8 w-auto sm:h-10"}
           />
         </Link>
 

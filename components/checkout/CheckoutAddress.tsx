@@ -479,6 +479,20 @@ export const CheckoutAddress = forwardRef<
   // Card mode
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 text-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
+          Delivery address
+        </span>
+        {addresses.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setMode("picker")}
+            className="inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-3 text-xs font-medium hover:bg-black/5"
+          >
+            Change
+          </button>
+        )}
+      </div>
       <p className="font-medium">
         {fields.firstName} {fields.lastName}
       </p>
@@ -489,27 +503,18 @@ export const CheckoutAddress = forwardRef<
           {displayPostalCode(fields) ? ` ${displayPostalCode(fields)}` : ""}
         </p>
       )}
-      <div className="mt-3 flex items-center gap-4">
+      <div className="mt-3 flex items-center gap-2">
         <button
           type="button"
           onClick={startEdit}
-          className="inline-flex min-h-11 items-center text-sm underline"
+          className="inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-3 text-xs font-medium hover:bg-black/5"
         >
           Edit
         </button>
-        {addresses.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setMode("picker")}
-            className="inline-flex min-h-11 items-center text-sm underline"
-          >
-            Change
-          </button>
-        )}
         <button
           type="button"
           onClick={startAddNew}
-          className="inline-flex min-h-11 items-center text-sm underline"
+          className="inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-3 text-xs font-medium hover:bg-black/5"
         >
           Add New
         </button>

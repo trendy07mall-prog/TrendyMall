@@ -9,16 +9,16 @@ const CURRENT_STEP_INDEX = 1;
 
 export function CheckoutSteps() {
   return (
-    <ol className="flex items-center gap-2 text-xs font-medium text-[var(--muted)] sm:gap-3 sm:text-sm">
+    <ol className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--muted)] sm:gap-2 sm:text-xs">
       {STEPS.map((step, index) => {
         const isDone = index < CURRENT_STEP_INDEX;
         const isCurrent = index === CURRENT_STEP_INDEX;
         return (
-          <li key={step} className="flex items-center gap-2 sm:gap-3">
-            {index > 0 && <span className="h-px w-4 bg-[var(--border)] sm:w-8" aria-hidden="true" />}
+          <li key={step} className="flex items-center gap-1.5 sm:gap-2">
+            {index > 0 && <span className="h-px w-3 bg-[var(--border)] sm:w-6" aria-hidden="true" />}
             <span className="flex items-center gap-1.5">
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] sm:h-5 sm:w-5 sm:text-[10px] ${
                   isDone
                     ? "bg-[var(--foreground)] text-white"
                     : isCurrent
@@ -26,7 +26,7 @@ export function CheckoutSteps() {
                       : "border border-[var(--border)]"
                 }`}
               >
-                {isDone ? <CheckIcon className="h-3 w-3" /> : index + 1}
+                {isDone ? <CheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> : index + 1}
               </span>
               <span
                 aria-current={isCurrent ? "step" : undefined}

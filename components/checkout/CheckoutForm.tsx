@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
@@ -15,7 +16,16 @@ import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
 import { CheckoutAddress, OTHER_COLOMBO_ZONE_VALUE } from "@/components/checkout/CheckoutAddress";
 import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
-import { CashIcon, BankIcon, CreditCardIcon, LockIcon, WhatsAppIcon } from "@/components/ui/Icon";
+import {
+  CashIcon,
+  BankIcon,
+  CreditCardIcon,
+  LockIcon,
+  WhatsAppIcon,
+  CheckIcon,
+  TruckIcon,
+  StoreIcon,
+} from "@/components/ui/Icon";
 import { FieldError } from "@/components/ui/FieldError";
 import { getWhatsAppUrl } from "@/lib/site";
 import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
@@ -567,18 +577,21 @@ export function CheckoutForm({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12 max-sm:pb-28">
+    <div className="mx-auto w-full max-w-[1240px] flex-1 px-6 py-8 max-sm:py-6 max-sm:pb-28">
       <CheckoutSteps />
-      <h1 className="font-heading mt-4 text-3xl font-bold tracking-tight">Checkout</h1>
+      <div className="mt-3">
+        <h1 className="font-heading text-[28px] font-semibold tracking-tight sm:text-[32px]">Checkout</h1>
+        <p className="mt-1 text-[13px] text-[var(--muted)] sm:text-sm">Complete your order securely.</p>
+      </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_400px]">
+      <div className="mt-6 grid gap-7 lg:grid-cols-[1fr_400px] lg:gap-9">
         <form
           id="checkout-form"
           onSubmit={handleSubmit}
           noValidate
           className="flex flex-col gap-6"
         >
-          <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+          <section>
             <h2 className="text-sm font-semibold">Contact</h2>
             <div className="mt-3">
               <Field
@@ -600,31 +613,57 @@ export function CheckoutForm({
                 error={errors.email}
                 required
               />
+              {!errors.email && form.email.trim() && form.email.includes("@") && (
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--muted)]">
+                  <CheckIcon className="h-3 w-3 text-emerald-600" />
+                  We&apos;ll send your order confirmation here.
+                </p>
+              )}
             </div>
           </section>
 
           <section>
             <h2 className="text-sm font-semibold">Delivery</h2>
             <div className="mt-3 flex flex-col gap-2">
-              <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
-                <input
-                  type="radio"
-                  name="deliveryMethod"
-                  checked={deliveryMethod === "standard"}
-                  onChange={() => setDeliveryMethod("standard")}
-                />
-                Standard delivery
-              </label>
+              <button
+                type="button"
+                onClick={() => setDeliveryMethod("standard")}
+                aria-pressed={deliveryMethod === "standard"}
+                className={`transition-brand flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-input)] border p-3 text-left text-sm ${
+                  deliveryMethod === "standard"
+                    ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
+                    : "border-[var(--border)] hover:border-[var(--border-hover)]"
+                }`}
+              >
+                <TruckIcon className="h-5 w-5 shrink-0 text-[var(--muted)]" />
+                <span className="flex-1">
+                  <span className="block font-medium">Standard delivery</span>
+                  <span className="block text-xs text-[var(--muted)]">Delivered to your address</span>
+                </span>
+                {deliveryMethod === "standard" && (
+                  <CheckIcon className="h-4 w-4 shrink-0 text-[var(--foreground)]" />
+                )}
+              </button>
               {shippingSettings.pickupEnabled && (
-                <label className="flex min-h-11 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-3 text-sm">
-                  <input
-                    type="radio"
-                    name="deliveryMethod"
-                    checked={deliveryMethod === "pickup"}
-                    onChange={() => setDeliveryMethod("pickup")}
-                  />
-                  Store Pickup — Free
-                </label>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMethod("pickup")}
+                  aria-pressed={deliveryMethod === "pickup"}
+                  className={`transition-brand flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-input)] border p-3 text-left text-sm ${
+                    deliveryMethod === "pickup"
+                      ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
+                      : "border-[var(--border)] hover:border-[var(--border-hover)]"
+                  }`}
+                >
+                  <StoreIcon className="h-5 w-5 shrink-0 text-[var(--muted)]" />
+                  <span className="flex-1">
+                    <span className="block font-medium">Store Pickup — Free</span>
+                    <span className="block text-xs text-[var(--muted)]">Pick up in person</span>
+                  </span>
+                  {deliveryMethod === "pickup" && (
+                    <CheckIcon className="h-4 w-4 shrink-0 text-[var(--foreground)]" />
+                  )}
+                </button>
               )}
             </div>
 
@@ -678,15 +717,6 @@ export function CheckoutForm({
                 comingSoon={!payHereEnabled}
                 onSelect={() => setPaymentMethod("payhere")}
               />
-            </div>
-
-            <div className="mt-3 flex items-center gap-4 text-xs text-[var(--muted)]">
-              <span className="flex items-center gap-1">
-                <LockIcon className="h-3.5 w-3.5" /> SSL Protected
-              </span>
-              <span className="flex items-center gap-1">
-                <LockIcon className="h-3.5 w-3.5" /> 256-bit Encryption
-              </span>
             </div>
 
             {paymentMethod === "bank_transfer" && (
@@ -748,6 +778,15 @@ export function CheckoutForm({
             />
           </section>
 
+          <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+            <span className="flex items-center gap-1">
+              <LockIcon className="h-3.5 w-3.5" /> Secure checkout
+            </span>
+            <span className="flex items-center gap-1">
+              <CheckIcon className="h-3.5 w-3.5" /> Your information is protected
+            </span>
+          </div>
+
           {submitError && (
             <div role="alert" className="flex flex-col gap-1">
               <p className="text-sm text-[var(--color-discount)]">{submitError}</p>
@@ -766,25 +805,32 @@ export function CheckoutForm({
           <button
             type="submit"
             disabled={pending || slipUploading || items.length === 0 || !hydrated}
-            className="transition-brand hidden w-full items-center justify-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
+            className="transition-brand hidden w-full items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 py-4 text-[15px] font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
-            {pending ? "Placing order…" : `Place order — ${formatPrice(total)}`}
+            {pending ? "Placing order…" : `Place order • ${formatPrice(total)}`}
           </button>
         </form>
 
-        <div className="h-fit rounded-[20px] border border-[var(--border)] bg-[var(--color-card)] p-6 shadow-[var(--shadow-card)] lg:sticky lg:top-24">
+        <div className="h-fit rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
           <h2 className="text-lg font-medium">Order summary</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {items.map((item) => (
               <li
                 key={`${item.productId}:${item.variantId ?? "base"}`}
-                className="flex justify-between text-sm"
+                className="flex items-start gap-3 text-sm"
               >
-                <span>
-                  {item.name}
-                  {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
-                </span>
-                <span>{formatPrice(item.price * item.quantity)}</span>
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border border-[var(--border)] bg-black/5">
+                  {item.image && (
+                    <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
+                  )}
+                </div>
+                <div className="flex flex-1 items-start justify-between gap-2">
+                  <span className="line-clamp-2 flex-1">
+                    {item.name}
+                    {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
+                  </span>
+                  <span className="shrink-0 font-medium">{formatPrice(item.price * item.quantity)}</span>
+                </div>
               </li>
             ))}
           </ul>
@@ -794,11 +840,16 @@ export function CheckoutForm({
                 Applying your saved coupon…
               </div>
             ) : appliedCoupon ? (
-              <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm">
-                <span>
-                  Coupon <strong>{appliedCoupon.code}</strong> — {appliedCoupon.label}
+              <div className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--color-accent)]/[0.06] px-3 py-2.5 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <CheckIcon className="h-3.5 w-3.5 text-emerald-600" />
+                  <strong>{appliedCoupon.code}</strong> applied — {appliedCoupon.label}
                 </span>
-                <button type="button" onClick={handleRemoveCoupon} className="text-xs underline">
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="rounded-full border border-[var(--border)] px-2.5 py-1 text-xs font-medium hover:bg-black/5"
+                >
                   Remove
                 </button>
               </div>
@@ -851,16 +902,28 @@ export function CheckoutForm({
                 <span>-{formatPrice(discount)}</span>
               </div>
             )}
-            <div className="flex justify-between font-medium">
-              <span>Total</span>
-              <span>{formatPrice(total)}</span>
+            <div className="mt-1 flex items-center justify-between border-t border-[var(--border)] pt-3">
+              <span className="text-base font-semibold">Total</span>
+              <span className="text-[21px] font-bold">{formatPrice(total)}</span>
             </div>
             {deliveryMethod !== "pickup" && (
-              <p className="text-xs text-[var(--muted)]">
+              <div className="mt-1 rounded-[var(--radius-input)] bg-black/5 px-3 py-2 text-xs text-[var(--muted)]">
                 Estimated delivery: {getEstimatedDeliveryRange().label.replace(/^Get it by /, "")}
-              </p>
+              </div>
             )}
           </div>
+
+          <ul className="mt-4 flex flex-col gap-1 border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
+            <li className="flex items-center gap-1.5">
+              <CheckIcon className="h-3 w-3" /> Secure checkout
+            </li>
+            <li className="flex items-center gap-1.5">
+              <CheckIcon className="h-3 w-3" /> Cash on Delivery available
+            </li>
+            <li className="flex items-center gap-1.5">
+              <CheckIcon className="h-3 w-3" /> Easy order tracking
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -870,13 +933,13 @@ export function CheckoutForm({
       >
         <div className="flex flex-col">
           <span className="text-xs text-[var(--muted)]">Total</span>
-          <span className="text-base font-medium">{formatPrice(total)}</span>
+          <span className="text-lg font-bold">{formatPrice(total)}</span>
         </div>
         <button
           type="submit"
           form="checkout-form"
           disabled={pending || slipUploading || items.length === 0}
-          className="transition-brand rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="transition-brand flex h-[52px] items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? "Placing…" : "Place Order"}
         </button>
