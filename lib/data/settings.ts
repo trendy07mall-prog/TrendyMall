@@ -140,6 +140,16 @@ export interface MaintenanceSettings {
   message: string;
 }
 
+// Deliberately dormant -- enabled defaults false and, as of this phase,
+// nothing anywhere reads this setting to affect pricing/checkout/orders.
+// It exists purely as future marketplace groundwork (see
+// lib/admin/commission-rules.ts and sql/072_commission_settings.sql).
+export interface CommissionSettings {
+  enabled: boolean;
+  type: "category_based";
+  defaultPercent: number;
+}
+
 // Hardcoded fallbacks -- the exact values every one of these fields
 // currently holds in the live site today (per the pre-implementation
 // audit). Used only if a settings row is ever missing/unreadable, so a
@@ -355,6 +365,12 @@ const MAINTENANCE_FALLBACK: MaintenanceSettings = {
     "We're currently performing scheduled maintenance. We'll be back shortly — thanks for your patience.",
 };
 
+const COMMISSION_FALLBACK: CommissionSettings = {
+  enabled: false,
+  type: "category_based",
+  defaultPercent: 0,
+};
+
 async function getGroupValues(group: string): Promise<Map<string, unknown>> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -529,6 +545,18 @@ export async function getMaintenanceSettings(): Promise<MaintenanceSettings> {
   return {
     enabled: (values.get("maintenance.enabled") as boolean) ?? MAINTENANCE_FALLBACK.enabled,
     message: (values.get("maintenance.message") as string) ?? MAINTENANCE_FALLBACK.message,
+  };
+}
+
+// Not called by checkout, create_order_atomic, or any pricing path -- only
+// by the Commission Settings admin page itself. See CommissionSettings'
+// own doc comment.
+export async function getCommissionSettings(): Promise<CommissionSettings> {
+  const values = await getGroupValues("commission");
+  return {
+    enabled: (values.get("commission.enabled") as boolean) ?? COMMISSION_FALLBACK.enabled,
+    type: (values.get("commission.type") as "category_based") ?? COMMISSION_FALLBACK.type,
+    defaultPercent: (values.get("commission.default_percent") as number) ?? COMMISSION_FALLBACK.defaultPercent,
   };
 }
 

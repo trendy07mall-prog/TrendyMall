@@ -13,6 +13,7 @@ import {
   ListIcon,
   GemIcon,
   CartIcon,
+  CashIcon,
   UserIcon,
   StarIcon,
   PercentIcon,
@@ -72,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Sales",
     items: [
       { href: "/admin/orders", label: "Orders", icon: CartIcon, badgeKey: "orders" },
+      { href: "/admin/finance", label: "Finance", icon: CashIcon },
       { href: "/admin/customers", label: "Customers", icon: UserIcon },
     ],
   },

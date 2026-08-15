@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 
 // No "Profit" anywhere -- there is no cost/expense data in this schema,
@@ -30,6 +31,12 @@ export function FinanceSection({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">Finance</p>
+        <Link href="/admin/finance" className="text-sm font-medium underline">
+          View full Finance report →
+        </Link>
+      </div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {primary.map((item) => (
           <div

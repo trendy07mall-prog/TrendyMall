@@ -1734,6 +1734,129 @@ export interface Database {
           },
         ];
       };
+      expenses: {
+        Row: {
+          id: string;
+          name: string;
+          category: string;
+          amount: number;
+          expense_date: string;
+          payment_method: string;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          category: string;
+          amount: number;
+          expense_date: string;
+          payment_method: string;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          category?: string;
+          amount?: number;
+          expense_date?: string;
+          payment_method?: string;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "expenses_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      commission_category_rules: {
+        Row: {
+          id: string;
+          category_id: string;
+          commission_percent: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          category_id: string;
+          commission_percent: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          category_id?: string;
+          commission_percent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "commission_category_rules_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: true;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      seller_settlements: {
+        Row: {
+          id: string;
+          order_id: string;
+          release_amount: number;
+          commission: number;
+          payment_fee: number;
+          shipping_fee: number;
+          release_status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          release_amount?: number;
+          commission?: number;
+          payment_fee?: number;
+          shipping_fee?: number;
+          release_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          release_amount?: number;
+          commission?: number;
+          payment_fee?: number;
+          shipping_fee?: number;
+          release_status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "seller_settlements_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       product_rating_summary: {
