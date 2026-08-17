@@ -1,37 +1,59 @@
 import type { Metadata } from "next";
-import { PageShell } from "@/components/content/PageShell";
+import { getGeneralSettings, getSocialSettings, getPaymentSettings } from "@/lib/data/settings";
+import { getCategoriesWithProducts } from "@/lib/data/categories";
+import { isPayHereEnabled } from "@/lib/payhere";
+import { AboutHero } from "@/components/content/about/AboutHero";
+import { AboutTimeline } from "@/components/content/about/AboutTimeline";
+import { AboutComparison } from "@/components/content/about/AboutComparison";
+import { AboutValues } from "@/components/content/about/AboutValues";
+import { AboutCategories } from "@/components/content/about/AboutCategories";
+import { AboutProcess } from "@/components/content/about/AboutProcess";
+import { AboutExperience } from "@/components/content/about/AboutExperience";
+import { AboutDeliveryReturns } from "@/components/content/about/AboutDeliveryReturns";
+import { AboutFuture } from "@/components/content/about/AboutFuture";
+import { AboutCustomersSellers } from "@/components/content/about/AboutCustomersSellers";
+import { AboutTrustBand } from "@/components/content/about/AboutTrustBand";
+import { AboutContact } from "@/components/content/about/AboutContact";
+import { AboutFinalCta } from "@/components/content/about/AboutFinalCta";
 
 export const metadata: Metadata = {
-  title: "About TrendyMall",
+  title: "About TrendyMall | Fair Pricing & Trusted Online Shopping in Sri Lanka",
   description:
-    "TrendyMall is Sri Lanka's trusted destination for premium mobile phone accessories.",
+    "TrendyMall is Sri Lanka's online store for electronics, built on fair pricing and honest service. Read our story and shop the current catalog.",
   alternates: { canonical: "/about" },
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const [general, social, paymentSettings, categories] = await Promise.all([
+    getGeneralSettings(),
+    getSocialSettings(),
+    getPaymentSettings(),
+    getCategoriesWithProducts(),
+  ]);
+
+  // Same gate checkout itself uses (app/checkout/page.tsx) -- Card only
+  // reads as available here if it would actually be selectable at checkout.
+  const cardAvailable = isPayHereEnabled() && paymentSettings.onlinePaymentEnabled;
+
   return (
-    <PageShell title="About TrendyMall">
-      <p>
-        At TrendyMall, we&apos;re passionate about helping people get the
-        best out of their mobile devices with high-quality accessories at
-        affordable prices. We carefully select products that combine
-        durability, performance, and modern design, ensuring our customers
-        receive reliable accessories they can trust every day.
-      </p>
-      <p>
-        Founded with a commitment to quality, value, and excellent customer
-        service, TrendyMall has grown into a trusted destination for mobile
-        phone accessories in Sri Lanka. From chargers, cables, earphones,
-        power banks, and phone cases to a wide range of other mobile
-        accessories, we strive to provide a seamless shopping experience
-        backed by competitive prices, fast islandwide delivery, and
-        dedicated customer support.
-      </p>
-      <p>
-        Our mission is simple: to make premium mobile accessories accessible
-        to everyone while delivering an exceptional shopping experience from
-        order to delivery.
-      </p>
-    </PageShell>
+    <div className="flex flex-1 flex-col">
+      <AboutHero />
+      <AboutTimeline />
+      <AboutComparison />
+      <AboutValues />
+      <AboutCategories categories={categories} />
+      <AboutProcess />
+      <AboutExperience
+        codEnabled={paymentSettings.codEnabled}
+        bankTransferEnabled={paymentSettings.bankTransferEnabled}
+        cardAvailable={cardAvailable}
+      />
+      <AboutDeliveryReturns />
+      <AboutFuture />
+      <AboutCustomersSellers />
+      <AboutTrustBand />
+      <AboutContact general={general} social={social} />
+      <AboutFinalCta />
+    </div>
   );
 }

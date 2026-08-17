@@ -64,6 +64,50 @@ export async function getDescendantCategoryIds(category: Category): Promise<stri
   return [category.id, ...(data ?? []).map((row) => row.id)];
 }
 
+// Top-level categories that actually have at least one real product --
+// same "status='published' AND is_deleted=false" predicate used everywhere
+// else products are counted (e.g. lib/data/products.ts's getFacetCounts).
+// Products in this catalog are assigned to LEAF categories (e.g. "Power
+// Bank", "Earbuds" a few levels under a top-level parent), never directly
+// to the depth-0 category itself -- so a plain category_id match against
+// only the depth-0 set would find zero products for every top-level
+// category. Instead, every category's materialized `path` (dot-separated
+// ancestor ids, own id last) is used to roll a leaf product up to its
+// depth-0 ancestor (the path's first segment), same technique
+// getDescendantCategoryIds uses in reverse. Used by the About page's "What
+// We Sell" grid so an empty category never appears there.
+export async function getCategoriesWithProducts(): Promise<Category[]> {
+  const supabase = await createClient();
+
+  const [
+    { data: topLevel, error: topLevelError },
+    { data: allCategories, error: allCategoriesError },
+    { data: productRows, error: productsError },
+  ] = await Promise.all([
+    supabase.from("categories").select("*").eq("depth", 0).eq("is_active", true).order("sort_order", { ascending: true }),
+    supabase.from("categories").select("id, path"),
+    supabase.from("products").select("category_id").eq("status", "published").eq("is_deleted", false),
+  ]);
+
+  if (topLevelError) throw topLevelError;
+  if (allCategoriesError) throw allCategoriesError;
+  if (productsError) throw productsError;
+
+  const topLevelAncestorById = new Map<string, string>();
+  for (const c of allCategories ?? []) {
+    topLevelAncestorById.set(c.id, c.path.split(".")[0]);
+  }
+
+  const countByTopLevelId = new Map<string, number>();
+  for (const row of productRows ?? []) {
+    const topLevelId = topLevelAncestorById.get(row.category_id);
+    if (!topLevelId) continue;
+    countByTopLevelId.set(topLevelId, (countByTopLevelId.get(topLevelId) ?? 0) + 1);
+  }
+
+  return (topLevel ?? []).filter((c) => (countByTopLevelId.get(c.id) ?? 0) > 0);
+}
+
 // Direct children only (not the whole subtree) -- used by the category page
 // to show a "browse sub-categories" row above the product grid.
 export async function getChildCategories(
