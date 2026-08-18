@@ -135,9 +135,13 @@ export async function getAdminSearchMatchIds(
 export interface AdminVariantRow {
   id: string;
   colorName: string | null;
+  colorHex: string | null;
   sku: string | null;
   isActive: boolean;
   isDefault: boolean;
+  regularPrice: number;
+  salePrice: number | null;
+  stock: number | null;
 }
 
 export interface AdminProductRow extends Product {
@@ -175,7 +179,7 @@ async function attachPrimaryImages(
     supabase
       .from("product_variants")
       .select(
-        "id, product_id, regular_price, sale_price, stock, is_default, is_active, variant_image_url, color_name, sku",
+        "id, product_id, regular_price, sale_price, stock, is_default, is_active, variant_image_url, color_name, color_hex, sku",
       )
       .in("product_id", ids),
   ]);
@@ -190,6 +194,7 @@ async function attachPrimaryImages(
   type FullVariantRow = VariantPriceRow & {
     is_active: boolean;
     color_name: string | null;
+    color_hex: string | null;
     sku: string | null;
   };
 
@@ -235,9 +240,13 @@ async function attachPrimaryImages(
       variants: allVariants.map((v) => ({
         id: v.id,
         colorName: v.color_name,
+        colorHex: v.color_hex,
         sku: v.sku,
         isActive: v.is_active,
         isDefault: v.is_default,
+        regularPrice: v.regular_price,
+        salePrice: v.sale_price,
+        stock: v.stock,
       })),
     };
   });
@@ -383,6 +392,11 @@ export interface ProductSummaryCounts {
   featured: number;
   lowStock: number;
   outOfStock: number;
+  // Added for the status-tabs row (ProductStatusTabs) -- kept in this same
+  // function rather than a second query pass, but deliberately not shown
+  // on ProductSummaryCards, which stays exactly as it was.
+  draft: number;
+  deleted: number;
 }
 
 export async function getProductSummaryCounts(): Promise<ProductSummaryCounts> {
@@ -393,6 +407,8 @@ export async function getProductSummaryCounts(): Promise<ProductSummaryCounts> {
     { count: featured },
     { count: lowStock },
     { count: outOfStock },
+    { count: draft },
+    { count: deleted },
   ] = await Promise.all([
     supabase.from("products").select("*", { count: "exact", head: true }).eq("is_deleted", false),
     supabase
@@ -416,6 +432,12 @@ export async function getProductSummaryCounts(): Promise<ProductSummaryCounts> {
       .select("*", { count: "exact", head: true })
       .eq("is_deleted", false)
       .lte("stock", 0),
+    supabase
+      .from("products")
+      .select("*", { count: "exact", head: true })
+      .eq("is_deleted", false)
+      .eq("status", "draft"),
+    supabase.from("products").select("*", { count: "exact", head: true }).eq("is_deleted", true),
   ]);
 
   return {
@@ -424,6 +446,8 @@ export async function getProductSummaryCounts(): Promise<ProductSummaryCounts> {
     featured: featured ?? 0,
     lowStock: lowStock ?? 0,
     outOfStock: outOfStock ?? 0,
+    draft: draft ?? 0,
+    deleted: deleted ?? 0,
   };
 }
 

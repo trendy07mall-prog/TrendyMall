@@ -8,6 +8,7 @@ import {
 import { parseAdminProductFilterState, countActiveAdminFilters } from "@/lib/admin/product-filters";
 import { getCategories } from "@/lib/data/categories";
 import { ProductSummaryCards } from "@/components/admin/ProductSummaryCards";
+import { ProductStatusTabs } from "@/components/admin/ProductStatusTabs";
 import { ProductSearchBar } from "@/components/admin/ProductSearchBar";
 import { ProductFilterBar } from "@/components/admin/ProductFilterBar";
 import { DownloadTemplateButton } from "@/components/admin/DownloadTemplateButton";
@@ -60,7 +61,11 @@ export default async function AdminProductsPage({
         <ProductSummaryCards counts={counts} />
       </div>
 
-      <div className="mt-6 flex flex-col gap-4">
+      <div className="mt-6">
+        <ProductStatusTabs basePath="/admin/products" state={state} counts={counts} />
+      </div>
+
+      <div className="mt-4 flex flex-col gap-4">
         <ProductSearchBar basePath="/admin/products" state={state} />
         <ProductFilterBar
           basePath="/admin/products"

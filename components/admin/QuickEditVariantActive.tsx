@@ -11,9 +11,15 @@ import { useToast } from "@/components/admin/ToastProvider";
 export function QuickEditVariantActive({
   variantId,
   isActive,
+  onToggled,
 }: {
   variantId: string;
   isActive: boolean;
+  // Optional -- lets a parent that shows its own derived status badge next
+  // to this toggle (the products-table variant panel) stay in sync without
+  // this component needing to know that badge exists. Existing callers that
+  // don't pass it see zero behavior change.
+  onToggled?: (next: boolean) => void;
 }) {
   const [value, setValue] = useState(isActive);
   const [pending, startTransition] = useTransition();
@@ -30,6 +36,7 @@ export function QuickEditVariantActive({
         showToast(result.error, "error");
       } else {
         showToast(next ? "Variant activated" : "Variant deactivated");
+        onToggled?.(next);
       }
     });
   }

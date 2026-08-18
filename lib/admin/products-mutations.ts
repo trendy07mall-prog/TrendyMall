@@ -97,6 +97,29 @@ export async function quickUpdateVariantActive(
   return { success: true };
 }
 
+// Sibling to quickUpdateVariantPrice -- product_variants.stock has no quick-
+// edit path yet (only the parent product's own `stock` column does, via
+// quickUpdateProduct, which is a DIFFERENT field used only as a fallback
+// for variant-less products). Integer-checked (not just non-negative) per
+// the variant panel's explicit ask, stricter than quickUpdateProduct's own
+// stock check -- deliberately not loosening that one to match.
+export async function quickUpdateVariantStock(
+  variantId: string,
+  stock: number,
+): Promise<QuickEditResult> {
+  const supabase = await requireAdminClient();
+
+  if (!Number.isInteger(stock) || stock < 0) {
+    return { error: "Stock must be a non-negative whole number." };
+  }
+
+  const { error } = await supabase.from("product_variants").update({ stock }).eq("id", variantId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin/products");
+  return { success: true };
+}
+
 export type DuplicateResult = { newProductId: string } | { error: string };
 
 async function duplicateOne(

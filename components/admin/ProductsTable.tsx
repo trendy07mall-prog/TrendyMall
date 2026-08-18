@@ -10,7 +10,7 @@ import { QuickEditPrice } from "@/components/admin/QuickEditPrice";
 import { QuickEditStock } from "@/components/admin/QuickEditStock";
 import { QuickEditStatus } from "@/components/admin/QuickEditStatus";
 import { QuickEditFeatured } from "@/components/admin/QuickEditFeatured";
-import { QuickEditVariantActive } from "@/components/admin/QuickEditVariantActive";
+import { VariantEditRow } from "@/components/admin/VariantEditRow";
 import { ProductActionsMenu } from "@/components/admin/ProductActionsMenu";
 import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { Pagination } from "@/components/product/Pagination";
@@ -23,7 +23,7 @@ import type { AdminProductRow, AdminVariantRow } from "@/lib/admin/products-quer
 function VariantList({ variants }: { variants: AdminVariantRow[] }) {
   const allInactive = variants.length > 0 && !variants.some((v) => v.isActive);
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1">
       {allInactive && (
         <p role="alert" className="text-xs font-medium text-[var(--color-discount)]">
           All variants inactive — product cannot be purchased
@@ -31,15 +31,7 @@ function VariantList({ variants }: { variants: AdminVariantRow[] }) {
       )}
       <div className="flex flex-col divide-y divide-[var(--border)]">
         {variants.map((variant) => (
-          <div key={variant.id} className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-sm">
-              {variant.colorName || variant.sku || "Default"}
-              {variant.isDefault && (
-                <span className="ml-1.5 text-xs text-[var(--muted)]">(default)</span>
-              )}
-            </span>
-            <QuickEditVariantActive variantId={variant.id} isActive={variant.isActive} />
-          </div>
+          <VariantEditRow key={variant.id} variant={variant} />
         ))}
       </div>
     </div>
@@ -247,7 +239,7 @@ export function ProductsTable({
                 {isExpanded && hasMultipleVariants && (
                   <tr className="border-b border-[var(--border)] bg-black/[0.02]">
                     <td colSpan={10} className="px-4 py-3">
-                      <div className="max-w-md">
+                      <div className="max-w-3xl">
                         <VariantList variants={product.variants} />
                       </div>
                     </td>
