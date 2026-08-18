@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
+import { AttributeCard } from "@/components/product/AttributeCard";
 import { AttributeSelector } from "@/components/product/AttributeSelector";
 import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { AddToCartForm } from "@/components/product/AddToCartForm";
@@ -29,6 +30,19 @@ import type { DisplaySpec } from "@/lib/data/spec-templates";
 
 function normalizeColor(name: string | null): string {
   return (name ?? "").trim().toLowerCase();
+}
+
+// Some variants' color_name has extra "- Capacity - Connector" text baked
+// into it (an admin data-entry slip -- the full variant descriptor typed
+// into the color field instead of just the color, e.g. "White - 5000 mah -
+// Lighting"), so the Colour row would otherwise print that whole string
+// instead of the actual color. Display only the leading segment. The
+// matching/dedup key (normalizeColor, above) still hashes the FULL raw
+// name completely unchanged -- this only touches what text is shown, never
+// which variants a color click resolves to.
+function displayColorName(name: string): string {
+  const [first] = name.split(/\s+-\s+/);
+  return first.trim() || name;
 }
 
 export function ProductPurchaseSection({
@@ -70,7 +84,7 @@ export function ProductPurchaseSection({
     const key = normalizeColor(v.color_name);
     if (!seenColorKeys.has(key)) {
       seenColorKeys.add(key);
-      colorOptions.push({ key, name: v.color_name, hex: v.color_hex });
+      colorOptions.push({ key, name: displayColorName(v.color_name), hex: v.color_hex });
     }
   }
 
@@ -410,9 +424,34 @@ export function ProductPurchaseSection({
   // but stays as a visible safety net rather than a silent block.
   const colorSelectionMissing = colorOptions.length > 0 && !selectedColorKey;
 
+  // Presentational-only stock categorization, same 3-tier scheme
+  // ProductCard already uses (in/low/out) -- derived from the exact same
+  // effectiveStock/outOfStock values everything else on this page (Add to
+  // Cart disabling, quantity clamping) reads, so it can never disagree with
+  // the real availability logic. Purely which color dot/label to show.
+  const stockVisual = outOfStock
+    ? { dot: "bg-[var(--color-discount)]", text: "text-[var(--color-discount)]", label: "Out of stock" }
+    : effectiveStock < 5
+      ? {
+          dot: "bg-[var(--color-warning)]",
+          text: "text-[var(--color-warning)]",
+          label: `Only ${effectiveStock} left`,
+        }
+      : { dot: "bg-[#16a34a]", text: "text-[#16a34a]", label: `${effectiveStock} in stock` };
+
+  // Eyebrow above the title -- category and brand, whichever exist.
+  // categoryName arrives as "—" when the product has none (page.tsx's own
+  // fallback for the unrelated SpecsTable/ProductTabs props), so that
+  // placeholder is filtered out here rather than shown as a fake category.
+  const eyebrowParts = [categoryName !== "—" ? categoryName : null, product.brand].filter(
+    (part): part is string => Boolean(part),
+  );
+
+  const hasAttributeCard = colorSwatchOptions.length > 0 || attributes.some((g) => g.values.length > 0);
+
   return (
     <>
-    <div className="mt-8 grid gap-12 lg:grid-cols-2">
+    <div className="mt-8 grid gap-8 lg:grid-cols-[52%_1fr] lg:gap-10">
       <ProductGalleryWithVariants
         images={images}
         resolvedVariant={resolvedVariant}
@@ -445,9 +484,9 @@ export function ProductPurchaseSection({
             ))}
           </div>
         )}
-        {product.brand && (
+        {eyebrowParts.length > 0 && (
           <p className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
-            {product.brand}
+            {eyebrowParts.join(" · ")}
           </p>
         )}
         <ProductTitleClamp
@@ -474,6 +513,7 @@ export function ProductPurchaseSection({
             <span className="text-xs text-[var(--muted)]">SKU: {product.sku}</span>
           )}
         </div>
+        <div className="mt-3 h-px bg-[var(--border)]" />
 
         <div className="mt-4">
           <PriceDisplay
@@ -482,44 +522,50 @@ export function ProductPurchaseSection({
             size="md"
           />
         </div>
-        <p className="mt-3 text-sm text-[var(--muted)]">
-          {outOfStock ? "Out of stock" : `${effectiveStock} in stock`}
+        <p className={`mt-3 flex items-center gap-2 text-sm font-medium ${stockVisual.text}`}>
+          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stockVisual.dot}`} aria-hidden="true" />
+          {stockVisual.label}
         </p>
 
-        {/* All variant selectors grouped together, immediately below price/
-            stock -- Color and Mah (and any future Size/Storage) render
-            adjacent to each other so changing one visibly updates the
-            others in the same screenful, instead of Color sitting up by
-            the gallery while the rest lived ~1000px further down. */}
-        <VariantSwatches
-          options={colorSwatchOptions}
-          selectedKey={selectedColorKey}
-          onSelect={handleColorSelect}
-          hasError={colorSelectionMissing}
-        />
+        {/* All variant selectors grouped into one bordered card,
+            immediately below price/stock -- Colour and Capacity (and any
+            future Size/Connector) render adjacent to each other so
+            changing one visibly updates the others in the same screenful,
+            instead of Colour sitting up by the gallery while the rest
+            lived ~1000px further down. */}
+        {hasAttributeCard && (
+          <AttributeCard>
+            <VariantSwatches
+              options={colorSwatchOptions}
+              selectedKey={selectedColorKey}
+              onSelect={handleColorSelect}
+              hasError={colorSelectionMissing}
+            />
 
-        {attributes.map((group) => (
-          <AttributeSelector
-            key={group.attribute.id}
-            attribute={group.attribute}
-            values={group.values}
-            selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
-            onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
-            hasError={!selectedAttributeValues[group.attribute.id]}
-            flash={flashingIds.has(group.attribute.id)}
-            disabledIds={
-              variantDefiningAttributeIds.has(group.attribute.id)
-                ? new Set(
-                    group.values
-                      .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
-                      .map((v) => v.id),
-                  )
-                : undefined
-            }
-          />
-        ))}
+            {attributes.map((group) => (
+              <AttributeSelector
+                key={group.attribute.id}
+                attribute={group.attribute}
+                values={group.values}
+                selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
+                onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
+                hasError={!selectedAttributeValues[group.attribute.id]}
+                flash={flashingIds.has(group.attribute.id)}
+                disabledIds={
+                  variantDefiningAttributeIds.has(group.attribute.id)
+                    ? new Set(
+                        group.values
+                          .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
+                          .map((v) => v.id),
+                      )
+                    : undefined
+                }
+              />
+            ))}
+          </AttributeCard>
+        )}
 
-        <div ref={purchaseActionsRef} className="mt-8 flex flex-col gap-4">
+        <div ref={purchaseActionsRef} className="mt-6 flex flex-col gap-4">
           {!outOfStock && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Quantity</span>
@@ -609,29 +655,33 @@ export function ProductPurchaseSection({
             outsideZoneRate={outsideZoneRate}
           />
         )}
-
-        <ProductHighlights specs={specs} />
-
-        <WhatsInBox items={product.whats_in_box} />
-
-        <div className="mt-8">
-          <TrustBadges
-            compact
-            codAvailable={product.cod_available}
-            warrantyAvailable={product.warranty_available}
-          />
-        </div>
-
-        <ProductTabs
-          product={product}
-          categoryName={categoryName}
-          specs={specs}
-          reviews={reviews}
-          ratingSummary={ratingSummary}
-          reviewState={reviewState}
-        />
       </div>
     </div>
+
+    {/* Full-width below the gallery/purchase grid, not squeezed into the
+        right column -- Specs needs 5 real columns and Tabs needs its own
+        ~820px reading width, neither of which fit in a ~48%-wide column. */}
+    <ProductHighlights specs={specs} />
+
+    <WhatsInBox items={product.whats_in_box} />
+
+    <div className="mt-10">
+      <TrustBadges
+        compact
+        codAvailable={product.cod_available}
+        warrantyAvailable={product.warranty_available}
+      />
+    </div>
+
+    <ProductTabs
+      product={product}
+      categoryName={categoryName}
+      specs={specs}
+      reviews={reviews}
+      ratingSummary={ratingSummary}
+      reviewState={reviewState}
+    />
+
     {!outOfStock && (
       <FloatingPurchaseBar
         visible={floatingBarVisible}

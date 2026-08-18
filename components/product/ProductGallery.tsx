@@ -199,25 +199,27 @@ export function ProductGallery({
       )}
 
       {images.length > 1 && (
-        <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+        <div className="flex min-w-0 gap-3 overflow-x-auto pb-1">
           {images.map((src, i) => (
             <button
               key={`${src}-${i}`}
               type="button"
               onClick={() => setActive(i)}
               aria-label={`View image ${i + 1}`}
-              className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-sm)] border transition-colors ${
+              aria-current={i === active}
+              className={`relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[var(--radius-sm)] ring-2 ring-offset-2 transition-all duration-150 ease-in-out ${
                 i === active
-                  ? "border-[var(--foreground)]"
-                  : "border-[var(--border)] hover:border-[var(--border-hover)]"
+                  ? "ring-[#0F2D52]"
+                  : "ring-transparent hover:ring-[var(--border-hover)]"
               }`}
             >
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[var(--radius-sm)] border border-[var(--border)]" />
               <Image
                 src={src}
                 alt={`${name} — photo ${i + 1}`}
                 fill
                 loading="lazy"
-                sizes="64px"
+                sizes="76px"
                 className="object-cover"
               />
             </button>

@@ -19,8 +19,9 @@ export function PriceDisplay({
 }) {
   // "sm" (every product grid card) needs a smaller font to fit two 4-digit
   // prices + a stock label on one line at /shop's narrowest real column
-  // width (lg:grid-cols-4 + filter sidebar, ~187px).
-  const priceClass = size === "md" ? "text-xl font-semibold" : "text-[13px] font-bold";
+  // width (lg:grid-cols-4 + filter sidebar, ~187px). "md" is PDP-only, so it
+  // can afford to be the page's single largest price treatment.
+  const priceClass = size === "md" ? "text-[34px] font-bold" : "text-[13px] font-bold";
   const wasClass = size === "md" ? "text-base" : "text-[11px]";
   const wasText = formatPrice(actualPrice);
 
@@ -31,6 +32,25 @@ export function PriceDisplay({
         -{discountPercent}%
       </span>
     );
+
+    // "md" (PDP) shows the saved rupee amount instead of the badge -- a
+    // concrete "Save Rs 1,651" reads as more real savings than a bare
+    // percentage. "sm" (every grid card) is untouched: same badge as before,
+    // no size to spare for a second line there.
+    if (size === "md") {
+      const savedAmount = actualPrice - specialPrice;
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="flex flex-wrap items-baseline gap-2">
+            <span className={priceClass}>{formatPrice(specialPrice)}</span>
+            <span className={`${wasClass} text-[var(--muted)] line-through`}>{wasText}</span>
+          </span>
+          {savedAmount > 0 && (
+            <span className="text-sm font-semibold text-[#16a34a]">Save {formatPrice(savedAmount)}</span>
+          )}
+        </div>
+      );
+    }
 
     return (
       <span className="flex flex-nowrap items-baseline gap-0.5">

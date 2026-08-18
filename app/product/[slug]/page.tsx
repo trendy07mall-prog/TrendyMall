@@ -71,6 +71,12 @@ export default async function ProductPage({
   }
 
   const { product, images, variants, attributes: productAttributes } = detail;
+  // Keeps the breadcrumb trail on one line -- a long product name is the
+  // one item here with no natural length cap (category names are short by
+  // convention). Display-only: the page's own <h1>/metadata still use the
+  // full, untruncated product.name.
+  const breadcrumbProductName =
+    product.name.length > 40 ? `${product.name.slice(0, 40).trimEnd()}…` : product.name;
   const category = await getCategoryById(product.category_id);
   const categoryAncestors = category ? await getCategoryAncestors(category) : [];
   const imageUrls = images.map((i) => i.image_url);
@@ -152,7 +158,7 @@ export default async function ProductPage({
             label: ancestor.name,
             href: `/category/${ancestor.slug}`,
           })),
-          { label: product.name },
+          { label: breadcrumbProductName },
         ]}
       />
 

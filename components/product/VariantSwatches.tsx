@@ -9,6 +9,11 @@ export interface ColorSwatchOption {
   disabled: boolean;
 }
 
+// Renders as one row inside the shared AttributeCard (components/product/
+// AttributeCard.tsx) -- name left, selected value right, swatches below.
+// `name` is expected to already be the clean, single color name (any
+// "- Capacity - Connector" cleanup happens once, at the call site in
+// ProductPurchaseSection, not here).
 export function VariantSwatches({
   options,
   selectedKey,
@@ -27,12 +32,17 @@ export function VariantSwatches({
   const selected = options.find((o) => o.key === selectedKey);
 
   return (
-    <div className="mt-4">
-      <p className={`text-sm font-medium ${hasError ? "text-[var(--color-discount)]" : ""}`}>
-        Color{selected ? `: ${selected.name}` : hasError ? " — please select" : ""}
-      </p>
+    <div className="p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className={`text-sm font-semibold ${hasError ? "text-[var(--color-discount)]" : ""}`}>
+          Colour
+        </span>
+        <span className={`text-sm ${hasError ? "font-medium text-[var(--color-discount)]" : "text-[var(--muted)]"}`}>
+          {selected ? selected.name : hasError ? "Please select" : ""}
+        </span>
+      </div>
       <div
-        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] ${
+        className={`mt-3 flex flex-wrap gap-3 rounded-[var(--radius-md)] ${
           hasError ? "ring-1 ring-[var(--color-discount)]" : ""
         }`}
       >
@@ -46,13 +56,16 @@ export function VariantSwatches({
             aria-disabled={option.disabled}
             disabled={option.disabled}
             onClick={() => !option.disabled && onSelect(option.key)}
-            className={`relative h-10 w-10 rounded-full border-[3px] transition-transform duration-150 ease-in-out ${
+            className={`relative h-8 w-8 shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-[var(--color-card)] transition-all duration-150 ease-in-out ${
               option.key === selectedKey
-                ? "border-[var(--foreground)] scale-110"
-                : "border-[var(--border)] hover:scale-105 hover:border-[var(--border-hover)]"
+                ? "ring-[#0F2D52]"
+                : "ring-transparent hover:ring-[var(--border-hover)]"
             } ${option.disabled ? "cursor-not-allowed opacity-40" : ""}`}
             style={{ backgroundColor: option.hex }}
           >
+            {/* Hairline inner border so a white/light swatch still reads as
+                a distinct circle against the card's own white background. */}
+            <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-full border border-black/10" />
             {option.disabled && (
               <span
                 aria-hidden="true"

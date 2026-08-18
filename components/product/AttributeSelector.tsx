@@ -1,11 +1,13 @@
 import type { Attribute, AttributeValue } from "@/types";
 
-// Generic required-choice picker for non-color attributes (e.g. "Mah",
-// Size, Storage) -- mirrors VariantSwatches' look/interaction but with no
-// color_hex assumption, since only Color-type attribute values reliably
-// carry one. When this attribute is variant-defining for the product,
-// selecting a value participates in the same combination lookup as Color
-// (price/stock/SKU/gallery all follow); when it isn't, the selection stays
+// Generic required-choice picker for non-color attributes (e.g. Capacity,
+// Connector, Size) -- renders as one row inside the shared AttributeCard
+// (components/product/AttributeCard.tsx): name left, selected value right,
+// pills below. Mirrors VariantSwatches' interaction but with no color_hex
+// assumption, since only Color-type attribute values reliably carry one.
+// When this attribute is variant-defining for the product, selecting a
+// value participates in the same combination lookup as Color (price/stock/
+// SKU/gallery all follow); when it isn't, the selection stays
 // reference-only, exactly as before.
 export function AttributeSelector({
   attribute,
@@ -31,7 +33,7 @@ export function AttributeSelector({
   // net for any future edge case rather than a silent block.
   hasError?: boolean;
   // True for ~300ms right after THIS group's available options changed as
-  // a side effect of a different selector (e.g. Mah's options after a
+  // a side effect of a different selector (e.g. Capacity's options after a
   // Color change) -- lets the customer perceive the connection between two
   // now-adjacent selectors instead of only noticing on close inspection.
   flash?: boolean;
@@ -41,15 +43,17 @@ export function AttributeSelector({
   const selected = values.find((v) => v.id === selectedId);
 
   return (
-    <div className="mt-4">
-      <p
-        className={`text-sm font-medium ${hasError ? "text-[var(--color-discount)]" : ""}`}
-      >
-        {attribute.name}
-        {selected ? `: ${selected.value}` : hasError ? " — please select" : ""}
-      </p>
+    <div className="p-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className={`text-sm font-semibold ${hasError ? "text-[var(--color-discount)]" : ""}`}>
+          {attribute.name}
+        </span>
+        <span className={`text-sm ${hasError ? "font-medium text-[var(--color-discount)]" : "text-[var(--muted)]"}`}>
+          {selected ? selected.value : hasError ? "Please select" : ""}
+        </span>
+      </div>
       <div
-        className={`mt-2 flex flex-wrap gap-2 rounded-[var(--radius-md)] transition-shadow duration-300 ease-in-out motion-reduce:transition-none ${
+        className={`mt-3 flex flex-wrap gap-2 rounded-[var(--radius-md)] transition-shadow duration-300 ease-in-out motion-reduce:transition-none ${
           hasError
             ? "ring-1 ring-[var(--color-discount)]"
             : flash

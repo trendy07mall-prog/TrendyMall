@@ -64,12 +64,17 @@ export function TrustBadges({
       { icon: "💬", title: businessHoursSummary },
     ];
     return (
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-[var(--muted)]">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {compactBadges.map((badge) => (
-          <span key={badge.title} className="flex items-center gap-1.5">
-            <span aria-hidden="true">{badge.icon}</span>
-            {badge.title}
-          </span>
+          <div
+            key={badge.title}
+            className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--color-card)] px-3 py-2.5 text-xs font-medium"
+          >
+            <span aria-hidden="true" className="shrink-0">
+              {badge.icon}
+            </span>
+            <span className="min-w-0 text-[var(--muted)]">{badge.title}</span>
+          </div>
         ))}
       </div>
     );
