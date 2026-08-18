@@ -8,7 +8,11 @@ export interface AccordionItem {
   answer: string;
 }
 
-export function Accordion({ items }: { items: AccordionItem[] }) {
+// idPrefix defaults to "" (empty string), preserving today's exact
+// `faq-panel-${index}` ids -- only needed when multiple Accordion
+// instances render on the same page (e.g. one per FAQ category), where
+// plain numeric ids would otherwise collide across instances.
+export function Accordion({ items, idPrefix = "" }: { items: AccordionItem[]; idPrefix?: string }) {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
@@ -20,7 +24,7 @@ export function Accordion({ items }: { items: AccordionItem[] }) {
             <button
               type="button"
               aria-expanded={open}
-              aria-controls={`faq-panel-${index}`}
+              aria-controls={`faq-panel-${idPrefix}${index}`}
               onClick={() => setOpenIndex(open ? null : index)}
               className="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-medium"
             >
@@ -33,7 +37,7 @@ export function Accordion({ items }: { items: AccordionItem[] }) {
             </button>
             {open && (
               <div
-                id={`faq-panel-${index}`}
+                id={`faq-panel-${idPrefix}${index}`}
                 className="pb-4 text-sm text-[var(--muted)]"
               >
                 {item.answer}

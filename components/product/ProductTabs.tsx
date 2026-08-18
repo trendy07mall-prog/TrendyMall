@@ -101,7 +101,7 @@ export function ProductTabs({
         className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-6 text-sm text-[var(--muted)]"
       >
         <p>
-          Standard islandwide delivery takes 3–5 business days. Cash on
+          Colombo 1–15 delivers in 1–2 working days; other areas in 2–4 working days. Cash on
           Delivery is available across Sri Lanka.
         </p>
         <p className="mt-2">

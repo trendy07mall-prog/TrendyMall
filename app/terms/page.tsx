@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { PolicyBody } from "@/components/content/PolicyBody";
+import { LegalPageLayout } from "@/components/content/LegalPageLayout";
 import { PolicyContactBlock } from "@/components/content/PolicyContactBlock";
-import { getGeneralSettings, getPoliciesSettings } from "@/lib/data/settings";
+import { getGeneralSettings, getPoliciesSettings, getPolicyLastUpdated } from "@/lib/data/settings";
+import { extractTocAndAnnotateHtml } from "@/lib/policy-toc";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
@@ -10,11 +11,16 @@ export const metadata: Metadata = {
 };
 
 export default async function TermsPage() {
-  const [policies, general] = await Promise.all([getPoliciesSettings(), getGeneralSettings()]);
+  const [policies, general, lastUpdated] = await Promise.all([
+    getPoliciesSettings(),
+    getGeneralSettings(),
+    getPolicyLastUpdated("policies.terms_body"),
+  ]);
+  const { html, toc } = extractTocAndAnnotateHtml(policies.termsBody);
 
   return (
-    <PolicyBody title="Terms & Conditions" html={policies.termsBody}>
+    <LegalPageLayout breadcrumbLabel="Terms & Conditions" title="Terms & Conditions" lastUpdated={lastUpdated} toc={toc} html={html}>
       <PolicyContactBlock general={general} />
-    </PolicyBody>
+    </LegalPageLayout>
   );
 }

@@ -7,73 +7,94 @@ import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { DeliveryAddressCard } from "@/components/order/DeliveryAddressCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FieldError } from "@/components/ui/FieldError";
+import { PackageIcon } from "@/components/ui/Icon";
 import { formatPrice } from "@/lib/utils";
 import type { GuestOrderDetail } from "@/types";
 
 const inputClass =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+  "min-h-11 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
+// Visual redesign only -- the lookup call (trackOrder(orderNumber, contact)),
+// its single generic "couldn't find" error for both a wrong order number
+// AND a wrong contact on a real order, and every field this form sends
+// are all unchanged from before. Security-relevant behavior lives entirely
+// in lib/track-order.ts and the track_order Postgres function, neither of
+// which this file touches.
 export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: string }) {
   const [orderNumber, setOrderNumber] = useState(defaultOrderNumber ?? "");
   const [contact, setContact] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [order, setOrder] = useState<GuestOrderDetail | null>(null);
+  const [searched, setSearched] = useState(false);
 
   return (
-    <div className="flex flex-col gap-6">
-      <form
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setPending(true);
-          setError("");
-          setOrder(null);
-          const result = await trackOrder(orderNumber, contact);
-          setPending(false);
-          if (result.order) setOrder(result.order);
-          else setError(result.error ?? "Something went wrong. Please try again.");
-        }}
-        className="flex flex-col gap-4"
-      >
-        <div className="flex flex-col gap-1">
-          <label htmlFor="orderNumber" className="text-sm font-medium">
-            Order number
-          </label>
-          <input
-            id="orderNumber"
-            type="text"
-            required
-            value={orderNumber}
-            onChange={(e) => setOrderNumber(e.target.value)}
-            placeholder="TM-000123"
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="contact" className="text-sm font-medium">
-            Phone or email used for the order
-          </label>
-          <input
-            id="contact"
-            type="text"
-            required
-            value={contact}
-            onChange={(e) => setContact(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        {error && <FieldError message={error} />}
-        <button
-          type="submit"
-          disabled={pending}
-          className="self-start rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <div className="mx-auto w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] shadow-[var(--shadow-card-hover)]">
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setPending(true);
+            setError("");
+            setOrder(null);
+            setSearched(true);
+            const result = await trackOrder(orderNumber, contact);
+            setPending(false);
+            if (result.order) setOrder(result.order);
+            else setError(result.error ?? "Something went wrong. Please try again.");
+          }}
+          className="flex flex-col gap-4"
         >
-          {pending ? "Checking…" : "Track order"}
-        </button>
-      </form>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="orderNumber" className="text-sm font-medium">
+              Order number
+            </label>
+            <input
+              id="orderNumber"
+              type="text"
+              required
+              value={orderNumber}
+              onChange={(e) => setOrderNumber(e.target.value)}
+              placeholder="TM-000123"
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="contact" className="text-sm font-medium">
+              Phone or email used for the order
+            </label>
+            <input
+              id="contact"
+              type="text"
+              required
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          {error && <FieldError message={error} />}
+          <button
+            type="submit"
+            disabled={pending}
+            className="transition-brand min-h-11 rounded-[var(--radius-btn)] bg-[#16A34A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#15803d] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "Checking…" : "Track Order"}
+          </button>
+        </form>
+      </div>
+
+      {!searched && (
+        <div className="mx-auto flex max-w-md flex-col items-center gap-2 py-6 text-center">
+          <PackageIcon className="h-8 w-8 shrink-0 text-[var(--muted)]" />
+          <p className="text-sm text-[var(--muted)]">
+            Enter your details above and we&apos;ll show your order&apos;s current status, items, and
+            delivery info.
+          </p>
+        </div>
+      )}
 
       {pending && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)]">
           <div className="flex items-center justify-between">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-32" />
@@ -87,7 +108,7 @@ export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: st
       )}
 
       {order && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--border)] p-4 text-sm">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] text-sm">
           <div className="flex items-center justify-between">
             <p className="font-medium">{order.orderNumber}</p>
             <p className="text-[var(--muted)]">

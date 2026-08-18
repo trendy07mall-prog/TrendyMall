@@ -318,6 +318,20 @@ input:-webkit-autofill:focus {
   margin: 1em 0 0.5em;
   color: var(--foreground);
 }
+/* Size differentiation for the heading hierarchy -- previously h1/h2/h3
+   shared identical (unset) font-size, relying only on the browser's UA
+   default to tell them apart. Applies everywhere .prose-editor is used
+   (product descriptions too, not just policy pages) -- a legibility
+   improvement either way, not something scoped to legal pages only. */
+.prose-editor h1 {
+  font-size: 1.5em;
+}
+.prose-editor h2 {
+  font-size: 1.25em;
+}
+.prose-editor h3 {
+  font-size: 1.1em;
+}
 .prose-editor img {
   max-width: 100%;
   border-radius: var(--radius-sm);
@@ -329,4 +343,25 @@ input:-webkit-autofill:focus {
 }
 .prose-editor a {
   text-decoration: underline;
+}
+
+/* Legal pages only (Privacy/Terms) -- combined with .prose-editor, not a
+   replacement for it, so it inherits everything above and only adds
+   readability/numbering on top. A separate scope (not applied to
+   .prose-editor itself) specifically so product-description rich text
+   never gets numbered headings. Purely visual: a CSS counter prefixes each
+   top-level section, the underlying HTML/heading text is untouched. */
+.legal-policy-body {
+  max-width: 70ch;
+  line-height: 1.75;
+  counter-reset: legal-section;
+}
+.legal-policy-body h2 {
+  counter-increment: legal-section;
+  padding-top: 0.25em;
+  scroll-margin-top: 96px;
+}
+.legal-policy-body h2::before {
+  content: counter(legal-section) ". ";
+  color: var(--color-text-secondary);
 }

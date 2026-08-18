@@ -908,7 +908,11 @@ export function CheckoutForm({
             </div>
             {deliveryMethod !== "pickup" && (
               <div className="mt-1 rounded-[var(--radius-input)] bg-black/5 px-3 py-2 text-xs text-[var(--muted)]">
-                Estimated delivery: {getEstimatedDeliveryRange().label.replace(/^Get it by /, "")}
+                Estimated delivery:{" "}
+                {getEstimatedDeliveryRange(undefined, deliveryReason.startsWith("Colombo")).label.replace(
+                  /^Get it by /,
+                  "",
+                )}
               </div>
             )}
           </div>

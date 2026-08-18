@@ -247,7 +247,9 @@ const POLICIES_FALLBACK: PoliciesSettings = {
   shippingBody: `<p>At TrendyMall, we are committed to delivering your orders quickly and securely across Sri Lanka.</p>
 <h2>Delivery Time</h2>
 <ul>
-<li>Standard islandwide delivery: 3–5 business days</li>
+<li>Colombo 01–15: 1–2 working days</li>
+<li>Other areas: 2–4 working days</li>
+<li>These timeframes are estimated, not guaranteed — actual delivery can vary by location and courier availability</li>
 <li>Orders are processed within 24 hours after confirmation (excluding Sundays and public holidays)</li>
 </ul>
 <h2>Cash on Delivery</h2>
@@ -496,6 +498,22 @@ export async function getPoliciesSettings(): Promise<PoliciesSettings> {
     termsBody: (values.get("policies.terms_body") as string) ?? POLICIES_FALLBACK.termsBody,
     warrantyBody: (values.get("policies.warranty_body") as string) ?? POLICIES_FALLBACK.warrantyBody,
   };
+}
+
+// Additive, policies-only helper -- getGroupValues()/getPoliciesSettings()
+// above only select key/value (every other settings group has no use for
+// a per-row timestamp), so this is a small separate query rather than
+// changing that shared shape for every caller. Returns null if the row
+// doesn't exist (falls back to the seed migration's date at the call
+// site) -- never fabricates a date.
+export async function getPolicyLastUpdated(key: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("store_settings")
+    .select("updated_at")
+    .eq("key", key)
+    .maybeSingle();
+  return data?.updated_at ?? null;
 }
 
 export async function getSeoSettings(): Promise<SeoSettings> {

@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { cartLineKey, formatPrice } from "@/lib/utils";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, calculateDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
+import {
+  RATE_IN_ZONE,
+  RATE_OUTSIDE_ZONE,
+  calculateDeliveryFee,
+  isColomboZoneAddress,
+  type DeliveryZone,
+} from "@/lib/delivery-fee";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { getMyDefaultAddress } from "@/lib/addresses";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
@@ -374,7 +380,13 @@ export default function CartPage() {
             <span>{totalDisplay}</span>
           </div>
           <p className="mt-2 text-xs text-[var(--muted)]">
-            Estimated delivery: {getEstimatedDeliveryRange().label.replace(/^Get it by /, "")}
+            Estimated delivery:{" "}
+            {getEstimatedDeliveryRange(
+              undefined,
+              defaultAddress
+                ? isColomboZoneAddress(defaultAddress.district, defaultAddress.postal_code)
+                : deliveryArea === "colombo",
+            ).label.replace(/^Get it by /, "")}
           </p>
           {!defaultAddress && deliveryArea !== "outside" && (
             <p className="mt-1 text-xs text-[var(--muted)]">

@@ -17,7 +17,7 @@ export function WhyShopWithUs({
     {
       icon: TruckIcon,
       title: "Fast Delivery",
-      description: "Islandwide delivery in 3–5 business days.",
+      description: "Colombo in 1–2 days, other areas in 2–4 working days.",
     },
     {
       icon: PriceTagIcon,

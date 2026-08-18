@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { PolicyBody } from "@/components/content/PolicyBody";
+import { LegalPageLayout } from "@/components/content/LegalPageLayout";
 import { PolicyContactBlock } from "@/components/content/PolicyContactBlock";
-import { getGeneralSettings, getPoliciesSettings } from "@/lib/data/settings";
+import { getGeneralSettings, getPoliciesSettings, getPolicyLastUpdated } from "@/lib/data/settings";
+import { extractTocAndAnnotateHtml } from "@/lib/policy-toc";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -11,11 +12,16 @@ export const metadata: Metadata = {
 };
 
 export default async function PrivacyPage() {
-  const [policies, general] = await Promise.all([getPoliciesSettings(), getGeneralSettings()]);
+  const [policies, general, lastUpdated] = await Promise.all([
+    getPoliciesSettings(),
+    getGeneralSettings(),
+    getPolicyLastUpdated("policies.privacy_body"),
+  ]);
+  const { html, toc } = extractTocAndAnnotateHtml(policies.privacyBody);
 
   return (
-    <PolicyBody title="Privacy Policy" html={policies.privacyBody}>
+    <LegalPageLayout breadcrumbLabel="Privacy Policy" title="Privacy Policy" lastUpdated={lastUpdated} toc={toc} html={html}>
       <PolicyContactBlock general={general} />
-    </PolicyBody>
+    </LegalPageLayout>
   );
 }

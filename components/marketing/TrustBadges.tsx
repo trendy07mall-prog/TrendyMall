@@ -4,7 +4,7 @@ const FEATURES = [
   {
     icon: "🚚",
     title: "Fast Islandwide Delivery",
-    description: "Receive your order anywhere in Sri Lanka within 3–5 business days.",
+    description: "Colombo in 1–2 days, other areas in 2–4 working days.",
   },
   {
     icon: "✅",

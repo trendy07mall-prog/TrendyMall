@@ -82,6 +82,17 @@ function isInColomboRange(normalized: string): boolean {
   return normalized >= "00100" && normalized <= "01500";
 }
 
+// Whether an address falls in the fast Colombo 1-15 zone -- a fixed
+// geographic fact (see the file-level comment), independent of the
+// `zones` rate table, so callers that only need "is this the fast zone"
+// (e.g. an estimated-delivery-time label) don't need to fetch/pass the
+// whole DeliveryZone[] array just to answer that. describeDeliveryFee
+// below uses this same check internally rather than a second copy of it.
+export function isColomboZoneAddress(district: string, postalCode: string | null | undefined): boolean {
+  const normalized = normalizePostalCode(postalCode);
+  return district === "Colombo" && normalized !== null && isInColomboRange(normalized);
+}
+
 // Same matching algorithm as create_order_atomic's SQL: the first active,
 // non-default zone whose district (if any) and postal range (if any)
 // match wins; falls back to the default/catch-all zone; falls back to the
@@ -162,8 +173,7 @@ export function describeDeliveryFee(
 
   const normalized = normalizePostalCode(input.postalCode);
   const matched = matchZone(input.district, normalized, zones);
-  const isColomboZone =
-    matched != null && !matched.isDefault && input.district === "Colombo" && normalized !== null && isInColomboRange(normalized);
+  const isColomboZone = matched != null && !matched.isDefault && isColomboZoneAddress(input.district, input.postalCode);
 
   if (isColomboZone && normalized) {
     const zone = Number(normalized.slice(1, 3));
