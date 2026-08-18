@@ -75,7 +75,12 @@ export default async function AdminAnalyticsPage({
                 value={data.visitorSessions.toLocaleString()}
                 accent="blue"
               />
-              <KpiCard icon={CartIcon} label="Orders" value={data.ordersCount.toLocaleString()} accent="navy" />
+              <KpiCard
+                icon={CartIcon}
+                label="Purchases (Tracked)"
+                value={data.purchaseSessions.toLocaleString()}
+                accent="navy"
+              />
               <KpiCard
                 icon={PercentIcon}
                 label="Conversion Rate"

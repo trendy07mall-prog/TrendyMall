@@ -24,6 +24,8 @@ export interface ConversionFunnelStage {
   count: number;
   // % of the immediately-previous stage's count that reached this one --
   // null for the first stage, which has no "previous" to convert from.
+  // Guaranteed <= 100 by construction (see getAnalyticsData) -- never a
+  // derived value that could exceed it.
   conversionFromPrevious: number | null;
 }
 
@@ -38,7 +40,10 @@ export interface AnalyticsData {
   rangeLabel: string;
   funnel: ConversionFunnelStage[];
   visitorSessions: number;
-  ordersCount: number;
+  // The funnel's own last-stage count (sessions that reached Purchase),
+  // not a raw count of `orders` rows -- see conversionRatePercent's comment
+  // for why mixing those two sources produced nonsense (>100%) before.
+  purchaseSessions: number;
   // null (not 0) when there were no visitors at all in range -- "0%" would
   // wrongly imply real traffic that simply never converted.
   conversionRatePercent: number | null;
@@ -56,33 +61,59 @@ export async function getAnalyticsData(rangeDays: AnalyticsRangeDays = 30): Prom
   const from = new Date(startOfSriLankaDay(now).getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000);
   const fromIso = from.toISOString();
 
-  const [funnelCounts, pageViewSessions, ordersCountResult, sourceRows] = await Promise.all([
-    Promise.all(
-      FUNNEL_STAGES.map(async (stage) => {
-        const { count } = await supabase
-          .from("events")
-          .select("id", { count: "exact", head: true })
-          .eq("event_type", stage.eventType)
-          .gte("created_at", fromIso);
-        return count ?? 0;
-      }),
-    ),
-    supabase.from("events").select("session_id").eq("event_type", "PageView").gte("created_at", fromIso),
-    supabase.from("orders").select("id", { count: "exact", head: true }).gte("created_at", fromIso),
+  // One distinct-session-id set per stage, not a raw event count -- a
+  // single session reloading /checkout five times (five InitiateCheckout
+  // rows) or clicking "Add to Cart" on three products (three AddToCart
+  // rows) must still only ever count as ONE session at that stage. Raw
+  // event counts don't have that property, which is exactly what let a
+  // later stage's count exceed an earlier one before this fix.
+  const stageSessionSets = await Promise.all(
+    FUNNEL_STAGES.map(async (stage) => {
+      const { data } = await supabase
+        .from("events")
+        .select("session_id")
+        .eq("event_type", stage.eventType)
+        .gte("created_at", fromIso);
+      return new Set((data ?? []).map((row) => row.session_id));
+    }),
+  );
+
+  const [sourceRows] = await Promise.all([
     supabase.from("session_sources").select("source").gte("created_at", fromIso),
   ]);
+
+  // Each stage is intersected with the RUNNING set from every stage before
+  // it -- a proper cumulative funnel (sessions that reached this stage AND
+  // every stage before it), not five independent totals. Intersection can
+  // only ever shrink or stay the same size, so funnel[i].count <=
+  // funnel[i-1].count is a mathematical guarantee here, not something that
+  // just usually holds in practice.
+  let runningSessions: Set<string> | null = null;
+  const stageCounts: number[] = stageSessionSets.map((stageSet) => {
+    runningSessions =
+      runningSessions === null
+        ? stageSet
+        : new Set([...runningSessions].filter((id) => stageSet.has(id)));
+    return runningSessions.size;
+  });
 
   const funnel: ConversionFunnelStage[] = FUNNEL_STAGES.map((stage, i) => ({
     eventType: stage.eventType,
     label: stage.label,
-    count: funnelCounts[i],
-    conversionFromPrevious:
-      i === 0 || funnelCounts[i - 1] === 0 ? null : (funnelCounts[i] / funnelCounts[i - 1]) * 100,
+    count: stageCounts[i],
+    conversionFromPrevious: i === 0 || stageCounts[i - 1] === 0 ? null : (stageCounts[i] / stageCounts[i - 1]) * 100,
   }));
 
-  const visitorSessions = new Set((pageViewSessions.data ?? []).map((row) => row.session_id)).size;
-  const ordersCount = ordersCountResult.count ?? 0;
-  const conversionRatePercent = visitorSessions > 0 ? (ordersCount / visitorSessions) * 100 : null;
+  const visitorSessions = stageCounts[0];
+  const purchaseSessions = stageCounts[stageCounts.length - 1];
+  // Deliberately funnel-derived, not a count of `orders` rows in range --
+  // `orders` includes every historical order ever placed (including
+  // everything before this tracking existed), while `visitorSessions` only
+  // reflects sessions since the tracking cookie went live. Dividing one by
+  // the other produced a >100% "conversion rate." Both sides of this
+  // division now come from the exact same source (events, same date
+  // range), so the result can never exceed 100%.
+  const conversionRatePercent = visitorSessions > 0 ? (purchaseSessions / visitorSessions) * 100 : null;
 
   const sourceCounts = new Map<string, number>();
   for (const row of sourceRows.data ?? []) {
@@ -102,7 +133,7 @@ export async function getAnalyticsData(rangeDays: AnalyticsRangeDays = 30): Prom
     rangeLabel: `Last ${rangeDays} Days`,
     funnel,
     visitorSessions,
-    ordersCount,
+    purchaseSessions,
     conversionRatePercent,
     marketingSources,
     hasEnoughData: funnel[0].count > 0,
