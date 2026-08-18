@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { CartIcon } from "@/components/ui/Icon";
+import { trackConversion } from "@/lib/analytics/track";
 import type { ProductWithPrimaryImage } from "@/types";
 
 const ADDING_MS = 350;
@@ -27,11 +28,12 @@ export function QuickAddButton({
     event.stopPropagation();
     setStatus("adding");
     setTimeout(() => {
+      const price = product.special_price ?? product.actual_price;
       addItem({
         productId: product.id,
         slug: product.slug,
         name: product.name,
-        price: product.special_price ?? product.actual_price,
+        price,
         image: product.image,
         quantity: 1,
         // Always the exact variant this card's price/image came from --
@@ -41,6 +43,17 @@ export function QuickAddButton({
         variantName: null,
         variantColorHex: null,
         attributeSelections: [],
+      });
+      trackConversion("AddToCart", {
+        productId: product.id,
+        value: price,
+        pixelParams: {
+          content_ids: [product.id],
+          content_name: product.name,
+          content_type: "product",
+          value: price,
+          currency: "LKR",
+        },
       });
       setStatus("added");
       setTimeout(() => setStatus("idle"), ADDED_MS);

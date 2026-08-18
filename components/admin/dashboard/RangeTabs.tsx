@@ -10,11 +10,13 @@ export function RangeTabs<T extends string>({
   activeValue,
   paramName,
   currentParams,
+  basePath = "/admin",
 }: {
   options: { value: T; label: string }[];
   activeValue: T;
   paramName: string;
   currentParams: Record<string, string | undefined>;
+  basePath?: string;
 }) {
   return (
     <div className="flex gap-1 rounded-[var(--radius-md)] border border-[var(--border)] bg-white p-1">
@@ -28,7 +30,7 @@ export function RangeTabs<T extends string>({
         return (
           <Link
             key={opt.value}
-            href={`/admin?${params.toString()}`}
+            href={`${basePath}?${params.toString()}`}
             className={`rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-brand ${
               isActive ? "bg-[#0F2D52] text-white" : "text-[var(--color-text-secondary)] hover:bg-black/5"
             }`}

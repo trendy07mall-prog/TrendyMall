@@ -22,6 +22,7 @@ import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
 import { FloatingPurchaseBar } from "@/components/product/FloatingPurchaseBar";
 import { getVariantPrice, pickWinningVariant, resolveEffectivePriceBand } from "@/lib/utils";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
+import { trackConversion } from "@/lib/analytics/track";
 import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
@@ -247,6 +248,28 @@ export function ProductPurchaseSection({
   // non-campaign variant automatically falls back with no residual
   // campaign price/badge -- no extra state, nothing to go stale.
   const priceBand = resolvedVariant ? resolveEffectivePriceBand(resolvedVariant) : null;
+
+  // Fires once per page view, using whichever variant the page happened to
+  // open on -- switching color/attribute afterwards must NOT re-fire
+  // ViewContent (that's what AddToCart/the variant selectors are for).
+  // Empty deps intentionally: this closes over resolvedVariant/priceBand
+  // from the render that mounted this effect, which is exactly the initial
+  // default variant, and never re-runs after that.
+  useEffect(() => {
+    const price = priceBand?.specialPrice ?? resolvedVariant?.regular_price ?? 0;
+    trackConversion("ViewContent", {
+      productId: product.id,
+      value: price,
+      pixelParams: {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        value: price,
+        currency: "LKR",
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const effectiveStock =
     resolvedVariant?.stock != null ? resolvedVariant.stock : product.stock;

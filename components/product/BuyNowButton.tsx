@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getVariantPrice } from "@/lib/utils";
+import { trackConversion } from "@/lib/analytics/track";
 import type { AttributeSelection, Product, ProductVariant } from "@/types";
 
 export function BuyNowButton({
@@ -33,17 +34,29 @@ export function BuyNowButton({
       disabled={outOfStock}
       onClick={() => {
         if (onBeforeAdd && !onBeforeAdd()) return;
+        const price = variant ? getVariantPrice(variant) : 0;
         addItem({
           productId: product.id,
           slug: product.slug,
           name: product.name,
-          price: variant ? getVariantPrice(variant) : 0,
+          price,
           image,
           quantity,
           variantId: variant?.id ?? null,
           variantName: variant?.color_name ?? null,
           variantColorHex: variant?.color_hex ?? null,
           attributeSelections,
+        });
+        trackConversion("AddToCart", {
+          productId: product.id,
+          value: price * quantity,
+          pixelParams: {
+            content_ids: [product.id],
+            content_name: product.name,
+            content_type: "product",
+            value: price * quantity,
+            currency: "LKR",
+          },
         });
         router.push("/checkout");
       }}

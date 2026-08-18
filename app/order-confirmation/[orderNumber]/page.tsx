@@ -10,6 +10,7 @@ import { getWhatsAppUrl } from "@/lib/site";
 import { getGeneralSettings, getShippingSettings } from "@/lib/data/settings";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { OrderSuccessCheck } from "@/components/order/OrderSuccessCheck";
+import { PurchaseTracker } from "@/components/order/PurchaseTracker";
 import { OrderStatusSection } from "@/components/order/OrderStatusSection";
 import { OrderSummaryCard } from "@/components/order/OrderSummaryCard";
 import { DeliveryAddressCard } from "@/components/order/DeliveryAddressCard";
@@ -150,6 +151,16 @@ export default async function OrderConfirmationPage({
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
+      {/* Only for a genuinely placed order -- not one that's already been
+          cancelled by the time this page is reached (an unusual path, but
+          firing Purchase for it would misreport real revenue). */}
+      {order.orderStatus !== "cancelled" && (
+        <PurchaseTracker
+          orderNumber={order.orderNumber}
+          total={order.total}
+          productIds={order.items.map((item) => item.productId).filter((id): id is string => Boolean(id))}
+        />
+      )}
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
         <div className="flex flex-col gap-6">
           {/* 1. Success header */}

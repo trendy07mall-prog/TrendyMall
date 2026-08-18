@@ -27,6 +27,7 @@ import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
+import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -151,6 +152,7 @@ export default async function RootLayout({
         <JsonLd data={organizationSchema} />
         <GoogleAnalytics />
         <MetaPixel />
+        <PageViewTracker />
         <ToastProvider>
           <CartProvider>
             <WishlistProvider>

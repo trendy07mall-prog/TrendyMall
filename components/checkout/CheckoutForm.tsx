@@ -10,6 +10,7 @@ import { previewCoupon } from "@/lib/coupons";
 import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { formatPrice } from "@/lib/utils";
+import { trackConversion } from "@/lib/analytics/track";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
@@ -255,6 +256,28 @@ export function CheckoutForm({
     // effect reads only once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fires exactly once, the first time real cart items are available --
+  // keyed on itemsKey (not an empty-deps mount effect) because CartContext
+  // hydrates its own items from localStorage in a separate effect that can
+  // land after this component's first render, which would otherwise log an
+  // empty/zero-value InitiateCheckout. A later cart edit while still on
+  // this page must not re-fire it.
+  const initiateCheckoutFiredRef = useRef(false);
+  useEffect(() => {
+    if (initiateCheckoutFiredRef.current || items.length === 0) return;
+    initiateCheckoutFiredRef.current = true;
+    trackConversion("InitiateCheckout", {
+      value: subtotal,
+      pixelParams: {
+        content_ids: items.map((i) => i.productId),
+        num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+        value: subtotal,
+        currency: "LKR",
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
 
   useEffect(() => {
     if (!hydrated) return;

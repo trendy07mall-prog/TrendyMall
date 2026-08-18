@@ -1,6 +1,10 @@
 import Script from "next/script";
 
-// No-op until NEXT_PUBLIC_META_PIXEL_ID is set (see SETUP.md).
+// No-op until NEXT_PUBLIC_META_PIXEL_ID is set (see SETUP.md). Only
+// initializes the pixel -- PageView firing (including the very first one)
+// lives entirely in PageViewTracker now, so every page load is tracked the
+// same way regardless of whether it's the initial document load or a
+// client-side route change, with no double-fire on load.
 export function MetaPixel() {
   const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   if (!pixelId) return null;
@@ -17,7 +21,6 @@ export function MetaPixel() {
         s.parentNode.insertBefore(t,s)}(window, document,'script',
         'https://connect.facebook.net/en_US/fbevents.js');
         fbq('init', '${pixelId}');
-        fbq('track', 'PageView');
       `}
     </Script>
   );

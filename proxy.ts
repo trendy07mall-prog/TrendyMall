@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Next.js 16 renamed Middleware to Proxy (same functionality, file must be
 // named proxy.ts at the project root). This refreshes the Supabase session
@@ -22,8 +23,33 @@ const PROTECTED_PREFIXES = ["/admin", "/account"];
 // loop).
 const MAINTENANCE_BYPASS_PREFIXES = ["/admin", "/login", "/api", "/maintenance"];
 
-export async function proxy(request: NextRequest) {
+// Anonymous, cookie-based -- no PII, stays the same across login/logout,
+// distinct from Supabase's own sb-* auth cookies. lib/analytics/log-event.ts
+// reads this same cookie to attribute every conversion event to a session.
+const SESSION_COOKIE = "tm_session_id";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 180; // ~6 months
+
+// utm_source wins when present; otherwise a simple two-bucket fallback --
+// "organic" for any external referrer, "direct" for none. Real per-domain
+// attribution (facebook.com vs google.com) is left to utm_source, which any
+// real ad campaign should already be appending.
+function resolveSource(request: NextRequest): string {
+  const utmSource = request.nextUrl.searchParams.get("utm_source");
+  if (utmSource) return utmSource.slice(0, 100);
+  return request.headers.get("referer") ? "organic" : "direct";
+}
+
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
   let response = NextResponse.next({ request });
+
+  // Decided now, applied to `response` at the very end (not here) --
+  // Supabase's own setAll callback below reassigns `response` to a whole
+  // new NextResponse whenever it refreshes the auth cookie, which would
+  // silently drop a cookie set on the ORIGINAL object. Setting this last,
+  // on whatever `response` finally is, is what makes it survive that.
+  const existingSessionId = request.cookies.get(SESSION_COOKIE)?.value;
+  const isNewSession = !existingSessionId;
+  const sessionId = existingSessionId ?? crypto.randomUUID();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -93,6 +119,31 @@ export async function proxy(request: NextRequest) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("redirect", path);
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // First request of a brand-new session (no cookie yet) -- mint one and
+  // attribute its source exactly once (the session_sources row's mere
+  // existence is what marks a session "already attributed," so a later
+  // visit in the same session never overwrites it). The insert runs via
+  // waitUntil so it never adds latency to the response, and -- per the
+  // lesson already learned on incrementProductViewCount -- is real
+  // background work Vercel keeps the function alive for, not an unawaited
+  // promise that risks never running.
+  if (isNewSession) {
+    response.cookies.set(SESSION_COOKIE, sessionId, {
+      maxAge: SESSION_MAX_AGE_SECONDS,
+      path: "/",
+      sameSite: "lax",
+    });
+    const source = resolveSource(request);
+    event.waitUntil(
+      Promise.resolve(
+        createAdminClient().from("session_sources").insert({ session_id: sessionId, source }),
+      ).then(
+        () => {},
+        () => {},
+      ),
+    );
   }
 
   return response;

@@ -1857,6 +1857,62 @@ export interface Database {
           },
         ];
       };
+      events: {
+        Row: {
+          id: string;
+          event_type: string;
+          page_path: string;
+          product_id: string | null;
+          session_id: string;
+          value: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_type: string;
+          page_path: string;
+          product_id?: string | null;
+          session_id: string;
+          value?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_type?: string;
+          page_path?: string;
+          product_id?: string | null;
+          session_id?: string;
+          value?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "events_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      session_sources: {
+        Row: {
+          session_id: string;
+          source: string;
+          created_at: string;
+        };
+        Insert: {
+          session_id: string;
+          source: string;
+          created_at?: string;
+        };
+        Update: {
+          session_id?: string;
+          source?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       product_rating_summary: {
