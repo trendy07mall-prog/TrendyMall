@@ -1,39 +1,28 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { quickUpdateVariantPrice } from "@/lib/admin/products-mutations";
 import { useToast } from "@/components/admin/ToastProvider";
 
-// Only meaningful for a single-variant product -- editing "the price" from
-// a flat table cell is ambiguous the moment a product has more than one
-// variant, so that case links to the full editor instead of guessing which
-// row a table cell should mean.
+// Only ever rendered for a single-variant product now -- ProductsTable
+// shows a plain "Set per variant" label instead of mounting this at all
+// once a product has more than one variant (its own inline panel is where
+// each variant's price is actually edited), so there's no ambiguous
+// "which row does this flat cell mean" case left to link out to the full
+// editor for.
 export function QuickEditPrice({
-  productId,
   variantId,
   regularPrice,
   salePrice,
-  hasMultiplePrices,
 }: {
-  productId: string;
   variantId: string;
   regularPrice: number;
   salePrice: number | null;
-  hasMultiplePrices: boolean;
 }) {
   const [regular, setRegular] = useState(String(regularPrice));
   const [sale, setSale] = useState(salePrice != null ? String(salePrice) : "");
   const [pending, startTransition] = useTransition();
   const { showToast } = useToast();
-
-  if (hasMultiplePrices) {
-    return (
-      <Link href={`/admin/products/${productId}/edit`} className="text-xs underline">
-        Edit variants →
-      </Link>
-    );
-  }
 
   function commit() {
     const parsedRegular = Number(regular);

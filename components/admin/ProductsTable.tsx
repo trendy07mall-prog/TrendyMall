@@ -14,6 +14,7 @@ import { VariantEditRow } from "@/components/admin/VariantEditRow";
 import { ProductActionsMenu } from "@/components/admin/ProductActionsMenu";
 import { BulkActionBar } from "@/components/admin/BulkActionBar";
 import { Pagination } from "@/components/product/Pagination";
+import { VARIANT_GRID_COLS } from "@/lib/admin/variant-panel";
 import type { AdminProductRow, AdminVariantRow } from "@/lib/admin/products-query";
 
 // Shared by the desktop expanded row and the mobile expanded section --
@@ -29,10 +30,27 @@ function VariantList({ variants }: { variants: AdminVariantRow[] }) {
           All variants inactive — product cannot be purchased
         </p>
       )}
-      <div className="flex flex-col divide-y divide-[var(--border)]">
-        {variants.map((variant) => (
-          <VariantEditRow key={variant.id} variant={variant} />
-        ))}
+      {/* overflow-x-auto + min-w is a contained scroll for this one panel
+          on the narrowest phones, not page-level overflow -- 5 real columns
+          (name + 3 numeric fields + status) can't compress below a floor
+          width without becoming unreadable/untappable. */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[520px]">
+          <div
+            className={`grid ${VARIANT_GRID_COLS} gap-3 border-b border-[var(--border)] px-1 pb-1.5 text-[10px] font-semibold tracking-wide text-[var(--muted)] uppercase`}
+          >
+            <span>Colour</span>
+            <span>Regular</span>
+            <span>Sale</span>
+            <span>Stock</span>
+            <span>Status</span>
+          </div>
+          <div className="flex flex-col divide-y divide-[var(--border)]">
+            {variants.map((variant) => (
+              <VariantEditRow key={variant.id} variant={variant} />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -178,13 +196,15 @@ export function ProductsTable({
                     {categoryNames.get(product.category_id) ?? "—"}
                   </td>
                   <td className="py-2 pr-4 align-top">
-                    <QuickEditPrice
-                      productId={product.id}
-                      variantId={product.defaultVariantId}
-                      regularPrice={product.actual_price}
-                      salePrice={product.special_price}
-                      hasMultiplePrices={product.hasMultiplePrices}
-                    />
+                    {hasMultipleVariants ? (
+                      <span className="text-xs text-[var(--muted)] italic">Set per variant</span>
+                    ) : (
+                      <QuickEditPrice
+                        variantId={product.defaultVariantId}
+                        regularPrice={product.actual_price}
+                        salePrice={product.special_price}
+                      />
+                    )}
                   </td>
                   <td className="py-2 pr-4 align-top">
                     <div className="flex flex-col gap-1">
@@ -323,13 +343,15 @@ export function ProductsTable({
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <QuickEditPrice
-                    productId={product.id}
-                    variantId={product.defaultVariantId}
-                    regularPrice={product.actual_price}
-                    salePrice={product.special_price}
-                    hasMultiplePrices={product.hasMultiplePrices}
-                  />
+                  {hasMultipleVariants ? (
+                    <span className="text-xs text-[var(--muted)] italic">Set per variant</span>
+                  ) : (
+                    <QuickEditPrice
+                      variantId={product.defaultVariantId}
+                      regularPrice={product.actual_price}
+                      salePrice={product.special_price}
+                    />
+                  )}
                   <QuickEditStock productId={product.id} stock={product.stock} />
                   <StockBadge stock={product.stock} />
                 </div>

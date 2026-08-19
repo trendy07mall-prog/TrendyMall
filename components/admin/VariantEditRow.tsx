@@ -5,6 +5,7 @@ import { useToast } from "@/components/admin/ToastProvider";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { QuickEditVariantActive } from "@/components/admin/QuickEditVariantActive";
 import { quickUpdateVariantPrice, quickUpdateVariantStock } from "@/lib/admin/products-mutations";
+import { VARIANT_GRID_COLS } from "@/lib/admin/variant-panel";
 import { formatPrice } from "@/lib/utils";
 import type { AdminVariantRow } from "@/lib/admin/products-query";
 
@@ -25,10 +26,13 @@ interface PendingPriceConfirm {
 }
 
 const fieldInputClass =
-  "w-24 rounded-[var(--radius-sm)] border border-[var(--foreground)] bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+  "w-full rounded-[var(--radius-sm)] border border-[var(--foreground)] bg-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
+// Bordered even at rest (not border-transparent-until-hover) -- the point
+// is looking like an editable field before the admin ever touches it, not
+// just once they've found it. Hover only darkens the border a step further.
 const fieldButtonClass =
-  "rounded-[var(--radius-sm)] border border-transparent px-2 py-1 text-left text-sm hover:border-[var(--border)] hover:bg-black/[0.03] disabled:cursor-wait disabled:opacity-60";
+  "w-full truncate rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1 text-left text-sm transition-colors hover:border-[var(--border-hover)] disabled:cursor-wait disabled:opacity-60";
 
 // Same click-to-edit / Enter-or-blur-to-save / Escape-to-cancel shape as
 // QuickEditPrice and QuickEditStock (the existing product-level quick-edit
@@ -167,7 +171,13 @@ export function VariantEditRow({ variant }: { variant: AdminVariantRow }) {
     }
   }
 
-  function renderField(field: FieldKey, label: string, value: number | null, displayValue: string) {
+  function renderField(
+    field: FieldKey,
+    label: string,
+    value: number | null,
+    displayValue: string,
+    valueClassName = "",
+  ) {
     const isEditing = editingField === field;
     const isPending = pendingField === field;
 
@@ -195,11 +205,11 @@ export function VariantEditRow({ variant }: { variant: AdminVariantRow }) {
         onClick={() => startEdit(field, value)}
         disabled={isPending}
         aria-label={`Edit ${label}`}
-        className={fieldButtonClass}
+        className={`${fieldButtonClass} ${valueClassName}`}
       >
         {isPending ? (
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-black/10 border-t-[var(--foreground)]" />
+            <span className="h-3 w-3 animate-spin shrink-0 rounded-full border-2 border-black/10 border-t-[var(--foreground)]" />
             {displayValue}
           </span>
         ) : (
@@ -210,51 +220,38 @@ export function VariantEditRow({ variant }: { variant: AdminVariantRow }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 py-2">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <div className={`grid ${VARIANT_GRID_COLS} items-center gap-3 py-1.5`}>
+      <div className="flex min-w-0 items-center gap-2">
         <span
-          className="h-6 w-6 shrink-0 rounded-full border border-[var(--border)]"
+          className="h-5 w-5 shrink-0 rounded-full border border-[var(--border)]"
           style={{ backgroundColor: variant.colorHex ?? "#e5e7eb" }}
           aria-hidden="true"
         />
-        <div className="min-w-0">
-          <p className="truncate text-sm">
-            {variant.colorName || variant.sku || "Default"}
-            {variant.isDefault && <span className="ml-1.5 text-xs text-[var(--muted)]">(default)</span>}
-          </p>
-          <span
-            className={`text-[11px] font-medium uppercase tracking-wide ${
-              isActive ? "text-[var(--color-success)]" : "text-[var(--color-text-secondary)]"
-            }`}
-          >
-            {isActive ? "Active" : "Inactive"}
-          </span>
-        </div>
+        <p className="min-w-0 truncate text-sm">
+          {variant.colorName || variant.sku || "Default"}
+          {variant.isDefault && <span className="ml-1.5 text-xs text-[var(--muted)]">(default)</span>}
+        </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 text-sm">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-[var(--muted)] uppercase">Regular</span>
-          {renderField("regularPrice", "Regular price", regularPrice, formatPrice(regularPrice))}
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-[var(--muted)] uppercase">Sale</span>
-          {renderField(
-            "salePrice",
-            "Sale price",
-            salePrice,
-            salePrice != null ? formatPrice(salePrice) : "—",
-          )}
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-[var(--muted)] uppercase">Stock</span>
-          {renderField("stock", "Stock", stock, String(stock))}
-        </div>
-        <QuickEditVariantActive
-          variantId={variant.id}
-          isActive={isActive}
-          onToggled={setIsActive}
-        />
+      {renderField("regularPrice", "Regular price", regularPrice, formatPrice(regularPrice))}
+      {renderField(
+        "salePrice",
+        "Sale price",
+        salePrice,
+        salePrice != null ? formatPrice(salePrice) : "—",
+        "text-[var(--color-discount)]",
+      )}
+      {renderField("stock", "Stock", stock, String(stock))}
+
+      <div className="flex items-center gap-2">
+        <QuickEditVariantActive variantId={variant.id} isActive={isActive} onToggled={setIsActive} />
+        <span
+          className={`text-xs font-medium ${
+            isActive ? "text-[var(--color-success)]" : "text-[var(--color-text-secondary)]"
+          }`}
+        >
+          {isActive ? "Active" : "Inactive"}
+        </span>
       </div>
 
       {priceConfirm && (
