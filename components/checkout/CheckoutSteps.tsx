@@ -30,7 +30,7 @@ export function CheckoutSteps() {
               </span>
               <span
                 aria-current={isCurrent ? "step" : undefined}
-                className={isCurrent ? "text-[var(--foreground)]" : ""}
+                className={isCurrent ? "text-[var(--foreground)]" : "hidden sm:inline"}
               >
                 {step}
               </span>

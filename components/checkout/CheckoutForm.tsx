@@ -660,7 +660,7 @@ export function CheckoutForm({
           id="checkout-form"
           onSubmit={handleSubmit}
           noValidate
-          className="flex flex-col gap-6"
+          className="flex min-w-0 flex-col gap-6"
         >
           <section>
             <h2 className="text-sm font-semibold">Contact</h2>
@@ -880,7 +880,7 @@ export function CheckoutForm({
           </button>
         </form>
 
-        <div className="h-fit rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
+        <div className="h-fit min-w-0 rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
           <h2 className="text-lg font-medium">Order summary</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {items.map((item) => (
@@ -930,7 +930,7 @@ export function CheckoutForm({
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                     placeholder="Coupon code"
-                    className="flex-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
+                    className="min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]"
                   />
                   <button
                     type="button"
