@@ -28,8 +28,13 @@ import {
   StoreIcon,
 } from "@/components/ui/Icon";
 import { FieldError } from "@/components/ui/FieldError";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import { getWhatsAppUrl } from "@/lib/site";
-import type { CheckoutAddressFields, CheckoutAddressHandle } from "@/components/checkout/CheckoutAddress";
+import type {
+  CheckoutAddressFields,
+  CheckoutAddressHandle,
+  FieldErrors as AddressFieldErrors,
+} from "@/components/checkout/CheckoutAddress";
 import type { BankTransferSettings, CustomerAddress, DeliveryMethod } from "@/types";
 import type { PayHereCheckoutParams } from "@/lib/orders";
 import type { ShippingSettings } from "@/lib/data/settings";
@@ -65,6 +70,29 @@ const EMPTY_ADDRESS_FIELDS: CheckoutAddressFields = {
 };
 
 type FieldErrors = Partial<Record<"email", string>>;
+
+function validateEmail(value: string): string | undefined {
+  if (!value.trim()) return "Please enter your email address.";
+  if (!value.includes("@")) return "Please enter a valid email address.";
+  return undefined;
+}
+
+// Fixed DOM order of every required field across the whole form (Contact,
+// then Delivery/Address) — used only to find the FIRST invalid one to
+// focus/scroll to on a failed submit. Payment method's own validation
+// (bank slip/reference) is deliberately not part of this list: it's an
+// either/or requirement, not a simple missing-field case, and already has
+// its own FieldError display.
+const REQUIRED_FIELD_FOCUS_ORDER: { key: string; domId: string }[] = [
+  { key: "email", domId: "email" },
+  { key: "firstName", domId: "checkout-firstName" },
+  { key: "lastName", domId: "checkout-lastName" },
+  { key: "phone", domId: "checkout-addr-phone" },
+  { key: "street", domId: "checkout-street" },
+  { key: "city", domId: "checkout-city" },
+  { key: "district", domId: "checkout-district" },
+  { key: "postalCode", domId: "checkout-postalCode" },
+];
 
 // Picks the first genuinely selectable method — the customer's remembered
 // preference if it's still enabled, otherwise the first enabled method in
@@ -385,13 +413,16 @@ export function CheckoutForm({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  // Validates EVERY required field in one pass (email here, the rest via
+  // CheckoutAddress's own validateFields()) rather than the old
+  // email-first-then-bail flow, where a customer submitting a fully empty
+  // form only ever saw the email error — address fields were never even
+  // reached, let alone highlighted, until email was fixed and resubmitted.
   function validateAll(): boolean {
-    const emailError = !form.email.trim()
-      ? "Required."
-      : form.email.includes("@")
-        ? undefined
-        : "Enter a valid email.";
+    const emailError = validateEmail(form.email);
     setErrors({ email: emailError });
+
+    const addressErrors: AddressFieldErrors = addressRef.current!.validateFields();
 
     let paymentValid = true;
     if (paymentMethod === "bank_transfer" && !form.paymentReference.trim() && !slipPath) {
@@ -401,7 +432,21 @@ export function CheckoutForm({
       setPaymentError(null);
     }
 
-    return !emailError && paymentValid;
+    const allFieldErrors: Record<string, string | undefined> = { email: emailError, ...addressErrors };
+    const firstInvalid = REQUIRED_FIELD_FOCUS_ORDER.find((f) => allFieldErrors[f.key]);
+    if (firstInvalid) {
+      // A saved address in "card" mode has no input elements on screen at
+      // all until validateFields() above switches it to "form" mode — that
+      // state update hasn't reached the DOM yet at this exact point in the
+      // same synchronous call stack, so focusing has to wait one frame.
+      requestAnimationFrame(() => {
+        const el = document.getElementById(firstInvalid.domId);
+        el?.focus();
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+
+    return !emailError && Object.keys(addressErrors).length === 0 && paymentValid;
   }
 
   async function handleSlipChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -605,6 +650,9 @@ export function CheckoutForm({
       <div className="mt-3">
         <h1 className="font-heading text-[28px] font-semibold tracking-tight sm:text-[32px]">Checkout</h1>
         <p className="mt-1 text-[13px] text-[var(--muted)] sm:text-sm">Complete your order securely.</p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          <span className="text-[var(--color-error)]">*</span> Required fields
+        </p>
       </div>
 
       <div className="mt-6 grid gap-7 lg:grid-cols-[1fr_400px] lg:gap-9">
@@ -622,17 +670,15 @@ export function CheckoutForm({
                 label="Email"
                 type="email"
                 value={form.email}
-                onChange={(v) => setField("email", v)}
-                onBlur={() =>
-                  setErrors((prev) => ({
-                    ...prev,
-                    email: !form.email.trim()
-                      ? "Required."
-                      : form.email.includes("@")
-                        ? undefined
-                        : "Enter a valid email.",
-                  }))
-                }
+                onChange={(v) => {
+                  setField("email", v);
+                  // Blur-validates the first time, then live-validates on
+                  // every keystroke once an error has actually been shown
+                  // — clears (or updates) the instant the correction is
+                  // valid, not only after tabbing away again.
+                  setErrors((prev) => (prev.email ? { ...prev, email: validateEmail(v) } : prev));
+                }}
+                onBlur={() => setErrors((prev) => ({ ...prev, email: validateEmail(form.email) }))}
                 error={errors.email}
                 required
               />
@@ -1001,6 +1047,7 @@ function Field({
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
         {label}
+        {required && <RequiredMark />}
       </label>
       <input
         id={id}
@@ -1015,7 +1062,7 @@ function Field({
         aria-describedby={error ? errorId : undefined}
         className={`rounded-[var(--radius-input)] border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
           error
-            ? "border-red-600 focus:ring-red-600"
+            ? "border-[var(--color-error)] focus:ring-[var(--color-error)]"
             : "border-[var(--border)] focus:ring-[var(--foreground)]"
         }`}
       />

@@ -4,7 +4,7 @@
 // call site.
 export function FieldError({ id, message }: { id?: string; message: string }) {
   return (
-    <p id={id} role="alert" className="text-xs text-red-600">
+    <p id={id} role="alert" className="text-xs text-[var(--color-error)]">
       {message}
     </p>
   );

@@ -7,6 +7,7 @@ import { SRI_LANKAN_CITIES } from "@/lib/cities";
 import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
 import { COLOMBO_ZONE_POSTAL_CODES, normalizePostalCode } from "@/lib/delivery-fee";
 import { FieldError } from "@/components/ui/FieldError";
+import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CustomerAddress } from "@/types";
 
 // Sentinel stored in fields.postalCode when the customer explicitly picks
@@ -66,24 +67,32 @@ function displayPostalCode(fields: CheckoutAddressFields): string {
 }
 
 type Mode = "card" | "picker" | "form";
-type FieldErrors = Partial<Record<keyof CheckoutAddressFields, string>>;
+export type FieldErrors = Partial<Record<keyof CheckoutAddressFields, string>>;
 
 function validateAddressFields(
   fields: CheckoutAddressFields,
   requireFullAddress: boolean,
 ): FieldErrors {
   const errors: FieldErrors = {};
-  if (!fields.firstName.trim()) errors.firstName = "Required.";
-  if (!fields.lastName.trim()) errors.lastName = "Required.";
-  if (!isValidSriLankanPhone(fields.phone)) errors.phone = "Enter a valid Sri Lankan number.";
+  if (!fields.firstName.trim()) errors.firstName = "Please enter your first name.";
+  if (!fields.lastName.trim()) errors.lastName = "Please enter your last name.";
+  if (!fields.phone.trim()) {
+    errors.phone = "Please enter your phone number.";
+  } else if (!isValidSriLankanPhone(fields.phone)) {
+    errors.phone = "Please enter a valid Sri Lankan phone number.";
+  }
+  // Street/City/District/Postal code are only ever required (and only
+  // ever rendered at all) for Standard Delivery — Store Pickup collects
+  // just a name and phone, per requireFullAddress's own doc comment below.
   if (requireFullAddress) {
-    if (!fields.street.trim()) errors.street = "Required.";
-    if (!fields.city.trim()) errors.city = "Required.";
-    if (!fields.district.trim()) errors.district = "Select a district.";
+    if (!fields.street.trim()) errors.street = "Please enter your street address.";
+    if (!fields.city.trim()) errors.city = "Please enter your city.";
+    if (!fields.district.trim()) errors.district = "Please select your district.";
     if (!fields.postalCode.trim()) {
-      errors.postalCode = fields.district === "Colombo" ? "Select a zone." : "Required.";
+      errors.postalCode =
+        fields.district === "Colombo" ? "Please select your delivery zone." : "Please enter your postal code.";
     } else if (fields.district !== "Colombo" && !/^\d{3,5}$/.test(fields.postalCode.trim())) {
-      errors.postalCode = "Enter a valid postal code.";
+      errors.postalCode = "Please enter a valid postal code.";
     }
   }
   return errors;
@@ -104,6 +113,15 @@ export interface CheckoutAddressHandle {
   // update my saved address" was chosen on Edit) — a single async call
   // the parent makes once, at final submit time, not on every keystroke.
   resolveForSubmit(): Promise<{ fields: CheckoutAddressFields; sourceAddressId: string | null; error?: string }>;
+  // Synchronous, no saveAddress/network side effects — lets the parent
+  // validate every required field (email included) on ONE submit attempt,
+  // instead of only ever reaching address validation after email already
+  // passed. Sets this component's own error state and switches to "form"
+  // mode if a saved address (in "card" mode, no inputs on screen at all)
+  // turns out to have a now-invalid field, then returns the errors so the
+  // parent can find the first invalid field across the WHOLE form, in DOM
+  // order, to focus/scroll to.
+  validateFields(): FieldErrors;
 }
 
 export const CheckoutAddress = forwardRef<
@@ -189,10 +207,24 @@ export const CheckoutAddress = forwardRef<
 
       return { fields, sourceAddressId: null };
     },
+    validateFields() {
+      const fieldErrors = validateAddressFields(fields, requireFullAddress);
+      setErrors(fieldErrors);
+      if (Object.keys(fieldErrors).length > 0) setMode("form");
+      return fieldErrors;
+    },
   }));
 
+  // Blur-validates the first time (doesn't nag mid-first-attempt), then
+  // live-validates on every keystroke once an error has actually been
+  // shown for that field — the customer sees it clear the moment their
+  // correction is valid, not only after tabbing away again.
   function updateField(field: keyof CheckoutAddressFields, value: string) {
-    setFields((prev) => ({ ...prev, [field]: value }));
+    const nextFields = { ...fields, [field]: value };
+    setFields(nextFields);
+    setErrors((prev) =>
+      prev[field] ? { ...prev, [field]: validateOneField(field, nextFields, requireFullAddress) } : prev,
+    );
   }
 
   function handleBlur(field: keyof CheckoutAddressFields) {
@@ -316,6 +348,7 @@ export const CheckoutAddress = forwardRef<
             onChange={(v) => updateField("firstName", v)}
             onBlur={() => handleBlur("firstName")}
             error={errors.firstName}
+            required
           />
           <AddrField
             id="checkout-lastName"
@@ -324,6 +357,7 @@ export const CheckoutAddress = forwardRef<
             onChange={(v) => updateField("lastName", v)}
             onBlur={() => handleBlur("lastName")}
             error={errors.lastName}
+            required
           />
         </div>
         <div className="mt-4">
@@ -336,6 +370,7 @@ export const CheckoutAddress = forwardRef<
             onChange={(v) => updateField("phone", v)}
             onBlur={() => handleBlur("phone")}
             error={errors.phone}
+            required
           />
         </div>
         {requireFullAddress && (
@@ -348,18 +383,21 @@ export const CheckoutAddress = forwardRef<
                 onChange={(v) => updateField("street", v)}
                 onBlur={() => handleBlur("street")}
                 error={errors.street}
+                required
               />
             </div>
             <div className="mt-4 grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label htmlFor="checkout-city" className="text-sm font-medium">
                   City
+                  <RequiredMark />
                 </label>
                 <input
                   id="checkout-city"
                   type="text"
                   list="checkout-city-options"
                   autoComplete="off"
+                  required
                   value={fields.city}
                   onChange={(e) => updateField("city", e.target.value)}
                   onBlur={() => handleBlur("city")}
@@ -377,6 +415,7 @@ export const CheckoutAddress = forwardRef<
               <div className="flex flex-col gap-1">
                 <label htmlFor="checkout-district" className="text-sm font-medium">
                   District
+                  <RequiredMark />
                 </label>
                 <select
                   id="checkout-district"
@@ -386,10 +425,21 @@ export const CheckoutAddress = forwardRef<
                     // dropdown of canonical codes/"Other") and every other
                     // district (free text) — a value from one mode is
                     // meaningless (or literally the "Other" sentinel) in
-                    // the other, so switching resets it.
-                    setFields((prev) => ({ ...prev, district: e.target.value, postalCode: "" }));
+                    // the other, so switching resets it. Only the district
+                    // error (if shown) is live-revalidated here, same as
+                    // updateField — postalCode's error state is left alone
+                    // rather than immediately flagging the reset-to-empty
+                    // value the customer hasn't even looked at yet.
+                    const nextFields = { ...fields, district: e.target.value, postalCode: "" };
+                    setFields(nextFields);
+                    setErrors((prev) =>
+                      prev.district
+                        ? { ...prev, district: validateOneField("district", nextFields, requireFullAddress) }
+                        : prev,
+                    );
                   }}
                   onBlur={() => handleBlur("district")}
+                  required
                   aria-invalid={Boolean(errors.district)}
                   aria-describedby={errors.district ? "checkout-district-error" : undefined}
                   className={inputClass(Boolean(errors.district))}
@@ -409,12 +459,14 @@ export const CheckoutAddress = forwardRef<
                 <div className="flex flex-col gap-1">
                   <label htmlFor="checkout-postalCode" className="text-sm font-medium">
                     Colombo zone
+                    <RequiredMark />
                   </label>
                   <select
                     id="checkout-postalCode"
                     value={fields.postalCode}
                     onChange={(e) => updateField("postalCode", e.target.value)}
                     onBlur={() => handleBlur("postalCode")}
+                    required
                     aria-invalid={Boolean(errors.postalCode)}
                     aria-describedby={errors.postalCode ? "checkout-postalCode-error" : undefined}
                     className={inputClass(Boolean(errors.postalCode))}
@@ -439,6 +491,7 @@ export const CheckoutAddress = forwardRef<
                   onChange={(v) => updateField("postalCode", v)}
                   onBlur={() => handleBlur("postalCode")}
                   error={errors.postalCode}
+                  required
                 />
               )}
             </div>
@@ -538,7 +591,9 @@ function buildFormData(fields: CheckoutAddressFields, id: string | null): FormDa
 
 const inputClass = (hasError: boolean) =>
   `rounded-[var(--radius-input)] border bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 ${
-    hasError ? "border-red-600 focus:ring-red-600" : "border-[var(--border)] focus:ring-[var(--foreground)]"
+    hasError
+      ? "border-[var(--color-error)] focus:ring-[var(--color-error)]"
+      : "border-[var(--border)] focus:ring-[var(--foreground)]"
   }`;
 
 function AddrField({
@@ -550,6 +605,7 @@ function AddrField({
   error,
   type = "text",
   placeholder,
+  required,
 }: {
   id: string;
   label: string;
@@ -559,17 +615,20 @@ function AddrField({
   error?: string;
   type?: string;
   placeholder?: string;
+  required?: boolean;
 }) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
         {label}
+        {required && <RequiredMark />}
       </label>
       <input
         id={id}
         type={type}
         placeholder={placeholder}
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
