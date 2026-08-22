@@ -148,49 +148,55 @@ export function SiteSearchBar() {
   }
 
   return (
-    <div ref={containerRef} className="relative mx-auto w-[95%] sm:w-[65%]">
-      <form
-        role="search"
-        onSubmit={(event) => {
-          event.preventDefault();
-          goToSearch(query);
-        }}
-        className="flex h-12 items-center rounded-[30px] border border-[var(--border)] bg-white pl-5 shadow-sm transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]"
-      >
-        <input
-          type="text"
-          enterKeyHint="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onKeyDown={handleKeyDown}
-          placeholder="Search for products, brands, categories…"
-          aria-label="Search products"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls="site-search-listbox"
-          autoComplete="off"
-          // type="text" (not "search") deliberately — type="search" gets its
-          // own native rendering in Chrome/Edge on Windows that a stray
-          // rectangular border/outline survives even with appearance-none +
-          // outline-none. text has no native chrome to fight; enterKeyHint
-          // restores the mobile keyboard's "search" button without it. The
-          // visible focus ring lives on the wrapper (focus-within above) so
-          // it follows the pill shape — every focus state is explicitly
-          // cleared here (see the global :focus-visible fix in globals.css
-          // for why plain focus:/focus-visible: utilities alone weren't
-          // enough) plus appearance-none for Safari's default text-field
-          // chrome.
-          className="h-full flex-1 appearance-none border-none bg-transparent text-sm shadow-none outline-none focus:border-none focus:shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-within:outline-none placeholder:text-[var(--muted)] [-webkit-tap-highlight-color:transparent]"
-        />
-        <button
-          type="submit"
-          aria-label="Search"
-          className="ml-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--foreground)] text-white"
+    <div ref={containerRef} className="relative mx-auto w-[94%] max-w-[1150px] sm:w-[90%] md:w-[85%]">
+      {/* .search-glow (app/globals.css) is the animated conic-gradient ring —
+          the p-[2px] here is the ring's visible thickness, exposed in the
+          gap between this wrapper's edge and the white pill (form) below,
+          which fills the rest via w-full. */}
+      <div className="search-glow rounded-full p-[2px]">
+        <form
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            goToSearch(query);
+          }}
+          className="relative z-[1] flex h-[54px] w-full items-center rounded-full border border-[var(--border)] bg-white pl-6 shadow-[0_4px_20px_rgba(17,17,17,0.08)] transition-[border-color] duration-200 ease-in-out focus-within:border-[var(--color-search-glow-navy)] sm:h-[58px]"
         >
-          <SearchIcon className="h-4 w-4" />
-        </button>
-      </form>
+          <input
+            type="text"
+            enterKeyHint="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setOpen(true)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search for products, brands, categories…"
+            aria-label="Search products"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="site-search-listbox"
+            autoComplete="off"
+            // type="text" (not "search") deliberately — type="search" gets its
+            // own native rendering in Chrome/Edge on Windows that a stray
+            // rectangular border/outline survives even with appearance-none +
+            // outline-none. text has no native chrome to fight; enterKeyHint
+            // restores the mobile keyboard's "search" button without it. The
+            // visible focus ring lives on the wrapper (focus-within above) so
+            // it follows the pill shape — every focus state is explicitly
+            // cleared here (see the global :focus-visible fix in globals.css
+            // for why plain focus:/focus-visible: utilities alone weren't
+            // enough) plus appearance-none for Safari's default text-field
+            // chrome.
+            className="h-full flex-1 appearance-none border-none bg-transparent text-sm shadow-none outline-none focus:border-none focus:shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-within:outline-none placeholder:text-[var(--muted)] [-webkit-tap-highlight-color:transparent]"
+          />
+          <button
+            type="submit"
+            aria-label="Search"
+            className="mr-2 ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-search-glow-navy)] text-white transition-transform duration-200 ease-in-out hover:scale-105 active:scale-95 sm:h-11 sm:w-11"
+          >
+            <SearchIcon className="h-4 w-4" />
+          </button>
+        </form>
+      </div>
 
       {open && (
         <div

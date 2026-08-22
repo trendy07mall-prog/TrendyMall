@@ -102,7 +102,7 @@ export function HomeSearchBar() {
 
   if (!isHome) {
     return (
-      <div className="border-b border-[var(--border)] bg-white py-3 print:hidden">
+      <div className="py-4 print:hidden">
         <SiteSearchBar />
       </div>
     );
@@ -111,7 +111,7 @@ export function HomeSearchBar() {
   return (
     <div
       style={{ top: headerBottom }}
-      className={`fixed inset-x-0 z-[var(--z-sticky-bar)] border-b border-[var(--border)] bg-white py-3 shadow-[0_2px_10px_rgba(0,0,0,0.06)] print:hidden ${
+      className={`fixed inset-x-0 z-[var(--z-sticky-bar)] py-4 print:hidden ${
         reducedMotion ? "" : "transition-[opacity,transform] duration-300 ease-in-out"
       } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
       aria-hidden={!visible}

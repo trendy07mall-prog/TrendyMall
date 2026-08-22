@@ -35,6 +35,13 @@
   --color-accent: #ff3b30;
   --color-accent-secondary: #ffd43b;
 
+  /* Search bar animated border glow (below-navbar redesign) — a small
+     traveling light point, not a solid ring, so these are only ever used
+     as conic-gradient stops (.search-glow below), never as fills/text. */
+  --color-search-glow-navy: #1e3a5f;
+  --color-search-glow-emerald: #10b981;
+  --color-search-glow-white: #ffffff;
+
   --radius-card: 12px;
   --radius-btn: 14px;
   --radius-input: 12px;
@@ -278,6 +285,56 @@ input:-webkit-autofill:focus {
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Search bar animated border glow (SiteSearchBar.tsx) — a small light
+   point continuously traveling around the pill's perimeter. The oversized
+   ::before (inset: -100%, i.e. 3x the wrapper's own size) is clipped by
+   this wrapper's own overflow:hidden + matching border-radius, so it can
+   never bleed past the pill shape or affect layout — only the padding-box
+   ring between the wrapper's edge and the inner white pill (rendered by
+   the component, not this file) is ever visible. Rotation is a plain CSS
+   transform animation (no JS loop); focus brightening is opacity/filter
+   only, so neither state can shift layout or resize the pill. */
+.search-glow {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.search-glow::before {
+  content: "";
+  position: absolute;
+  inset: -100%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 296deg,
+    var(--color-search-glow-navy) 315deg,
+    var(--color-search-glow-emerald) 330deg,
+    var(--color-search-glow-white) 342deg,
+    var(--color-search-glow-navy) 354deg,
+    transparent 360deg
+  );
+  opacity: 0.4;
+  animation: search-glow-spin 7s linear infinite;
+  transition: opacity var(--transition-duration) var(--transition-easing);
+}
+.search-glow:focus-within::before {
+  opacity: 0.75;
+}
+@keyframes search-glow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-glow::before {
+    animation: none;
+    opacity: 0.2;
+  }
+  .search-glow:focus-within::before {
+    opacity: 0.4;
+  }
 }
 
 /* Homepage-only heading font override (v9) — Poppins per the homepage
