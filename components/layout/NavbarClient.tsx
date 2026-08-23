@@ -160,6 +160,32 @@ export function NavbarClient({
   // fresh measurement for as long as this component is mounted, same as
   // the scroll listener.
   useEffect(() => {
+    // `scrolled` gets its own immediate, undelayed read here -- unlike
+    // `stuck`, it has no AnnouncementBar race to dodge (it's a plain
+    // window.scrollY > 8 threshold, not a getBoundingClientRect() read
+    // dependent on a sibling's layout), so it doesn't need to wait for the
+    // double-rAF below. Traced via Playwright on non-home routes with more
+    // client-side hydration work (Wishlist/Cart reading Context off
+    // localStorage, Contact's forms): window.scrollY is already correct at
+    // this line the entire time the border shows the wrong (transparent)
+    // color on a mid-scroll reload -- the setScrolled(true) call itself is
+    // not late, its DOM commit is, queued behind the rest of that page's
+    // hydration work competing for the main thread during the busiest
+    // part of load. That's normal React scheduling, not a bug this
+    // component can fix without forcing a synchronous commit (flushSync)
+    // at the cost of blocking hydration elsewhere for a purely cosmetic,
+    // self-resolving border -- not a worthwhile trade. This line removes
+    // the one real gap that WAS this component's own doing (the
+    // unnecessary double-rAF delay applied to a value that never needed
+    // it); the residual sub-second settling on heavier pages is inherent
+    // hydration-priority behavior, negligible against a real page load's
+    // total time off localhost.
+    // Syncing to an external signal (the real, already-current scroll
+    // position) — same class of exception as the localStorage/matchMedia-
+    // read effects elsewhere in this file.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setScrolled(window.scrollY > 8);
+
     function measure() {
       setScrolled(window.scrollY > 8);
       const sentinel = stickySentinelRef.current;
