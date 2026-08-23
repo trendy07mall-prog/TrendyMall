@@ -101,8 +101,8 @@ export function NavbarClient({
   // that's the only moment real image content can be behind the header, so
   // it's the gate for the glass treatment below (see `glass`).
   const [stuck, setStuck] = useState(false);
-  // Mirrors HomeSearchBar.tsx's own #hero-sentinel IntersectionObserver
-  // (same id, same isIntersecting/top<0 check) rather than sharing state
+  // Mirrors HomeSearchBar.tsx's own #hero-sentinel check (same id, same
+  // "has it scrolled above the viewport" read) rather than sharing state
   // with it — both components independently derive "has the visitor
   // scrolled past the hero" from the one sentinel HeroSlider.tsx renders,
   // which is also why the header's glass->solid switch and that bar's
@@ -115,68 +115,46 @@ export function NavbarClient({
   // past, this is false and the header renders in its normal solid style.
   const glass = isHome && stuck && !pastHero;
 
+  // `stuck` and `pastHero` are both derived from direct getBoundingClientRect()
+  // reads inside this one scroll/resize listener, not IntersectionObserver —
+  // confirmed via Playwright that IO's callback (spec'd as best-effort/
+  // batched) can silently stop firing partway through a fast scroll,
+  // especially on mobile, permanently freezing whichever state it drove for
+  // the rest of the session (this is what was breaking HomeSearchBar.tsx's
+  // own fade-in too — same fix applied there). A synchronous rect read on
+  // every already-throttled scroll tick doesn't have a callback to miss.
+  //
+  // The one thing IntersectionObserver bought over a plain scroll listener
+  // was sidestepping a hydration race: AnnouncementBar renders nothing
+  // until its own effect flips `hydrated` true, so a `stuck` measurement
+  // taken synchronously on mount could catch the header still sitting at
+  // its pre-AnnouncementBar position for one frame. Two nested
+  // requestAnimationFrame calls before the first measurement waits for
+  // that frame's commit and the one after it, which is enough for
+  // AnnouncementBar's layout to have settled by the time it runs.
   useEffect(() => {
-    function onScroll() {
+    function measure() {
       setScrolled(window.scrollY > 8);
-    }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // Zero-height sentinel rendered immediately before <header> (below) sits
-  // exactly where the header would be if it weren't sticky — once it
-  // scrolls above the viewport, the header must have just pinned to top:0.
-  // Deliberately NOT `headerRef.current.getBoundingClientRect().top <= 0`
-  // measured on scroll: that raced against AnnouncementBar's own
-  // hydration-gated mount (it renders nothing until its `hydrated` effect
-  // flips true) — the very first scroll-listener measurement could catch
-  // the header sitting at true top:0 for one frame before the announcement
-  // bar appears above it and pushes it down, latching `stuck` (and this
-  // whole "glass" mode) permanently true from page load, never
-  // recomputing since a pure layout shift fires no scroll event. An
-  // IntersectionObserver recalculates on layout changes as well as
-  // scroll/resize, which sidesteps that race entirely.
-  useEffect(() => {
-    const sentinel = stickySentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), {
-      threshold: 0,
-    });
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!isHome) {
-      // Syncing to an external signal (the route changed) — same class of
-      // exception as the localStorage/matchMedia-read effects elsewhere in
-      // this file.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setPastHero(false);
-      return;
-    }
-    let observer: IntersectionObserver | null = null;
-    let attempts = 0;
-    let raf = 0;
-    function attach() {
-      const sentinel = document.getElementById("hero-sentinel");
-      if (!sentinel) {
-        if (attempts++ < 20) raf = requestAnimationFrame(attach);
-        return;
+      const sentinel = stickySentinelRef.current;
+      if (sentinel) setStuck(sentinel.getBoundingClientRect().top < 0);
+      if (isHome) {
+        const heroSentinel = document.getElementById("hero-sentinel");
+        if (heroSentinel) setPastHero(heroSentinel.getBoundingClientRect().top < 0);
+      } else {
+        setPastHero(false);
       }
-      observer = new IntersectionObserver(
-        ([entry]) => {
-          setPastHero(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-        },
-        { threshold: 0 },
-      );
-      observer.observe(sentinel);
     }
-    attach();
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(measure);
+    });
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
     return () => {
-      cancelAnimationFrame(raf);
-      observer?.disconnect();
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
     };
   }, [isHome]);
 

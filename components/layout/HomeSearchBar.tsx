@@ -43,12 +43,25 @@ export function HomeSearchBar() {
   // header's real live bottom edge instead of a fixed number is
   // self-correcting for that window, for any future header height change,
   // and for both mobile and desktop — not a new magic number to go stale.
+  //
+  // `visible` is computed here too (direct getBoundingClientRect() read on
+  // #hero-sentinel), not via a separate IntersectionObserver as this used
+  // to do — IO's callback is spec'd as best-effort/batched, and confirmed
+  // via Playwright that it can silently miss firing during a fast
+  // (especially mobile, momentum-scroll-like) scroll: the bar would then
+  // stay permanently hidden for the rest of the session even though the
+  // hero was long since scrolled past, since nothing else ever re-checks
+  // once IO stops calling back. A synchronous rect read on every already-
+  // throttled scroll/resize tick this effect already runs doesn't have
+  // that failure mode — there's no separate callback to miss.
   useEffect(() => {
     if (!isHome) return;
 
     function measure() {
       const header = document.querySelector("header");
       if (header) setHeaderBottom(header.getBoundingClientRect().bottom);
+      const sentinel = document.getElementById("hero-sentinel");
+      if (sentinel) setVisible(sentinel.getBoundingClientRect().top < 0);
       tickingRef.current = false;
     }
 
@@ -64,39 +77,6 @@ export function HomeSearchBar() {
     return () => {
       window.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
-    };
-  }, [isHome]);
-
-  useEffect(() => {
-    if (!isHome) return;
-
-    // The sentinel mounts as part of the page content, which commits in
-    // the same pass as this layout-level component — but a short retry
-    // guards against ever observing nothing if that ordering assumption
-    // doesn't hold for some route-transition edge case.
-    let observer: IntersectionObserver | null = null;
-    let attempts = 0;
-    let raf = 0;
-
-    function attach() {
-      const sentinel = document.getElementById("hero-sentinel");
-      if (!sentinel) {
-        if (attempts++ < 20) raf = requestAnimationFrame(attach);
-        return;
-      }
-      observer = new IntersectionObserver(
-        ([entry]) => {
-          setVisible(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-        },
-        { threshold: 0 },
-      );
-      observer.observe(sentinel);
-    }
-
-    attach();
-    return () => {
-      cancelAnimationFrame(raf);
-      observer?.disconnect();
     };
   }, [isHome]);
 
