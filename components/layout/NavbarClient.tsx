@@ -32,18 +32,24 @@ function NavLink({
   href,
   label,
   isActive,
+  glass,
 }: {
   href: string;
   label: string;
   isActive: boolean;
+  // Swaps the underline to the same emerald token the mobile bottom nav's
+  // active pill already uses (--color-nav-active-pill) — the one other
+  // place this site has an "active nav item" indicator, so glass mode's
+  // active state reads as the same design language, not a one-off color.
+  glass?: boolean;
 }) {
   return (
     <Link href={href} className="group relative py-1">
       {label}
       <span
-        className={`transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--foreground)] group-hover:scale-x-100 ${
-          isActive ? "scale-x-100" : ""
-        }`}
+        className={`transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 group-hover:scale-x-100 ${
+          glass ? "bg-[var(--color-nav-active-pill)]" : "bg-[var(--foreground)]"
+        } ${isActive ? "scale-x-100" : ""}`}
         aria-hidden="true"
       />
     </Link>
@@ -80,12 +86,34 @@ export function NavbarClient({
   const [accountOpen, setAccountOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  const stickySentinelRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const drawerWrapperRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const isCheckout = pathname === "/checkout";
+  const isHome = pathname === "/";
+
+  // "stuck" mirrors what position:sticky is actually doing visually: once
+  // the header's own top edge reaches 0, it's pinned and whatever's below
+  // it in the DOM (the hero, on "/") is now scrolling in underneath it —
+  // that's the only moment real image content can be behind the header, so
+  // it's the gate for the glass treatment below (see `glass`).
+  const [stuck, setStuck] = useState(false);
+  // Mirrors HomeSearchBar.tsx's own #hero-sentinel IntersectionObserver
+  // (same id, same isIntersecting/top<0 check) rather than sharing state
+  // with it — both components independently derive "has the visitor
+  // scrolled past the hero" from the one sentinel HeroSlider.tsx renders,
+  // which is also why the header's glass->solid switch and that bar's
+  // fade-in always happen at the same instant: same trigger, no shared
+  // wiring needed to keep them in sync.
+  const [pastHero, setPastHero] = useState(false);
+  // Only ever true on "/", and only for the window where the header is
+  // pinned AND the hero is still (at least partly) the thing rendering
+  // underneath it. Before pinning, and after the hero's fully scrolled
+  // past, this is false and the header renders in its normal solid style.
+  const glass = isHome && stuck && !pastHero;
 
   useEffect(() => {
     function onScroll() {
@@ -95,6 +123,62 @@ export function NavbarClient({
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Zero-height sentinel rendered immediately before <header> (below) sits
+  // exactly where the header would be if it weren't sticky — once it
+  // scrolls above the viewport, the header must have just pinned to top:0.
+  // Deliberately NOT `headerRef.current.getBoundingClientRect().top <= 0`
+  // measured on scroll: that raced against AnnouncementBar's own
+  // hydration-gated mount (it renders nothing until its `hydrated` effect
+  // flips true) — the very first scroll-listener measurement could catch
+  // the header sitting at true top:0 for one frame before the announcement
+  // bar appears above it and pushes it down, latching `stuck` (and this
+  // whole "glass" mode) permanently true from page load, never
+  // recomputing since a pure layout shift fires no scroll event. An
+  // IntersectionObserver recalculates on layout changes as well as
+  // scroll/resize, which sidesteps that race entirely.
+  useEffect(() => {
+    const sentinel = stickySentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => setStuck(!entry.isIntersecting), {
+      threshold: 0,
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isHome) {
+      // Syncing to an external signal (the route changed) — same class of
+      // exception as the localStorage/matchMedia-read effects elsewhere in
+      // this file.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPastHero(false);
+      return;
+    }
+    let observer: IntersectionObserver | null = null;
+    let attempts = 0;
+    let raf = 0;
+    function attach() {
+      const sentinel = document.getElementById("hero-sentinel");
+      if (!sentinel) {
+        if (attempts++ < 20) raf = requestAnimationFrame(attach);
+        return;
+      }
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          setPastHero(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+        },
+        { threshold: 0 },
+      );
+      observer.observe(sentinel);
+    }
+    attach();
+    return () => {
+      cancelAnimationFrame(raf);
+      observer?.disconnect();
+    };
+  }, [isHome]);
 
   useEffect(() => {
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -216,20 +300,66 @@ export function NavbarClient({
     };
   }, [drawerOpen, closeDrawer]);
 
+  // Glass mode moves the outer <header>'s solid bg/border/shadow onto the
+  // inner row instead, floating it as a rounded pill with margin on every
+  // side — same "outer = invisible positioning shell, inner = the actual
+  // visual chrome" split already proven on the mobile bottom nav's dock
+  // redesign. `duration-[var(--transition-duration)]` (not transition-brand)
+  // deliberately: this needs border-radius/backdrop-filter/padding in its
+  // property list, which transition-brand doesn't cover, but it still reads
+  // off the exact same shared motion token globals.css zeroes under
+  // prefers-reduced-motion, so it gets that behavior for free without
+  // touching the shared utility.
+  const headerOuterClass = glass
+    ? "sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4"
+    : `sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-colors duration-[var(--transition-duration)] print:hidden ${
+        isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
+      }`;
+
+  // Dark-tinted glass (not the bottom nav's light frosted glass) — this
+  // header needs to carry WHITE content, and white text on a mostly-white
+  // background would fail contrast. The black/25 wash doubles as the
+  // "slight dark scrim for legibility" the design brief allows for, so
+  // there's one layer instead of two competing ones. text-shadow is real
+  // insurance underneath that: hero images are admin-uploaded (see
+  // HeroSlider.tsx) with no guaranteed brightness range, so this can't be
+  // tuned to one specific image.
+  const headerInnerClass = glass
+    ? "mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between rounded-[22px] border border-white/15 bg-black/25 px-3 py-3 text-white shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-md backdrop-saturate-150 transition-[background-color,border-radius,box-shadow,color] duration-[var(--transition-duration)] ease-in-out sm:px-6 [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
+    : `mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 sm:px-6 ${
+        isCheckout ? "py-2.5" : "py-5"
+      }`;
+
+  // Icon-button hover: black/5 (today's solid-header hover) is nearly
+  // invisible against the glass header's own dark tint — swapped for a
+  // light tint there instead. Purely a hover affordance color, no
+  // click-handler/logic difference between the two.
+  const iconHoverClass = glass ? "hover:bg-white/15" : "hover:bg-black/5";
+
   return (
     <>
-      <header
-        ref={headerRef}
-        className={`sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-colors duration-200 print:hidden ${
-        isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
-      }`}
-    >
-      <div
-        className={`mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 sm:px-6 ${
-          isCheckout ? "py-2.5" : "py-5"
-        }`}
-      >
-        <Link href="/" className="flex items-center">
+      <div ref={stickySentinelRef} aria-hidden="true" className="h-0" />
+      <header ref={headerRef} className={headerOuterClass}>
+      <div className={headerInnerClass}>
+        <Link
+          href="/"
+          className={`flex items-center ${
+            // The source PNG's background is baked-in opaque white, not real
+            // transparency (confirmed by sampling its raw pixels: alpha=255
+            // throughout, not just where the mark is drawn) -- invisible on
+            // today's white solid header, but a stray-looking white
+            // rectangle on the dark glass one. mix-blend-mode:multiply was
+            // tried first (white blended via multiply is a no-op, in theory)
+            // but doesn't reliably composite against this element's own
+            // ancestor's backdrop-filter blur in testing -- a known rough
+            // edge where those two CSS features don't compose predictably.
+            // A small solid white chip behind the logo sidesteps that
+            // entirely: same fix real "logo over photography" headers use
+            // elsewhere, not a workaround, and doesn't depend on any
+            // browser's blend-mode/backdrop-filter interaction.
+            glass ? "rounded-lg bg-white/95 px-2 py-1 shadow-[0_1px_4px_rgba(0,0,0,0.15)]" : ""
+          }`}
+        >
           {/* The wordmark is baked into this logo image (unlike the old
               icon-only mark) — no adjacent "TrendyMall" text needed, the
               alt text carries that for accessibility instead. Rendered
@@ -258,6 +388,7 @@ export function NavbarClient({
               href={link.href}
               label={link.label}
               isActive={pathname === link.href}
+              glass={glass}
             />
           ))}
 
@@ -276,12 +407,22 @@ export function NavbarClient({
               Categories
               <ChevronDownIcon className="h-3.5 w-3.5" />
               <span
-                className="transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 bg-[var(--foreground)] group-hover:scale-x-100"
+                className={`transition-brand absolute -bottom-0.5 left-0 h-0.5 w-full origin-left scale-x-0 group-hover:scale-x-100 ${
+                  glass ? "bg-[var(--color-nav-active-pill)]" : "bg-[var(--foreground)]"
+                }`}
                 aria-hidden="true"
               />
             </button>
             {categoriesOpen && (
-              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
+              // Always solid white/dark text regardless of header state —
+              // explicit text color here (not just the inherited default)
+              // because glass mode makes the ambient text color white, and
+              // this panel's own text was previously relying on inheriting
+              // dark text implicitly. A translucent, blurred dropdown full
+              // of category names would also just be a legibility problem
+              // no version of "glass" fixes, so this one dropdown
+              // deliberately stays outside the glass treatment entirely.
+              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
                 {categories.map((category) => (
                   <Link
                     key={category.id}
@@ -301,6 +442,7 @@ export function NavbarClient({
               href={link.href}
               label={link.label}
               isActive={pathname === link.href}
+              glass={glass}
             />
           ))}
         </nav>
@@ -312,12 +454,15 @@ export function NavbarClient({
           <Link
             href="/search"
             aria-label="Search"
-            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 sm:hidden"
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-brand sm:hidden ${iconHoverClass}`}
           >
             <SearchIcon className="h-5 w-5" />
           </Link>
           {/* Desktop/tablet: existing click-to-expand inline search — there's
-              room for it here, already confirmed working. */}
+              room for it here, already confirmed working. Its own expanded
+              input is a real text field, so it stays fully opaque white
+              regardless of header state (see SearchBox.tsx, unchanged) —
+              same reasoning as the Categories dropdown above. */}
           <div className="hidden sm:block">
             <SearchBox />
           </div>
@@ -327,7 +472,7 @@ export function NavbarClient({
           <Link
             href="/shop"
             aria-label="Shop"
-            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-brand md:hidden ${iconHoverClass}`}
           >
             <ShoppingBagIcon className="h-5 w-5" />
           </Link>
@@ -339,7 +484,7 @@ export function NavbarClient({
           <Link
             href="/wishlist"
             aria-label="Wishlist"
-            className="relative flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+            className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-brand ${iconHoverClass}`}
           >
             <HeartIcon className="h-5 w-5" />
             <WishlistCount />
@@ -348,7 +493,7 @@ export function NavbarClient({
           <Link
             href="/cart"
             aria-label="Cart"
-            className="relative flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+            className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-brand ${iconHoverClass}`}
           >
             <CartIcon className="h-5 w-5" />
             <CartCount />
@@ -365,12 +510,14 @@ export function NavbarClient({
               aria-haspopup="true"
               aria-expanded={accountOpen}
               onClick={() => setAccountOpen((v) => !v)}
-              className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5"
+              className={`flex h-11 w-11 items-center justify-center rounded-full transition-brand ${iconHoverClass}`}
             >
               <UserIcon className="h-5 w-5" />
             </button>
             {accountOpen && (
-              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
+              // Same "stays solid regardless of header state" reasoning as
+              // the Categories dropdown above.
+              <div className="absolute top-full right-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
                 {user ? (
                   <>
                     <Link
@@ -417,7 +564,7 @@ export function NavbarClient({
             aria-expanded={drawerOpen}
             aria-controls="mobile-drawer"
             onClick={openDrawer}
-            className="flex h-11 w-11 items-center justify-center rounded-full transition-brand hover:bg-black/5 md:hidden"
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-brand md:hidden ${iconHoverClass}`}
           >
             <MenuIcon className="h-5 w-5" />
           </button>
