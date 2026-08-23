@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signup } from "@/app/auth/actions";
+import { isValidEmail } from "@/lib/utils";
 import { Field } from "@/components/ui/Field";
 import { FieldError } from "@/components/ui/FieldError";
 
@@ -11,7 +12,7 @@ type SignupFieldErrors = Partial<Record<SignupFieldKey, string>>;
 
 function validateEmail(value: string): string | undefined {
   if (!value.trim()) return "Please enter your email address.";
-  if (!value.includes("@")) return "Please enter a valid email address.";
+  if (!isValidEmail(value)) return "Please enter a valid email address.";
   return undefined;
 }
 
@@ -134,6 +135,14 @@ export function SignupForm({
       </p>
 
       <form action={action} onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
+        {/* Honeypot, same pattern as ContactForm.tsx's "company" field —
+            off-screen (not display:none, which some bots skip), unreachable
+            by keyboard tab order, unlabeled. A real visitor never fills
+            this; signup() rejects silently (fake success) if it's set. */}
+        <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+          <input type="text" name="company" tabIndex={-1} autoComplete="off" />
+        </div>
+
         {/* Server action still receives one combined "fullName" value,
             exactly as before — the two visual inputs below are a pure
             presentation change, never a change to what signup() reads. */}

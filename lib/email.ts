@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, isValidEmail } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { SITE_URL } from "@/lib/site";
@@ -228,7 +228,7 @@ export async function sendContactFormEmail(data: {
   // looks like an email address, so hitting "Reply" in the owner's inbox
   // reaches them directly -- falls back to OWNER_EMAIL (same as every other
   // send in this file) when they entered a phone number instead.
-  const replyTo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.contact) ? data.contact : OWNER_EMAIL;
+  const replyTo = isValidEmail(data.contact) ? data.contact : OWNER_EMAIL;
 
   const escapeHtml = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

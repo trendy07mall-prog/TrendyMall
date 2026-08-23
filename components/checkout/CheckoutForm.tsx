@@ -9,7 +9,7 @@ import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
 import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, isValidEmail } from "@/lib/utils";
 import { trackConversion } from "@/lib/analytics/track";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
@@ -73,7 +73,7 @@ type FieldErrors = Partial<Record<"email", string>>;
 
 function validateEmail(value: string): string | undefined {
   if (!value.trim()) return "Please enter your email address.";
-  if (!value.includes("@")) return "Please enter a valid email address.";
+  if (!isValidEmail(value)) return "Please enter a valid email address.";
   return undefined;
 }
 
@@ -682,7 +682,7 @@ export function CheckoutForm({
                 error={errors.email}
                 required
               />
-              {!errors.email && form.email.trim() && form.email.includes("@") && (
+              {!errors.email && form.email.trim() && isValidEmail(form.email) && (
                 <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--muted)]">
                   <CheckIcon className="h-3 w-3 text-emerald-600" />
                   We&apos;ll send your order confirmation here.

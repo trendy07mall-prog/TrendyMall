@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { checkMySubscription, subscribe } from "@/lib/subscribers";
+import { isValidEmail } from "@/lib/utils";
 import { FadeIn } from "@/components/motion/FadeIn";
 
 // Same subscribe() server action as the footer's NewsletterSignup (writes
@@ -12,6 +13,8 @@ export function HomeNewsletter({ defaultEmail }: { defaultEmail?: string }) {
   const [submitted, setSubmitted] = useState(false);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const honeypotRef = useRef<HTMLInputElement>(null);
 
   // A logged-in customer whose email is already subscribed sees the
   // acknowledgement immediately — no typing or submitting required.
@@ -29,8 +32,14 @@ export function HomeNewsletter({ defaultEmail }: { defaultEmail?: string }) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!email.trim()) return;
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     setError("");
-    const result = await subscribe(email);
+    setPending(true);
+    const result = await subscribe(email, honeypotRef.current?.value);
+    setPending(false);
     if (result.ok) {
       if (result.alreadySubscribed) {
         setAlreadySubscribed(true);
@@ -64,6 +73,10 @@ export function HomeNewsletter({ defaultEmail }: { defaultEmail?: string }) {
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="mt-2 flex w-full max-w-md flex-col gap-2 sm:flex-row">
+              {/* Honeypot, same pattern as ContactForm.tsx's "company" field. */}
+              <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+                <input ref={honeypotRef} type="text" tabIndex={-1} autoComplete="off" />
+              </div>
               <label htmlFor="home-newsletter-email" className="sr-only">
                 Email address
               </label>
@@ -78,9 +91,10 @@ export function HomeNewsletter({ defaultEmail }: { defaultEmail?: string }) {
               />
               <button
                 type="submit"
-                className="min-h-11 shrink-0 rounded-full bg-white px-6 text-sm font-semibold text-[#111111] transition-opacity hover:opacity-85"
+                disabled={pending}
+                className="min-h-11 shrink-0 rounded-full bg-white px-6 text-sm font-semibold text-[#111111] transition-opacity hover:opacity-85 disabled:opacity-50"
               >
-                Subscribe
+                {pending ? "Subscribing…" : "Subscribe"}
               </button>
             </form>
           )}

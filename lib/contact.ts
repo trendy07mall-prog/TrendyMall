@@ -3,9 +3,7 @@
 import { headers } from "next/headers";
 import { sendContactFormEmail } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isValidSriLankanPhone } from "@/lib/utils";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { isValidSriLankanPhone, isValidEmail } from "@/lib/utils";
 
 export interface ContactFormResult {
   success: boolean;
@@ -31,7 +29,7 @@ export async function submitContactForm(formData: FormData): Promise<ContactForm
   if (!name || !contact || !message) {
     return { success: false, error: "Please fill in all required fields." };
   }
-  if (!EMAIL_RE.test(contact) && !isValidSriLankanPhone(contact)) {
+  if (!isValidEmail(contact) && !isValidSriLankanPhone(contact)) {
     return { success: false, error: "Enter a valid email address or Sri Lankan phone number." };
   }
 

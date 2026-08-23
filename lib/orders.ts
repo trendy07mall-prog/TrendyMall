@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { sendOrderConfirmationEmails, sendLowStockNotification } from "@/lib/email";
 import { getNotificationSettings } from "@/lib/data/settings";
-import { isValidSriLankanPhone } from "@/lib/utils";
+import { isValidSriLankanPhone, isValidEmail } from "@/lib/utils";
 import { SITE_URL } from "@/lib/site";
 import { isPayHereEnabled, getCheckoutUrl, generateCheckoutHash } from "@/lib/payhere";
 import type { AttributeSelection, DeliveryMethod, GuestOrderDetail, PaymentGateway } from "@/types";
@@ -92,7 +92,7 @@ export async function createOrder(
   } = await supabase.auth.getUser();
 
   if (input.items.length === 0) return { error: "Your cart is empty." };
-  if (!input.customerEmail.includes("@")) return { error: "Enter a valid email address." };
+  if (!isValidEmail(input.customerEmail)) return { error: "Enter a valid email address." };
   if (!isValidSriLankanPhone(input.customerPhone)) {
     return { error: "Enter a valid Sri Lankan phone number." };
   }

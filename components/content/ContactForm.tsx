@@ -3,11 +3,9 @@
 import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { submitContactForm } from "@/lib/contact";
-import { isValidSriLankanPhone } from "@/lib/utils";
+import { isValidSriLankanPhone, isValidEmail } from "@/lib/utils";
 import { FieldError } from "@/components/ui/FieldError";
 import { useToast } from "@/components/ui/ToastProvider";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface Fields {
   name: string;
@@ -25,7 +23,7 @@ function validateFields(fields: Fields): FieldErrors {
   if (!fields.name.trim()) errors.name = "Required.";
   if (!fields.contact.trim()) {
     errors.contact = "Required.";
-  } else if (!EMAIL_RE.test(fields.contact) && !isValidSriLankanPhone(fields.contact)) {
+  } else if (!isValidEmail(fields.contact) && !isValidSriLankanPhone(fields.contact)) {
     errors.contact = "Enter a valid email address or Sri Lankan phone number.";
   }
   if (!fields.message.trim()) errors.message = "Required.";

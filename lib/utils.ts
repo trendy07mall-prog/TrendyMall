@@ -140,6 +140,16 @@ export function isValidSriLankanPhone(phone: string): boolean {
   return /^(?:\+94|0)[1-9][0-9]{8}$/.test(phone.replace(/[\s-]/g, ""));
 }
 
+// Same regex lib/contact.ts (both client and server side) already used —
+// centralized here so every other form that sends mail (signup, checkout,
+// newsletter) checks a real format instead of each re-deriving its own
+// "@"-only test. Deliberately not RFC 5322-complete (no validator fully
+// is) — just enough to reject "a@", "@@", "foo" before an email attempt
+// is made, which is the actual bounce-rate risk.
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // wa.me links need the number in international format with no leading
 // "+" or "0" — e.g. "0771234567" -> "94771234567".
 export function toWhatsAppNumber(phone: string): string {
