@@ -42,6 +42,12 @@
   --color-search-glow-emerald: #10b981;
   --color-search-glow-white: #ffffff;
 
+  /* General-purpose navy (same value as --color-search-glow-navy, kept as
+     its own token so unrelated features — e.g. the account area's initials
+     avatar — don't couple to a search-bar-scoped name). Safe as a solid
+     fill with white text on top (that's its only use so far). */
+  --color-navy: #1e3a5f;
+
   --radius-card: 12px;
   --radius-btn: 14px;
   --radius-input: 12px;

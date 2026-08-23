@@ -105,6 +105,139 @@ export async function getFeaturedReviews(limit = 6): Promise<FeaturedReview[]> {
     .filter((r): r is FeaturedReview => r != null);
 }
 
+// Overview page's Reviews summary card — a plain count, RLS-scoped to the
+// caller's own rows (reviews_select_own_or_admin), same pattern as
+// lib/addresses.ts's getMyAddresses().length usage elsewhere on that page.
+export async function getMyReviewCount(): Promise<number> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count } = await supabase
+    .from("reviews")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+  return count ?? 0;
+}
+
+export interface MyReview extends Review {
+  productName: string;
+  productSlug: string;
+  productImage: string | null;
+}
+
+// My Reviews tab — RLS-scoped to the caller's own rows, newest first.
+// status ('pending'|'approved'|'rejected') is returned as-is so the UI can
+// show an honest "pending moderation" note instead of implying a review is
+// already live when it isn't.
+export async function getMyReviews(): Promise<MyReview[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  if (!reviews || reviews.length === 0) return [];
+
+  const productIds = [...new Set(reviews.map((r) => r.product_id))];
+  const [{ data: products }, { data: images }] = await Promise.all([
+    supabase.from("products").select("id, name, slug").in("id", productIds),
+    supabase
+      .from("product_images")
+      .select("product_id, image_url, sort_order")
+      .in("product_id", productIds)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  const productById = new Map((products ?? []).map((p) => [p.id, p] as const));
+  const imageByProductId = new Map<string, string>();
+  for (const image of images ?? []) {
+    if (!imageByProductId.has(image.product_id)) imageByProductId.set(image.product_id, image.image_url);
+  }
+
+  return reviews.map((review) => {
+    const product = productById.get(review.product_id);
+    return {
+      ...review,
+      productName: product?.name ?? "Product",
+      productSlug: product?.slug ?? "",
+      productImage: imageByProductId.get(review.product_id) ?? null,
+    };
+  });
+}
+
+export interface PendingReviewItem {
+  productId: string;
+  productName: string;
+  productImage: string | null;
+  productSlug: string;
+}
+
+// Reliably determinable, so it's built (not omitted): this customer's
+// DELIVERED orders' items, minus products they've already reviewed. Each
+// prompt links to /product/[slug], where the existing ReviewForm.tsx
+// already handles submission -- no new review-writing UI here.
+export async function getPendingReviews(): Promise<PendingReviewItem[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const [{ data: orders }, { data: myReviews }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("order_items(product_id, product_name, product_image_url)")
+      .eq("user_id", user.id)
+      .eq("order_status", "delivered"),
+    supabase.from("reviews").select("product_id").eq("user_id", user.id),
+  ]);
+
+  const reviewedProductIds = new Set((myReviews ?? []).map((r) => r.product_id));
+  const seenProductIds = new Set<string>();
+  const pending: { productId: string; productName: string; productImage: string | null }[] = [];
+
+  // order_items(...) is a raw select-string join, not a typed relationship
+  // query -- same pragmatic escape hatch lib/account/orders-query.ts and
+  // lib/orders/order-detail.ts already use for the equivalent join.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const order of (orders ?? []) as any[]) {
+    const items = (order.order_items ?? []) as {
+      product_id: string | null;
+      product_name: string;
+      product_image_url: string | null;
+    }[];
+    for (const item of items) {
+      if (!item.product_id) continue;
+      if (reviewedProductIds.has(item.product_id)) continue;
+      if (seenProductIds.has(item.product_id)) continue;
+      seenProductIds.add(item.product_id);
+      pending.push({
+        productId: item.product_id,
+        productName: item.product_name,
+        productImage: item.product_image_url,
+      });
+    }
+  }
+
+  if (pending.length === 0) return [];
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, slug")
+    .in("id", pending.map((p) => p.productId));
+  const slugById = new Map((products ?? []).map((p) => [p.id, p.slug]));
+
+  return pending.map((p) => ({ ...p, productSlug: slugById.get(p.productId) ?? "" }));
+}
+
 export async function hasUserReviewed(
   productId: string,
   userId: string,

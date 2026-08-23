@@ -61,7 +61,7 @@ function RowActions({ order }: { order: AccountOrderRow }) {
     <div className="flex flex-wrap gap-2">
       <Link href={`/account/orders/${order.id}`} className={actionLinkClass}>
         <TruckIcon className="mr-1 h-3.5 w-3.5" />
-        Track
+        View Order
       </Link>
       <ReorderButton orderId={order.id} className={actionLinkClass} />
       <a href={`/invoices/${order.id}`} className={actionLinkClass}>

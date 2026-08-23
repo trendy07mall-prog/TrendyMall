@@ -41,7 +41,7 @@ export async function updatePersonalInfo(
     .eq("id", user.id);
   if (error) return { error: error.message };
 
-  revalidatePath("/account");
+  revalidatePath("/account/profile");
   return undefined;
 }
 
