@@ -132,6 +132,33 @@ export function NavbarClient({
   // requestAnimationFrame calls before the first measurement waits for
   // that frame's commit and the one after it, which is enough for
   // AnnouncementBar's layout to have settled by the time it runs.
+  //
+  // #hero-sentinel is a second, separate race: it only exists once
+  // HeroSlider (an async Server Component awaiting DB calls) has actually
+  // rendered. This route has a root app/loading.tsx, so Next.js streams
+  // this shared-layout component in and hydrates it before that page
+  // content necessarily resolves. Confirmed via Playwright, in two layers:
+  // 1) On a reload mid-scroll, the browser's own scroll-restoration can
+  //    fire real 'scroll' events before the sentinel exists yet, each one
+  //    reading `heroSentinel === null` and leaving `pastHero` stale.
+  // 2) Once the sentinel node IS inserted, its position can still be wrong
+  //    for a few more frames: the hero images haven't finished loading, so
+  //    the page's total scrollable height hasn't grown to its true size
+  //    yet, meaning `getBoundingClientRect().top` briefly under-reports
+  //    the same way it would for a shorter page. A first attempt used a
+  //    one-shot MutationObserver (fire once when the sentinel appears,
+  //    then disconnect) — confirmed via Playwright that this reliably
+  //    catches the sentinel's insertion, but the single measurement it
+  //    takes at that instant can land inside this second, narrower window
+  //    and compute the wrong value, with no further scroll/resize event to
+  //    self-correct it afterward.
+  //
+  // A ResizeObserver on document.body covers both: inserting the hero
+  // content changes body's rendered height (catches gap #1), and it fires
+  // AGAIN as images finish loading and the page's height settles (catches
+  // gap #2) — not one-shot, so every genuine layout change gets its own
+  // fresh measurement for as long as this component is mounted, same as
+  // the scroll listener.
   useEffect(() => {
     function measure() {
       setScrolled(window.scrollY > 8);
@@ -150,11 +177,16 @@ export function NavbarClient({
     });
     window.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure);
+
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(document.body);
+
     return () => {
       cancelAnimationFrame(raf1);
       cancelAnimationFrame(raf2);
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
+      resizeObserver.disconnect();
     };
   }, [isHome]);
 

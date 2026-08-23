@@ -54,6 +54,33 @@ export function HomeSearchBar() {
   // once IO stops calling back. A synchronous rect read on every already-
   // throttled scroll/resize tick this effect already runs doesn't have
   // that failure mode — there's no separate callback to miss.
+  //
+  // #hero-sentinel itself is only guaranteed to exist once HeroSlider (an
+  // async Server Component awaiting DB calls) has actually rendered — this
+  // route has a root app/loading.tsx, so Next.js streams the shared layout
+  // (this component included) in and hydrates it before that async page
+  // content necessarily resolves. Confirmed via Playwright, in two layers:
+  // 1) On a reload mid-scroll, the browser's own scroll-restoration can
+  //    fire several real 'scroll' events before the sentinel exists yet,
+  //    each one reading `sentinel === null` and silently no-op'ing.
+  // 2) Once the sentinel node IS inserted, its position can still be wrong
+  //    for a few more frames: the hero images haven't finished loading, so
+  //    the page's total scrollable height hasn't grown to its true size
+  //    yet, meaning `getBoundingClientRect().top` briefly under-reports
+  //    the same way it would for a shorter page. A first attempt used a
+  //    one-shot MutationObserver (fire once when the sentinel appears,
+  //    then disconnect) — confirmed via Playwright that this reliably
+  //    catches the sentinel's insertion, but the single measurement it
+  //    takes at that instant can land inside this second, narrower window
+  //    and compute the wrong value, with no further scroll/resize event to
+  //    self-correct it afterward.
+  //
+  // A ResizeObserver on document.body covers both: inserting the hero
+  // content changes body's rendered height (catches gap #1), and it fires
+  // AGAIN as images finish loading and the page's height settles (catches
+  // gap #2) — not one-shot, so every genuine layout change gets its own
+  // fresh measurement for as long as this component is mounted, the same
+  // way the scroll listener already does.
   useEffect(() => {
     if (!isHome) return;
 
@@ -74,9 +101,14 @@ export function HomeSearchBar() {
     measure();
     window.addEventListener("scroll", onScrollOrResize, { passive: true });
     window.addEventListener("resize", onScrollOrResize);
+
+    const resizeObserver = new ResizeObserver(onScrollOrResize);
+    resizeObserver.observe(document.body);
+
     return () => {
       window.removeEventListener("scroll", onScrollOrResize);
       window.removeEventListener("resize", onScrollOrResize);
+      resizeObserver.disconnect();
     };
   }, [isHome]);
 
