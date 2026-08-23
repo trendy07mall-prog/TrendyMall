@@ -48,6 +48,15 @@
      fill with white text on top (that's its only use so far). */
   --color-navy: #1e3a5f;
 
+  /* Mobile bottom nav's active-tab pill (floating glass dock redesign) —
+     its own tokens, not a reuse of --color-search-glow-emerald above: that
+     one is explicitly scoped to conic-gradient stops only. -pill is the
+     capsule fill behind the active icon; -icon is deliberately several
+     shades darker (emerald-800, not emerald-500) so the icon itself still
+     reads with real contrast sitting on top of its own pill's fill. */
+  --color-nav-active-pill: #10b981;
+  --color-nav-active-icon: #065f46;
+
   --radius-card: 12px;
   --radius-btn: 14px;
   --radius-input: 12px;

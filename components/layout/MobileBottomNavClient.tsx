@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/components/ui/Icon";
 import { CartCount } from "@/components/cart/CartCount";
 
@@ -12,9 +12,6 @@ import { CartCount } from "@/components/cart/CartCount";
 // to Checkout / Place Order) — a persistent nav competing for the same
 // strip of screen would be the wrong call on both, not just checkout.
 const HIDDEN_ROUTE_PREFIXES = ["/cart", "/checkout"];
-
-// No spring/bounce anywhere in this component, per spec.
-const TRANSITION = { type: "tween" as const, duration: 0.22, ease: "easeInOut" as const };
 
 interface NavItem {
   href: string;
@@ -26,6 +23,13 @@ interface NavItem {
 export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname() ?? "/";
   const barRef = useRef<HTMLElement>(null);
+  // No spring/bounce anywhere in this component, per spec — and instant
+  // (zero-duration) once prefers-reduced-motion is on, same pattern as
+  // components/motion/FadeIn.tsx.
+  const reducedMotion = useReducedMotion();
+  const TRANSITION = reducedMotion
+    ? { duration: 0 }
+    : { type: "tween" as const, duration: 0.22, ease: "easeInOut" as const };
 
   const hiddenByRoute = HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
@@ -101,10 +105,17 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
       className={
         hiddenByRoute
           ? "hidden"
-          : "fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden print:hidden"
+          : // pointer-events-none on this full-width wrapper, restored on the
+            // pill below: the dock is now a narrow floating pill (not a
+            // near-full-width bar), so the transparent side margins around it
+            // sit directly over real page content on both sides. Without
+            // this, that see-through glass gap would silently swallow taps
+            // meant for whatever's underneath, even though nothing is
+            // visibly there to suggest that.
+            "pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] flex justify-center pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden print:hidden"
       }
     >
-      <div className="mx-auto flex h-[68px] max-w-[480px] items-center justify-around rounded-full border border-[var(--border)] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
+      <div className="pointer-events-auto flex h-14 w-[88%] max-w-[380px] items-center justify-around rounded-full border border-white/50 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md backdrop-saturate-150">
         {items.map((item) => {
           const active = item.isActive(pathname);
           return (
@@ -117,31 +128,19 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
             >
               {active && (
                 <motion.span
-                  layoutId="bottom-nav-active-capsule"
+                  layoutId="bottom-nav-active-pill"
                   transition={TRANSITION}
-                  className="absolute inset-y-2 right-1 left-1 rounded-full bg-[var(--foreground)]"
+                  className="absolute inset-0 m-auto h-10 w-10 rounded-full bg-[var(--color-nav-active-pill)] shadow-[0_0_0_1px_rgba(16,185,129,0.3),0_4px_14px_rgba(16,185,129,0.5)]"
                 />
               )}
-              <motion.span layout transition={TRANSITION} className="relative flex items-center gap-1.5 px-2">
-                <span className="relative flex">
-                  <item.icon
-                    className={`h-6 w-6 transition-transform duration-[220ms] ${
-                      active ? "scale-105 text-white" : "text-[var(--color-text-secondary)]"
-                    }`}
-                  />
-                  {item.label === "Cart" && <CartCount variant="nav" />}
-                </span>
-                {active && (
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={TRANSITION}
-                    className="text-xs font-medium text-white"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </motion.span>
+              <span className="relative flex">
+                <item.icon
+                  className={`relative h-5 w-5 transition-transform duration-[220ms] motion-reduce:transition-none ${
+                    active ? "scale-105 text-[var(--color-nav-active-icon)]" : "text-[var(--color-text-secondary)]"
+                  }`}
+                />
+                {item.label === "Cart" && <CartCount variant="nav" />}
+              </span>
             </Link>
           );
         })}
