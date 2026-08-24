@@ -63,7 +63,14 @@ export function MobileFilterSortBar({
   return (
     <>
       <div
-        className={`sticky top-0 z-30 flex gap-3 border-y border-[var(--border)] bg-white py-3 sm:hidden ${
+        // z-[var(--z-sticky-bar)] (25), not the hardcoded z-30 this used to
+        // be — that tied it with the header's own --z-nav (30), and since
+        // this renders later in the DOM (inside <main>, after the shared
+        // header), the tie meant it painted on top instead of under the
+        // header once both are pinned at scrollY>0. Same token
+        // ShopQuickJumpNav.tsx already uses correctly for this exact kind
+        // of in-page sticky bar.
+        className={`sticky top-0 z-[var(--z-sticky-bar)] flex gap-3 border-y border-[var(--border)] bg-white py-3 sm:hidden ${
           variant === "shop" ? "px-1" : ""
         }`}
       >

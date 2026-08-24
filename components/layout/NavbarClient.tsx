@@ -93,43 +93,27 @@ export function NavbarClient({
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const isCheckout = pathname === "/checkout";
-  const isHome = pathname === "/";
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
   // the header's own top edge reaches 0, it's pinned and whatever's below
-  // it in the DOM (the hero on "/", or that route's own page content
-  // everywhere else) is now scrolling in underneath it — that's the
-  // moment there's real content behind the header for it to be glass
-  // over, on any route, so it's the gate for the glass treatment below
-  // (see `glass`).
+  // it in the DOM (that route's own page content) is now scrolling in
+  // underneath it — that's the moment there's real content behind the
+  // header for it to be glass over, on any route. One consistent trigger
+  // sitewide: solid at the top, glass for the rest of the scroll, solid
+  // again back at the top — including "/", which used to drop back to
+  // solid once its hero had fully scrolled past (a hero-specific "past"
+  // boundary tracked via #hero-sentinel). That boundary is gone now, so
+  // glass simply follows `stuck` everywhere, home included.
   const [stuck, setStuck] = useState(false);
-  // Mirrors HomeSearchBar.tsx's own #hero-sentinel check (same id, same
-  // "has it scrolled above the viewport" read) rather than sharing state
-  // with it — both components independently derive "has the visitor
-  // scrolled past the hero" from the one sentinel HeroSlider.tsx renders,
-  // which is also why the header's glass->solid switch and that bar's
-  // fade-in always happen at the same instant: same trigger, no shared
-  // wiring needed to keep them in sync.
-  const [pastHero, setPastHero] = useState(false);
-  // Glass activates sitewide on the same trigger as everything else here:
-  // "stuck" (pinned to top:0, so whatever's below in the DOM is now
-  // scrolling in underneath it). On "/" that's gated by `!pastHero` too,
-  // since the header should drop back to solid once the hero itself has
-  // fully scrolled past and there's nothing left to be glass over. Every
-  // other route has no hero (and no equivalent "past" boundary — a Shop
-  // grid or a Privacy Policy page doesn't end the way a hero image does),
-  // so there `pastHero` stays permanently false (see the effect below) and
-  // glass is simply "is it pinned" — solid at the top, glass for the rest
-  // of the scroll, solid again back at the top.
-  const glass = stuck && (isHome ? !pastHero : true);
+  const glass = stuck;
 
-  // `stuck` and `pastHero` are both derived from direct getBoundingClientRect()
-  // reads inside this one scroll/resize listener, not IntersectionObserver —
-  // confirmed via Playwright that IO's callback (spec'd as best-effort/
-  // batched) can silently stop firing partway through a fast scroll,
-  // especially on mobile, permanently freezing whichever state it drove for
-  // the rest of the session (this is what was breaking HomeSearchBar.tsx's
-  // own fade-in too — same fix applied there). A synchronous rect read on
+  // `stuck` is derived from a direct getBoundingClientRect() read inside
+  // this scroll/resize listener, not IntersectionObserver — confirmed via
+  // Playwright that IO's callback (spec'd as best-effort/batched) can
+  // silently stop firing partway through a fast scroll, especially on
+  // mobile, permanently freezing whichever state it drove for the rest of
+  // the session (this is what was breaking HomeSearchBar.tsx's own
+  // fade-in too — same fix applied there). A synchronous rect read on
   // every already-throttled scroll tick doesn't have a callback to miss.
   //
   // The one thing IntersectionObserver bought over a plain scroll listener
@@ -141,30 +125,10 @@ export function NavbarClient({
   // that frame's commit and the one after it, which is enough for
   // AnnouncementBar's layout to have settled by the time it runs.
   //
-  // #hero-sentinel is a second, separate race: it only exists once
-  // HeroSlider (an async Server Component awaiting DB calls) has actually
-  // rendered. This route has a root app/loading.tsx, so Next.js streams
-  // this shared-layout component in and hydrates it before that page
-  // content necessarily resolves. Confirmed via Playwright, in two layers:
-  // 1) On a reload mid-scroll, the browser's own scroll-restoration can
-  //    fire real 'scroll' events before the sentinel exists yet, each one
-  //    reading `heroSentinel === null` and leaving `pastHero` stale.
-  // 2) Once the sentinel node IS inserted, its position can still be wrong
-  //    for a few more frames: the hero images haven't finished loading, so
-  //    the page's total scrollable height hasn't grown to its true size
-  //    yet, meaning `getBoundingClientRect().top` briefly under-reports
-  //    the same way it would for a shorter page. A first attempt used a
-  //    one-shot MutationObserver (fire once when the sentinel appears,
-  //    then disconnect) — confirmed via Playwright that this reliably
-  //    catches the sentinel's insertion, but the single measurement it
-  //    takes at that instant can land inside this second, narrower window
-  //    and compute the wrong value, with no further scroll/resize event to
-  //    self-correct it afterward.
-  //
-  // A ResizeObserver on document.body covers both: inserting the hero
-  // content changes body's rendered height (catches gap #1), and it fires
-  // AGAIN as images finish loading and the page's height settles (catches
-  // gap #2) — not one-shot, so every genuine layout change gets its own
+  // A ResizeObserver on document.body catches layout shifts a plain
+  // scroll/resize listener alone would miss (e.g. async page content
+  // still loading in and changing the page's height right as the visitor
+  // scrolls) — not one-shot, so every genuine layout change gets its own
   // fresh measurement for as long as this component is mounted, same as
   // the scroll listener.
   useEffect(() => {
@@ -198,12 +162,6 @@ export function NavbarClient({
       setScrolled(window.scrollY > 8);
       const sentinel = stickySentinelRef.current;
       if (sentinel) setStuck(sentinel.getBoundingClientRect().top < 0);
-      if (isHome) {
-        const heroSentinel = document.getElementById("hero-sentinel");
-        if (heroSentinel) setPastHero(heroSentinel.getBoundingClientRect().top < 0);
-      } else {
-        setPastHero(false);
-      }
     }
     let raf2 = 0;
     const raf1 = requestAnimationFrame(() => {
@@ -222,7 +180,7 @@ export function NavbarClient({
       window.removeEventListener("resize", measure);
       resizeObserver.disconnect();
     };
-  }, [isHome]);
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
