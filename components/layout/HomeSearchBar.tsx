@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
 
@@ -16,7 +16,6 @@ export function HomeSearchBar() {
   const [visible, setVisible] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [headerBottom, setHeaderBottom] = useState(84);
-  const tickingRef = useRef(false);
 
   useEffect(() => {
     if (!isHome) return;
@@ -51,9 +50,9 @@ export function HomeSearchBar() {
   // (especially mobile, momentum-scroll-like) scroll: the bar would then
   // stay permanently hidden for the rest of the session even though the
   // hero was long since scrolled past, since nothing else ever re-checks
-  // once IO stops calling back. A synchronous rect read on every already-
-  // throttled scroll/resize tick this effect already runs doesn't have
-  // that failure mode — there's no separate callback to miss.
+  // once IO stops calling back. A synchronous rect read on every
+  // scroll/resize tick this effect already runs doesn't have that failure
+  // mode — there's no separate callback to miss.
   //
   // #hero-sentinel itself is only guaranteed to exist once HeroSlider (an
   // async Server Component awaiting DB calls) has actually rendered — this
@@ -81,6 +80,25 @@ export function HomeSearchBar() {
   // gap #2) — not one-shot, so every genuine layout change gets its own
   // fresh measurement for as long as this component is mounted, the same
   // way the scroll listener already does.
+  //
+  // measure() is called directly for every scroll/resize/ResizeObserver
+  // event, not funneled through a single tickingRef-gated
+  // requestAnimationFrame() the way this used to. That gate was meant to
+  // coalesce high-frequency scroll events into one measurement per frame,
+  // but it had a real failure mode: if the ResizeObserver's callback fired
+  // while a scroll event's rAF was still pending, the gate silently
+  // dropped it -- the exact "one event that would have self-corrected
+  // this gets swallowed" bug this whole effect exists to avoid, just for
+  // a different reason than the ones above. Confirmed via Playwright: on
+  // WebKit specifically (mobile Safari's real rendering engine, not just
+  // Chromium's mobile emulation), a refresh mid-scroll reproduced this
+  // ~70% of the time. NavbarClient.tsx's equivalent measurement already
+  // calls its version of measure() directly with no such gate and proved
+  // reliable across the same scenario in the same testing -- this now
+  // matches that, and removes the inconsistency between two components
+  // that are supposed to mirror each other. measure() itself is cheap (a
+  // couple of getBoundingClientRect() reads), so there's no real
+  // performance case for coalescing it in the first place.
   useEffect(() => {
     if (!isHome) return;
 
@@ -89,25 +107,18 @@ export function HomeSearchBar() {
       if (header) setHeaderBottom(header.getBoundingClientRect().bottom);
       const sentinel = document.getElementById("hero-sentinel");
       if (sentinel) setVisible(sentinel.getBoundingClientRect().top < 0);
-      tickingRef.current = false;
-    }
-
-    function onScrollOrResize() {
-      if (tickingRef.current) return;
-      tickingRef.current = true;
-      requestAnimationFrame(measure);
     }
 
     measure();
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
 
-    const resizeObserver = new ResizeObserver(onScrollOrResize);
+    const resizeObserver = new ResizeObserver(measure);
     resizeObserver.observe(document.body);
 
     return () => {
-      window.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
       resizeObserver.disconnect();
     };
   }, [isHome]);
