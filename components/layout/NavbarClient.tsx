@@ -97,9 +97,11 @@ export function NavbarClient({
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
   // the header's own top edge reaches 0, it's pinned and whatever's below
-  // it in the DOM (the hero, on "/") is now scrolling in underneath it —
-  // that's the only moment real image content can be behind the header, so
-  // it's the gate for the glass treatment below (see `glass`).
+  // it in the DOM (the hero on "/", or that route's own page content
+  // everywhere else) is now scrolling in underneath it — that's the
+  // moment there's real content behind the header for it to be glass
+  // over, on any route, so it's the gate for the glass treatment below
+  // (see `glass`).
   const [stuck, setStuck] = useState(false);
   // Mirrors HomeSearchBar.tsx's own #hero-sentinel check (same id, same
   // "has it scrolled above the viewport" read) rather than sharing state
@@ -109,11 +111,17 @@ export function NavbarClient({
   // fade-in always happen at the same instant: same trigger, no shared
   // wiring needed to keep them in sync.
   const [pastHero, setPastHero] = useState(false);
-  // Only ever true on "/", and only for the window where the header is
-  // pinned AND the hero is still (at least partly) the thing rendering
-  // underneath it. Before pinning, and after the hero's fully scrolled
-  // past, this is false and the header renders in its normal solid style.
-  const glass = isHome && stuck && !pastHero;
+  // Glass activates sitewide on the same trigger as everything else here:
+  // "stuck" (pinned to top:0, so whatever's below in the DOM is now
+  // scrolling in underneath it). On "/" that's gated by `!pastHero` too,
+  // since the header should drop back to solid once the hero itself has
+  // fully scrolled past and there's nothing left to be glass over. Every
+  // other route has no hero (and no equivalent "past" boundary — a Shop
+  // grid or a Privacy Policy page doesn't end the way a hero image does),
+  // so there `pastHero` stays permanently false (see the effect below) and
+  // glass is simply "is it pinned" — solid at the top, glass for the rest
+  // of the scroll, solid again back at the top.
+  const glass = stuck && (isHome ? !pastHero : true);
 
   // `stuck` and `pastHero` are both derived from direct getBoundingClientRect()
   // reads inside this one scroll/resize listener, not IntersectionObserver —
@@ -354,14 +362,20 @@ export function NavbarClient({
 
   // Dark-tinted glass (not the bottom nav's light frosted glass) — this
   // header needs to carry WHITE content, and white text on a mostly-white
-  // background would fail contrast. The black/25 wash doubles as the
+  // background would fail contrast. The black/32 wash doubles as the
   // "slight dark scrim for legibility" the design brief allows for, so
   // there's one layer instead of two competing ones. text-shadow is real
   // insurance underneath that: hero images are admin-uploaded (see
-  // HeroSlider.tsx) with no guaranteed brightness range, so this can't be
-  // tuned to one specific image.
+  // HeroSlider.tsx) with no guaranteed brightness range, and now that
+  // glass is sitewide it also has to hold up over plain white/text-heavy
+  // pages (Privacy Policy, Terms, FAQ) with far less content behind it to
+  // blur — this can't be tuned to one specific background. blur-[32px]
+  // (up from the original blur-md/12px) and black/32 (up from black/25)
+  // are both bumped for exactly that: enough frosted-glass read on a
+  // plain white page, confirmed via Playwright screenshots to still look
+  // right (not over-blurred/muddy) over busy product-grid imagery too.
   const headerInnerClass = glass
-    ? "mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between rounded-[22px] border border-white/15 bg-black/25 px-3 py-3 text-white shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-md backdrop-saturate-150 transition-[background-color,border-radius,box-shadow,color] duration-[var(--transition-duration)] ease-in-out sm:px-6 [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
+    ? "mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between rounded-[22px] border border-white/15 bg-black/32 px-3 py-3 text-white shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-[32px] backdrop-saturate-150 transition-[background-color,border-radius,box-shadow,color] duration-[var(--transition-duration)] ease-in-out sm:px-6 [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
     : `mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 sm:px-6 ${
         isCheckout ? "py-2.5" : "py-5"
       }`;
