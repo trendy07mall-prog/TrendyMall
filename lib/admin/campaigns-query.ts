@@ -5,6 +5,36 @@ import { getAdminSearchMatchIds } from "@/lib/admin/products-query";
 import { getCategories } from "@/lib/data/categories";
 import type { Campaign, CampaignSection, CampaignItem, Category } from "@/types";
 
+type AdminSupabaseClient = Awaited<ReturnType<typeof requireAdminClient>>;
+
+// Same fallback rule as lib/data/products.ts's attachPrimaryImages (used by
+// every storefront product card) and lib/admin/products-query.ts's own copy
+// of it: a variant with no variant_image_url of its own falls back to the
+// product's earliest-sort_order gallery image. Campaign items are always a
+// single specific variant (not "pick the winner among several" -- the admin
+// already picked exactly which one), so callers just need this map to fall
+// back onto, not the full winner-selection logic.
+async function getPrimaryImagesByProductId(
+  supabase: AdminSupabaseClient,
+  productIds: string[],
+): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map();
+  const { data: images, error } = await supabase
+    .from("product_images")
+    .select("product_id, image_url, sort_order")
+    .in("product_id", productIds)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+
+  const primaryByProductId = new Map<string, string>();
+  for (const image of images ?? []) {
+    if (!primaryByProductId.has(image.product_id)) {
+      primaryByProductId.set(image.product_id, image.image_url);
+    }
+  }
+  return primaryByProductId;
+}
+
 export interface AdminCampaignRow extends Campaign {
   itemCount: number;
 }
@@ -42,6 +72,7 @@ export interface PickerVariant {
   regularPrice: number;
   salePrice: number | null;
   isActive: boolean;
+  image: string | null;
 }
 
 export interface PickerProduct {
@@ -84,12 +115,17 @@ export async function searchProductsForPicker(
 
   const { data: variantRows, error: variantsError } = await supabase
     .from("product_variants")
-    .select("id, product_id, color_name, sku, regular_price, sale_price, is_active")
+    .select("id, product_id, color_name, sku, regular_price, sale_price, is_active, variant_image_url")
     .in(
       "product_id",
       products.map((p) => p.id),
     );
   if (variantsError) throw variantsError;
+
+  const primaryByProductId = await getPrimaryImagesByProductId(
+    supabase,
+    products.map((p) => p.id),
+  );
 
   const variantsByProduct = new Map<string, PickerVariant[]>();
   for (const v of variantRows ?? []) {
@@ -101,6 +137,7 @@ export async function searchProductsForPicker(
       regularPrice: v.regular_price,
       salePrice: v.sale_price,
       isActive: v.is_active,
+      image: v.variant_image_url ?? primaryByProductId.get(v.product_id) ?? null,
     });
     variantsByProduct.set(v.product_id, list);
   }
@@ -136,13 +173,18 @@ export async function getVariantsForBulkScope(
 
   const { data: variantRows, error: variantsError } = await supabase
     .from("product_variants")
-    .select("id, product_id, color_name, sku, regular_price, sale_price, is_active")
+    .select("id, product_id, color_name, sku, regular_price, sale_price, is_active, variant_image_url")
     .in(
       "product_id",
       products.map((p) => p.id),
     )
     .eq("is_active", true);
   if (variantsError) throw variantsError;
+
+  const primaryByProductId = await getPrimaryImagesByProductId(
+    supabase,
+    products.map((p) => p.id),
+  );
 
   const variantsByProduct = new Map<string, PickerVariant[]>();
   for (const v of variantRows ?? []) {
@@ -154,6 +196,7 @@ export async function getVariantsForBulkScope(
       regularPrice: v.regular_price,
       salePrice: v.sale_price,
       isActive: v.is_active,
+      image: v.variant_image_url ?? primaryByProductId.get(v.product_id) ?? null,
     });
     variantsByProduct.set(v.product_id, list);
   }
@@ -234,6 +277,9 @@ export interface CampaignEditData {
       regular_price: number;
       sale_price: number | null;
       is_active: boolean;
+      // Already resolved (variant's own image, falling back to the
+      // product's earliest gallery image) -- see getPrimaryImagesByProductId.
+      image: string | null;
     };
   })[];
 }
@@ -249,22 +295,39 @@ export async function getCampaignForEdit(id: string): Promise<CampaignEditData |
     supabase
       .from("campaign_items")
       .select(
-        "*, products(id, name, sku, brand), product_variants(id, color_name, sku, regular_price, sale_price, is_active)",
+        "*, products(id, name, sku, brand), product_variants(id, color_name, sku, regular_price, sale_price, is_active, variant_image_url)",
       )
       .eq("campaign_id", id)
       .order("sort_order"),
   ]);
   if (!campaign) return null;
 
+  type RawVariant = Omit<CampaignEditData["items"][number]["variant"], "image"> & {
+    variant_image_url: string | null;
+  };
+  const rawItems = (items ?? []) as (CampaignItem & {
+    products: CampaignEditData["items"][number]["product"];
+    product_variants: RawVariant;
+  })[];
+  const primaryByProductId = await getPrimaryImagesByProductId(
+    supabase,
+    rawItems.map((row) => row.products.id),
+  );
+
   return {
     campaign,
     sections: sections ?? [],
-    items: (items ?? []).map((row) => {
-      const { products, product_variants, ...item } = row as typeof row & {
-        products: CampaignEditData["items"][number]["product"];
-        product_variants: CampaignEditData["items"][number]["variant"];
+    items: rawItems.map((row) => {
+      const { products, product_variants, ...item } = row;
+      const { variant_image_url, ...variantRest } = product_variants;
+      return {
+        ...item,
+        product: products,
+        variant: {
+          ...variantRest,
+          image: variant_image_url ?? primaryByProductId.get(products.id) ?? null,
+        },
       };
-      return { ...item, product: products, variant: product_variants };
     }),
   };
 }

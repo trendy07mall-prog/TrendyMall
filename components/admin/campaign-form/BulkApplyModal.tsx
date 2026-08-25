@@ -21,6 +21,7 @@ export interface BulkPickedVariant {
   regularPrice: number;
   salePrice: number | null;
   campaignPrice: number;
+  image: string | null;
 }
 
 interface PreviewRow {
@@ -32,6 +33,7 @@ interface PreviewRow {
   regularPrice: number;
   salePrice: number | null;
   newPrice: number;
+  image: string | null;
 }
 
 type ScopeMode = "category" | "products";
@@ -155,6 +157,7 @@ export function BulkApplyModal({
             regularPrice: variant.regularPrice,
             salePrice: variant.salePrice,
             newPrice: computeNewPrice(current),
+            image: variant.image,
           });
         }
       }
@@ -175,6 +178,7 @@ export function BulkApplyModal({
         regularPrice: r.regularPrice,
         salePrice: r.salePrice,
         campaignPrice: r.newPrice,
+        image: r.image,
       })),
     );
     onClose();

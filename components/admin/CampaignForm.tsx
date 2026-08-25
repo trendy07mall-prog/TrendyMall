@@ -37,6 +37,7 @@ export interface ItemDraft {
   variantLabel: string;
   regularPrice: number;
   salePrice: number | null;
+  image: string | null;
 }
 
 const inputClass =
@@ -67,6 +68,7 @@ function buildInitialItems(initial: CampaignEditData | null, sections: SectionDr
     variantLabel: i.variant.color_name ?? i.variant.sku ?? "Default",
     regularPrice: i.variant.regular_price,
     salePrice: i.variant.sale_price,
+    image: i.variant.image,
   }));
 }
 
@@ -143,6 +145,7 @@ export function CampaignForm({
       variantLabel: p.variantLabel,
       regularPrice: p.regularPrice,
       salePrice: p.salePrice,
+      image: p.image,
     }));
     setItems([...items, ...newItems]);
   }
@@ -161,6 +164,7 @@ export function CampaignForm({
       variantLabel: p.variantLabel,
       regularPrice: p.regularPrice,
       salePrice: p.salePrice,
+      image: p.image,
     }));
     setItems([...items, ...newItems]);
   }

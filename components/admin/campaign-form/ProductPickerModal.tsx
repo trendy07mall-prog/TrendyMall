@@ -20,6 +20,7 @@ export interface PickedVariant {
   variantLabel: string;
   regularPrice: number;
   salePrice: number | null;
+  image: string | null;
 }
 
 export function ProductPickerModal({
@@ -120,6 +121,7 @@ export function ProductPickerModal({
           variantLabel: variant.colorName || variant.sku || "Default",
           regularPrice: variant.regularPrice,
           salePrice: variant.salePrice,
+          image: variant.image,
         });
       }
       return next;

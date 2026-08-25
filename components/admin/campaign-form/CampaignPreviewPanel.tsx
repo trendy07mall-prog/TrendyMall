@@ -56,6 +56,7 @@ export function CampaignPreviewPanel({
                     name={item.productName}
                     regularPrice={item.salePrice ?? item.regularPrice}
                     campaignPrice={item.campaignPrice}
+                    image={item.image}
                   />
                 ))}
               </div>
@@ -75,6 +76,7 @@ export function CampaignPreviewPanel({
                 name={item.productName}
                 regularPrice={item.salePrice ?? item.regularPrice}
                 campaignPrice={item.campaignPrice}
+                image={item.image}
               />
             ))}
           </div>
