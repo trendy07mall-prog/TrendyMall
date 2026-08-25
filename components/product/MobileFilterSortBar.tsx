@@ -70,16 +70,14 @@ export function MobileFilterSortBar({
         // header once both are pinned at scrollY>0. Same token
         // ShopQuickJumpNav.tsx already uses correctly for this exact kind
         // of in-page sticky bar.
-        className={`sticky top-0 z-[var(--z-sticky-bar)] flex gap-3 border-y border-[var(--border)] bg-white py-3 sm:hidden ${
+        className={`sticky top-0 z-[var(--z-sticky-bar)] flex gap-2.5 border-y border-[var(--border)] bg-white py-2.5 sm:hidden ${
           variant === "shop" ? "px-1" : ""
         }`}
       >
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className={`transition-brand relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] font-medium ${
-            variant === "shop" ? "py-3 text-base" : "py-2.5 text-sm"
-          }`}
+          className="transition-brand relative flex min-h-11 flex-1 items-center justify-center gap-2 rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-semibold hover:border-[var(--border-hover)]"
         >
           Filter
           {activeCount > 0 && (
@@ -91,9 +89,7 @@ export function MobileFilterSortBar({
         <button
           type="button"
           onClick={() => setSortOpen(true)}
-          className={`transition-brand flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] font-medium ${
-            variant === "shop" ? "py-3 text-base" : "py-2.5 text-sm"
-          }`}
+          className="transition-brand flex min-h-11 flex-1 items-center justify-center rounded-[var(--radius-btn)] border border-[var(--border)] py-2.5 text-sm font-semibold hover:border-[var(--border-hover)]"
         >
           Sort
         </button>

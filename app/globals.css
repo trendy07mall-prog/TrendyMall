@@ -86,6 +86,13 @@
      (rounded-[var(--radius-card)], shadow-[var(--shadow-card)], etc.). */
   --z-announcement: 20;
   --z-sticky-bar: 25;
+  /* Sits between --z-sticky-bar and --z-nav specifically for the Shop
+     page's Category/New Arrivals quick-jump bar (ShopQuickJumpNav.tsx),
+     which docks directly under the header and must stay visible above
+     the Filter/Sort bar (--z-sticky-bar) once both are pinned mid-scroll
+     — the two are otherwise equal-z siblings, where DOM order alone
+     decided which painted on top. */
+  --z-shop-tabs: 27;
   --z-nav: 30;
   /* Same tier as --z-nav — the persistent mobile bottom nav is the "other
      half" of site navigation chrome, not an overlay. Sits below

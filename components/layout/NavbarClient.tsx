@@ -12,20 +12,31 @@ import { SearchBox } from "@/components/layout/SearchBox";
 import {
   CartIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   CloseIcon,
+  DashboardIcon,
+  FolderIcon,
   HeartIcon,
+  HomeIcon,
+  LogoutIcon,
+  MailIcon,
   MenuIcon,
+  PackageIcon,
   SearchIcon,
   ShoppingBagIcon,
+  TrendUpIcon,
   UserIcon,
 } from "@/components/ui/Icon";
 import type { Category } from "@/types";
 
+// icon is only consumed by the mobile drawer below -- the desktop <nav>
+// still renders these through NavLink (label/href/isActive only), so
+// adding it here doesn't touch desktop rendering at all.
 const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/shop", label: "Shop" },
-  { href: "/new-arrivals", label: "New Arrivals" },
-  { href: "/contact", label: "Contact" },
+  { href: "/", label: "Home", icon: HomeIcon },
+  { href: "/shop", label: "Shop", icon: ShoppingBagIcon },
+  { href: "/new-arrivals", label: "New Arrivals", icon: TrendUpIcon },
+  { href: "/contact", label: "Contact", icon: MailIcon },
 ];
 
 function NavLink({
@@ -596,17 +607,28 @@ export function NavbarClient({
             role="dialog"
             aria-modal="true"
             aria-label="Site menu"
-            className={`fixed top-0 left-0 z-[var(--z-drawer-panel)] flex h-full w-[80%] max-w-96 flex-col gap-6 overflow-y-auto bg-white p-6 shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
+            // Same light-glass surface language as the bottom nav's dock
+            // (translucent white + blur + saturate + a hairline white
+            // border), just far more opaque -- this panel carries dense
+            // text (nav labels, ~20 category names, badge counts), where
+            // the bottom nav's 70% translucency would hurt legibility.
+            // Edge-to-edge (no corner radius on the panel itself): unlike
+            // the header's floating pill, this drawer is pinned flush to
+            // the viewport's top/left/bottom, so there's no surrounding
+            // margin for outer rounding to read against -- "rounded"
+            // here instead lives on every row/pill inside.
+            className={`fixed top-0 left-0 z-[var(--z-drawer-panel)] flex h-full w-[80%] max-w-96 flex-col overflow-y-auto border-r border-white/60 bg-white/95 shadow-[8px_0_40px_rgba(0,0,0,0.16)] backdrop-blur-2xl backdrop-saturate-150 transition-transform duration-300 ease-in-out md:hidden ${
               drawerOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-4">
               <Image
                 src={logoUrl}
                 alt="TrendyMall"
-                width={47}
-                height={28}
+                width={54}
+                height={32}
                 unoptimized
+                className="h-8 w-auto"
               />
               <button
                 type="button"
@@ -618,105 +640,135 @@ export function NavbarClient({
               </button>
             </div>
 
-            <nav className="flex flex-col gap-1 text-base">
-              {NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={closeDrawer}
-                  className="rounded-lg px-2 py-2 hover:bg-black/5"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-
-            <div>
-              <p className="px-2 text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-                Categories
-              </p>
-              <nav className="mt-1 flex flex-col gap-1">
-                {categories.map((category) => (
-                  <Link
-                    key={category.id}
-                    href={`/category/${category.slug}`}
-                    onClick={closeDrawer}
-                    className="rounded-lg px-2 py-2 text-sm hover:bg-black/5"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-
-            <div className="mt-auto flex flex-col gap-1 border-t border-[var(--border)] pt-4 text-sm">
-              <Link
-                href="/wishlist"
-                onClick={closeDrawer}
-                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
-              >
-                <span className="relative flex h-5 w-5 items-center justify-center">
-                  <HeartIcon className="h-5 w-5" />
-                  <WishlistCount />
-                </span>
-                Wishlist
-              </Link>
-              <Link
-                href="/cart"
-                onClick={closeDrawer}
-                className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-black/5"
-              >
-                <span className="relative flex h-5 w-5 items-center justify-center">
-                  <CartIcon className="h-5 w-5" />
-                  <CartCount />
-                </span>
-                Cart
-              </Link>
-              {user ? (
-                <>
-                  <Link
-                    href="/account/orders"
-                    onClick={closeDrawer}
-                    className="rounded-lg px-2 py-2 hover:bg-black/5"
-                  >
-                    Your orders
-                  </Link>
-                  {isAdmin && (
+            <div className="flex flex-1 flex-col gap-6 px-4 py-5">
+              <nav className="flex flex-col gap-0.5 text-[15px] font-medium">
+                {NAV_LINKS.map((link) => {
+                  const active = pathname === link.href;
+                  return (
                     <Link
-                      href="/admin"
+                      key={link.href}
+                      href={link.href}
                       onClick={closeDrawer}
-                      className="rounded-lg px-2 py-2 hover:bg-black/5"
+                      aria-current={active ? "page" : undefined}
+                      // Same emerald active-pill token the bottom nav's
+                      // active icon uses (--color-nav-active-pill /
+                      // --color-nav-active-icon), just a full-width
+                      // tinted row instead of a circular pill -- the row
+                      // shape this list format calls for, same accent.
+                      className={`transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 ${
+                        active
+                          ? "bg-[var(--color-nav-active-pill)]/12 text-[var(--color-nav-active-icon)]"
+                          : "text-[var(--foreground)] hover:bg-black/5"
+                      }`}
                     >
-                      Admin
+                      <link.icon className="h-[18px] w-[18px]" />
+                      {link.label}
                     </Link>
-                  )}
-                  <form action={signOut}>
-                    <button
-                      type="submit"
-                      className="w-full rounded-lg px-2 py-2 text-left hover:bg-black/5"
+                  );
+                })}
+              </nav>
+
+              <div>
+                <div className="flex items-center gap-1.5 px-3">
+                  <FolderIcon className="h-3.5 w-3.5 text-[var(--muted)]" />
+                  <p className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
+                    Categories
+                  </p>
+                </div>
+                <nav className="mt-1.5 flex flex-col gap-0.5">
+                  {categories.map((category) => (
+                    <Link
+                      key={category.id}
+                      href={`/category/${category.slug}`}
+                      onClick={closeDrawer}
+                      className="transition-brand flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm text-[var(--foreground)] hover:bg-black/5"
                     >
-                      Log out
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    onClick={closeDrawer}
-                    className="rounded-lg px-2 py-2 hover:bg-black/5"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/signup"
-                    onClick={closeDrawer}
-                    className="rounded-lg px-2 py-2 hover:bg-black/5"
-                  >
-                    Sign up
-                  </Link>
-                </>
-              )}
+                      <span>{category.name}</span>
+                      <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--muted)]" />
+                    </Link>
+                  ))}
+                </nav>
+              </div>
+
+              <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] pt-4 text-sm font-medium">
+                <Link
+                  href="/wishlist"
+                  onClick={closeDrawer}
+                  className="transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5"
+                >
+                  <span className="relative flex h-[18px] w-[18px] items-center justify-center">
+                    <HeartIcon className="h-[18px] w-[18px]" />
+                    <WishlistCount />
+                  </span>
+                  Wishlist
+                </Link>
+                <Link
+                  href="/cart"
+                  onClick={closeDrawer}
+                  className="transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5"
+                >
+                  <span className="relative flex h-[18px] w-[18px] items-center justify-center">
+                    <CartIcon className="h-[18px] w-[18px]" />
+                    <CartCount />
+                  </span>
+                  Cart
+                </Link>
+                {user ? (
+                  <>
+                    <Link
+                      href="/account/orders"
+                      onClick={closeDrawer}
+                      className="transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5"
+                    >
+                      <PackageIcon className="h-[18px] w-[18px]" />
+                      Your orders
+                    </Link>
+                    {isAdmin && (
+                      // Visually distinct from the customer rows above --
+                      // same deep navy AdminSidebar.tsx's own active-item
+                      // state already uses (#0F2D52), not a new color.
+                      <div className="mt-1 rounded-xl border border-[#0F2D52]/15 bg-[#0F2D52]/[0.06] p-1">
+                        <Link
+                          href="/admin"
+                          onClick={closeDrawer}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2.5 font-semibold text-[#0F2D52] hover:bg-[#0F2D52]/10"
+                        >
+                          <DashboardIcon className="h-[18px] w-[18px]" />
+                          Admin
+                        </Link>
+                      </div>
+                    )}
+                    <form action={signOut}>
+                      <button
+                        type="submit"
+                        className="transition-brand flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-black/5"
+                      >
+                        <LogoutIcon className="h-[18px] w-[18px]" />
+                        Log out
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={closeDrawer}
+                      className="transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5"
+                    >
+                      <UserIcon className="h-[18px] w-[18px]" />
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={closeDrawer}
+                      className="transition-brand flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-black/5"
+                    >
+                      <UserIcon className="h-[18px] w-[18px]" />
+                      Sign up
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

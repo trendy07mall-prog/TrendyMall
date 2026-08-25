@@ -98,7 +98,7 @@ export function ShopQuickJumpNav({
     // breakpoints since its py-5 padding dominates over the logo's small
     // sm: size bump) so the nav docks flush under it with no gap or overlap
     // once stuck.
-    <div className="sticky top-[85px] z-[var(--z-sticky-bar)] mt-8 rounded-[var(--radius-md)] border border-[var(--border)] bg-white/95 backdrop-blur-sm">
+    <div className="sticky top-[85px] z-[var(--z-shop-tabs)] mt-8 rounded-[var(--radius-md)] border border-[var(--border)] bg-white/95 backdrop-blur-sm">
       <nav aria-label="Jump to section" className="flex gap-1 overflow-x-auto px-2 py-2">
         {items.map((item) => (
           <Link
