@@ -175,11 +175,11 @@ export async function getCampaignPageData(slug: string): Promise<CampaignPageDat
 // getActiveCampaignPricesForVariants already established. Scheduled
 // (not-yet-started) campaigns ARE included -- they're legitimately about
 // to go live.
-export async function getAllCampaignSlugs(): Promise<string[]> {
+export async function getAllCampaignSlugs(): Promise<{ slug: string; updatedAt: string }[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("campaigns")
-    .select("slug, end_at")
+    .select("slug, end_at, updated_at")
     .eq("status", "published")
     .eq("is_archived", false);
   if (error) throw error;
@@ -187,7 +187,7 @@ export async function getAllCampaignSlugs(): Promise<string[]> {
   const now = Date.now();
   return (data ?? [])
     .filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now)
-    .map((c) => c.slug);
+    .map((c) => ({ slug: c.slug, updatedAt: c.updated_at }));
 }
 
 // A banner placement (homepage, shop, ...) needs genuinely ACTIVE campaigns

@@ -836,15 +836,18 @@ export async function getProductSlugRedirect(oldSlug: string): Promise<string | 
   return product?.slug ?? null;
 }
 
-export async function getAllProductSlugs(): Promise<string[]> {
+// Sitemap only -- includes updated_at per row so each URL's lastModified
+// reflects when that specific product actually changed, not a single
+// shared build timestamp.
+export async function getAllProductSlugs(): Promise<{ slug: string; updatedAt: string }[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("products")
-    .select("slug")
+    .select("slug, updated_at")
     .eq("status", "published").eq("is_deleted", false);
 
   if (error) throw error;
-  return data.map((p) => p.slug);
+  return data.map((p) => ({ slug: p.slug, updatedAt: p.updated_at }));
 }
 
 // A color variant enriched with its own image set (up to 4, product_variant_images
