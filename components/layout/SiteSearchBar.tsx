@@ -46,7 +46,16 @@ type FlatItem =
   | { type: "category"; value: SearchSuggestions["categories"][number] }
   | { type: "brand"; value: string };
 
-export function SiteSearchBar() {
+export function SiteSearchBar({
+  // Only the homepage's floating instance (HomeSearchBar.tsx) opts into
+  // this -- every other page's always-visible bar is untouched. Only
+  // affects the *unprefixed* (mobile, <640px) classes below; every sm:/md:
+  // override stays identical to the non-compact bar, so this has zero
+  // effect at tablet/desktop widths regardless of which page renders it.
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestions>(EMPTY_SUGGESTIONS);
@@ -148,7 +157,10 @@ export function SiteSearchBar() {
   }
 
   return (
-    <div ref={containerRef} className="relative mx-auto w-[94%] max-w-[1150px] sm:w-[90%] md:w-[85%]">
+    <div
+      ref={containerRef}
+      className={`relative mx-auto max-w-[1150px] sm:w-[90%] md:w-[85%] ${compact ? "w-[82%]" : "w-[94%]"}`}
+    >
       {/* .search-glow (app/globals.css) is the animated conic-gradient ring —
           the p-[2px] here is the ring's visible thickness, exposed in the
           gap between this wrapper's edge and the white pill (form) below,
@@ -160,7 +172,9 @@ export function SiteSearchBar() {
             event.preventDefault();
             goToSearch(query);
           }}
-          className="relative z-[1] flex h-[54px] w-full items-center rounded-full border border-[var(--border)] bg-white pl-6 shadow-[0_4px_20px_rgba(17,17,17,0.08)] transition-[border-color] duration-200 ease-in-out focus-within:border-[var(--color-search-glow-navy)] sm:h-[58px]"
+          className={`relative z-[1] flex w-full items-center rounded-full border border-[var(--border)] bg-white shadow-[0_4px_20px_rgba(17,17,17,0.08)] transition-[border-color] duration-200 ease-in-out focus-within:border-[var(--color-search-glow-navy)] sm:h-[58px] ${
+            compact ? "h-[44px] pl-4" : "h-[54px] pl-6"
+          }`}
         >
           <input
             type="text"
@@ -191,7 +205,9 @@ export function SiteSearchBar() {
           <button
             type="submit"
             aria-label="Search"
-            className="mr-2 ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-search-glow-navy)] text-white transition-transform duration-200 ease-in-out hover:scale-105 active:scale-95 sm:h-11 sm:w-11"
+            className={`flex shrink-0 items-center justify-center rounded-full bg-[var(--color-search-glow-navy)] text-white transition-transform duration-200 ease-in-out hover:scale-105 active:scale-95 sm:h-11 sm:w-11 ${
+              compact ? "mr-1.5 ml-1.5 h-8 w-8" : "mr-2 ml-2 h-10 w-10"
+            }`}
           >
             <SearchIcon className="h-4 w-4" />
           </button>

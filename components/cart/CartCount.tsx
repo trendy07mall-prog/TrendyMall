@@ -14,8 +14,12 @@ export function CartCount({ variant = "header" }: { variant?: "header" | "nav" }
   if (count === 0) return null;
 
   if (variant === "nav") {
+    // -top-1/-right-1 sat the badge almost dead center over the 20px icon
+    // (badge and icon are nearly the same size) -- pushed further out so
+    // only the badge's own corner clips the icon's corner, the standard
+    // badge look, same color/count/size otherwise.
     return (
-      <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-warning)] px-1 text-[11px] font-semibold text-[#111111]">
+      <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-warning)] px-1 text-[11px] font-semibold text-[#111111]">
         {count}
       </span>
     );

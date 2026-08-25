@@ -143,7 +143,10 @@ export function HomeSearchBar() {
       // remove them from the tab order, inert does.
       inert={!visible ? true : undefined}
     >
-      <SiteSearchBar />
+      {/* compact only changes SiteSearchBar's unprefixed (<640px) classes —
+          identical to the default bar at sm:+ widths, so this is scoped to
+          mobile without a separate viewport check. */}
+      <SiteSearchBar compact />
     </div>
   );
 }

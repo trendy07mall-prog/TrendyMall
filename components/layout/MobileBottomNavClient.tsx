@@ -127,16 +127,21 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
               className="relative flex min-h-11 min-w-11 flex-1 items-center justify-center"
             >
               {active && (
+                // Instagram-style active tab, scoped to just this component:
+                // a flat neutral pill (no color, no glow) -- emerald stays
+                // the site's status/success color everywhere else (cart
+                // badges, stock status, admin toggles), this is the one
+                // deliberate exception.
                 <motion.span
                   layoutId="bottom-nav-active-pill"
                   transition={TRANSITION}
-                  className="absolute inset-0 m-auto h-10 w-10 rounded-full bg-[var(--color-nav-active-pill)] shadow-[0_0_0_1px_rgba(16,185,129,0.3),0_4px_14px_rgba(16,185,129,0.5)]"
+                  className="absolute inset-0 m-auto h-10 w-10 rounded-full bg-black/[0.07]"
                 />
               )}
               <span className="relative flex">
                 <item.icon
                   className={`relative h-5 w-5 transition-transform duration-[220ms] motion-reduce:transition-none ${
-                    active ? "scale-105 text-[var(--color-nav-active-icon)]" : "text-[var(--color-text-secondary)]"
+                    active ? "scale-105 text-[var(--foreground)]" : "text-[var(--color-text-secondary)]"
                   }`}
                 />
                 {item.label === "Cart" && <CartCount variant="nav" />}
