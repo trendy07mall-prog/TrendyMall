@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SpecsTable } from "@/components/product/SpecsTable";
 import { ReviewsSection } from "@/components/product/ReviewsSection";
@@ -26,6 +27,21 @@ export function ProductTabs({
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
 }) {
   const [active, setActive] = useState<Tab>("description");
+  // ?review=<id> deep link (see CustomerReviews.tsx on the homepage) --
+  // reviews are already all rendered up front (getProductReviews has no
+  // pagination today, confirmed before building this), just hidden on
+  // whichever tab isn't active, so switching tabs is the only "load" step
+  // needed before the target row actually has layout to scroll to.
+  const searchParams = useSearchParams();
+  const reviewId = searchParams.get("review");
+
+  useEffect(() => {
+    // Syncing to an external signal (the URL's own ?review= param) -- same
+    // class of exception as the localStorage/matchMedia-read effects
+    // elsewhere in this app.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (reviewId) setActive("reviews");
+  }, [reviewId]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "description", label: "Description" },
@@ -95,6 +111,7 @@ export function ProductTabs({
             reviews={reviews}
             ratingSummary={ratingSummary}
             reviewState={reviewState}
+            highlightReviewId={active === "reviews" ? reviewId : null}
           />
         </div>
 

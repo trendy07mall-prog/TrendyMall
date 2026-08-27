@@ -26,14 +26,26 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
           className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]"
         >
           <FadeIn>
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading text-[32px] font-extrabold tracking-tight">
+            <div className="flex items-center justify-between gap-3">
+              {/* Campaign names are admin-entered, unbounded length -- unlike
+                  a fixed heading this can't just be sized once and forgotten.
+                  Scales down at mobile widths (where "Big Bang Flash Sale"-
+                  length names need the room) and back up to the original
+                  32px/extrabold from sm: onward, where there's space to
+                  spare. min-w-0 is required for the ellipsis to ever take
+                  effect at all -- flex items default to min-width:auto,
+                  which lets content overflow the row instead of truncating
+                  (same fix already applied to CheckoutForm's flex columns).
+                  overflow/truncate is a last-resort safety net, not the
+                  primary fix -- realistic names fit at this size without
+                  ever hitting it. */}
+              <h2 className="min-w-0 flex-1 truncate font-heading text-base font-bold tracking-tight sm:text-[28px] sm:font-extrabold md:text-[32px]">
                 <span aria-hidden="true">⚡ </span>
                 {campaign.name}
               </h2>
               <Link
                 href={`/campaign/${campaign.slug}`}
-                className="text-sm font-semibold underline-offset-2 hover:underline"
+                className="shrink-0 text-sm font-semibold underline-offset-2 hover:underline"
               >
                 View All →
               </Link>

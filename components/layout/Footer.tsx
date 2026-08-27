@@ -59,16 +59,16 @@ export async function Footer() {
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             {/* unoptimized: a static 563x334 source file displayed at a
-                fixed 67x40 -- well over 8x the display size already, so
-                the browser downscales it directly with no loss of
-                sharpness at any real pixel density, and it doesn't need
-                to go through Next's Image Optimization pipeline for a
-                fixed-size decorative logo rendered on every page. */}
+                fixed 77x46 -- still well over 7x the display size, so the
+                browser downscales it directly with no loss of sharpness at
+                any real pixel density, and it doesn't need to go through
+                Next's Image Optimization pipeline for a fixed-size
+                decorative logo rendered on every page. */}
             <Image
               src={branding.logoDesktopUrl}
               alt={general.storeName}
-              width={67}
-              height={40}
+              width={77}
+              height={46}
               unoptimized
             />
             <p className="mt-3 text-sm text-[var(--muted)]">{general.tagline}</p>

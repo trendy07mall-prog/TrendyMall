@@ -20,18 +20,27 @@ export async function CustomerReviews() {
       <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {reviews.map((review, index) => (
           <FadeIn key={review.id} delay={index * 0.05}>
-            <div className="flex h-full flex-col gap-3 rounded-[18px] border border-[var(--border)] bg-white p-6 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-in-out hover:-translate-y-1">
+            {/* The whole card is the link (not just the product name) --
+                clicking a review should take you to that exact review, not
+                just "some link near it." ?review={id} is read on the product
+                page to scroll to and briefly highlight this exact row (see
+                ProductTabs.tsx/ReviewsSection.tsx) -- id is the review's own
+                real primary key, not an array/sort position, so pagination
+                or re-sorting on the product page can never point this at
+                the wrong review. */}
+            <Link
+              href={`/product/${review.productSlug}?review=${review.id}`}
+              className="flex h-full flex-col gap-3 rounded-[18px] border border-[var(--border)] bg-white p-6 shadow-[0_8px_24px_rgba(0,0,0,0.08)] transition-transform duration-200 ease-in-out hover:-translate-y-1"
+            >
               <StarRating rating={review.rating} size="sm" />
               {review.title && <h3 className="text-sm font-semibold">{review.title}</h3>}
               <p className="line-clamp-4 flex-1 text-sm text-[var(--muted)]">{review.comment}</p>
               <div className="text-xs text-[var(--color-text-secondary)]">
                 <span className="font-medium text-[var(--foreground)]">{review.reviewerName}</span>
                 {" · "}
-                <Link href={`/product/${review.productSlug}`} className="hover:underline">
-                  {review.productName}
-                </Link>
+                <span className="hover:underline">{review.productName}</span>
               </div>
-            </div>
+            </Link>
           </FadeIn>
         ))}
       </div>

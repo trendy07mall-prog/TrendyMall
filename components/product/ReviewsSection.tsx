@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { StarRating } from "@/components/product/StarRating";
 import { ReviewForm } from "@/components/product/ReviewForm";
@@ -17,11 +20,17 @@ export function ReviewsSection({
   reviews,
   ratingSummary,
   reviewState,
+  highlightReviewId,
 }: {
   productId: string;
   reviews: ReviewWithReviewerName[];
   ratingSummary: ProductRatingSummary | null;
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
+  // Non-null only once ProductTabs has actually switched to this tab (see
+  // ProductTabs.tsx) -- by the time that happens, this panel's `hidden`
+  // attribute has already flipped off in the same render, so the target
+  // row already has real layout to scroll to; no need to poll/wait further.
+  highlightReviewId?: string | null;
 }) {
   // Computed from the reviews array already on the page -- no new query,
   // no summary column exists for this (product_rating_summary only has
@@ -30,6 +39,24 @@ export function ReviewsSection({
   for (const review of reviews) {
     breakdownCounts.set(review.rating, (breakdownCounts.get(review.rating) ?? 0) + 1);
   }
+
+  const [flashedId, setFlashedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!highlightReviewId) return;
+    const el = document.getElementById(`review-${highlightReviewId}`);
+    if (!el) return; // stale/foreign id (e.g. a deleted review) -- no-op, not an error
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Syncing to an external signal (the parent's own ?review= param, once
+    // its tab has actually activated) -- same class of exception as the
+    // localStorage/matchMedia-read effects elsewhere in this app.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFlashedId(highlightReviewId);
+    // Fades back out on its own via the transition below rather than
+    // vanishing instantly -- "briefly highlight," not a hard flash.
+    const timer = setTimeout(() => setFlashedId(null), 2200);
+    return () => clearTimeout(timer);
+  }, [highlightReviewId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,7 +116,12 @@ export function ReviewsSection({
         {reviews.map((review) => (
           <div
             key={review.id}
-            className="rounded-[var(--radius-lg)] border border-[var(--border)] p-4"
+            id={`review-${review.id}`}
+            className={`rounded-[var(--radius-lg)] border p-4 transition-colors duration-700 ease-out ${
+              flashedId === review.id
+                ? "border-[var(--color-warning)] bg-[var(--color-warning)]/10"
+                : "border-[var(--border)]"
+            }`}
           >
             <div className="flex flex-wrap items-center gap-2">
               <StarRating rating={review.rating} size="sm" />

@@ -40,9 +40,20 @@ const poppins = localFont({
 function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: string }) {
   return (
     <FadeIn>
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-[32px] font-extrabold tracking-tight">{title}</h2>
-        <Link href={viewAllHref} className="text-sm font-semibold underline-offset-2 hover:underline">
+      <div className="flex items-center justify-between gap-3">
+        {/* text-xl (not the original 32px) at mobile widths is what keeps
+            "Explore by Category" -- the longer of this component's two
+            titles -- on one line down to 320px; sm:/md: restore the
+            original 28px/32px extrabold where there's room to spare. Fixed,
+            known strings (unlike ActiveCampaignSections' admin-entered
+            campaign names), so no truncate/ellipsis safety net needed here. */}
+        <h2 className="font-heading min-w-0 text-base font-bold tracking-tight whitespace-nowrap sm:text-[28px] sm:font-extrabold md:text-[32px]">
+          {title}
+        </h2>
+        <Link
+          href={viewAllHref}
+          className="shrink-0 text-sm font-semibold underline-offset-2 hover:underline"
+        >
           View All →
         </Link>
       </div>

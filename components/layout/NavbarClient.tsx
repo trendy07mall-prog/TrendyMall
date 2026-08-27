@@ -378,11 +378,11 @@ export function NavbarClient({
           <Image
             src={logoUrl}
             alt="TrendyMall"
-            width={67}
-            height={40}
+            width={77}
+            height={46}
             priority
             unoptimized
-            className={isCheckout ? "h-6 w-auto sm:h-7" : "h-8 w-auto sm:h-10"}
+            className={isCheckout ? "h-7 w-auto sm:h-8" : "h-9 w-auto sm:h-11"}
           />
         </Link>
 
@@ -611,10 +611,10 @@ export function NavbarClient({
               <Image
                 src={logoUrl}
                 alt="TrendyMall"
-                width={54}
-                height={32}
+                width={61}
+                height={36}
                 unoptimized
-                className="h-8 w-auto"
+                className="h-9 w-auto"
               />
               <button
                 type="button"
