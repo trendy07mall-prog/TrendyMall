@@ -9,10 +9,14 @@ import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/com
 import { CartCount } from "@/components/cart/CartCount";
 import { useScrollState } from "@/context/ScrollStateContext";
 
-// Cart/checkout already have their own sticky primary-action bar (Proceed
-// to Checkout / Place Order) — a persistent nav competing for the same
-// strip of screen would be the wrong call on both, not just checkout.
-const HIDDEN_ROUTE_PREFIXES = ["/cart", "/checkout"];
+// Checkout has its own sticky primary-action bar (Place Order) and is a
+// focused, single-task flow -- a persistent nav competing for the same
+// strip of screen would be the wrong call there. Cart used to be lumped in
+// here too, but it's a normal browsing page like any other (and its own
+// sticky Checkout bar now coordinates with this nav the same way the PDP's
+// floating purchase bar already does -- see app/cart/page.tsx), so it
+// keeps the nav like every other page.
+const HIDDEN_ROUTE_PREFIXES = ["/checkout"];
 
 interface NavItem {
   href: string;

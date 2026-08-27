@@ -8,8 +8,10 @@ import { useCart } from "@/context/CartContext";
 import { createOrder, getPayHereCheckoutParams } from "@/lib/orders";
 import { previewCoupon } from "@/lib/coupons";
 import { getCartValidation, getCartFreeShipping } from "@/lib/cart-validation";
+import type { CartItemValidation } from "@/lib/cart-validation";
 import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
-import { formatPrice, isValidEmail } from "@/lib/utils";
+import { cartLineKey, formatPrice, isValidEmail } from "@/lib/utils";
+import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { trackConversion } from "@/lib/analytics/track";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
@@ -222,6 +224,11 @@ export function CheckoutForm({
   // real fee either way (matches what create_order_atomic treats as
   // v_delivery_fee before any discount).
   const [freeShippingCampaign, setFreeShippingCampaign] = useState(false);
+  // Same shape/source as app/cart/page.tsx's own validation state -- only
+  // used here to show the campaign badge in the summary below (the
+  // authoritative re-check at submit time, a few lines down, already calls
+  // getCartValidation on its own and is untouched).
+  const [validation, setValidation] = useState<Map<string, CartItemValidation>>(new Map());
   const freeShippingFromThreshold =
     shippingSettings.freeShippingEnabled && subtotal >= shippingSettings.freeShippingMinAmount;
   const freeShippingActive = freeShippingCampaign || freeShippingFromThreshold;
@@ -237,6 +244,26 @@ export function CheckoutForm({
     let cancelled = false;
     getCartFreeShipping(items.map((i) => i.variantId)).then((result) => {
       if (!cancelled) setFreeShippingCampaign(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsKey]);
+
+  // Same effect shape as app/cart/page.tsx's own campaign-aware
+  // revalidation, reused here purely to drive the Order Summary's
+  // per-variant campaign badge below -- checked at the variant level via
+  // the same getCartValidation/getActiveCampaignPricesForVariants path,
+  // not a second calculation.
+  useEffect(() => {
+    if (items.length === 0) return;
+    let cancelled = false;
+    getCartValidation(
+      items.map((i) => ({ productId: i.productId, variantId: i.variantId, price: i.price, quantity: i.quantity })),
+    ).then((results) => {
+      if (cancelled) return;
+      setValidation(new Map(results.map((r) => [cartLineKey(r.productId, r.variantId), r])));
     });
     return () => {
       cancelled = true;
@@ -883,25 +910,35 @@ export function CheckoutForm({
         <div className="h-fit min-w-0 rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
           <h2 className="text-lg font-medium">Order summary</h2>
           <ul className="mt-4 flex flex-col gap-3">
-            {items.map((item) => (
-              <li
-                key={`${item.productId}:${item.variantId ?? "base"}`}
-                className="flex items-start gap-3 text-sm"
-              >
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border border-[var(--border)] bg-black/5">
-                  {item.image && (
-                    <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
-                  )}
-                </div>
-                <div className="flex flex-1 items-start justify-between gap-2">
-                  <span className="line-clamp-2 flex-1">
-                    {item.name}
-                    {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
-                  </span>
-                  <span className="shrink-0 font-medium">{formatPrice(item.price * item.quantity)}</span>
-                </div>
-              </li>
-            ))}
+            {items.map((item) => {
+              const campaignName = validation.get(cartLineKey(item.productId, item.variantId))?.campaignName;
+              return (
+                <li key={cartLineKey(item.productId, item.variantId)} className="flex items-start gap-3 text-sm">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border border-[var(--border)] bg-black/5">
+                    {item.image && (
+                      <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
+                    )}
+                  </div>
+                  <div className="flex flex-1 items-start justify-between gap-2">
+                    <span className="min-w-0 flex-1">
+                      {/* Checked at this line's own specific variant (same
+                          rule as the cart page) -- two lines for the same
+                          product only show this on the campaign-joined one. */}
+                      {campaignName && (
+                        <div className="mb-0.5">
+                          <CampaignInfoBlock campaignName={campaignName} campaignEndAt={null} soldCount={null} compact />
+                        </div>
+                      )}
+                      <span className="line-clamp-2">
+                        {item.name}
+                        {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-medium">{formatPrice(item.price * item.quantity)}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
           <div className="mt-4 flex flex-col gap-2">
             {couponAutoApplying ? (

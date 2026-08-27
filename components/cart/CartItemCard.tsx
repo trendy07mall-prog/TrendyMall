@@ -7,6 +7,7 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatPrice } from "@/lib/utils";
 import { CartStockBadge } from "@/components/cart/CartStockBadge";
+import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TrashIcon, HeartIcon } from "@/components/ui/Icon";
 import type { CartItem } from "@/types";
@@ -80,9 +81,27 @@ export function CartItemCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col justify-between gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div>
+      <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
+        {/* flex-wrap + min-w-0 down this chain: at very narrow widths (320px)
+            the name/badge column and the nowrap "each" price can't both fit
+            on one line without the row refusing to shrink below their
+            combined min-content and overflowing the card -- wrapping lets
+            the price drop to its own line instead, pre-existing bug exposed
+            by testing at 320px, unrelated to the campaign badge itself. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <div className="min-w-0">
+            {/* Checked at the variant level (validation.campaignName is only
+                ever set for THIS line's specific variant, see
+                lib/cart-validation.ts) -- two lines for the same product,
+                only one of them the campaign-joined variant, correctly show
+                the badge on just that one. Name only, no countdown/sold-
+                count here -- a small badge, not the full campaign-carousel
+                treatment. */}
+            {validation?.campaignName && (
+              <div className="mb-1">
+                <CampaignInfoBlock campaignName={validation.campaignName} campaignEndAt={null} soldCount={null} compact />
+              </div>
+            )}
             <Link href={`/product/${item.slug}`} className="font-medium hover:underline">
               {item.name}
             </Link>
@@ -109,12 +128,17 @@ export function CartItemCard({
               )}
             </div>
           </div>
-          <span className="text-sm whitespace-nowrap text-[var(--muted)]">
+          <span className="shrink-0 text-sm whitespace-nowrap text-[var(--muted)]">
             {formatPrice(item.price)} each
           </span>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        {/* flex-wrap: the quantity stepper alone (~104px) leaves almost no
+            room for the line total next to it once contentCol is down to
+            ~124px at 320px viewport -- same overflow class as the
+            name/price-each row above, wraps the total below the stepper
+            instead of forcing the card wider than the viewport. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           <div className="flex items-center rounded-full border border-[var(--border)] transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]">
             <button
               type="button"

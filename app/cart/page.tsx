@@ -133,21 +133,24 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemsKey]);
 
-  // Announces the mobile sticky checkout bar's rendered height to the
-  // global ToastProvider and WhatsAppButton (mounted in app/layout.tsx)
-  // via a CSS variable, so cart-page toasts and the FAB shift up above it
-  // instead of being covered. Every other page falls back to the
-  // variable's default of 0px. Guarded on height > 0 so this bar being
-  // `display:none` at desktop widths (lg:hidden) publishes 0px instead of
-  // a stray 16px — a real height, not an assumption, drives the offset.
+  // Same --pdp-floating-bar-height variable the product page's own
+  // FloatingPurchaseBar.tsx publishes into (see that component) -- reused
+  // rather than a second variable, since /product/[slug] and /cart are
+  // never both on screen at once, so there's nothing for the two pages'
+  // bars to actually collide over. Every consumer of this variable
+  // (WhatsAppButton.tsx's bottom offset, app/layout.tsx's <main>/<body>
+  // padding) already exists and needed no changes -- they just start
+  // reacting to this page's bar exactly as they already did for the PDP's.
+  // Guarded on height > 0 so this bar being `display:none` at desktop
+  // widths (lg:hidden) publishes 0px instead of a stray extra offset.
   useEffect(() => {
     const el = stickyBarRef.current;
     if (!el) return;
     const updateOffset = () => {
       const height = el.getBoundingClientRect().height;
       document.documentElement.style.setProperty(
-        "--mobile-bottom-bar-offset",
-        height > 0 ? `${height + 16}px` : "0px",
+        "--pdp-floating-bar-height",
+        height > 0 ? `${height}px` : "0px",
       );
     };
     updateOffset();
@@ -155,7 +158,7 @@ export default function CartPage() {
     observer.observe(el);
     return () => {
       observer.disconnect();
-      document.documentElement.style.removeProperty("--mobile-bottom-bar-offset");
+      document.documentElement.style.removeProperty("--pdp-floating-bar-height");
     };
   }, [items.length]);
 
@@ -282,7 +285,12 @@ export default function CartPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12 max-sm:pb-28">
+    // The bottom clearance for the sticky bar below no longer needs its own
+    // hardcoded pb-28 guess -- now that the bar publishes its real height
+    // into --pdp-floating-bar-height (same as the PDP's own floating
+    // purchase bar), app/layout.tsx's shared <main> padding already
+    // reserves the correct dynamic amount of space.
+    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Cart" }]} />
       <h1 className="font-heading mt-4 text-3xl font-bold tracking-tight">Your Cart</h1>
 
@@ -308,7 +316,13 @@ export default function CartPage() {
       )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
-        <ul className="flex flex-col gap-4">
+        {/* min-w-0: without it, a CSS Grid item's automatic minimum size
+            defaults to its content's min-content width -- on the single
+            implicit mobile column here, that let a long product name +
+            nowrap price combination force this column (and the page) wider
+            than the 320px viewport. Pre-existing, surfaced by testing at
+            320px; unrelated to the campaign badge or sticky-bar changes. */}
+        <ul className="flex min-w-0 flex-col gap-4">
           {items.map((item) => (
             <li key={cartLineKey(item.productId, item.variantId)}>
               <CartItemCard
@@ -447,11 +461,20 @@ export default function CartPage() {
       )}
       <RecentlyViewedSection excludeProductIds={items.map((i) => i.productId)} />
 
+      {/* Same floating-card architecture as the product page's
+          FloatingPurchaseBar.tsx -- inset-x-4 rounded card, --z-whatsapp
+          tier, floating above the bottom nav via --mobile-nav-height --
+          rather than a second, edge-to-edge/bottom-0 bar with its own
+          competing stacking rules. */}
       <div
         ref={stickyBarRef}
-        className="fixed inset-x-0 bottom-0 z-[var(--z-sticky-bar)] flex items-center justify-between gap-4 border-t border-[var(--border)] bg-[var(--color-card)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[var(--shadow-card-hover)] lg:hidden"
+        className="fixed inset-x-4 z-[var(--z-whatsapp)] flex items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-3 shadow-[var(--shadow-card-hover)] lg:hidden"
+        style={{ bottom: "calc(var(--mobile-nav-height, 0px) + 14px)" }}
       >
-        <div className="flex flex-col">
+        {/* min-w-0: lets "Total" / totalDisplay shrink instead of forcing
+            the row wider once totalDisplay is the longer "Rs X + delivery"
+            string (no delivery area chosen yet). */}
+        <div className="flex min-w-0 flex-col">
           <span className="text-xs text-[var(--muted)]">Total</span>
           <span className="text-base font-medium">{totalDisplay}</span>
         </div>
@@ -459,7 +482,7 @@ export default function CartPage() {
           type="button"
           onClick={handleCheckout}
           disabled={hasBlockingIssue || redirecting}
-          className="transition-brand flex items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
+          className="transition-brand flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-5 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <LockIcon className="h-4 w-4" />
           {redirecting ? "Redirecting…" : "Checkout"}

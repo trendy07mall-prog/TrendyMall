@@ -11,6 +11,12 @@ export interface CartItemValidation {
   currentPrice: number | null;
   currentStock: number;
   priceChanged: boolean;
+  // Non-null only when THIS SPECIFIC variant is currently joined to an
+  // active campaign -- checked at the variant level (the same
+  // getActiveCampaignPricesForVariants map this function already builds
+  // for currentPrice, not a second calculation path), so two cart lines
+  // for the same product can correctly show the badge on only one of them.
+  campaignName: string | null;
 }
 
 // Read-only, public RLS (same as every other storefront product query) —
@@ -70,6 +76,7 @@ export async function getCartValidation(
         currentPrice: null,
         currentStock: 0,
         priceChanged: false,
+        campaignName: null,
       };
     }
 
@@ -84,6 +91,7 @@ export async function getCartValidation(
         currentPrice: null,
         currentStock: 0,
         priceChanged: false,
+        campaignName: null,
       };
     }
     const currentPrice = getVariantPrice(variant);
@@ -95,6 +103,7 @@ export async function getCartValidation(
       currentPrice,
       currentStock,
       priceChanged: Math.abs(currentPrice - item.price) > 0.01,
+      campaignName: campaignPrices.get(variant.id)?.campaignName ?? null,
     };
   });
 }
