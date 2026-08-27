@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import type { Campaign, CampaignSection } from "@/types";
+import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
+import type { Campaign, CampaignSection, ProductWithPrimaryImage } from "@/types";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -104,6 +105,137 @@ export async function getActiveCampaignPricesForVariants(
 // getVariantPrice's campaign-aware overload.
 export function getBasePrice(variant: { regular_price: number; sale_price: number | null }): number {
   return variant.sale_price ?? variant.regular_price;
+}
+
+export interface CampaignFeaturedDisplay {
+  image: string | null;
+  actualPrice: number;
+  specialPrice: number | null;
+  hasMultiplePrices: boolean;
+  variantId: string;
+}
+
+type CampaignFeaturedVariantRow = {
+  id: string;
+  regular_price: number;
+  sale_price: number | null;
+  campaign_price: number;
+  stock: number | null;
+  is_active: boolean;
+  is_default: boolean;
+  variant_image_url: string | null;
+};
+
+// Campaign-context DISPLAY ONLY (the homepage's ActiveCampaignSections
+// carousel and /campaign/[slug]'s product grid) -- deliberately separate
+// from getActiveCampaignPricesForVariants/pickWinningVariant's normal use
+// in attachPrimaryImages, which must always resolve to the genuinely
+// lowest price across ALL of a product's variants for the shop/category/
+// PDP/cart/checkout pipeline. That resolution is exactly why a product
+// with a campaign-joined variant can lose its badge on those surfaces
+// today when a cheaper non-campaign variant exists -- correct there, wrong
+// inside a campaign carousel that exists specifically to feature the
+// campaign deal.
+//
+// The fix: reuse pickWinningVariant (the same "which variant represents
+// this product" algorithm, unmodified) but feed it ONLY this product's
+// variants that are actually joined to THIS campaign -- never compared
+// against a cheaper non-campaign variant. Cheapest among a product's OWN
+// multiple campaign-joined variants still wins correctly for free, since
+// that's already what pickWinningVariant does within whatever pool it's
+// given.
+export async function getCampaignFeaturedDisplayByProduct(
+  supabase: SupabaseServerClient,
+  campaignId: string,
+  productIds: string[],
+): Promise<Map<string, CampaignFeaturedDisplay>> {
+  if (productIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select(
+      "product_id, variant_id, campaign_price, product_variants!inner(id, regular_price, sale_price, stock, is_active, is_default, variant_image_url)",
+    )
+    .eq("campaign_id", campaignId)
+    .eq("is_active", true)
+    .in("product_id", productIds);
+  if (error) throw error;
+
+  type Row = {
+    product_id: string;
+    variant_id: string;
+    campaign_price: number;
+    product_variants: Omit<CampaignFeaturedVariantRow, "campaign_price">;
+  };
+
+  const rowsByProduct = new Map<string, CampaignFeaturedVariantRow[]>();
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const v = row.product_variants;
+    // A campaign_item can outlive its variant being disabled -- same
+    // "don't feature something the customer can't actually buy" rule
+    // pickWinningVariant already applies everywhere else.
+    if (!v.is_active) continue;
+    const list = rowsByProduct.get(row.product_id) ?? [];
+    list.push({ ...v, campaign_price: row.campaign_price });
+    rowsByProduct.set(row.product_id, list);
+  }
+
+  const result = new Map<string, CampaignFeaturedDisplay>();
+  for (const [productId, rows] of rowsByProduct) {
+    const winner = pickWinningVariant(rows);
+    const effectivePrice = getVariantPrice(winner);
+    const distinctPrices = new Set(rows.map((r) => getVariantPrice(r)));
+
+    result.set(productId, {
+      image: winner.variant_image_url,
+      actualPrice: winner.regular_price,
+      // null (not a duplicate number) when this variant's campaign_price
+      // doesn't actually undercut its own regular_price -- PriceDisplay
+      // always renders a strikethrough once specialPrice is non-null, so
+      // an equal value would show a redundant "was Rs X, now Rs X."
+      specialPrice: effectivePrice < winner.regular_price ? effectivePrice : null,
+      hasMultiplePrices: distinctPrices.size > 1,
+      variantId: winner.id,
+    });
+  }
+  return result;
+}
+
+// Overlays the campaign-featured variant's price/image onto each product
+// already resolved by the normal getProductsByIds pipeline, plus the
+// unconditional campaign badge/name/countdown/sold-count -- an addition
+// applied AFTER that pipeline's own output, never a change to it. Every
+// product a campaign's own product list contains is by definition joined
+// to the campaign (that's how it got included), so featuredByProductId
+// should have an entry for all of them; a product with no entry (e.g. its
+// only campaign_item's variant was disabled) passes through untouched
+// rather than losing its already-correct normal price/image.
+export function applyCampaignFeaturedDisplay(
+  products: ProductWithPrimaryImage[],
+  campaign: Campaign,
+  featuredByProductId: Map<string, CampaignFeaturedDisplay>,
+  soldCount: number | null,
+): ProductWithPrimaryImage[] {
+  const badgeLabel = campaign.show_badge && campaign.badge_label ? campaign.badge_label : null;
+
+  return products.map((product) => {
+    const featured = featuredByProductId.get(product.id);
+    if (!featured) return product;
+
+    return {
+      ...product,
+      image: featured.image ?? product.image,
+      actual_price: featured.actualPrice,
+      special_price: featured.specialPrice,
+      hasMultiplePrices: featured.hasMultiplePrices,
+      defaultVariantId: featured.variantId,
+      campaignId: campaign.id,
+      badgeLabel,
+      campaignName: campaign.name,
+      campaignEndAt: campaign.end_at,
+      soldCount,
+    };
+  });
 }
 
 export interface CampaignSectionGroup {

@@ -1,8 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getCampaignPageData } from "@/lib/data/campaigns";
+import {
+  getCampaignPageData,
+  getCampaignFeaturedDisplayByProduct,
+  applyCampaignFeaturedDisplay,
+  getCampaignSoldCounts,
+} from "@/lib/data/campaigns";
 import { getProductsByIds } from "@/lib/data/products";
+import { createClient } from "@/lib/supabase/server";
 import { getCampaignRuntimeStatus } from "@/lib/campaign-status";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { ProductGrid } from "@/components/product/ProductGrid";
@@ -72,7 +78,24 @@ export default async function CampaignPage({
 
   const allProductIds = [...new Set(groups.flatMap((g) => g.productIds))];
   const products = await getProductsByIds(allProductIds);
-  const productById = new Map(products.map((p) => [p.id, p]));
+
+  // Campaign-context display fix: every product on this page must feature
+  // its OWN campaign-joined variant's price/badge/countdown/sold-count,
+  // never the product's globally-cheapest variant if that happens to be a
+  // different, non-campaign one -- see getCampaignFeaturedDisplayByProduct's
+  // own comment in lib/data/campaigns.ts.
+  const supabase = await createClient();
+  const [soldCounts, featuredByProductId] = await Promise.all([
+    getCampaignSoldCounts(supabase, [campaign.id]),
+    getCampaignFeaturedDisplayByProduct(supabase, campaign.id, allProductIds),
+  ]);
+  const featuredProducts = applyCampaignFeaturedDisplay(
+    products,
+    campaign,
+    featuredByProductId,
+    soldCounts.get(campaign.id) ?? null,
+  );
+  const productById = new Map(featuredProducts.map((p) => [p.id, p]));
 
   const totalCount = allProductIds.length;
   const sp = await searchParams;

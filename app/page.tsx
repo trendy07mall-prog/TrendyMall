@@ -4,7 +4,13 @@ import localFont from "next/font/local";
 import { createClient } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
-import { getHomepageCampaigns, getCampaignSections } from "@/lib/data/campaigns";
+import {
+  getHomepageCampaigns,
+  getCampaignSections,
+  getCampaignFeaturedDisplayByProduct,
+  applyCampaignFeaturedDisplay,
+  getCampaignSoldCounts,
+} from "@/lib/data/campaigns";
 import { getGeneralSettings } from "@/lib/data/settings";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
@@ -81,16 +87,43 @@ export default async function HomePage() {
   const campaignProducts =
     allCampaignProductIds.length > 0 ? await getProductsByIds(allCampaignProductIds) : [];
   const campaignProductsById = new Map(campaignProducts.map((p) => [p.id, p]));
+
+  // Campaign-context display fix: a product's card in THIS carousel must
+  // feature its own campaign-joined variant's price (plus badge/countdown/
+  // sold-count), never the product's globally-cheapest variant if that
+  // happens to be a different, non-campaign one -- see
+  // getCampaignFeaturedDisplayByProduct's own comment in
+  // lib/data/campaigns.ts for why this has to be a separate function
+  // rather than a change to the shop/category/PDP/cart pricing path. One
+  // sold-count query batched across every homepage campaign at once, one
+  // featured-display query per campaign (not per product).
+  const campaignIds = campaignSectionGroups.map((g) => g.campaign.id);
+  const soldCountsByCampaignId = await getCampaignSoldCounts(supabase, campaignIds);
+  const featuredByCampaignId = new Map(
+    await Promise.all(
+      campaignSectionGroups.map(
+        async (g) =>
+          [g.campaign.id, await getCampaignFeaturedDisplayByProduct(supabase, g.campaign.id, g.productIds)] as const,
+      ),
+    ),
+  );
+
   const campaignSections = campaignSectionGroups
-    .map((group) => ({
-      campaign: group.campaign,
+    .map((group) => {
       // A campaign's items can outlive a product being unpublished --
       // filter(Boolean) drops those rather than rendering a hole in the
       // carousel.
-      products: group.productIds
+      const rawProducts = group.productIds
         .map((id) => campaignProductsById.get(id))
-        .filter((p): p is ProductWithPrimaryImage => p != null),
-    }))
+        .filter((p): p is ProductWithPrimaryImage => p != null);
+      const products = applyCampaignFeaturedDisplay(
+        rawProducts,
+        group.campaign,
+        featuredByCampaignId.get(group.campaign.id) ?? new Map(),
+        soldCountsByCampaignId.get(group.campaign.id) ?? null,
+      );
+      return { campaign: group.campaign, products };
+    })
     .filter((section) => section.products.length > 0);
 
   return (
