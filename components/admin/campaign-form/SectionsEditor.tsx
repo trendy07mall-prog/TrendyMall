@@ -1,9 +1,10 @@
 "use client";
 
 import type { SectionDraft } from "@/components/admin/CampaignForm";
+import { ChevronDownIcon, TrashIcon } from "@/components/ui/Icon";
 
 const inputClass =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+  "flex-1 rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
 
 export function SectionsEditor({
   sections,
@@ -36,43 +37,42 @@ export function SectionsEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">Sections</label>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[var(--foreground)]">Sections</h2>
+          <p className="text-sm text-[var(--muted)]">
+            Optional — group products into named sections (e.g. &quot;Under Rs 1,000&quot;).
+          </p>
+        </div>
         <button
           type="button"
           onClick={addSection}
-          className="text-sm underline"
+          className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
         >
           + Add section
         </button>
       </div>
 
-      {sections.length === 0 && (
-        <p className="text-xs text-[var(--muted)]">
-          Optional — group products into named sections (e.g. &quot;Under Rs 1,000&quot;). Items
-          with no section render together.
-        </p>
-      )}
-
       <div className="flex flex-col gap-2">
         {sections.map((section, index) => (
           <div
             key={section.clientKey}
-            className="flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] p-2"
+            className="flex items-center gap-2 rounded-xl border border-[var(--border)] p-2.5"
           >
             <input
               type="text"
               value={section.name}
               onChange={(e) => updateSection(section.clientKey, { name: e.target.value })}
               placeholder="Section name"
-              className={`${inputClass} flex-1`}
+              className={inputClass}
             />
-            <label className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+            <label className="flex items-center gap-1.5 text-xs whitespace-nowrap text-[var(--muted)]">
               <input
                 type="checkbox"
                 checked={section.isActive}
                 onChange={(e) => updateSection(section.clientKey, { isActive: e.target.checked })}
+                className="h-4 w-4 accent-indigo-600"
               />
               Active
             </label>
@@ -81,26 +81,26 @@ export function SectionsEditor({
               aria-label="Move section earlier"
               disabled={index === 0}
               onClick={() => move(index, -1)}
-              className="px-1 text-sm disabled:opacity-30"
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30"
             >
-              ↑
+              <ChevronDownIcon className="h-4 w-4 rotate-180" />
             </button>
             <button
               type="button"
               aria-label="Move section later"
               disabled={index === sections.length - 1}
               onClick={() => move(index, 1)}
-              className="px-1 text-sm disabled:opacity-30"
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-black/5 disabled:opacity-30"
             >
-              ↓
+              <ChevronDownIcon className="h-4 w-4" />
             </button>
             <button
               type="button"
               aria-label="Remove section"
               onClick={() => removeSection(section.clientKey)}
-              className="px-1 text-sm text-red-600"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50"
             >
-              ✕
+              <TrashIcon className="h-4 w-4" />
             </button>
           </div>
         ))}

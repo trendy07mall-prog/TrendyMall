@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { saveCampaign } from "@/lib/admin/campaigns";
 import { slugify } from "@/lib/utils";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import { SectionsEditor } from "@/components/admin/campaign-form/SectionsEditor";
 import { ProductPickerModal } from "@/components/admin/campaign-form/ProductPickerModal";
@@ -12,6 +13,7 @@ import { BulkApplyModal } from "@/components/admin/campaign-form/BulkApplyModal"
 import type { BulkPickedVariant } from "@/components/admin/campaign-form/BulkApplyModal";
 import { CampaignItemsTable } from "@/components/admin/campaign-form/CampaignItemsTable";
 import { CampaignPreviewPanel } from "@/components/admin/campaign-form/CampaignPreviewPanel";
+import { ChevronLeftIcon } from "@/components/ui/Icon";
 import type { CampaignEditData } from "@/lib/admin/campaigns-query";
 import type { CampaignPromotionType } from "@/types";
 
@@ -40,8 +42,17 @@ export interface ItemDraft {
   image: string | null;
 }
 
+// Admin-panel-only design language for this page (and the shared
+// DateTimePicker it introduces) -- indigo accents, white cards over a light
+// gray page background. Deliberately literal Tailwind utilities, not this
+// app's --foreground/--color-nav-active-pill/etc tokens, so nothing here
+// touches the customer-facing navy/orange brand palette.
 const inputClass =
-  "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
+  "w-full rounded-xl border border-[var(--border)] bg-white px-3.5 py-2.5 text-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+const cardClass = "rounded-2xl border border-[var(--border)] bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:p-6";
+const labelClass = "text-sm font-medium text-[var(--foreground)]";
+const sectionHeadingClass = "text-lg font-bold text-[var(--foreground)]";
+const sectionSubtitleClass = "text-sm text-[var(--muted)]";
 
 function buildInitialSections(initial: CampaignEditData | null): SectionDraft[] {
   return (initial?.sections ?? []).map((s) => ({
@@ -75,9 +86,15 @@ function buildInitialItems(initial: CampaignEditData | null, sections: SectionDr
 export function CampaignForm({
   initial,
   onSaved,
+  onCancel,
 }: {
   initial: CampaignEditData | null;
   onSaved?: () => void;
+  // Reuses whatever navigation the caller already has for "leave this
+  // form" (CampaignsManager passes its existing setEditing(null) handler,
+  // the same one its old standalone "← Back to campaigns" link used) --
+  // no new routing/navigation logic introduced here.
+  onCancel?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveCampaign, undefined);
 
@@ -169,328 +186,422 @@ export function CampaignForm({
     setItems([...items, ...newItems]);
   }
 
+  const isEditing = initial != null;
+
   return (
-    <form
-      action={(formData) => {
-        submittedRef.current = true;
-        formAction(formData);
-      }}
-      className="flex flex-col gap-8"
-    >
-      <input type="hidden" name="id" defaultValue={initial?.campaign.id ?? ""} />
-      <input type="hidden" name="sections" value={JSON.stringify(sections)} />
-      <input
-        type="hidden"
-        name="campaignItems"
-        value={JSON.stringify(
-          items.map((i) => ({
-            clientKey: i.clientKey,
-            productId: i.productId,
-            variantId: i.variantId,
-            sectionClientKey: i.sectionClientKey,
-            campaignPrice: i.campaignPrice,
-            referencePriceSnapshot: i.referencePriceSnapshot,
-            isActive: i.isActive,
-            sortOrder: i.sortOrder,
-          })),
-        )}
-      />
+    <div className="-m-6 min-h-[calc(100vh-4rem)] bg-gray-50 p-6">
+      <form
+        action={(formData) => {
+          submittedRef.current = true;
+          formAction(formData);
+        }}
+        className="mx-auto flex max-w-5xl flex-col gap-6"
+      >
+        <input type="hidden" name="id" defaultValue={initial?.campaign.id ?? ""} />
+        <input type="hidden" name="sections" value={JSON.stringify(sections)} />
+        <input
+          type="hidden"
+          name="campaignItems"
+          value={JSON.stringify(
+            items.map((i) => ({
+              clientKey: i.clientKey,
+              productId: i.productId,
+              variantId: i.variantId,
+              sectionClientKey: i.sectionClientKey,
+              campaignPrice: i.campaignPrice,
+              referencePriceSnapshot: i.referencePriceSnapshot,
+              isActive: i.isActive,
+              sortOrder: i.sortOrder,
+            })),
+          )}
+        />
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Basic info</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="name" className="text-sm font-medium">
-              Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              className={inputClass}
-            />
+        {/* 1. PAGE HEADER */}
+        <div className="flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex items-start gap-3">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label="Back"
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-black/5"
+              >
+                <ChevronLeftIcon className="h-5 w-5" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-xl font-bold text-[var(--foreground)]">
+                {isEditing ? "Edit Campaign" : "Create Campaign"}
+              </h1>
+              <p className="mt-0.5 text-sm text-[var(--muted)]">Set up your campaign details and schedule</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="slug" className="text-sm font-medium">
-              Slug
-            </label>
-            <input
-              id="slug"
-              name="slug"
-              type="text"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value);
-              }}
-              className={inputClass}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-full border border-[var(--border)] px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="submit"
+              name="status"
+              value="draft"
+              disabled={pending}
+              className="rounded-full border border-[var(--border)] px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
+            >
+              {pending ? "Saving…" : "Save as Draft"}
+            </button>
+            <button
+              type="submit"
+              name="status"
+              value="published"
+              disabled={pending}
+              className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {pending ? "Saving…" : "Save Campaign"}
+            </button>
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="description" className="text-sm font-medium">
-            Description
+
+        {state?.error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {state.error}
+          </p>
+        )}
+
+        {/* 2. CAMPAIGN DETAILS */}
+        <section className={`${cardClass} flex flex-col gap-5`}>
+          <div>
+            <h2 className={sectionHeadingClass}>Campaign Details</h2>
+            <p className={sectionSubtitleClass}>Name, description, and how this campaign is promoted.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="name" className={labelClass}>
+                Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="slug" className={labelClass}>
+                Slug
+              </label>
+              <input
+                id="slug"
+                name="slug"
+                type="text"
+                value={slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  setSlug(e.target.value);
+                }}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="description" className={labelClass}>
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                rows={4}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={`${inputClass} resize-none`}
+              />
+              <span className="self-end text-xs text-[var(--muted)]">{description.length} characters</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="promotionType" className={labelClass}>
+                Promotion type
+              </label>
+              <select
+                id="promotionType"
+                name="promotionType"
+                value={promotionType}
+                onChange={(e) => setPromotionType(e.target.value as CampaignPromotionType)}
+                className={inputClass}
+              >
+                <option value="product_discount">Product discount</option>
+                <option value="flash_sale">Flash sale</option>
+                <option value="free_shipping">Free shipping</option>
+                <option value="coupon">Coupon</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        {/* 3-5. SCHEDULE + DATE/TIME PICKER */}
+        <section className={`${cardClass} flex flex-col gap-5`}>
+          <div>
+            <h2 className={sectionHeadingClass}>Schedule</h2>
+            <p className={sectionSubtitleClass}>When this campaign goes live and (optionally) ends.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--border)] p-4">
+              <label htmlFor="startAt" className={labelClass}>
+                Start
+              </label>
+              <DateTimePicker
+                id="startAt"
+                mode="datetime"
+                name="startAt"
+                value={startAt}
+                onChange={setStartAt}
+                required
+                placeholder="Select start date & time"
+                aria-label="Campaign start date and time"
+              />
+              <p className="text-xs text-[var(--muted)]">Sri Lanka time, UTC+5:30</p>
+            </div>
+            <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--border)] p-4">
+              <label htmlFor="endAt" className={labelClass}>
+                End
+              </label>
+              <DateTimePicker
+                id="endAt"
+                mode="datetime"
+                name="endAt"
+                value={endAt}
+                onChange={setEndAt}
+                placeholder="No end date"
+                aria-label="Campaign end date and time"
+              />
+              <p className="text-xs text-[var(--muted)]">Sri Lanka time — optional</p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              name="freeShippingEnabled"
+              checked={freeShippingEnabled}
+              onChange={(e) => setFreeShippingEnabled(e.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Free shipping for orders containing items from this campaign
           </label>
-          <textarea
-            id="description"
-            name="description"
-            rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={inputClass}
+        </section>
+
+        {/* 6. MEDIA UPLOAD */}
+        <section className={`${cardClass} flex flex-col gap-5`}>
+          <div>
+            <h2 className={sectionHeadingClass}>Media</h2>
+            <p className={sectionSubtitleClass}>Banners and thumbnail shown across the storefront.</p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-[var(--border)] p-4">
+              <SingleImageUploader
+                label="Desktop banner"
+                name="desktopBannerUrl"
+                value={desktopBannerUrl}
+                onChange={setDesktopBannerUrl}
+                hint="Recommended 1600×500"
+              />
+            </div>
+            <div className="rounded-xl border border-[var(--border)] p-4">
+              <SingleImageUploader
+                label="Mobile banner"
+                name="mobileBannerUrl"
+                value={mobileBannerUrl}
+                onChange={setMobileBannerUrl}
+                hint="Recommended 800×600"
+              />
+            </div>
+            <div className="rounded-xl border border-[var(--border)] p-4">
+              <SingleImageUploader
+                label="Thumbnail"
+                name="thumbnailUrl"
+                value={thumbnailUrl}
+                onChange={setThumbnailUrl}
+                hint="Square, for homepage cards"
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* 7. SECTIONS */}
+        <section className={`${cardClass} flex flex-col gap-4`}>
+          <SectionsEditor sections={sections} onChange={setSections} />
+        </section>
+
+        {/* 8. PRODUCTS */}
+        <section className={`${cardClass} flex flex-col gap-4`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className={sectionHeadingClass}>Products</h2>
+              <p className={sectionSubtitleClass}>Add the variants this campaign applies to.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkApplyOpen(true)}
+                className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
+              >
+                + Bulk apply
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium transition-colors hover:bg-black/5"
+              >
+                + Add products
+              </button>
+            </div>
+          </div>
+          <CampaignItemsTable items={items} sections={sections} onChange={setItems} />
+        </section>
+
+        {pickerOpen && (
+          <ProductPickerModal
+            onClose={() => setPickerOpen(false)}
+            onAdd={handlePicked}
+            alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
+            excludeCampaignId={excludeCampaignId}
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="promotionType" className="text-sm font-medium">
-            Promotion type
-          </label>
-          <select
-            id="promotionType"
-            name="promotionType"
-            value={promotionType}
-            onChange={(e) => setPromotionType(e.target.value as CampaignPromotionType)}
-            className={`${inputClass} max-w-xs`}
+        )}
+
+        {bulkApplyOpen && (
+          <BulkApplyModal
+            onClose={() => setBulkApplyOpen(false)}
+            onAdd={handleBulkApplied}
+            alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
+          />
+        )}
+
+        <section className={`${cardClass} flex flex-col gap-4`}>
+          <h2 className={sectionHeadingClass}>Display settings</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="showOnHomepage"
+                checked={showOnHomepage}
+                onChange={(e) => setShowOnHomepage(e.target.checked)}
+                className="h-4 w-4 accent-indigo-600"
+              />
+              Show on homepage
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="showInShop"
+                checked={showInShop}
+                onChange={(e) => setShowInShop(e.target.checked)}
+                className="h-4 w-4 accent-indigo-600"
+              />
+              Show in shop
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="showBadge"
+                checked={showBadge}
+                onChange={(e) => setShowBadge(e.target.checked)}
+                className="h-4 w-4 accent-indigo-600"
+              />
+              Show badge
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="showCountdown"
+                checked={showCountdown}
+                onChange={(e) => setShowCountdown(e.target.checked)}
+                className="h-4 w-4 accent-indigo-600"
+              />
+              Show countdown
+            </label>
+          </div>
+          {showBadge && (
+            <div className="flex flex-col gap-1.5 sm:max-w-xs">
+              <label htmlFor="badgeLabel" className={labelClass}>
+                Badge label
+              </label>
+              <input
+                id="badgeLabel"
+                name="badgeLabel"
+                type="text"
+                value={badgeLabel}
+                onChange={(e) => setBadgeLabel(e.target.value)}
+                placeholder="e.g. Flash Sale"
+                className={inputClass}
+              />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="metaTitle" className={labelClass}>
+              Meta title (optional)
+            </label>
+            <input
+              id="metaTitle"
+              name="metaTitle"
+              type="text"
+              value={metaTitle}
+              onChange={(e) => setMetaTitle(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="metaDescription" className={labelClass}>
+              Meta description (optional)
+            </label>
+            <textarea
+              id="metaDescription"
+              name="metaDescription"
+              rows={2}
+              value={metaDescription}
+              onChange={(e) => setMetaDescription(e.target.value)}
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+        </section>
+
+        <section className={`${cardClass} flex flex-col gap-4`}>
+          <h2 className={sectionHeadingClass}>Preview</h2>
+          <CampaignPreviewPanel
+            name={name}
+            desktopBannerUrl={desktopBannerUrl}
+            sections={sections}
+            items={items}
+          />
+        </section>
+
+        <div className="flex flex-wrap items-center justify-end gap-3 rounded-2xl border border-[var(--border)] bg-white p-4">
+          <button
+            type="submit"
+            name="status"
+            value="draft"
+            disabled={pending}
+            className="rounded-full border border-[var(--border)] px-6 py-3 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
           >
-            <option value="product_discount">Product discount</option>
-            <option value="flash_sale">Flash sale</option>
-            <option value="free_shipping">Free shipping</option>
-            <option value="coupon">Coupon</option>
-          </select>
+            {pending ? "Saving…" : "Save as Draft"}
+          </button>
+          <button
+            type="submit"
+            name="status"
+            value="published"
+            disabled={pending}
+            className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {pending ? "Saving…" : "Save Campaign"}
+          </button>
         </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Schedule</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <label htmlFor="startAt" className="text-sm font-medium">
-              Start (Sri Lanka time, UTC+5:30)
-            </label>
-            <input
-              id="startAt"
-              name="startAt"
-              type="datetime-local"
-              required
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="endAt" className="text-sm font-medium">
-              End (Sri Lanka time — optional)
-            </label>
-            <input
-              id="endAt"
-              name="endAt"
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            name="freeShippingEnabled"
-            checked={freeShippingEnabled}
-            onChange={(e) => setFreeShippingEnabled(e.target.checked)}
-          />
-          Free shipping for orders containing items from this campaign
-        </label>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Images</h2>
-        <div className="grid grid-cols-3 gap-4">
-          <SingleImageUploader
-            label="Desktop banner"
-            name="desktopBannerUrl"
-            value={desktopBannerUrl}
-            onChange={setDesktopBannerUrl}
-            hint="Recommended 1600×500"
-          />
-          <SingleImageUploader
-            label="Mobile banner"
-            name="mobileBannerUrl"
-            value={mobileBannerUrl}
-            onChange={setMobileBannerUrl}
-            hint="Recommended 800×600"
-          />
-          <SingleImageUploader
-            label="Thumbnail"
-            name="thumbnailUrl"
-            value={thumbnailUrl}
-            onChange={setThumbnailUrl}
-            hint="Square, for homepage cards"
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <SectionsEditor sections={sections} onChange={setSections} />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Products</h2>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setBulkApplyOpen(true)}
-              className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
-            >
-              + Bulk apply
-            </button>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
-            >
-              + Add products
-            </button>
-          </div>
-        </div>
-        <CampaignItemsTable items={items} sections={sections} onChange={setItems} />
-      </section>
-
-      {pickerOpen && (
-        <ProductPickerModal
-          onClose={() => setPickerOpen(false)}
-          onAdd={handlePicked}
-          alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
-          excludeCampaignId={excludeCampaignId}
-        />
-      )}
-
-      {bulkApplyOpen && (
-        <BulkApplyModal
-          onClose={() => setBulkApplyOpen(false)}
-          onAdd={handleBulkApplied}
-          alreadyAddedVariantIds={new Set(items.map((i) => i.variantId))}
-        />
-      )}
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Display settings</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              name="showOnHomepage"
-              checked={showOnHomepage}
-              onChange={(e) => setShowOnHomepage(e.target.checked)}
-            />
-            Show on homepage
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              name="showInShop"
-              checked={showInShop}
-              onChange={(e) => setShowInShop(e.target.checked)}
-            />
-            Show in shop
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              name="showBadge"
-              checked={showBadge}
-              onChange={(e) => setShowBadge(e.target.checked)}
-            />
-            Show badge
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              name="showCountdown"
-              checked={showCountdown}
-              onChange={(e) => setShowCountdown(e.target.checked)}
-            />
-            Show countdown
-          </label>
-        </div>
-        {showBadge && (
-          <div className="flex flex-col gap-1">
-            <label htmlFor="badgeLabel" className="text-sm font-medium">
-              Badge label
-            </label>
-            <input
-              id="badgeLabel"
-              name="badgeLabel"
-              type="text"
-              value={badgeLabel}
-              onChange={(e) => setBadgeLabel(e.target.value)}
-              placeholder="e.g. Flash Sale"
-              className={`${inputClass} max-w-xs`}
-            />
-          </div>
-        )}
-        <div className="flex flex-col gap-1">
-          <label htmlFor="metaTitle" className="text-sm font-medium">
-            Meta title (optional)
-          </label>
-          <input
-            id="metaTitle"
-            name="metaTitle"
-            type="text"
-            value={metaTitle}
-            onChange={(e) => setMetaTitle(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="metaDescription" className="text-sm font-medium">
-            Meta description (optional)
-          </label>
-          <textarea
-            id="metaDescription"
-            name="metaDescription"
-            rows={2}
-            value={metaDescription}
-            onChange={(e) => setMetaDescription(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold">Preview</h2>
-        <CampaignPreviewPanel
-          name={name}
-          desktopBannerUrl={desktopBannerUrl}
-          sections={sections}
-          items={items}
-        />
-      </section>
-
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
-
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          name="status"
-          value="draft"
-          disabled={pending}
-          className="transition-brand rounded-full border border-[var(--border)] px-6 py-3 text-sm font-medium hover:bg-black/5 disabled:opacity-50"
-        >
-          {pending ? "Saving…" : "Save as Draft"}
-        </button>
-        <button
-          type="submit"
-          name="status"
-          value="published"
-          disabled={pending}
-          className="transition-brand rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:opacity-50"
-        >
-          {pending ? "Saving…" : "Publish"}
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

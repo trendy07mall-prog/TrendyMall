@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { saveHeroSlide } from "@/lib/admin/hero-slides";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import type { AdminHeroSlide } from "@/lib/admin/hero-slides-query";
 
@@ -127,22 +128,24 @@ export function HeroSlideForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">Start date/time (optional)</label>
-          <input
-            type="datetime-local"
+          <DateTimePicker
+            mode="datetime"
             name="startAt"
             value={startAt}
-            onChange={(e) => setStartAt(e.target.value)}
-            className={inputClass}
+            onChange={setStartAt}
+            placeholder="No start date"
+            aria-label="Slide start date and time"
           />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">End date/time (optional)</label>
-          <input
-            type="datetime-local"
+          <DateTimePicker
+            mode="datetime"
             name="endAt"
             value={endAt}
-            onChange={(e) => setEndAt(e.target.value)}
-            className={inputClass}
+            onChange={setEndAt}
+            placeholder="No end date"
+            aria-label="Slide end date and time"
           />
         </div>
       </div>

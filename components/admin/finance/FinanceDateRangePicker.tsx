@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FINANCE_RANGE_LABELS, type FinanceRange } from "@/lib/admin/finance-shared";
 import type { FinanceRangeState } from "@/lib/admin/finance-filters";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 
 const RANGES = Object.keys(FINANCE_RANGE_LABELS) as FinanceRange[];
 
@@ -74,20 +75,24 @@ export function FinanceDateRangePicker() {
         <>
           <label className="flex items-center gap-2 text-sm">
             From
-            <input
-              type="date"
+            <DateTimePicker
+              mode="date"
               value={state.customFrom}
-              onChange={(e) => apply({ customFrom: e.target.value })}
-              className={selectClass}
+              onChange={(v) => apply({ customFrom: v })}
+              placeholder="Any"
+              aria-label="Finance range from"
+              className="flex w-40 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-3 py-2 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </label>
           <label className="flex items-center gap-2 text-sm">
             To
-            <input
-              type="date"
+            <DateTimePicker
+              mode="date"
               value={state.customTo}
-              onChange={(e) => apply({ customTo: e.target.value })}
-              className={selectClass}
+              onChange={(v) => apply({ customTo: v })}
+              placeholder="Any"
+              aria-label="Finance range to"
+              className="flex w-40 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-3 py-2 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </label>
         </>

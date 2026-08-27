@@ -11,6 +11,7 @@ import type {
   AdminPaymentStatusFilter,
 } from "@/lib/admin/order-filters";
 import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import type { PaymentStatus } from "@/types";
 
 const selectClass =
@@ -76,20 +77,24 @@ export function OrderFilterBar({
 
       <label className="flex items-center gap-2 text-sm">
         From
-        <input
-          type="date"
+        <DateTimePicker
+          mode="date"
           value={state.dateFrom}
-          onChange={(e) => apply({ dateFrom: e.target.value })}
-          className={selectClass}
+          onChange={(v) => apply({ dateFrom: v })}
+          placeholder="Any"
+          aria-label="Order date from"
+          className="flex w-40 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-3 py-2 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </label>
       <label className="flex items-center gap-2 text-sm">
         To
-        <input
-          type="date"
+        <DateTimePicker
+          mode="date"
           value={state.dateTo}
-          onChange={(e) => apply({ dateTo: e.target.value })}
-          className={selectClass}
+          onChange={(v) => apply({ dateTo: v })}
+          placeholder="Any"
+          aria-label="Order date to"
+          className="flex w-40 items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-white px-3 py-2 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
       </label>
 

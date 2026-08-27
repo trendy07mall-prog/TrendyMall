@@ -9,6 +9,7 @@ import {
   type ExpenseFormState,
 } from "@/lib/admin/expenses-shared";
 import type { ExpenseRow } from "@/lib/admin/expenses-query";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 
 const inputClass =
   "rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
@@ -75,13 +76,13 @@ export function ExpenseForm({
           <label htmlFor="expenseDate" className="text-sm font-medium">
             Date
           </label>
-          <input
+          <DateTimePicker
             id="expenseDate"
+            mode="date"
             name="expenseDate"
-            type="date"
             required
             defaultValue={expense?.expenseDate ?? ""}
-            className={inputClass}
+            aria-label="Expense date"
           />
         </div>
 

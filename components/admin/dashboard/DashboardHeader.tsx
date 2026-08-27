@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BellIcon, StoreIcon, UserIcon } from "@/components/ui/Icon";
 import { RangeTabs } from "@/components/admin/dashboard/RangeTabs";
+import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import type { DashboardRange } from "@/lib/admin/dashboard-query";
 
 const RANGE_OPTIONS: { value: DashboardRange; label: string }[] = [
@@ -83,20 +84,24 @@ export function DashboardHeader({
           )}
           <label className="flex flex-col gap-1 text-xs text-[var(--color-text-secondary)]">
             From
-            <input
-              type="date"
+            <DateTimePicker
+              mode="date"
               name="customFrom"
               defaultValue={customFrom}
-              className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1.5 text-sm"
+              placeholder="Any"
+              aria-label="Dashboard range from"
+              className="flex w-36 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1.5 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-[var(--color-text-secondary)]">
             To
-            <input
-              type="date"
+            <DateTimePicker
+              mode="date"
               name="customTo"
               defaultValue={customTo}
-              className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1.5 text-sm"
+              placeholder="Any"
+              aria-label="Dashboard range to"
+              className="flex w-36 items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-white px-2 py-1.5 text-left text-sm transition-colors hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </label>
           <button

@@ -63,22 +63,14 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
 
   if (editing !== null) {
     return (
-      <div>
-        <button
-          type="button"
-          onClick={() => setEditing(null)}
-          className="mb-4 text-sm text-[var(--muted)] underline"
-        >
-          ← Back to campaigns
-        </button>
-        <CampaignForm
-          initial={editing.mode === "edit" ? editing.data : null}
-          onSaved={() => {
-            setEditing(null);
-            router.refresh();
-          }}
-        />
-      </div>
+      <CampaignForm
+        initial={editing.mode === "edit" ? editing.data : null}
+        onSaved={() => {
+          setEditing(null);
+          router.refresh();
+        }}
+        onCancel={() => setEditing(null)}
+      />
     );
   }
 
