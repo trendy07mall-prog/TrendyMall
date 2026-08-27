@@ -1055,6 +1055,23 @@ export function ClockIcon({ className }: IconProps) {
   );
 }
 
+export function PhoneIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M4.5 3h3.5l1.5 4.5-2.25 1.75a12 12 0 0 0 6.5 6.5l1.75-2.25L20 15v3.5a1.5 1.5 0 0 1-1.5 1.5C10.4 20 4 13.6 4 5.5A1.5 1.5 0 0 1 5.5 4Z" />
+    </svg>
+  );
+}
+
 export function LogoutIcon({ className }: IconProps) {
   return (
     <svg

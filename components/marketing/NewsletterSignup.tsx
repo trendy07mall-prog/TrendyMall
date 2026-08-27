@@ -49,15 +49,27 @@ export function NewsletterSignup({ defaultEmail }: { defaultEmail?: string }) {
   }
 
   if (alreadySubscribed) {
-    return <p className="text-sm text-[var(--foreground)]">You&apos;re already subscribed ✓</p>;
+    // Footer.tsx is this component's only real caller (HomeNewsletter.tsx
+    // looks similar but is a separate, independent implementation with its
+    // own dark-card styling already) -- plain --foreground text used to be
+    // fine there, but is near-invisible on the new navy footer, so this is
+    // now a self-contained colored pill instead of relying on ambient text
+    // color.
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-success)]/30 bg-[var(--color-success)]/15 px-3 py-1.5 text-sm font-medium text-[var(--color-success)]">
+        ✓ You&apos;re already subscribed
+      </span>
+    );
   }
 
   if (submitted) {
+    // Same self-contained treatment as the alreadySubscribed pill above,
+    // for the same reason -- plain --foreground text is near-black, all
+    // but invisible on Footer.tsx's navy card.
     return (
-      <p className="text-sm text-[var(--foreground)]">
-        Thanks — you&apos;re on the list. We&apos;ll be in touch with new
-        arrivals and offers.
-      </p>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-success)]/30 bg-[var(--color-success)]/15 px-3 py-1.5 text-sm font-medium text-[var(--color-success)]">
+        ✓ Thanks — you&apos;re on the list
+      </span>
     );
   }
 
@@ -88,7 +100,13 @@ export function NewsletterSignup({ defaultEmail }: { defaultEmail?: string }) {
           {pending ? "Subscribing…" : "Subscribe"}
         </button>
       </form>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {/* Footer.tsx is this component's only real caller now (HomeNewsletter.tsx
+          has its own separate, already-dark-styled implementation) --
+          text-red-600 reads fine on a light card but is too dark against
+          the navy footer, so this reuses the exact coral HomeNewsletter.tsx
+          already validated for the same "error text on a dark background"
+          case, instead of leaving a light-background-oriented red. */}
+      {error && <p className="mt-2 text-xs text-[#ff6b61]">{error}</p>}
     </div>
   );
 }
