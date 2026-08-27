@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProductGalleryWithVariants } from "@/components/product/ProductGalleryWithVariants";
 import { AttributeCard } from "@/components/product/AttributeCard";
 import { AttributeSelector } from "@/components/product/AttributeSelector";
@@ -73,6 +74,14 @@ export function ProductPurchaseSection({
   inZoneRate: number;
   outsideZoneRate: number;
 }) {
+  // ?variant=<id> deep link -- set by campaign-context product cards
+  // (ActiveCampaignSections.tsx, /campaign/[slug]'s ProductGrid) so the PDP
+  // opens on the exact campaign-featured variant the card showed a price
+  // for, instead of this product's own default. Read once here; validated
+  // against this product's real variants inside defaultDimensions() below,
+  // same place pickWinningVariant's own fallback already lives.
+  const variantIdParam = useSearchParams().get("variant");
+
   // Color options are every distinct color across this product's variants
   // (deduped -- two variants can share a color, e.g. the same white in two
   // capacities, and must render as ONE swatch, not two identical ones). A
@@ -192,7 +201,17 @@ export function ProductPurchaseSection({
     // that can, rather than opening the page on a selection the customer
     // can't add to cart without first fixing it themselves.
     const fullyResolved = variants.filter(variantFullyResolvesAttributes);
-    const defaultVariant = pickWinningVariant(fullyResolved.length > 0 ? fullyResolved : variants);
+    // A ?variant= id that's real, belongs to this product, and can fully
+    // populate every variant-defining attribute wins over the usual
+    // pickWinningVariant pick -- exactly what a campaign card's link
+    // pointed at. Anything else (no param, a stale/foreign id, a variant
+    // that can't fully resolve) falls straight through to today's default,
+    // never an error.
+    const requestedVariant = variantIdParam
+      ? fullyResolved.find((v) => v.id === variantIdParam)
+      : undefined;
+    const defaultVariant =
+      requestedVariant ?? pickWinningVariant(fullyResolved.length > 0 ? fullyResolved : variants);
     return {
       colorKey: colorOptions.length > 0 ? normalizeColor(defaultVariant.color_name) : null,
       attributeValues: attributeValuesForVariant(defaultVariant),

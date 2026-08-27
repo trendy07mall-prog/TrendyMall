@@ -18,10 +18,16 @@ const STOCK_STATE = {
 export function ProductListItem({
   product,
   variant = "default",
+  linkVariantId = null,
 }: {
   product: ProductWithPrimaryImage;
   variant?: "default" | "shop";
+  // See ProductCard.tsx's identical prop -- campaign-context callers only.
+  linkVariantId?: string | null;
 }) {
+  const productHref = linkVariantId
+    ? `/product/${product.slug}?variant=${linkVariantId}`
+    : `/product/${product.slug}`;
   const stock =
     product.stock <= 0
       ? { color: STOCK_STATE.out, label: "Out of stock" }
@@ -37,7 +43,7 @@ export function ProductListItem({
     >
       <div className="relative shrink-0">
         <Link
-          href={`/product/${product.slug}`}
+          href={productHref}
           className="relative block aspect-square w-28 overflow-hidden rounded-[var(--radius-md)] bg-white"
         >
           {product.image ? (
@@ -68,7 +74,7 @@ export function ProductListItem({
 
       <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
         <div>
-          <Link href={`/product/${product.slug}`}>
+          <Link href={productHref}>
             <h3 className="line-clamp-2 text-sm font-medium">{product.name}</h3>
           </Link>
           {product.reviewCount > 0 && (

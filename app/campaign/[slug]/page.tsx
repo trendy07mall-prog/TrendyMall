@@ -184,7 +184,11 @@ export default async function CampaignPage({
             .filter((p): p is ProductWithPrimaryImage => p != null);
           return (
             <div className="mt-8">
-              <ProductGrid products={pagedProducts} emptyMessage="No products in this campaign." />
+              <ProductGrid
+                products={pagedProducts}
+                emptyMessage="No products in this campaign."
+                linkToFeaturedVariant
+              />
               <Pagination
                 basePath={basePath}
                 currentPage={currentPage}
@@ -207,7 +211,7 @@ export default async function CampaignPage({
                   {group.section.name}
                 </h2>
               )}
-              <ProductGrid products={groupProducts} />
+              <ProductGrid products={groupProducts} linkToFeaturedVariant />
             </div>
           );
         })

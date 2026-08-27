@@ -58,7 +58,17 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
               showArrows={products.length > 5}
             >
               {products.map((product) => (
-                <ProductCard key={product.id} product={product} hideDeliveryEstimate />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  hideDeliveryEstimate
+                  // Every product here already carries its own
+                  // campaign-featured variant id as defaultVariantId (see
+                  // applyCampaignFeaturedDisplay) -- the PDP must open on
+                  // that exact variant, not whatever the product's own
+                  // globally-cheapest default happens to be.
+                  linkVariantId={product.defaultVariantId}
+                />
               ))}
             </Carousel>
           </div>

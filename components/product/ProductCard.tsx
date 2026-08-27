@@ -24,6 +24,7 @@ export function ProductCard({
   product,
   hideDeliveryEstimate = false,
   variant = "default",
+  linkVariantId = null,
 }: {
   product: ProductWithPrimaryImage;
   // Homepage-only (New Arrivals) — every other render site (/shop, category,
@@ -37,7 +38,18 @@ export function ProductCard({
   // this component also renders on /category, /search, Related Products,
   // and the homepage, none of which asked for the redesign.
   variant?: "default" | "shop";
+  // Set ONLY by campaign-context callers (ActiveCampaignSections.tsx,
+  // /campaign/[slug] via ProductGrid's linkToFeaturedVariant) to this
+  // product's campaign-featured variant id -- appends ?variant= so the PDP
+  // opens pre-selected on the exact variant this card is showing a price
+  // for, instead of landing on whatever the product's own default variant
+  // happens to be. Every other render site leaves this null/omitted, so
+  // its product links are byte-for-byte unchanged.
+  linkVariantId?: string | null;
 }) {
+  const productHref = linkVariantId
+    ? `/product/${product.slug}?variant=${linkVariantId}`
+    : `/product/${product.slug}`;
   const discountPercent = getDiscountPercent(product.actual_price, product.special_price);
   const delivery = getEstimatedDeliveryRange();
   const stock =
@@ -63,7 +75,7 @@ export function ProductCard({
             (92%, true 1:1 aspect-square rather than a fixed height) so the
             image reads as the card's primary focus. */}
         <Link
-          href={`/product/${product.slug}`}
+          href={productHref}
           className={`relative mx-auto block aspect-square overflow-hidden rounded-[14px] bg-white ${
             isShop ? "w-[92%]" : "w-5/6"
           }`}
@@ -128,7 +140,7 @@ export function ProductCard({
             is pinned to the bottom of the card body below (mt-auto), not
             inside this image wrapper -- no hitbox overlap. */}
         <Link
-          href={`/product/${product.slug}`}
+          href={productHref}
           aria-label={`Quick view ${product.name}`}
           className="absolute right-2 bottom-2 hidden h-9 w-9 items-center justify-center rounded-full bg-white text-[var(--foreground)] opacity-0 shadow-[var(--shadow-card)] transition-opacity duration-200 group-hover:opacity-100 sm:flex hover:bg-[var(--foreground)] hover:text-white"
         >
@@ -151,7 +163,7 @@ export function ProductCard({
               {product.brand}
             </p>
           )}
-          <Link href={`/product/${product.slug}`}>
+          <Link href={productHref}>
             <h3
               className={`line-clamp-2 leading-[1.45] font-medium ${product.brand ? "mt-1" : ""} ${
                 isShop ? "min-h-12 text-base" : "min-h-10 text-sm"

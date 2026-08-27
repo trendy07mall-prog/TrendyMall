@@ -10,6 +10,7 @@ export function ProductGrid({
   products,
   emptyMessage = "No products in this category yet.",
   variant = "default",
+  linkToFeaturedVariant = false,
 }: {
   products: ProductWithPrimaryImage[];
   emptyMessage?: string;
@@ -17,6 +18,12 @@ export function ProductGrid({
   // caller (category, search, related products) omits this and keeps
   // today's rendering untouched.
   variant?: "default" | "shop";
+  // /campaign/[slug] only -- each product here already carries its own
+  // campaign-featured variant id as defaultVariantId (see
+  // applyCampaignFeaturedDisplay in lib/data/campaigns.ts). Every other
+  // caller (Shop, category, search) omits this, so their product links
+  // are byte-for-byte unchanged.
+  linkToFeaturedVariant?: boolean;
 }) {
   const { view } = useViewMode();
 
@@ -38,7 +45,12 @@ export function ProductGrid({
     return (
       <div className="flex flex-col gap-4">
         {products.map((product) => (
-          <ProductListItem key={product.id} product={product} variant={variant} />
+          <ProductListItem
+            key={product.id}
+            product={product}
+            variant={variant}
+            linkVariantId={linkToFeaturedVariant ? product.defaultVariantId : null}
+          />
         ))}
       </div>
     );
@@ -47,7 +59,12 @@ export function ProductGrid({
   return (
     <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 ${variant === "shop" ? "gap-6" : "gap-5"}`}>
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} variant={variant} />
+        <ProductCard
+          key={product.id}
+          product={product}
+          variant={variant}
+          linkVariantId={linkToFeaturedVariant ? product.defaultVariantId : null}
+        />
       ))}
     </div>
   );
