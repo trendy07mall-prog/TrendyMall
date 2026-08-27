@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { signOut } from "@/app/auth/actions";
+import { useScrollState } from "@/context/ScrollStateContext";
 import { CartCount } from "@/components/cart/CartCount";
 import { WishlistCount } from "@/components/cart/WishlistCount";
 import { SearchBox } from "@/components/layout/SearchBox";
@@ -97,13 +98,13 @@ export function NavbarClient({
   const [accountOpen, setAccountOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
-  const stickySentinelRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const drawerWrapperRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const isCheckout = pathname === "/checkout";
+  const isProductPage = pathname?.startsWith("/product/") ?? false;
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
   // the header's own top edge reaches 0, it's pinned and whatever's below
@@ -115,39 +116,24 @@ export function NavbarClient({
   // solid once its hero had fully scrolled past (a hero-specific "past"
   // boundary tracked via #hero-sentinel). That boundary is gone now, so
   // glass simply follows `stuck` everywhere, home included.
-  const [stuck, setStuck] = useState(false);
+  //
+  // Now sourced from ScrollStateContext (a single sitewide listener)
+  // instead of a sentinel/effect local to this component -- the mobile
+  // bottom nav needs this exact same "scrolled past the top, stays true
+  // until back at 0" signal for its own product-page-only shrink, and
+  // audit turned up no reason for two independent listeners to compute
+  // the identical value. See ScrollStateContext.tsx for the technique
+  // (unchanged: direct getBoundingClientRect() reads, no throttle, same
+  // double-rAF AnnouncementBar-hydration-race guard).
+  const { headerStuck: stuck } = useScrollState();
   const glass = stuck;
 
-  // `stuck` is derived from a direct getBoundingClientRect() read inside
-  // this scroll/resize listener, not IntersectionObserver — confirmed via
-  // Playwright that IO's callback (spec'd as best-effort/batched) can
-  // silently stop firing partway through a fast scroll, especially on
-  // mobile, permanently freezing whichever state it drove for the rest of
-  // the session (this is what was breaking HomeSearchBar.tsx's own
-  // fade-in too — same fix applied there). A synchronous rect read on
-  // every already-throttled scroll tick doesn't have a callback to miss.
-  //
-  // The one thing IntersectionObserver bought over a plain scroll listener
-  // was sidestepping a hydration race: AnnouncementBar renders nothing
-  // until its own effect flips `hydrated` true, so a `stuck` measurement
-  // taken synchronously on mount could catch the header still sitting at
-  // its pre-AnnouncementBar position for one frame. Two nested
-  // requestAnimationFrame calls before the first measurement waits for
-  // that frame's commit and the one after it, which is enough for
-  // AnnouncementBar's layout to have settled by the time it runs.
-  //
-  // A ResizeObserver on document.body catches layout shifts a plain
-  // scroll/resize listener alone would miss (e.g. async page content
-  // still loading in and changing the page's height right as the visitor
-  // scrolls) — not one-shot, so every genuine layout change gets its own
-  // fresh measurement for as long as this component is mounted, same as
-  // the scroll listener.
   useEffect(() => {
     // `scrolled` gets its own immediate, undelayed read here -- unlike
     // `stuck`, it has no AnnouncementBar race to dodge (it's a plain
     // window.scrollY > 8 threshold, not a getBoundingClientRect() read
-    // dependent on a sibling's layout), so it doesn't need to wait for the
-    // double-rAF below. Traced via Playwright on non-home routes with more
+    // dependent on a sibling's layout), so it doesn't need to wait for a
+    // double-rAF. Traced via Playwright on non-home routes with more
     // client-side hydration work (Wishlist/Cart reading Context off
     // localStorage, Contact's forms): window.scrollY is already correct at
     // this line the entire time the border shows the wrong (transparent)
@@ -157,12 +143,7 @@ export function NavbarClient({
     // part of load. That's normal React scheduling, not a bug this
     // component can fix without forcing a synchronous commit (flushSync)
     // at the cost of blocking hydration elsewhere for a purely cosmetic,
-    // self-resolving border -- not a worthwhile trade. This line removes
-    // the one real gap that WAS this component's own doing (the
-    // unnecessary double-rAF delay applied to a value that never needed
-    // it); the residual sub-second settling on heavier pages is inherent
-    // hydration-priority behavior, negligible against a real page load's
-    // total time off localhost.
+    // self-resolving border -- not a worthwhile trade.
     // Syncing to an external signal (the real, already-current scroll
     // position) — same class of exception as the localStorage/matchMedia-
     // read effects elsewhere in this file.
@@ -171,13 +152,7 @@ export function NavbarClient({
 
     function measure() {
       setScrolled(window.scrollY > 8);
-      const sentinel = stickySentinelRef.current;
-      if (sentinel) setStuck(sentinel.getBoundingClientRect().top < 0);
     }
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(measure);
-    });
     window.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure);
 
@@ -185,8 +160,6 @@ export function NavbarClient({
     resizeObserver.observe(document.body);
 
     return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
       window.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
       resizeObserver.disconnect();
@@ -323,11 +296,27 @@ export function NavbarClient({
   // off the exact same shared motion token globals.css zeroes under
   // prefers-reduced-motion, so it gets that behavior for free without
   // touching the shared utility.
+  // Product page, mobile only: once scrolled past the top (the same
+  // `stuck` signal glass mode already follows), the header slides/fades
+  // away entirely and stays that way regardless of scroll direction --
+  // only returning once back at true scrollY≈0. max-md: keeps this a
+  // no-op at desktop widths (the plain sticky/glass behavior above is
+  // untouched there); transform+opacity only, no layout properties, so
+  // there's nothing for the scroll handler itself to thrash. Safe against
+  // position:sticky specifically because by the time `stuck` is true the
+  // header is already pinned/floating over later content rather than
+  // occupying its own reserved flow space -- sliding it away reveals
+  // exactly what was already sitting behind it, not a blank gap.
+  const productPageAutoHideClass =
+    isProductPage && stuck
+      ? "max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0"
+      : "";
+
   const headerOuterClass = glass
-    ? "sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4"
-    : `sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-colors duration-[var(--transition-duration)] print:hidden ${
+    ? `sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding,transform,opacity] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4 ${productPageAutoHideClass}`
+    : `sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-[color,background-color,border-color,transform,opacity] duration-[var(--transition-duration)] print:hidden ${
         isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
-      }`;
+      } ${productPageAutoHideClass}`;
 
   // Dark-tinted glass (not the bottom nav's light frosted glass) — this
   // header needs to carry WHITE content, and white text on a mostly-white
@@ -357,7 +346,6 @@ export function NavbarClient({
 
   return (
     <>
-      <div ref={stickySentinelRef} aria-hidden="true" className="h-0" />
       <header ref={headerRef} className={headerOuterClass}>
       <div className={headerInnerClass}>
         <Link

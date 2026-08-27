@@ -14,6 +14,7 @@ import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
+import { ScrollStateProvider } from "@/context/ScrollStateContext";
 import { getActiveBanner } from "@/lib/data/banner";
 import {
   getAnnouncementSettings,
@@ -157,38 +158,47 @@ export default async function RootLayout({
           <CartProvider>
             <WishlistProvider>
               <RecentlyViewedProvider>
-                <ConditionalChrome>
-                  <AnnouncementBar
-                    enabled={announcement.enabled}
-                    messages={announcement.messages}
-                    autoRotate={announcement.autoRotate}
-                    rotateSpeedMs={announcement.rotateSpeedMs}
-                    whatsappNumber={general.whatsappNumber}
-                    zones={zones}
-                  />
-                  <PromoBanner banner={banner} />
-                  <Navbar />
-                  <HomeSearchBar />
-                </ConditionalChrome>
-                <main
-                  className="flex flex-1 flex-col"
-                  style={{
-                    paddingBottom:
-                      "calc(var(--mobile-nav-height, 0px) + var(--pdp-floating-bar-height, 0px))",
-                  }}
-                >
-                  <ViewTransition>{children}</ViewTransition>
-                </main>
-                <ConditionalChrome>
-                  <TrustSection businessHoursSummary={formatBusinessHoursSummary(general.businessHours)} />
-                  <Footer />
-                  <WhatsAppButton
-                    enabled={contact.whatsappEnabled}
-                    number={general.whatsappNumber}
-                    defaultMessage={contact.whatsappDefaultMessage}
-                  />
-                  <MobileBottomNav />
-                </ConditionalChrome>
+                <ScrollStateProvider>
+                  <ConditionalChrome>
+                    <AnnouncementBar
+                      enabled={announcement.enabled}
+                      messages={announcement.messages}
+                      autoRotate={announcement.autoRotate}
+                      rotateSpeedMs={announcement.rotateSpeedMs}
+                      whatsappNumber={general.whatsappNumber}
+                      zones={zones}
+                    />
+                    <PromoBanner banner={banner} />
+                    {/* Non-sticky marker for "has the page scrolled past the
+                        header's natural (pre-stuck) position" -- see
+                        ScrollStateContext.tsx. Lives here (not inside
+                        NavbarClient) so it's a plain DOM lookup any
+                        consumer can share, rather than a ref private to one
+                        component. */}
+                    <div id="header-sticky-sentinel" aria-hidden="true" className="h-0" />
+                    <Navbar />
+                    <HomeSearchBar />
+                  </ConditionalChrome>
+                  <main
+                    className="flex flex-1 flex-col"
+                    style={{
+                      paddingBottom:
+                        "calc(var(--mobile-nav-height, 0px) + var(--pdp-floating-bar-height, 0px))",
+                    }}
+                  >
+                    <ViewTransition>{children}</ViewTransition>
+                  </main>
+                  <ConditionalChrome>
+                    <TrustSection businessHoursSummary={formatBusinessHoursSummary(general.businessHours)} />
+                    <Footer />
+                    <WhatsAppButton
+                      enabled={contact.whatsappEnabled}
+                      number={general.whatsappNumber}
+                      defaultMessage={contact.whatsappDefaultMessage}
+                    />
+                    <MobileBottomNav />
+                  </ConditionalChrome>
+                </ScrollStateProvider>
               </RecentlyViewedProvider>
             </WishlistProvider>
           </CartProvider>

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/components/ui/Icon";
 import { CartCount } from "@/components/cart/CartCount";
+import { useScrollState } from "@/context/ScrollStateContext";
 
 // Cart/checkout already have their own sticky primary-action bar (Proceed
 // to Checkout / Place Order) — a persistent nav competing for the same
@@ -32,6 +33,15 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
     : { type: "tween" as const, duration: 0.22, ease: "easeInOut" as const };
 
   const hiddenByRoute = HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+  // Product page only, same `headerStuck` source the header's own
+  // scroll-past-top auto-hide uses (see ScrollStateContext.tsx) -- stays
+  // shrunk regardless of scroll direction until back at the top, same
+  // position-based rule as the header for consistency. Every other route's
+  // bottom nav is completely unaffected.
+  const { headerStuck } = useScrollState();
+  const isProductPage = pathname.startsWith("/product/");
+  const compact = isProductPage && headerStuck;
 
   const items: NavItem[] = [
     { href: "/", label: "Home", icon: HomeIcon, isActive: (p) => p === "/" },
@@ -112,10 +122,18 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
             // this, that see-through glass gap would silently swallow taps
             // meant for whatever's underneath, even though nothing is
             // visibly there to suggest that.
-            "pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] flex justify-center pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden print:hidden"
+            `pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-bottom-nav)] flex justify-center transition-[padding] duration-200 ease-in-out motion-reduce:transition-none md:hidden print:hidden ${
+                compact
+                  ? "pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+                  : "pb-[calc(1rem+env(safe-area-inset-bottom))]"
+              }`
       }
     >
-      <div className="pointer-events-auto flex h-14 w-[88%] max-w-[380px] items-center justify-around rounded-full border border-white/50 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md backdrop-saturate-150">
+      <div
+        className={`pointer-events-auto flex w-[88%] max-w-[380px] items-center justify-around rounded-full border border-white/50 bg-white/70 shadow-[0_8px_32px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-md backdrop-saturate-150 transition-[height] duration-200 ease-in-out motion-reduce:transition-none ${
+          compact ? "h-12" : "h-14"
+        }`}
+      >
         {items.map((item) => {
           const active = item.isActive(pathname);
           return (
@@ -135,16 +153,18 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
                 <motion.span
                   layoutId="bottom-nav-active-pill"
                   transition={TRANSITION}
-                  className="absolute inset-0 m-auto h-10 w-10 rounded-full bg-black/[0.07]"
+                  className={`absolute inset-0 m-auto rounded-full bg-black/[0.07] transition-[width,height] duration-200 ease-in-out motion-reduce:transition-none ${
+                    compact ? "h-9 w-9" : "h-10 w-10"
+                  }`}
                 />
               )}
               <span className="relative flex">
                 <item.icon
-                  className={`relative h-5 w-5 transition-transform duration-[220ms] motion-reduce:transition-none ${
-                    active ? "scale-105 text-[var(--foreground)]" : "text-[var(--color-text-secondary)]"
-                  }`}
+                  className={`relative transition-[transform,width,height] duration-[220ms] motion-reduce:transition-none ${
+                    compact ? "h-[18px] w-[18px]" : "h-5 w-5"
+                  } ${active ? "scale-105 text-[var(--foreground)]" : "text-[var(--color-text-secondary)]"}`}
                 />
-                {item.label === "Cart" && <CartCount variant="nav" />}
+                {item.label === "Cart" && <CartCount variant="nav" compact={compact} />}
               </span>
             </Link>
           );

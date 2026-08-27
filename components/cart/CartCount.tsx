@@ -9,7 +9,16 @@ import { useCart } from "@/context/CartContext";
 // (needs 4.5:1); black on the same orange measures 6.74:1. Both variants
 // read the same useCart().count — there is only ever one number, just two
 // ways of drawing it.
-export function CartCount({ variant = "header" }: { variant?: "header" | "nav" }) {
+export function CartCount({
+  variant = "header",
+  compact = false,
+}: {
+  variant?: "header" | "nav";
+  // nav-only: the product page's scrolled-down bottom nav shrinks slightly
+  // (see MobileBottomNavClient.tsx) -- the badge scales down with it so it
+  // stays proportional to the now-smaller icon instead of looking oversized.
+  compact?: boolean;
+}) {
   const { count } = useCart();
   if (count === 0) return null;
 
@@ -19,7 +28,11 @@ export function CartCount({ variant = "header" }: { variant?: "header" | "nav" }
     // only the badge's own corner clips the icon's corner, the standard
     // badge look, same color/count/size otherwise.
     return (
-      <span className="absolute -top-2 -right-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-warning)] px-1 text-[11px] font-semibold text-[#111111]">
+      <span
+        className={`absolute flex items-center justify-center rounded-full bg-[var(--color-warning)] px-1 font-semibold text-[#111111] transition-[width,height,top,right] duration-200 ease-in-out motion-reduce:transition-none ${
+          compact ? "-top-1.5 -right-1.5 h-4 min-w-4 text-[10px]" : "-top-2 -right-2 h-5 min-w-5 text-[11px]"
+        }`}
+      >
         {count}
       </span>
     );

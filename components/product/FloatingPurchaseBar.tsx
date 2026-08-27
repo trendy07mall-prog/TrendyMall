@@ -6,10 +6,13 @@ import { BuyNowButton } from "@/components/product/BuyNowButton";
 import { formatPrice } from "@/lib/utils";
 import type { AttributeSelection, Product, ProductVariant } from "@/types";
 
+// Compact: min-h-11 (44px) is this site's own established minimum tap
+// target (same as the bottom nav's Link areas), not a new number -- moderately
+// smaller than the previous min-h-12 (48px) without going below it.
 const BUTTON_CLASS_PRIMARY =
-  "flex min-h-12 w-full items-center justify-center rounded-[var(--radius-btn)] bg-[var(--foreground)] px-2 text-sm font-semibold text-white transition-transform hover:scale-[1.02] disabled:opacity-40";
+  "flex min-h-11 w-full items-center justify-center rounded-[var(--radius-btn)] bg-[var(--foreground)] px-2 text-[13px] font-semibold text-white transition-transform hover:scale-[1.02] disabled:opacity-40";
 const BUTTON_CLASS_SECONDARY =
-  "flex min-h-12 w-full items-center justify-center rounded-[var(--radius-btn)] border border-[var(--foreground)] px-2 text-sm font-semibold transition-colors hover:bg-black/5 disabled:opacity-40";
+  "flex min-h-11 w-full items-center justify-center rounded-[var(--radius-btn)] border border-[var(--foreground)] px-2 text-[13px] font-semibold transition-colors hover:bg-black/5 disabled:opacity-40";
 
 // Appears once the real in-page purchase controls (ProductPurchaseSection's
 // quantity/Add to Cart/Buy Now block) scroll out of view -- driven by an
@@ -75,7 +78,7 @@ export function FloatingPurchaseBar({
     <div
       ref={ref}
       aria-hidden={!visible}
-      className={`fixed inset-x-4 z-[var(--z-whatsapp)] flex flex-col gap-2 rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-3 shadow-[var(--shadow-card-hover)] transition-[transform,opacity] duration-[220ms] ease-in-out motion-reduce:transition-none md:hidden ${
+      className={`fixed inset-x-4 z-[var(--z-whatsapp)] flex flex-col gap-1.5 rounded-[var(--radius-lg)] border border-[var(--border)] bg-white p-2.5 shadow-[var(--shadow-card-hover)] transition-[transform,opacity] duration-[220ms] ease-in-out motion-reduce:transition-none md:hidden ${
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
       }`}
       style={{ bottom: "calc(var(--mobile-nav-height, 0px) + 14px)" }}
@@ -85,7 +88,7 @@ export function FloatingPurchaseBar({
           {selectionError}
         </p>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {/* A compact single-line current price, not the full PriceDisplay
             (strikethrough + badge) -- that needs ~170px at this font size,
             which left the two buttons too narrow for their own labels and
@@ -95,7 +98,7 @@ export function FloatingPurchaseBar({
         <span className="shrink-0 text-sm font-bold whitespace-nowrap">
           {formatPrice(specialPrice ?? actualPrice)}
         </span>
-        <div className="flex flex-1 items-center gap-2">
+        <div className="flex flex-1 items-center gap-1.5">
           <AddToCartForm
             product={product}
             variant={variant}
