@@ -56,7 +56,14 @@ export function CampaignBanner({
       )}
 
       {mobile && (
-        <div className="relative aspect-[1200/675] w-full overflow-hidden rounded-[var(--radius-card)] md:hidden">
+        // 800/600 (4:3) matches the "Recommended 800×600" hint on the
+        // mobile banner upload field exactly -- this used to be 1200/675
+        // (16:9), which forced object-cover to crop ~25% off the top and
+        // bottom of a genuinely-4:3 upload (exactly where an admin's badge/
+        // CTA overlay lives), even though the image itself was correctly
+        // sized. Matching the container to the real upload ratio means
+        // cover has nothing left to crop.
+        <div className="relative aspect-[800/600] w-full overflow-hidden rounded-[var(--radius-card)] md:hidden">
           <Image
             src={mobile}
             alt={alt}

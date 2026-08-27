@@ -62,9 +62,14 @@ export function CampaignBannerCarousel({ campaigns }: { campaigns: Campaign[] })
       )}
 
       {mobileSlides.length > 0 && (
+        // 800/600 (4:3) matches the "Recommended 800×600" hint on the
+        // mobile banner upload field exactly -- see CampaignBanner.tsx's
+        // identical fix for the full explanation (this component and that
+        // one render the same admin-uploaded mobile banners on two
+        // different pages, so both needed the same correction).
         <SlideCarousel
           slides={mobileSlides}
-          wrapperClassName="aspect-[1200/675] md:hidden"
+          wrapperClassName="aspect-[800/600] md:hidden"
           ariaLabel="Active campaigns"
           imageSizes={MOBILE_SIZES}
         />
