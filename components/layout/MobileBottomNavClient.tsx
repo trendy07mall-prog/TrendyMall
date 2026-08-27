@@ -34,14 +34,14 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const hiddenByRoute = HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  // Product page only, same `headerStuck` source the header's own
-  // scroll-past-top auto-hide uses (see ScrollStateContext.tsx) -- stays
-  // shrunk regardless of scroll direction until back at the top, same
-  // position-based rule as the header for consistency. Every other route's
-  // bottom nav is completely unaffected.
+  // Sitewide, same `headerStuck` source the header's own scroll-past-top
+  // auto-hide uses (see ScrollStateContext.tsx) -- stays shrunk regardless
+  // of scroll direction until back at the top, same position-based rule as
+  // the header for consistency. Originally product-page-only; extended to
+  // every route the nav itself renders on (cart/checkout still hide the
+  // nav entirely via hiddenByRoute above, unrelated to this).
   const { headerStuck } = useScrollState();
-  const isProductPage = pathname.startsWith("/product/");
-  const compact = isProductPage && headerStuck;
+  const compact = headerStuck;
 
   const items: NavItem[] = [
     { href: "/", label: "Home", icon: HomeIcon, isActive: (p) => p === "/" },

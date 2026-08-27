@@ -104,7 +104,6 @@ export function NavbarClient({
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const isCheckout = pathname === "/checkout";
-  const isProductPage = pathname?.startsWith("/product/") ?? false;
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
   // the header's own top edge reaches 0, it's pinned and whatever's below
@@ -296,27 +295,26 @@ export function NavbarClient({
   // off the exact same shared motion token globals.css zeroes under
   // prefers-reduced-motion, so it gets that behavior for free without
   // touching the shared utility.
-  // Product page, mobile only: once scrolled past the top (the same
-  // `stuck` signal glass mode already follows), the header slides/fades
-  // away entirely and stays that way regardless of scroll direction --
-  // only returning once back at true scrollY≈0. max-md: keeps this a
-  // no-op at desktop widths (the plain sticky/glass behavior above is
-  // untouched there); transform+opacity only, no layout properties, so
-  // there's nothing for the scroll handler itself to thrash. Safe against
+  // Mobile, sitewide: once scrolled past the top (the same `stuck` signal
+  // glass mode already follows), the header slides/fades away entirely and
+  // stays that way regardless of scroll direction -- only returning once
+  // back at true scrollY≈0. Originally shipped product-page-only; extended
+  // to every route the same way the glass header itself was earlier (same
+  // trigger, no per-page reimplementation). max-md: keeps this a no-op at
+  // desktop widths (the plain sticky/glass behavior above is untouched
+  // there); transform+opacity only, no layout properties, so there's
+  // nothing for the scroll handler itself to thrash. Safe against
   // position:sticky specifically because by the time `stuck` is true the
   // header is already pinned/floating over later content rather than
   // occupying its own reserved flow space -- sliding it away reveals
   // exactly what was already sitting behind it, not a blank gap.
-  const productPageAutoHideClass =
-    isProductPage && stuck
-      ? "max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0"
-      : "";
+  const autoHideClass = stuck ? "max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0" : "";
 
   const headerOuterClass = glass
-    ? `sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding,transform,opacity] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4 ${productPageAutoHideClass}`
+    ? `sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding,transform,opacity] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4 ${autoHideClass}`
     : `sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-[color,background-color,border-color,transform,opacity] duration-[var(--transition-duration)] print:hidden ${
         isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
-      } ${productPageAutoHideClass}`;
+      } ${autoHideClass}`;
 
   // Dark-tinted glass (not the bottom nav's light frosted glass) — this
   // header needs to carry WHITE content, and white text on a mostly-white

@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { EMPTY_FILTER_STATE, filterStateToParams } from "@/lib/product-filters";
 import type { ProductFilterState } from "@/lib/product-filters";
+import { useScrollState } from "@/context/ScrollStateContext";
 
 const BEST_SELLER_TAG_SLUG = "best-seller";
 
@@ -86,6 +89,13 @@ export function ShopQuickJumpNav({
     },
   ];
 
+  // Mobile-only: once the header auto-hides (see NavbarClient.tsx/
+  // ScrollStateContext.tsx), the 85px gap this bar normally reserves for
+  // it would otherwise sit empty instead of the bar sliding up to meet the
+  // viewport top. md:top-[85px] keeps desktop (where the header never
+  // hides) exactly as it was.
+  const { headerStuck } = useScrollState();
+
   return (
     // mt-8 lives here (not on a wrapping div in app/shop/page.tsx) --
     // position: sticky is constrained to its immediate parent's box, and a
@@ -97,8 +107,13 @@ export function ShopQuickJumpNav({
     // height (measured 85px at 320/390/1440px -- constant across
     // breakpoints since its py-5 padding dominates over the logo's small
     // sm: size bump) so the nav docks flush under it with no gap or overlap
-    // once stuck.
-    <div className="sticky top-[85px] z-[var(--z-shop-tabs)] mt-8 rounded-[var(--radius-md)] border border-[var(--border)] bg-white/95 backdrop-blur-sm">
+    // once stuck (or flush under the viewport top once the header itself
+    // has auto-hidden on mobile -- see headerStuck above).
+    <div
+      className={`sticky z-[var(--z-shop-tabs)] mt-8 rounded-[var(--radius-md)] border border-[var(--border)] bg-white/95 backdrop-blur-sm ${
+        headerStuck ? "top-0 md:top-[85px]" : "top-[85px]"
+      }`}
+    >
       <nav aria-label="Jump to section" className="flex gap-1 overflow-x-auto px-2 py-2">
         {items.map((item) => (
           <Link
