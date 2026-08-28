@@ -36,3 +36,18 @@ export const createClient = cache(async () => {
     },
   );
 });
+
+// Shared by every Server Component that just needs to know "is anyone
+// logged in, and who" (Navbar, Footer, MobileBottomNav, and several page
+// components) -- cache() memoizes this per request the same way createClient
+// itself is memoized above, so a page that renders all three of those in
+// one tree pays for exactly one real auth.getUser() network round trip
+// instead of one per caller. auth.getUser() deliberately always re-verifies
+// against Supabase rather than trusting a cached JWT (that's the whole
+// point of using it over auth.getSession()), so without this wrapper each
+// call site would be a separate hit no matter how many times createClient()
+// itself gets reused.
+export const getAuthUser = cache(async () => {
+  const supabase = await createClient();
+  return supabase.auth.getUser();
+});

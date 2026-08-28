@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 import { getMyProfile } from "@/lib/profile";
 import { getMyAddresses } from "@/lib/addresses";
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
@@ -24,14 +24,13 @@ function SettingsSection({
 }
 
 export default async function AccountSettingsPage() {
-  const supabase = await createClient();
   const [
     {
       data: { user },
     },
     profile,
     addresses,
-  ] = await Promise.all([supabase.auth.getUser(), getMyProfile(), getMyAddresses()]);
+  ] = await Promise.all([getAuthUser(), getMyProfile(), getMyAddresses()]);
 
   return (
     <div className="flex flex-col gap-6">

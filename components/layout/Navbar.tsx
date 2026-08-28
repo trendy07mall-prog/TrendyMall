@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getBrandingSettings } from "@/lib/data/settings";
 import { NavbarClient } from "@/components/layout/NavbarClient";
@@ -7,7 +7,7 @@ export async function Navbar() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   const branding = await getBrandingSettings();
 
   let isAdmin = false;

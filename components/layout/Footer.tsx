@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
 import { getBrandingSettings, getGeneralSettings, getPaymentSettings, getSocialSettings } from "@/lib/data/settings";
 import { isPayHereEnabled } from "@/lib/payhere";
@@ -68,10 +68,9 @@ function ContactRow({
 }
 
 export async function Footer() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   const [branding, general, social, payment] = await Promise.all([
     getBrandingSettings(),
     getGeneralSettings(),

@@ -2,7 +2,7 @@ import { getBankTransferSettings } from "@/lib/bankTransferSettings";
 import { isPayHereEnabled } from "@/lib/payhere";
 import { getMyAddresses } from "@/lib/addresses";
 import { getMyProfile } from "@/lib/profile";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { getShippingSettings, getPaymentSettings } from "@/lib/data/settings";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
@@ -10,7 +10,6 @@ import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 // Deliberately not auth-gated (proxy.ts) — guest checkout, v12 Phase 4.
 // getMyAddresses()/getMyProfile() already return empty/null for a guest.
 export default async function CheckoutPage() {
-  const supabase = await createClient();
   const [
     {
       data: { user },
@@ -22,7 +21,7 @@ export default async function CheckoutPage() {
     shippingSettings,
     paymentSettings,
   ] = await Promise.all([
-    supabase.auth.getUser(),
+    getAuthUser(),
     getBankTransferSettings(),
     getMyAddresses(),
     getMyProfile(),

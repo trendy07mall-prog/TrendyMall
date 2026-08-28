@@ -1,6 +1,6 @@
 import type { Viewport } from "next";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ToastProvider } from "@/components/admin/ToastProvider";
 import { getSidebarBadges } from "@/lib/admin/sidebar-badges";
@@ -24,7 +24,7 @@ export default async function AdminLayout({
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   if (!user) redirect("/login?redirect=/admin");
 

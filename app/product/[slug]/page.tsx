@@ -12,7 +12,7 @@ import { getProductSpecs } from "@/lib/data/spec-templates";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
 import { getProductRatingSummary, getProductReviews, hasUserReviewed } from "@/lib/reviews";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { ProductPurchaseSection } from "@/components/product/ProductPurchaseSection";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
@@ -87,10 +87,9 @@ export default async function ProductPage({
   // own errors, so this can't fail the page.
   await incrementProductViewCount(product.id);
 
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
 
   const [relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones] = await Promise.all([
     getRelatedProducts(product.category_id, product.id),

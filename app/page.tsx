@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCategories } from "@/lib/data/categories";
 import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
 import {
@@ -74,7 +74,7 @@ export default async function HomePage() {
     getNewArrivals(10),
     getHomepageCampaigns(),
     getGeneralSettings(),
-    supabase.auth.getUser(),
+    getAuthUser(),
   ]);
   const businessHoursSummary = `WhatsApp or call us, ${formatBusinessHoursSummary(general.businessHours).replace("Daily,", "daily")}.`;
 
@@ -98,15 +98,19 @@ export default async function HomePage() {
   // sold-count query batched across every homepage campaign at once, one
   // featured-display query per campaign (not per product).
   const campaignIds = campaignSectionGroups.map((g) => g.campaign.id);
-  const soldCountsByCampaignId = await getCampaignSoldCounts(supabase, campaignIds);
-  const featuredByCampaignId = new Map(
-    await Promise.all(
+  // Independent of each other (both only depend on campaignSectionGroups/
+  // campaignIds, resolved above), so one shared Promise.all instead of
+  // awaiting the sold-count query before starting the featured-display
+  // one -- same query count, one fewer round trip's worth of latency.
+  const [soldCountsByCampaignId, featuredByCampaignId] = await Promise.all([
+    getCampaignSoldCounts(supabase, campaignIds),
+    Promise.all(
       campaignSectionGroups.map(
         async (g) =>
           [g.campaign.id, await getCampaignFeaturedDisplayByProduct(supabase, g.campaign.id, g.productIds)] as const,
       ),
-    ),
-  );
+    ).then((entries) => new Map(entries)),
+  ]);
 
   const campaignSections = campaignSectionGroups
     .map((group) => {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 import { getMyProfile } from "@/lib/profile";
 import { PersonalInfoForm } from "@/components/account/PersonalInfoForm";
 import { AccountAvatar } from "@/components/account/AccountAvatar";
@@ -12,10 +12,9 @@ export const metadata: Metadata = { title: "Profile — TrendyMall" };
 // addition (Phase 3) — this page previously had no visual identity of its
 // own, only the sidebar showed one.
 export default async function ProfilePage() {
-  const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getAuthUser();
   const profile = await getMyProfile();
 
   return (

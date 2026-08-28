@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getDashboardData, type DashboardRange } from "@/lib/admin/dashboard-query";
 import { formatPrice } from "@/lib/utils";
 import { CashIcon, CartIcon, UserIcon, CreditCardIcon } from "@/components/ui/Icon";
@@ -54,7 +54,7 @@ export default async function AdminDashboardPage({
 
   const supabase = await createClient();
   const [{ data: { user } }, data] = await Promise.all([
-    supabase.auth.getUser(),
+    getAuthUser(),
     getDashboardData(range, chartRangeDays, customFrom, customTo),
   ]);
 
