@@ -131,6 +131,9 @@ export async function getCartRecommendations(
       // aggregate query; CampaignInfoBlock treats null the same as "no
       // count to show," never a fabricated number.
       soldCount: null,
+      // Same reasoning as soldCount above -- this lightweight widget skips
+      // the product_sales_summary batch query too.
+      totalUnitsSold: null,
       avgRating: rating?.avg_rating ?? 0,
       reviewCount: rating?.review_count ?? 0,
       // Not fetched here -- this recommendations widget doesn't need tag

@@ -26,7 +26,19 @@ function pad(n: number) {
 // pricing) may have just changed server-side, so it calls router.refresh()
 // once to re-fetch and re-derive the true state instead of the client
 // silently trusting a stale timer.
-export function CampaignCountdown({ target, label }: { target: string; label: string }) {
+export function CampaignCountdown({
+  target,
+  label,
+  size = "md",
+}: {
+  target: string;
+  label: string;
+  // "md" (default, unchanged) is every existing caller's size -- CampaignInfoBlock's
+  // compact/full modes and the campaign landing page's own hero countdown. "sm" is
+  // additive, for contexts with less room to spare (ProductCard's one-line Slot A)
+  // than a compact CampaignInfoBlock already assumed it'd have.
+  size?: "md" | "sm";
+}) {
   const targetMs = new Date(target).getTime();
   // Starts at null (rendered identically on server and at first client
   // paint -- both render nothing) rather than computing Date.now() at SSR
@@ -57,7 +69,11 @@ export function CampaignCountdown({ target, label }: { target: string; label: st
   const { days, hours, minutes, seconds } = splitRemaining(remaining);
 
   return (
-    <div className="flex items-center gap-2 text-sm font-medium">
+    <div
+      className={`flex items-center font-medium ${
+        size === "sm" ? "flex-wrap gap-x-1 gap-y-0 text-[11px]" : "gap-2 text-sm"
+      }`}
+    >
       <span className="text-[var(--muted)]">{label}</span>
       <span className="font-mono tabular-nums">
         {days > 0 && `${days}d `}

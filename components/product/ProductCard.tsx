@@ -4,55 +4,38 @@ import { PriceDisplay } from "@/components/product/PriceDisplay";
 import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
-import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
+import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
 import { EyeIcon } from "@/components/ui/Icon";
 import { getDiscountPercent } from "@/lib/utils";
-import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import type { ProductWithPrimaryImage } from "@/types";
 
-// Stock text color is scoped to this component (a literal #16A34A, not the
-// shared --color-success token) — that token is used elsewhere in the app
-// (order badges, etc.) and this darker shade is specifically so the "In
-// Stock" text itself (not just the small dot) passes contrast as text.
-const STOCK_STATE = {
-  out: { dot: "bg-[var(--color-discount)]", text: "text-[var(--color-discount)]" },
-  low: { dot: "bg-[var(--color-warning)]", text: "text-[var(--color-warning)]" },
-  in: { dot: "bg-[#16a34a]", text: "text-[#16a34a]" },
-};
-
-// The reserved meta zone above the title (campaign strip / brand / rating)
-// is a fixed height regardless of which of those three are present, so
-// every title in a row starts at the identical vertical position instead of
-// climbing up to fill whatever empty slots collapsed. Sized (measured, not
-// guessed) to fit the real worst case: an admin-authored campaign name long
-// enough to wrap the "⚡ name" / "Ends in HH:MM:SS" countdown across its own
-// flex-wrap lines (unchanged), stacked above a brand line and a rating
-// line. A card with fewer (or none) just leaves the remainder of this box
-// blank rather than shrinking it.
-//
-// Responsive, and in the OPPOSITE direction from the naive assumption: this
-// grid is 2 columns below sm, 3 from sm, 4 from lg (ProductGrid.tsx). The
-// narrower 2-column cards wrap that same worst-case content across MORE
-// lines than the 3-/4-column ones do, not fewer -- measured 90px at every
-// width under 640px, vs. 70px at 640px and up (sm and lg cards happen to
-// wrap identically, so one breakpoint covers both). Using the desktop
-// number everywhere would clip the campaign block specifically on mobile,
-// which is the one place a screenshot pass is likely to catch it.
-const META_ZONE_HEIGHT = "h-[92px] sm:h-[72px]";
+// Two INDEPENDENT fixed-height slots, not one shared box -- Slot A always
+// sits directly under the image, Slot B always sits directly above the
+// title, regardless of which one (or neither) has content for a given
+// card. Collapsing them into a single reserved zone (the previous design)
+// would let a campaign-only card's content drift toward the title and a
+// brand-only card's content drift toward the image -- exactly the
+// "shifting position" bug this is meant to prevent in the other direction.
+// Both measured against the real worst case at each, same responsive
+// reasoning as before: narrower cards below the sm breakpoint need more
+// room because the same text wraps across more lines there.
+const SLOT_A_HEIGHT = "h-[36px] sm:h-4";
+const SLOT_B_HEIGHT = "h-[14px]";
+// Rating + total-sold line above the button -- also always reserved (a
+// product with neither renders this empty rather than letting the button
+// creep up). Responsive for the same reason as Slot A: below sm, a full
+// 5-star rating + review count + a total-sold figure genuinely don't fit
+// on one line at a 2-column card's width, so it wraps there (same
+// flex-wrap-as-escape-valve already established on this card for the old
+// price/stock row) instead of clipping either value.
+const RATING_ROW_HEIGHT = "h-[36px] sm:h-[18px]";
 
 export function ProductCard({
   product,
-  hideDeliveryEstimate = false,
   variant = "default",
   linkVariantId = null,
 }: {
   product: ProductWithPrimaryImage;
-  // Homepage-only (New Arrivals) — every other render site (/shop, category,
-  // /search, Related Products) keeps the delivery estimate and the original
-  // spacing rhythm exactly as-is. The tighter gaps below only apply once
-  // this is true, since they only make sense with the date line actually
-  // gone, not as a general site-wide spacing change.
-  hideDeliveryEstimate?: boolean;
   // Only affects QuickAddButton's own button styling now (its taller/
   // rounder /shop treatment) -- the card itself renders identically
   // regardless of variant, so every grid this component appears in stays
@@ -72,33 +55,27 @@ export function ProductCard({
     ? `/product/${product.slug}?variant=${linkVariantId}`
     : `/product/${product.slug}`;
   const discountPercent = getDiscountPercent(product.actual_price, product.special_price);
-  const delivery = getEstimatedDeliveryRange();
-  const stock =
-    product.stock <= 0
-      ? { ...STOCK_STATE.out, label: "Out of stock" }
-      : product.stock < 5
-        ? { ...STOCK_STATE.low, label: `Only ${product.stock} left` }
-        : { ...STOCK_STATE.in, label: "In Stock" };
+  // THIS SPECIFIC VARIANT's own campaign membership -- unchanged from the
+  // existing rule, just no longer feeding a component that also rendered
+  // the campaign name (that's moved onto the image; see the glass bar
+  // below).
   const hasCampaign = Boolean(product.campaignId && product.campaignName);
   const hasRating = product.reviewCount > 0;
+  // Never fabricated -- product_sales_summary has no row at all for a
+  // product with no reliably-tracked sales, which is null here, not 0.
+  const hasTotalSold = product.totalUnitsSold != null && product.totalUnitsSold > 0;
 
   return (
-    <div className="group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
+    <div className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative">
-        {/* Edge-to-edge: flush to the card's left/right/top edges, clipped
-            to rounded-t on THIS element (matching the card's own radius)
-            rather than overflow-hidden on the outer card div -- that was
-            tried first, but it also silently clipped anything else in the
-            card that overflowed horizontally (the campaign countdown's
-            mono timer text at 320px), hiding real content instead of just
-            rounding the image. object-contain + white background
-            (unchanged) so non-square product photos still sit cleanly with
-            no cropped edge -- only the surrounding white gutter is gone,
-            not the image's own fit behavior. Zoom-on-hover is untouched. */}
-        <Link
-          href={productHref}
-          className="relative block aspect-square overflow-hidden rounded-t-[var(--radius-card)] bg-white"
-        >
+        {/* Edge-to-edge, clipped to the card's own rounded corners by the
+            outer div's overflow-hidden above. object-contain + white
+            background so non-square product photos still sit cleanly.
+            Zoom-on-hover (the Image's own scale transform) is untouched --
+            the glass bar below is a sibling overlay, not part of the
+            scaling element, so it stays crisp while the photo zooms
+            beneath it. */}
+        <Link href={productHref} className="relative block aspect-square overflow-hidden bg-white">
           {product.image ? (
             <Image
               src={product.image}
@@ -113,10 +90,27 @@ export function ProductCard({
               No image
             </div>
           )}
+          {/* Campaign name moved here from the content area below -- only
+              for a variant actually joined to an active campaign (same
+              hasCampaign check the countdown in Slot A below uses). Same
+              blur/opacity recipe already established for the site's other
+              glass surfaces (header's scrolled state, the mobile bottom
+              nav) -- backdrop-blur + backdrop-saturate-150 -- just a dark
+              tint here instead of their light one, since this sits on a
+              photo rather than the page background. */}
+          {hasCampaign && (
+            <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/45 px-2 py-1.5 backdrop-blur-md backdrop-saturate-150">
+              <span aria-hidden="true" className="text-xs text-white">
+                ⚡
+              </span>
+              <span className="truncate text-[11px] font-semibold text-white">{product.campaignName}</span>
+            </div>
+          )}
         </Link>
         {/* Smaller overlay badges: ~9-10px text, tight padding, stacked
-            top-left with a small gap from the (now true) card edge. Same
-            colors/conditions as before, sizing only. */}
+            top-left with a small gap from the card edge. Same colors/
+            conditions as before, unaffected by the glass bar above (that
+            sits at the image's bottom edge, this stays top-left). */}
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
           {product.badgeLabel && (
             <span className="rounded-full bg-[var(--color-warning)] px-2 py-[2px] text-[9px] font-semibold text-white">
@@ -165,81 +159,77 @@ export function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
-        {/* Reserved meta zone -- fixed height regardless of how many of
-            campaign/brand/rating are present (0 to 3), so the title below
-            always starts at the same offset across every card in a row.
-            Top-aligned (not centered): a card with only a brand shows it
-            flush under the image with blank space below, matching a card
-            with campaign+brand+rating stacked, rather than floating its
-            one line in the middle of the reserved box. */}
-        <div className={`flex ${META_ZONE_HEIGHT} flex-col justify-start gap-0.5 overflow-hidden`}>
-          {hasCampaign && (
-            <CampaignInfoBlock
-              campaignName={product.campaignName!}
-              campaignEndAt={product.campaignEndAt}
-              soldCount={product.soldCount}
-              compact
-            />
-          )}
-          {product.brand && (
-            <p className="truncate text-[10px] leading-[14px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
-              {product.brand}
-            </p>
-          )}
-          {hasRating && (
-            <div className="flex h-[14px] items-center gap-1.5">
-              <StarRating rating={product.avgRating} size="sm" />
-              <span className="text-[10px] leading-[14px] text-[var(--muted)]">({product.reviewCount})</span>
-            </div>
-          )}
+        {/* Slot A / Slot B / title grouped tightly on purpose (gap-1, not
+            the gap-2 rhythm below) -- the title belongs immediately after
+            Slot B with minimal spacing, while Slot A stays visually
+            anchored near the image above it. Each slot is a fixed height
+            rendered unconditionally, so neither ever collapses into the
+            other or into the title -- a brand-only card's brand line sits
+            at the exact same height as a campaign+brand card's brand line. */}
+        <div className="flex flex-col gap-1">
+          <div
+            className={`flex ${SLOT_A_HEIGHT} flex-wrap items-center justify-between gap-x-2 gap-y-0 overflow-hidden text-xs sm:flex-nowrap sm:whitespace-nowrap`}
+          >
+            {hasCampaign && product.campaignEndAt && (
+              <CampaignCountdown target={product.campaignEndAt} label="Ends in" size="sm" />
+            )}
+            {/* Campaign-attributed sold count -- deliberately the SAME
+                soldCount field CampaignInfoBlock elsewhere reads (see
+                getCampaignSoldCounts), just composed here without the name
+                span that's moved to the glass bar. Distinct from
+                totalUnitsSold in the rating row below -- a campaign
+                product can show both at once. */}
+            {hasCampaign && product.soldCount != null && product.soldCount > 0 && (
+              <span className="shrink-0 text-[var(--muted)]">{product.soldCount} sold</span>
+            )}
+          </div>
+          <p className={`${SLOT_B_HEIGHT} truncate text-[10px] leading-[14px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase`}>
+            {/* "No Brand" is a real, intentionally-created brand value --
+                rendered exactly like any other, never hidden or specially
+                treated. Only a genuinely null/empty brand leaves this
+                empty (the height above is still reserved either way). */}
+            {product.brand}
+          </p>
+          <Link href={productHref}>
+            <h3 className="truncate text-sm leading-[1.45] font-medium">{product.name}</h3>
+          </Link>
         </div>
 
-        <Link href={productHref}>
-          <h3 className="line-clamp-2 min-h-10 text-sm leading-[1.45] font-medium">{product.name}</h3>
-        </Link>
-
         <div>
-          {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
-              lets the price box get compressed smaller than its own text,
-              which visually collides with the stock badge instead of
-              wrapping) keeps this row at full, un-truncated size at every
-              price/stock combination -- gap-1 is deliberately tighter than
-              the site's usual gap-2 for the same reason. flex-wrap (base
-              only, sm:flex-nowrap above) is the overflow escape valve for
-              the one case shrink-0 can't otherwise handle: a 2-column
-              grid at ~320px, where price + stock badge combined can
-              genuinely exceed the card's content width -- CSS only wraps
-              when a row actually doesn't fit, so this is a no-op at every
-              width/grid density that already had room (New Arrivals'
-              wider cards, /shop's 4-up columns, sm+ grids). */}
-          <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 sm:flex-nowrap">
-            <div className="shrink-0">
-              {product.hasMultiplePrices && (
-                <p className="text-[10px] text-[var(--muted)]">Starting from</p>
-              )}
-              <PriceDisplay
-                actualPrice={product.actual_price}
-                specialPrice={product.special_price}
-                size="sm"
-                showDiscountBadge={false}
-              />
+          {product.hasMultiplePrices && (
+            <p className="text-[10px] text-[var(--muted)]">Starting from</p>
+          )}
+          <PriceDisplay
+            actualPrice={product.actual_price}
+            specialPrice={product.special_price}
+            size="sm"
+            showDiscountBadge={false}
+          />
+        </div>
+
+        {/* Rating (left) + lifetime total sold (right) -- always rendered,
+            reserving its height, so the button below never creeps up on a
+            card with neither. Two independently-real, independently-gated
+            values on one line, never fabricated. */}
+        <div className={`flex ${RATING_ROW_HEIGHT} flex-wrap items-center justify-between gap-x-2 gap-y-0.5 sm:flex-nowrap`}>
+          {hasRating ? (
+            <div className="flex items-center gap-1">
+              <StarRating rating={product.avgRating} size="sm" />
+              <span className="text-[10px] text-[var(--muted)]">({product.reviewCount})</span>
             </div>
-            <span
-              className={`flex shrink-0 items-center gap-0.5 text-[11px] font-medium whitespace-nowrap ${stock.text}`}
-            >
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stock.dot}`} aria-hidden="true" />
-              {stock.label}
-            </span>
-          </div>
-          {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
+          ) : (
+            <span />
+          )}
+          {hasTotalSold && (
+            <span className="shrink-0 text-[10px] text-[var(--muted)]">{product.totalUnitsSold} sold</span>
+          )}
         </div>
 
         {/* Always bottom-pinned, regardless of how much optional content
-            renders above (meta zone is now fixed-height too, but the title/
-            price block can still vary a little) -- mt-auto absorbs the
-            remainder so the button lands at the same row position across
-            every card in a grid row (CSS Grid stretches all cards in a row
-            to equal height by default). */}
+            renders above -- mt-auto absorbs the remainder so the button
+            lands at the same row position across every card in a grid row
+            (CSS Grid stretches all cards in a row to equal height by
+            default). */}
         <div className="mt-auto pt-1">
           <QuickAddButton product={product} variant={variant} />
         </div>

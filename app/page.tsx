@@ -157,7 +157,7 @@ export default async function HomePage() {
               showArrows={newArrivals.length > 5}
             >
               {newArrivals.map((product) => (
-                <ProductCard key={product.id} product={product} hideDeliveryEstimate />
+                <ProductCard key={product.id} product={product} />
               ))}
             </Carousel>
           </div>

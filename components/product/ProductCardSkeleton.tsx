@@ -1,8 +1,9 @@
 import { Skeleton } from "@/components/ui/Skeleton";
 
 // Mirrors ProductCard.tsx's structure exactly (edge-to-edge image, p-4
-// content area, fixed-height meta zone) so a loading grid doesn't visibly
-// jump/reflow once real cards replace these placeholders.
+// content area, the same Slot A / Slot B / title / price / rating-row
+// heights) so a loading grid doesn't visibly jump/reflow once real cards
+// replace these placeholders.
 export function ProductCardSkeleton() {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)]">
@@ -12,12 +13,13 @@ export function ProductCardSkeleton() {
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <Skeleton className="h-[52px] w-1/3" />
-        <Skeleton className="h-10 w-full" />
-        <div className="flex items-center justify-between gap-2">
-          <Skeleton className="h-4 w-16" />
-          <Skeleton className="h-4 w-14" />
+        <div className="flex flex-col gap-1">
+          <Skeleton className="h-[18px] sm:h-4 w-1/2" />
+          <Skeleton className="h-[14px] w-1/3" />
+          <Skeleton className="h-4 w-full" />
         </div>
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-[18px] w-full" />
         <div className="mt-auto pt-1">
           <Skeleton className="h-[42px] w-full rounded-xl" />
         </div>

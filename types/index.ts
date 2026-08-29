@@ -91,6 +91,15 @@ export interface ProductWithPrimaryImage extends Product {
   // real orders (see getCampaignSoldCounts) -- null whenever campaignId is
   // null, never a fabricated number.
   soldCount: number | null;
+  // Lifetime total units sold for this product, independent of any
+  // campaign -- reuses product_sales_summary, the same real, already-
+  // materialized view Finance/Analytics' best-selling sort already reads
+  // (see lib/data/products.ts's applyPostFilters). null when the product
+  // has no row there (no reliably-tracked sales), never a fabricated
+  // number. A campaign-joined product can legitimately show both this AND
+  // soldCount at once -- they're two different real metrics, not
+  // alternates.
+  totalUnitsSold: number | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

@@ -61,7 +61,6 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
                 <ProductCard
                   key={product.id}
                   product={product}
-                  hideDeliveryEstimate
                   // Every product here already carries its own
                   // campaign-featured variant id as defaultVariantId (see
                   // applyCampaignFeaturedDisplay) -- the PDP must open on

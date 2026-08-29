@@ -189,6 +189,7 @@ async function attachPrimaryImages(
     { data: ratings, error: ratingsError },
     { data: productTagRows, error: tagsError },
     { data: variantRows, error: variantsError },
+    { data: salesRows, error: salesError },
   ] = await Promise.all([
     supabase
       .from("product_images")
@@ -208,12 +209,19 @@ async function attachPrimaryImages(
       .select("id, product_id, regular_price, sale_price, stock, is_default, variant_image_url")
       .in("product_id", ids)
       .eq("is_active", true),
+    // Same product_sales_summary view applyPostFilters' best_selling sort
+    // already reads -- a real, already-materialized aggregate, not a live
+    // order_items scan per card. A product with no row here just has no
+    // reliably-tracked sales (see totalUnitsSold below), not zero as a
+    // fabricated default.
+    supabase.from("product_sales_summary").select("product_id, units_sold").in("product_id", ids),
   ]);
 
   if (imagesError) throw imagesError;
   if (ratingsError) throw ratingsError;
   if (tagsError) throw tagsError;
   if (variantsError) throw variantsError;
+  if (salesError) throw salesError;
 
   // Variant ids aren't known until variantRows resolves above, so this
   // can't join the Promise.all -- one additional batched query, per page
@@ -230,6 +238,10 @@ async function attachPrimaryImages(
 
   const ratingByProductId = new Map(
     (ratings ?? []).map((r) => [r.product_id, r] as const),
+  );
+
+  const unitsSoldByProductId = new Map(
+    (salesRows ?? []).map((r) => [r.product_id, r.units_sold] as const),
   );
 
   const tagsByProductId = new Map<string, { name: string; slug: string }[]>();
@@ -299,6 +311,7 @@ async function attachPrimaryImages(
     campaignName: display.campaignName,
     campaignEndAt: display.campaignEndAt,
     soldCount: display.campaignId ? (soldCounts.get(display.campaignId) ?? null) : null,
+    totalUnitsSold: unitsSoldByProductId.get(product.id) ?? null,
     avgRating: rating?.avg_rating ?? 0,
     reviewCount: rating?.review_count ?? 0,
     tags: tagsByProductId.get(product.id) ?? [],
