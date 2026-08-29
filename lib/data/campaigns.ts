@@ -214,7 +214,11 @@ export function applyCampaignFeaturedDisplay(
   products: ProductWithPrimaryImage[],
   campaign: Campaign,
   featuredByProductId: Map<string, CampaignFeaturedDisplay>,
-  soldCount: number | null,
+  // Per-product, from getCampaignSoldCounts.get(campaign.id) -- NOT a single
+  // campaign-wide scalar applied to every product (that was the bug: it
+  // could show a bigger number here than a product's own lifetime total
+  // elsewhere on the same card).
+  soldCountByProductId: Map<string, number>,
 ): ProductWithPrimaryImage[] {
   const badgeLabel = campaign.show_badge && campaign.badge_label ? campaign.badge_label : null;
 
@@ -233,7 +237,7 @@ export function applyCampaignFeaturedDisplay(
       badgeLabel,
       campaignName: campaign.name,
       campaignEndAt: campaign.end_at,
-      soldCount,
+      soldCount: soldCountByProductId.get(product.id) ?? null,
     };
   });
 }
@@ -431,27 +435,42 @@ export async function hasActiveFreeShippingCampaign(
 // Real, computed live per page load -- no counter to maintain (see the
 // campaign-info-block plan's data audit). One batched aggregate across
 // every campaign id the current page actually needs (never per-campaign),
-// summed by campaign_id in JS -- this codebase's established "small store,
-// aggregate in JS" convention (e.g. resolvePriceFilterProductIds). "Real
-// sale" uses the exact same order_status exclusion app/admin/page.tsx's own
-// revenue cards use, so a cart-added-but-never-paid line never inflates the
-// count.
+// summed by campaign_id AND product_id in JS -- this codebase's established
+// "small store, aggregate in JS" convention (e.g. resolvePriceFilterProductIds).
+// "Real sale" uses the exact same order_status exclusion app/admin/page.tsx's
+// own revenue cards use, so a cart-added-but-never-paid line never inflates
+// the count.
+//
+// Keyed per (campaign, product) pair, NOT campaign-wide -- an earlier
+// version of this summed every product in the campaign into one shared
+// total and applied it identically to every one of that campaign's product
+// cards, which could show a bigger "sold" figure here than a product's own
+// lifetime total (product_sales_summary) two lines below it on the same
+// card, an impossible-looking number since campaign sales are a subset of
+// a product's total sales, never separate from them.
 export async function getCampaignSoldCounts(
   supabase: SupabaseServerClient,
   campaignIds: string[],
-): Promise<Map<string, number>> {
+): Promise<Map<string, Map<string, number>>> {
   if (campaignIds.length === 0) return new Map();
 
   const { data, error } = await supabase
     .from("order_items")
-    .select("campaign_id, quantity, orders!inner(order_status)")
+    .select("campaign_id, product_id, quantity, orders!inner(order_status)")
     .in("campaign_id", campaignIds)
     .not("orders.order_status", "in", "(cancelled,returned)");
   if (error) throw error;
 
-  const counts = new Map<string, number>();
-  for (const row of (data ?? []) as unknown as { campaign_id: string; quantity: number }[]) {
-    counts.set(row.campaign_id, (counts.get(row.campaign_id) ?? 0) + row.quantity);
+  const counts = new Map<string, Map<string, number>>();
+  for (const row of (data ?? []) as unknown as {
+    campaign_id: string;
+    product_id: string | null;
+    quantity: number;
+  }[]) {
+    if (!row.product_id) continue;
+    const byProduct = counts.get(row.campaign_id) ?? new Map<string, number>();
+    byProduct.set(row.product_id, (byProduct.get(row.product_id) ?? 0) + row.quantity);
+    counts.set(row.campaign_id, byProduct);
   }
   return counts;
 }

@@ -124,7 +124,7 @@ export default async function HomePage() {
         rawProducts,
         group.campaign,
         featuredByCampaignId.get(group.campaign.id) ?? new Map(),
-        soldCountsByCampaignId.get(group.campaign.id) ?? null,
+        soldCountsByCampaignId.get(group.campaign.id) ?? new Map(),
       );
       return { campaign: group.campaign, products };
     })

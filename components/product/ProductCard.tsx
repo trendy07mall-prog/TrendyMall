@@ -210,7 +210,12 @@ export function ProductCard({
         {/* Rating (left) + lifetime total sold (right) -- always rendered,
             reserving its height, so the button below never creeps up on a
             card with neither. Two independently-real, independently-gated
-            values on one line, never fabricated. */}
+            values on one line, never fabricated. Explicitly labeled "total
+            sold" (not just "sold") since Slot A above can also show a
+            campaign-scoped "N sold" on the same card -- two different
+            numbers, distinguished by label, not just position. This one is
+            always >= that one, since campaign sales are a subset of a
+            product's total sales, never counted separately from it. */}
         <div className={`flex ${RATING_ROW_HEIGHT} flex-wrap items-center justify-between gap-x-2 gap-y-0.5 sm:flex-nowrap`}>
           {hasRating ? (
             <div className="flex items-center gap-1">
@@ -221,7 +226,7 @@ export function ProductCard({
             <span />
           )}
           {hasTotalSold && (
-            <span className="shrink-0 text-[10px] text-[var(--muted)]">{product.totalUnitsSold} sold</span>
+            <span className="shrink-0 text-[10px] text-[var(--muted)]">{product.totalUnitsSold} total sold</span>
           )}
         </div>
 

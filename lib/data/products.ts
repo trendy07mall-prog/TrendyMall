@@ -310,7 +310,7 @@ async function attachPrimaryImages(
     badgeLabel: display.badgeLabel,
     campaignName: display.campaignName,
     campaignEndAt: display.campaignEndAt,
-    soldCount: display.campaignId ? (soldCounts.get(display.campaignId) ?? null) : null,
+    soldCount: display.campaignId ? (soldCounts.get(display.campaignId)?.get(product.id) ?? null) : null,
     totalUnitsSold: unitsSoldByProductId.get(product.id) ?? null,
     avgRating: rating?.avg_rating ?? 0,
     reviewCount: rating?.review_count ?? 0,
@@ -986,7 +986,9 @@ export const getProductDetailBySlug = cache(
         campaign_badge_label: campaign?.badgeLabel ?? null,
         campaign_name: campaign?.campaignName ?? null,
         campaign_end_at: campaign?.campaignEndAt ?? null,
-        campaign_sold_count: campaign?.campaignId ? (soldCounts.get(campaign.campaignId) ?? null) : null,
+        campaign_sold_count: campaign?.campaignId
+          ? (soldCounts.get(campaign.campaignId)?.get(product.id) ?? null)
+          : null,
       };
     });
 

@@ -93,7 +93,7 @@ export default async function CampaignPage({
     products,
     campaign,
     featuredByProductId,
-    soldCounts.get(campaign.id) ?? null,
+    soldCounts.get(campaign.id) ?? new Map(),
   );
   const productById = new Map(featuredProducts.map((p) => [p.id, p]));
 
