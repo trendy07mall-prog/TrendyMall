@@ -5,6 +5,7 @@ export function PriceDisplay({
   specialPrice,
   size = "md",
   showDiscountBadge = true,
+  allowWrap = false,
 }: {
   actualPrice: number;
   specialPrice: number | null;
@@ -16,6 +17,13 @@ export function PriceDisplay({
   // legitimately different, more prominent context.
   size?: "sm" | "md";
   showDiscountBadge?: boolean;
+  // Default false preserves the exact existing nowrap behavior for every
+  // current caller (ProductListItem's list view included) -- ProductCard's
+  // grid card opts in as a safety net for the narrowest mobile widths
+  // (was-price + current-price could theoretically not both fit on one
+  // line there), letting the pair wrap onto a second line instead of
+  // silently clipping against the card's own overflow-hidden.
+  allowWrap?: boolean;
 }) {
   // "sm" (every product grid card) needs a smaller font to fit two 4-digit
   // prices + a stock label on one line at /shop's narrowest real column
@@ -53,7 +61,7 @@ export function PriceDisplay({
     }
 
     return (
-      <span className="flex flex-nowrap items-baseline gap-0.5">
+      <span className={`flex items-baseline gap-0.5 ${allowWrap ? "flex-wrap" : "flex-nowrap"}`}>
         <span className={`${wasClass} shrink-0 text-[var(--muted)] line-through`}>{wasText}</span>
         <span className={`${priceClass} shrink-0`}>{formatPrice(specialPrice)}</span>
         {badge}

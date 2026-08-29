@@ -16,19 +16,24 @@ import type { ProductWithPrimaryImage } from "@/types";
 // would let a campaign-only card's content drift toward the title and a
 // brand-only card's content drift toward the image -- exactly the
 // "shifting position" bug this is meant to prevent in the other direction.
-// Both measured against the real worst case at each, same responsive
-// reasoning as before: narrower cards below the sm breakpoint need more
-// room because the same text wraps across more lines there.
-const SLOT_A_HEIGHT = "h-[36px] sm:h-4";
+// Slot A is now single-line at every width (CampaignCountdown's own "sm"
+// size shrinks further below the sm breakpoint instead of wrapping -- see
+// that component), so one uniform height covers it everywhere; no more
+// mobile/desktop split, and no more slack from an oversized box centering
+// single-line content away from the image above it.
+const SLOT_A_HEIGHT = "h-4";
 const SLOT_B_HEIGHT = "h-[14px]";
 // Rating + total-sold line above the button -- also always reserved (a
 // product with neither renders this empty rather than letting the button
-// creep up). Responsive for the same reason as Slot A: below sm, a full
-// 5-star rating + review count + a total-sold figure genuinely don't fit
-// on one line at a 2-column card's width, so it wraps there (same
-// flex-wrap-as-escape-valve already established on this card for the old
-// price/stock row) instead of clipping either value.
-const RATING_ROW_HEIGHT = "h-[36px] sm:h-[18px]";
+// creep up). Still responsive: below sm, a full 5-star rating + review
+// count + a total-sold figure genuinely can't both fit on one line at a
+// 2-column card's width no matter the font size (unlike Slot A, there's no
+// more room to shrink into), so it wraps there (same flex-wrap-as-escape-
+// valve already established on this card for the old price/stock row).
+// items-start (see below) rather than items-center keeps the common
+// single-line case flush against the price above it instead of floating
+// centered in the reserved 2-line-worst-case height.
+const RATING_ROW_HEIGHT = "h-[32px] sm:h-[18px]";
 
 export function ProductCard({
   product,
@@ -158,7 +163,12 @@ export function ProductCard({
         </Link>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
+      {/* gap/padding tightened on mobile only (sm: restores the original
+          desktop rhythm exactly) -- the narrower 2-column card doesn't
+          need as much breathing room between rows as a wider desktop card
+          does, and the previous uniform spacing left the card feeling
+          oversized relative to its own content on mobile specifically. */}
+      <div className="flex flex-1 flex-col gap-1.5 p-4 pb-3 sm:gap-2 sm:pb-4">
         {/* Slot A / Slot B / title grouped tightly on purpose (gap-1, not
             the gap-2 rhythm below) -- the title belongs immediately after
             Slot B with minimal spacing, while Slot A stays visually
@@ -168,7 +178,7 @@ export function ProductCard({
             at the exact same height as a campaign+brand card's brand line. */}
         <div className="flex flex-col gap-1">
           <div
-            className={`flex ${SLOT_A_HEIGHT} flex-wrap items-center justify-between gap-x-2 gap-y-0 overflow-hidden text-xs sm:flex-nowrap sm:whitespace-nowrap`}
+            className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[7px] whitespace-nowrap sm:text-xs`}
           >
             {hasCampaign && product.campaignEndAt && (
               <CampaignCountdown target={product.campaignEndAt} label="Ends in" size="sm" />
@@ -178,7 +188,9 @@ export function ProductCard({
                 getCampaignSoldCounts), just composed here without the name
                 span that's moved to the glass bar. Distinct from
                 totalUnitsSold in the rating row below -- a campaign
-                product can show both at once. */}
+                product can show both at once. Text size inherits from this
+                row's own responsive text-[7px]/sm:text-xs, shrinking in
+                step with the countdown so the pair always fits one line. */}
             {hasCampaign && product.soldCount != null && product.soldCount > 0 && (
               <span className="shrink-0 text-[var(--muted)]">{product.soldCount} sold</span>
             )}
@@ -195,17 +207,22 @@ export function ProductCard({
           </Link>
         </div>
 
-        <div>
-          {product.hasMultiplePrices && (
-            <p className="text-[10px] text-[var(--muted)]">Starting from</p>
-          )}
-          <PriceDisplay
-            actualPrice={product.actual_price}
-            specialPrice={product.special_price}
-            size="sm"
-            showDiscountBadge={false}
-          />
-        </div>
+        {/* "Starting from" removed -- the price itself is still the exact
+            same effective price as before (lowest valid price across
+            variants, from resolveCardDisplay/getCampaignFeaturedDisplayByProduct
+            upstream), just shown as a plain price with no qualifier text.
+            allowWrap is a safety net, not a design change: with the label
+            gone this row is even less likely to need it, but a was-price +
+            current-price pair that still doesn't fit at the narrowest
+            mobile widths now wraps onto a second line instead of silently
+            clipping against the card's own overflow-hidden. */}
+        <PriceDisplay
+          actualPrice={product.actual_price}
+          specialPrice={product.special_price}
+          size="sm"
+          showDiscountBadge={false}
+          allowWrap
+        />
 
         {/* Rating (left) + lifetime total sold (right) -- always rendered,
             reserving its height, so the button below never creeps up on a
@@ -216,7 +233,7 @@ export function ProductCard({
             numbers, distinguished by label, not just position. This one is
             always >= that one, since campaign sales are a subset of a
             product's total sales, never counted separately from it. */}
-        <div className={`flex ${RATING_ROW_HEIGHT} flex-wrap items-center justify-between gap-x-2 gap-y-0.5 sm:flex-nowrap`}>
+        <div className={`flex ${RATING_ROW_HEIGHT} flex-wrap items-start justify-between gap-x-2 gap-y-0.5 sm:flex-nowrap`}>
           {hasRating ? (
             <div className="flex items-center gap-1">
               <StarRating rating={product.avgRating} size="sm" />

@@ -71,7 +71,12 @@ export function CampaignCountdown({
   return (
     <div
       className={`flex items-center font-medium ${
-        size === "sm" ? "flex-wrap gap-x-1 gap-y-0 text-[11px]" : "gap-2 text-sm"
+        // Must stay on one line at every width (never wrap the label away
+        // from its own value) -- shrinks further below the sm breakpoint
+        // instead, where a 2-column card leaves the least room, same
+        // responsive-by-column-count reasoning ProductCard's own slot
+        // heights already use.
+        size === "sm" ? "flex-nowrap gap-x-1 whitespace-nowrap text-[7px] sm:text-[11px]" : "gap-2 text-sm"
       }`}
     >
       <span className="text-[var(--muted)]">{label}</span>
