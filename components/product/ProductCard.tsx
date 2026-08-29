@@ -20,6 +20,26 @@ const STOCK_STATE = {
   in: { dot: "bg-[#16a34a]", text: "text-[#16a34a]" },
 };
 
+// The reserved meta zone above the title (campaign strip / brand / rating)
+// is a fixed height regardless of which of those three are present, so
+// every title in a row starts at the identical vertical position instead of
+// climbing up to fill whatever empty slots collapsed. Sized (measured, not
+// guessed) to fit the real worst case: an admin-authored campaign name long
+// enough to wrap the "⚡ name" / "Ends in HH:MM:SS" countdown across its own
+// flex-wrap lines (unchanged), stacked above a brand line and a rating
+// line. A card with fewer (or none) just leaves the remainder of this box
+// blank rather than shrinking it.
+//
+// Responsive, and in the OPPOSITE direction from the naive assumption: this
+// grid is 2 columns below sm, 3 from sm, 4 from lg (ProductGrid.tsx). The
+// narrower 2-column cards wrap that same worst-case content across MORE
+// lines than the 3-/4-column ones do, not fewer -- measured 90px at every
+// width under 640px, vs. 70px at 640px and up (sm and lg cards happen to
+// wrap identically, so one breakpoint covers both). Using the desktop
+// number everywhere would clip the campaign block specifically on mobile,
+// which is the one place a screenshot pass is likely to catch it.
+const META_ZONE_HEIGHT = "h-[92px] sm:h-[72px]";
+
 export function ProductCard({
   product,
   hideDeliveryEstimate = false,
@@ -33,10 +53,11 @@ export function ProductCard({
   // this is true, since they only make sense with the date line actually
   // gone, not as a general site-wide spacing change.
   hideDeliveryEstimate?: boolean;
-  // "shop" is the /shop-page redesign's bigger card treatment (larger
-  // image, larger price, stacked price/stock row) — opt-in only, since
-  // this component also renders on /category, /search, Related Products,
-  // and the homepage, none of which asked for the redesign.
+  // Only affects QuickAddButton's own button styling now (its taller/
+  // rounder /shop treatment) -- the card itself renders identically
+  // regardless of variant, so every grid this component appears in stays
+  // visually consistent (this mirrors PriceDisplay's own "sm" being the one
+  // shared size for every grid, with no separate bigger variant anymore).
   variant?: "default" | "shop";
   // Set ONLY by campaign-context callers (ActiveCampaignSections.tsx,
   // /campaign/[slug] via ProductGrid's linkToFeaturedVariant) to this
@@ -58,27 +79,25 @@ export function ProductCard({
       : product.stock < 5
         ? { ...STOCK_STATE.low, label: `Only ${product.stock} left` }
         : { ...STOCK_STATE.in, label: "In Stock" };
-  const isShop = variant === "shop";
+  const hasCampaign = Boolean(product.campaignId && product.campaignName);
+  const hasRating = product.reviewCount > 0;
 
   return (
-    <div
-      className={`group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 transition-[border-color,box-shadow] duration-200 ease-in-out hover:shadow-[var(--shadow-card-hover)] ${
-        isShop ? "hover:border-[var(--color-warning)]" : "hover:border-[var(--border-hover)]"
-      }`}
-    >
+    <div className="group flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]">
       <div className="relative">
-        {/* Inset ~83% of the card's content width (not edge-to-edge) —
-            a centered, "framed" thumbnail rather than a full-bleed image.
-            object-contain (not cover) + a white background so non-square
-            product photos sit cleanly without a cropped edge or a grey
-            letterbox behind them. "shop" variant insets slightly less
-            (92%, true 1:1 aspect-square rather than a fixed height) so the
-            image reads as the card's primary focus. */}
+        {/* Edge-to-edge: flush to the card's left/right/top edges, clipped
+            to rounded-t on THIS element (matching the card's own radius)
+            rather than overflow-hidden on the outer card div -- that was
+            tried first, but it also silently clipped anything else in the
+            card that overflowed horizontally (the campaign countdown's
+            mono timer text at 320px), hiding real content instead of just
+            rounding the image. object-contain + white background
+            (unchanged) so non-square product photos still sit cleanly with
+            no cropped edge -- only the surrounding white gutter is gone,
+            not the image's own fit behavior. Zoom-on-hover is untouched. */}
         <Link
           href={productHref}
-          className={`relative mx-auto block aspect-square overflow-hidden rounded-[14px] bg-white ${
-            isShop ? "w-[92%]" : "w-5/6"
-          }`}
+          className="relative block aspect-square overflow-hidden rounded-t-[var(--radius-card)] bg-white"
         >
           {product.image ? (
             <Image
@@ -87,9 +106,7 @@ export function ProductCard({
               fill
               loading="lazy"
               sizes="(max-width: 640px) 42vw, 21vw"
-              className={`object-contain transition-transform duration-300 ${
-                isShop ? "group-hover:scale-[1.06]" : "group-hover:scale-[1.04]"
-              }`}
+              className="object-contain transition-transform duration-300 group-hover:scale-[1.04]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
@@ -97,25 +114,24 @@ export function ProductCard({
             </div>
           )}
         </Link>
+        {/* Smaller overlay badges: ~9-10px text, tight padding, stacked
+            top-left with a small gap from the (now true) card edge. Same
+            colors/conditions as before, sizing only. */}
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
           {product.badgeLabel && (
-            <span className="rounded-full bg-[var(--color-warning)] px-[10px] py-[3px] text-[11px] font-semibold text-white">
+            <span className="rounded-full bg-[var(--color-warning)] px-2 py-[2px] text-[9px] font-semibold text-white">
               {product.badgeLabel}
             </span>
           )}
           {discountPercent != null && (
-            <span
-              className={`flex items-center rounded-full bg-[var(--color-discount)] font-semibold text-white ${
-                isShop ? "h-9 px-3 text-sm" : "h-[30px] px-[10px] text-[13px]"
-              }`}
-            >
+            <span className="flex items-center rounded-full bg-[var(--color-discount)] px-2 py-[2px] text-[9px] font-semibold text-white">
               -{discountPercent}%
             </span>
           )}
           {product.tags.slice(0, 2).map((tag) => (
             <span
               key={tag.slug}
-              className="rounded-full bg-[var(--foreground)] px-[10px] py-[3px] text-[11px] font-semibold text-white"
+              className="rounded-full bg-[var(--foreground)] px-2 py-[2px] text-[9px] font-semibold text-white"
             >
               {tag.name}
             </span>
@@ -148,100 +164,83 @@ export function ProductCard({
         </Link>
       </div>
 
-      <div className={`flex flex-1 flex-col ${isShop ? "mt-2.5 gap-2" : hideDeliveryEstimate ? "mt-3" : "mt-3 gap-3"}`}>
-        {product.campaignId && product.campaignName && (
-          <CampaignInfoBlock
-            campaignName={product.campaignName}
-            campaignEndAt={product.campaignEndAt}
-            soldCount={product.soldCount}
-            compact
-          />
-        )}
-        <div>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        {/* Reserved meta zone -- fixed height regardless of how many of
+            campaign/brand/rating are present (0 to 3), so the title below
+            always starts at the same offset across every card in a row.
+            Top-aligned (not centered): a card with only a brand shows it
+            flush under the image with blank space below, matching a card
+            with campaign+brand+rating stacked, rather than floating its
+            one line in the middle of the reserved box. */}
+        <div className={`flex ${META_ZONE_HEIGHT} flex-col justify-start gap-0.5 overflow-hidden`}>
+          {hasCampaign && (
+            <CampaignInfoBlock
+              campaignName={product.campaignName!}
+              campaignEndAt={product.campaignEndAt}
+              soldCount={product.soldCount}
+              compact
+            />
+          )}
           {product.brand && (
-            <p className="text-[10px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
+            <p className="truncate text-[10px] leading-[14px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
               {product.brand}
             </p>
           )}
-          <Link href={productHref}>
-            <h3
-              className={`line-clamp-2 leading-[1.45] font-medium ${product.brand ? "mt-1" : ""} ${
-                isShop ? "min-h-12 text-base" : "min-h-10 text-sm"
-              }`}
-            >
-              {product.name}
-            </h3>
-          </Link>
+          {hasRating && (
+            <div className="flex h-[14px] items-center gap-1.5">
+              <StarRating rating={product.avgRating} size="sm" />
+              <span className="text-[10px] leading-[14px] text-[var(--muted)]">({product.reviewCount})</span>
+            </div>
+          )}
         </div>
 
-        {product.reviewCount > 0 && (
-          <div className={`flex items-center gap-1.5 ${hideDeliveryEstimate ? "mt-2" : ""}`}>
-            <StarRating rating={product.avgRating} size="sm" />
-            <span className="text-xs text-[var(--muted)]">({product.reviewCount})</span>
-          </div>
-        )}
+        <Link href={productHref}>
+          <h3 className="line-clamp-2 min-h-10 text-sm leading-[1.45] font-medium">{product.name}</h3>
+        </Link>
 
-        {isShop ? (
-          // Compact redesign: price only, no stock pill and no delivery
-          // line in the card itself -- stock still fully blocks Add to
-          // Cart below (QuickAddButton reads product.stock directly, not
-          // anything from this component), this is display-only.
-          <div>
-            {product.hasMultiplePrices && (
-              <p className="text-[10px] text-[var(--muted)]">Starting from</p>
-            )}
-            <PriceDisplay
-              actualPrice={product.actual_price}
-              specialPrice={product.special_price}
-              size="sm"
-              showDiscountBadge={false}
-            />
-          </div>
-        ) : (
-          <div className={hideDeliveryEstimate ? "mt-2" : ""}>
-            {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
-                lets the price box get compressed smaller than its own text,
-                which visually collides with the stock badge instead of
-                wrapping) keeps this row at full, un-truncated size at every
-                price/stock combination -- gap-1 is deliberately tighter than
-                the site's usual gap-2 for the same reason. flex-wrap (base
-                only, sm:flex-nowrap above) is the overflow escape valve for
-                the one case shrink-0 can't otherwise handle: a 2-column
-                grid at ~320px, where price + stock badge combined can
-                genuinely exceed the card's content width -- CSS only wraps
-                when a row actually doesn't fit, so this is a no-op at every
-                width/grid density that already had room (New Arrivals'
-                wider cards, /shop's 4-up columns, sm+ grids). */}
-            <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 sm:flex-nowrap">
-              <div className="shrink-0">
-                {product.hasMultiplePrices && (
-                  <p className="text-[10px] text-[var(--muted)]">Starting from</p>
-                )}
-                <PriceDisplay
-                  actualPrice={product.actual_price}
-                  specialPrice={product.special_price}
-                  size="sm"
-                  showDiscountBadge={false}
-                />
-              </div>
-              <span
-                className={`flex shrink-0 items-center gap-0.5 text-[11px] font-medium whitespace-nowrap ${stock.text}`}
-              >
-                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stock.dot}`} aria-hidden="true" />
-                {stock.label}
-              </span>
+        <div>
+          {/* shrink-0 on BOTH sides (not min-w-0 on the price side -- that
+              lets the price box get compressed smaller than its own text,
+              which visually collides with the stock badge instead of
+              wrapping) keeps this row at full, un-truncated size at every
+              price/stock combination -- gap-1 is deliberately tighter than
+              the site's usual gap-2 for the same reason. flex-wrap (base
+              only, sm:flex-nowrap above) is the overflow escape valve for
+              the one case shrink-0 can't otherwise handle: a 2-column
+              grid at ~320px, where price + stock badge combined can
+              genuinely exceed the card's content width -- CSS only wraps
+              when a row actually doesn't fit, so this is a no-op at every
+              width/grid density that already had room (New Arrivals'
+              wider cards, /shop's 4-up columns, sm+ grids). */}
+          <div className="flex flex-wrap items-center justify-between gap-x-1 gap-y-0.5 sm:flex-nowrap">
+            <div className="shrink-0">
+              {product.hasMultiplePrices && (
+                <p className="text-[10px] text-[var(--muted)]">Starting from</p>
+              )}
+              <PriceDisplay
+                actualPrice={product.actual_price}
+                specialPrice={product.special_price}
+                size="sm"
+                showDiscountBadge={false}
+              />
             </div>
-            {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
+            <span
+              className={`flex shrink-0 items-center gap-0.5 text-[11px] font-medium whitespace-nowrap ${stock.text}`}
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stock.dot}`} aria-hidden="true" />
+              {stock.label}
+            </span>
           </div>
-        )}
+          {!hideDeliveryEstimate && <p className="mt-1 text-[11px] text-[var(--muted)]">{delivery.label}</p>}
+        </div>
 
-        {/* Always bottom-pinned, regardless of variant/hideDeliveryEstimate --
-            the amount of optional content above (campaign block, brand,
-            rating, delivery line) varies per card, but mt-auto absorbs all
-            of it so the button lands at the same row position across every
-            card in a grid row (CSS Grid stretches all cards in a row to
-            equal height by default). */}
-        <div className="mt-auto">
+        {/* Always bottom-pinned, regardless of how much optional content
+            renders above (meta zone is now fixed-height too, but the title/
+            price block can still vary a little) -- mt-auto absorbs the
+            remainder so the button lands at the same row position across
+            every card in a grid row (CSS Grid stretches all cards in a row
+            to equal height by default). */}
+        <div className="mt-auto pt-1">
           <QuickAddButton product={product} variant={variant} />
         </div>
       </div>
