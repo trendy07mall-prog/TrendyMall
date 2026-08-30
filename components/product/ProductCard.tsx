@@ -16,15 +16,15 @@ import type { ProductWithPrimaryImage } from "@/types";
 // would let a campaign-only card's content drift toward the title and a
 // brand-only card's content drift toward the image -- exactly the
 // "shifting position" bug this is meant to prevent in the other direction.
-// Slot A is single-line at every width -- 11px (readable without being
-// oversized, see CampaignCountdown's "sm" size) everywhere except below
-// the sm breakpoint, where a bare "Ends in Nd HH:MM:SS" alone still needs
-// one step smaller (9px) to fit a 2-column card's width at all. Same
-// uniform h-4 height covers both sizes. On the rare card where the
-// countdown AND a campaign sold-count together still don't fit, the
-// sold-count span (not the countdown) truncates -- see below -- rather
+// Slot A is single-line at every width -- 13px (closer to this card's own
+// title/price scale, see CampaignCountdown's "sm" size) everywhere except
+// below the sm breakpoint, where a bare "Ends in Nd HH:MM:SS" alone still
+// needs one step smaller (11px) to fit a 2-column card's width at all.
+// h-[18px] comfortably covers both sizes' line height. On the rare card
+// where the countdown AND a campaign sold-count together still don't fit,
+// the sold-count span (not the countdown) truncates -- see below -- rather
 // than this wrapping or the countdown itself clipping.
-const SLOT_A_HEIGHT = "h-4";
+const SLOT_A_HEIGHT = "h-[18px]";
 const SLOT_B_HEIGHT = "h-[14px]";
 // Rating + total-sold line above the button -- also always reserved (a
 // product with neither renders this empty rather than letting the button
@@ -166,12 +166,16 @@ export function ProductCard({
         </Link>
       </div>
 
-      {/* gap/padding tightened on mobile only (sm: restores the original
-          desktop rhythm exactly) -- the narrower 2-column card doesn't
+      {/* Top padding (pt-2) is deliberately tighter than the sides/bottom --
+          Slot A sits right under the image and should read as anchored to
+          it, not floating in the middle of a generic content-area inset;
+          the fuller p-4-equivalent padding still applies left/right
+          (unchanged card-edge margin) and at the bottom (see pb-3/sm:pb-4
+          below). gap-1.5/pb-3 stay mobile-only tightened (sm: restores the
+          original desktop rhythm) -- the narrower 2-column card doesn't
           need as much breathing room between rows as a wider desktop card
-          does, and the previous uniform spacing left the card feeling
-          oversized relative to its own content on mobile specifically. */}
-      <div className="flex flex-1 flex-col gap-1.5 p-4 pb-3 sm:gap-2 sm:pb-4">
+          does. */}
+      <div className="flex flex-1 flex-col gap-1.5 px-4 pt-2 pb-3 sm:gap-2 sm:pb-4">
         {/* Slot A / Slot B / title grouped tightly on purpose (gap-1, not
             the gap-2 rhythm below) -- the title belongs immediately after
             Slot B with minimal spacing, while Slot A stays visually
@@ -181,7 +185,7 @@ export function ProductCard({
             at the exact same height as a campaign+brand card's brand line. */}
         <div className="flex flex-col gap-1">
           <div
-            className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[9px] whitespace-nowrap sm:text-[11px]`}
+            className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[11px] whitespace-nowrap sm:text-[13px]`}
           >
             {hasCampaign && product.campaignEndAt && (
               <CampaignCountdown target={product.campaignEndAt} label="Ends in" size="sm" />

@@ -72,18 +72,27 @@ export function CampaignCountdown({
     <div
       className={`flex shrink-0 items-center font-medium ${
         // Must stay on one line and never wrap the label away from its own
-        // value. 11px (this size's target, readable without being
-        // oversized) doesn't quite fit "Ends in Nd HH:MM:SS" alone in a
-        // 2-column card below the sm breakpoint (measured 17px short at
-        // 320px) -- one step down there, matching the same column-count-
-        // driven responsive reasoning already used elsewhere on this card.
-        // The sold-count sibling next to it (ProductCard's Slot A) is what
-        // yields space via truncation on the rarer card where both need to
-        // coexist -- this countdown itself is never the thing that gives.
-        size === "sm" ? "flex-nowrap gap-x-1 whitespace-nowrap text-[9px] sm:text-[11px]" : "gap-2 text-sm"
+        // value. Sized up again from the previous round (9px/11px) after
+        // feedback that was still too small -- 13px (sm+, tablet/desktop
+        // cards) sits closer to this card's own title/price scale (14px/
+        // 13px), 11px below the sm breakpoint (a 2-column card's width).
+        size === "sm" ? "flex-nowrap gap-x-1 whitespace-nowrap text-[11px] sm:text-[13px]" : "gap-2 text-sm"
       }`}
     >
-      <span className="text-[var(--muted)]">{label}</span>
+      {/* Below 375px specifically, "Ends in " + the full HH:MM:SS still
+          doesn't fit even at 11px -- shrinking the font further to force a
+          fit was tried and rejected (it clipped the seconds off entirely,
+          which reads as a frozen/broken timer, worse than a smaller but
+          complete one). Dropping the label there instead keeps every
+          digit visible and the size readable; 375px and up show the full
+          "Ends in" wording as before. Only this "sm" size ever hides it --
+          CampaignInfoBlock's/the campaign landing page's own "md" usage is
+          unaffected. */}
+      {size === "sm" ? (
+        <span className="hidden text-[var(--muted)] min-[375px]:inline">{label}</span>
+      ) : (
+        <span className="text-[var(--muted)]">{label}</span>
+      )}
       <span className="font-mono tabular-nums">
         {days > 0 && `${days}d `}
         {pad(hours)}:{pad(minutes)}:{pad(seconds)}

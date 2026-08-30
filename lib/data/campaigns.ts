@@ -400,6 +400,44 @@ export async function getActiveCampaignProductIds(
   return [...ids];
 }
 
+// Companion to getActiveCampaignProductIds above -- same exact gating (no
+// show_in_shop/show_on_homepage placement check, deliberately: a campaign
+// can be excluded from the shop page's own promotional carousel/banner via
+// that flag while its products are still legitimately "on campaign" for
+// the filter, and this must find every one of those campaigns, not just
+// the curated subset getShopCampaigns() would). Returns full Campaign rows
+// (deduped) rather than just ids, since callers need them to feed
+// applyCampaignFeaturedDisplay's campaign parameter directly, restricted
+// to a specific set of already-known product ids (the current page's
+// already-filtered/paginated products) rather than every campaign
+// storewide.
+export async function getActiveCampaignsForProducts(
+  supabase: SupabaseServerClient,
+  productIds: string[],
+): Promise<Campaign[]> {
+  if (productIds.length === 0) return [];
+
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("campaign_items")
+    .select("campaigns!inner(*)")
+    .eq("is_active", true)
+    .in("product_id", productIds)
+    .eq("campaigns.status", "published")
+    .eq("campaigns.is_archived", false)
+    .lte("campaigns.start_at", nowIso);
+  if (error) throw error;
+
+  const now = Date.now();
+  const byId = new Map<string, Campaign>();
+  for (const row of (data ?? []) as unknown as { campaigns: Campaign }[]) {
+    const campaign = row.campaigns;
+    if (campaign.end_at != null && new Date(campaign.end_at).getTime() <= now) continue;
+    byId.set(campaign.id, campaign);
+  }
+  return [...byId.values()];
+}
+
 // Checkout/cart delivery-fee waiver -- same gating conditions as
 // getActiveCampaignPricesForVariants, plus free_shipping_enabled, but only
 // needs a yes/no answer (any qualifying campaign_item unlocks free
