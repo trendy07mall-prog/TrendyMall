@@ -16,11 +16,14 @@ import type { ProductWithPrimaryImage } from "@/types";
 // would let a campaign-only card's content drift toward the title and a
 // brand-only card's content drift toward the image -- exactly the
 // "shifting position" bug this is meant to prevent in the other direction.
-// Slot A is now single-line at every width (CampaignCountdown's own "sm"
-// size shrinks further below the sm breakpoint instead of wrapping -- see
-// that component), so one uniform height covers it everywhere; no more
-// mobile/desktop split, and no more slack from an oversized box centering
-// single-line content away from the image above it.
+// Slot A is single-line at every width -- 11px (readable without being
+// oversized, see CampaignCountdown's "sm" size) everywhere except below
+// the sm breakpoint, where a bare "Ends in Nd HH:MM:SS" alone still needs
+// one step smaller (9px) to fit a 2-column card's width at all. Same
+// uniform h-4 height covers both sizes. On the rare card where the
+// countdown AND a campaign sold-count together still don't fit, the
+// sold-count span (not the countdown) truncates -- see below -- rather
+// than this wrapping or the countdown itself clipping.
 const SLOT_A_HEIGHT = "h-4";
 const SLOT_B_HEIGHT = "h-[14px]";
 // Rating + total-sold line above the button -- also always reserved (a
@@ -178,7 +181,7 @@ export function ProductCard({
             at the exact same height as a campaign+brand card's brand line. */}
         <div className="flex flex-col gap-1">
           <div
-            className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[7px] whitespace-nowrap sm:text-xs`}
+            className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[9px] whitespace-nowrap sm:text-[11px]`}
           >
             {hasCampaign && product.campaignEndAt && (
               <CampaignCountdown target={product.campaignEndAt} label="Ends in" size="sm" />
@@ -188,11 +191,13 @@ export function ProductCard({
                 getCampaignSoldCounts), just composed here without the name
                 span that's moved to the glass bar. Distinct from
                 totalUnitsSold in the rating row below -- a campaign
-                product can show both at once. Text size inherits from this
-                row's own responsive text-[7px]/sm:text-xs, shrinking in
-                step with the countdown so the pair always fits one line. */}
+                product can show both at once. The countdown (shrink-0)
+                always keeps its full text; this is what yields space
+                (min-w-0 + truncate) on the rare narrow card where both
+                can't fully fit, rather than the row wrapping or the
+                countdown itself getting cut off mid-digit. */}
             {hasCampaign && product.soldCount != null && product.soldCount > 0 && (
-              <span className="shrink-0 text-[var(--muted)]">{product.soldCount} sold</span>
+              <span className="min-w-0 truncate text-[var(--muted)]">{product.soldCount} sold</span>
             )}
           </div>
           <p className={`${SLOT_B_HEIGHT} truncate text-[10px] leading-[14px] font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase`}>
@@ -227,11 +232,12 @@ export function ProductCard({
         {/* Rating (left) + lifetime total sold (right) -- always rendered,
             reserving its height, so the button below never creeps up on a
             card with neither. Two independently-real, independently-gated
-            values on one line, never fabricated. Explicitly labeled "total
-            sold" (not just "sold") since Slot A above can also show a
-            campaign-scoped "N sold" on the same card -- two different
-            numbers, distinguished by label, not just position. This one is
-            always >= that one, since campaign sales are a subset of a
+            values on one line, never fabricated. Labeled "Sold" (not
+            Slot A's "N sold" wording) mostly to keep it short -- the two
+            numbers are already distinguished by position (this one sits
+            right above the button, Slot A sits right under the image) as
+            well as being visually distinct rows. This one is always >=
+            Slot A's count, since campaign sales are a subset of a
             product's total sales, never counted separately from it. */}
         <div className={`flex ${RATING_ROW_HEIGHT} flex-wrap items-start justify-between gap-x-2 gap-y-0.5 sm:flex-nowrap`}>
           {hasRating ? (
@@ -243,7 +249,7 @@ export function ProductCard({
             <span />
           )}
           {hasTotalSold && (
-            <span className="shrink-0 text-[10px] text-[var(--muted)]">{product.totalUnitsSold} total sold</span>
+            <span className="shrink-0 text-[10px] text-[var(--muted)]">{product.totalUnitsSold} Sold</span>
           )}
         </div>
 
@@ -251,8 +257,11 @@ export function ProductCard({
             renders above -- mt-auto absorbs the remainder so the button
             lands at the same row position across every card in a grid row
             (CSS Grid stretches all cards in a row to equal height by
-            default). */}
-        <div className="mt-auto pt-1">
+            default). No extra pt- here on top of that -- the flex
+            container's own gap already provides the spacing rhythm; adding
+            padding here on top of it was the redundant "leftover empty
+            space before Add to Cart." */}
+        <div className="mt-auto">
           <QuickAddButton product={product} variant={variant} />
         </div>
       </div>
