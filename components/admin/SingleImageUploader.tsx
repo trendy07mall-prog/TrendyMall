@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 
 // Extracted from product-form/CategoryField.tsx's inline single-image
 // upload block so it isn't copy-pasted per banner field (campaigns need
@@ -64,7 +65,7 @@ export function SingleImageUploader({
     <div className="flex flex-col gap-1">
       <label className="text-sm font-medium">{label}</label>
       {hint && <span className="text-xs text-[var(--muted)]">{hint}</span>}
-      <input type="file" accept="image/*" onChange={handleChange} className="text-sm" />
+      <FileInputButton label="Choose Image" accept="image/*" onChange={handleChange} />
       {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
       {value && (

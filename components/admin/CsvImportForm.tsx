@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { bulkImportProducts, type BulkImportResult, type ImportRow } from "@/lib/admin/products-import";
 import { DownloadTemplateButton } from "@/components/admin/DownloadTemplateButton";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -97,7 +98,7 @@ export function CsvImportForm() {
         <label htmlFor="csv-file" className="text-sm font-medium">
           Choose CSV file
         </label>
-        <input id="csv-file" type="file" accept=".csv,text/csv" onChange={handleFile} />
+        <FileInputButton id="csv-file" label="Choose CSV File" accept=".csv,text/csv" onChange={handleFile} />
       </div>
 
       {fileName && (

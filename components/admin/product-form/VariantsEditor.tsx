@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 import type { Attribute, AttributeValue } from "@/types";
 
 const MAX_VARIANT_IMAGES = 4;
@@ -338,12 +339,11 @@ export function VariantsEditor({
                 </div>
               ))}
               {row.imageUrls.length < MAX_VARIANT_IMAGES && (
-                <input
-                  type="file"
+                <FileInputButton
+                  label="Add Images"
                   accept="image/*"
                   multiple
                   onChange={(e) => handleImagesChange(index, e)}
-                  className="w-40 text-xs"
                 />
               )}
               {uploadingIndex === index && (

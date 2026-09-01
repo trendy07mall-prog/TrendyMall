@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 import type { CategoryFormState } from "@/lib/admin/categories";
 import type { Category, SpecTemplate } from "@/types";
 import Image from "next/image";
@@ -133,13 +134,7 @@ export function CategoryForm({
         <label htmlFor="image" className="text-sm font-medium">
           Image
         </label>
-        <input
-          id="image"
-          type="file"
-          accept="image/*"
-          onChange={handleImageChange}
-          className="text-sm"
-        />
+        <FileInputButton id="image" label="Choose Image" accept="image/*" onChange={handleImageChange} />
         {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
         {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
         {imageUrl && (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 import type { Category } from "@/types";
 
 const inputClass =
@@ -96,13 +97,12 @@ export function CategoryField({
             <label htmlFor="newCategoryImage" className="text-sm font-medium">
               Category image (required)
             </label>
-            <input
+            <FileInputButton
               id="newCategoryImage"
-              type="file"
+              label="Choose Image"
               accept="image/*"
               required={!imageUrl}
               onChange={handleImageChange}
-              className="text-sm"
             />
             {uploading && (
               <span className="text-xs text-[var(--muted)]">Uploading…</span>

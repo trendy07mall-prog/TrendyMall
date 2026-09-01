@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
+import { FileInputButton } from "@/components/admin/FileInputButton";
 
 export function GalleryUploader({
   value,
@@ -97,13 +98,7 @@ export function GalleryUploader({
         </ul>
       )}
 
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        onChange={handleFilesChange}
-        className="text-sm"
-      />
+      <FileInputButton label="Add Images" accept="image/*" multiple onChange={handleFilesChange} />
       {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
