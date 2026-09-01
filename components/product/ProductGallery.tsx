@@ -222,7 +222,6 @@ export function ProductGallery({
                   : "ring-transparent hover:ring-[var(--border-hover)]"
               }`}
             >
-              <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[var(--radius-sm)] border border-[var(--border)]" />
               {/* object-contain (not cover), same reasoning as the main
                   image above -- this is the actual bug: each photo's own
                   aspect ratio differs, so cover crops every thumbnail
@@ -240,6 +239,21 @@ export function ProductGallery({
                 loading="lazy"
                 sizes="76px"
                 className="object-contain"
+              />
+              {/* Painted AFTER the image (not before) so it always renders
+                  on top -- both this and the Image above are absolute
+                  inset-0 with no z-index, so whichever comes later in the
+                  DOM wins the stacking. With the border first, the image's
+                  own opaque pixels covered it completely on whatever
+                  side(s) the photo's content happened to reach edge-to-
+                  edge (only the letterboxed/transparent sides showed
+                  through), reading as an incomplete border that also
+                  picked up the photo's own dark content as a false "black"
+                  edge. On top, it now always draws as a complete, uncovered
+                  box in the real border color on every side. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-[var(--radius-sm)] border border-[var(--border)]"
               />
             </button>
           ))}
