@@ -29,14 +29,12 @@ import { SortBar } from "@/components/product/SortBar";
 import { QuickFilterChips } from "@/components/product/QuickFilterChips";
 import { CategoryCarousel } from "@/components/product/CategoryCarousel";
 import { BrandStrip } from "@/components/product/BrandStrip";
-import { ShopStatStrip } from "@/components/product/ShopStatStrip";
 import { ShopQuickJumpNav } from "@/components/product/ShopQuickJumpNav";
 import { ShopSearchInput } from "@/components/product/ShopSearchInput";
 import { ViewToggle } from "@/components/product/ViewToggle";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { Pagination } from "@/components/product/Pagination";
 import { ViewModeProvider } from "@/context/ViewModeContext";
-import { ShoppingBagIcon, FolderIcon, StoreIcon, TruckIcon } from "@/components/ui/Icon";
 
 export const metadata: Metadata = {
   title: "Shop All Accessories",
@@ -140,47 +138,12 @@ export default async function ShopPage({
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
-      {/* Hero sits directly on the page background -- no card container. */}
+      {/* Hero/header section (eyebrow label, "Shop All" heading, subtitle,
+          and the 4-stat strip) removed per request -- breadcrumb now flows
+          directly into the campaign banner/filters/grid below. */}
       <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
-      <p className="mt-4 text-xs font-semibold tracking-widest text-[var(--color-text-secondary)] uppercase">
-        Shop
-      </p>
-      <h1 className="text-[42px] font-bold uppercase">
-        {state.onSale ? "Special Price Sale" : "Shop All"}
-      </h1>
-      <p className="mt-2 text-[15px] text-[var(--muted)]">
-        {state.onSale
-          ? `Showing ${products.length} product${products.length === 1 ? "" : "s"} with special pricing.`
-          : "Every product we carry, in one place."}
-      </p>
 
-      {/* Live counts only -- no fabricated stats like a review-score
-          percentage we have no aggregate data to support. "Categories"
-          deliberately counts only categories with at least one product
-          (facetCounts.categories, filtered) rather than every active row in
-          the categories table -- that table carries a much larger taxonomy
-          than what the 15-product catalog actually uses (21 active rows vs
-          7 actually populated), and "categories we carry" should reflect
-          the latter. Brands has no such gap (11 active = 11 actually used),
-          confirmed directly against the live data, so brands.length is
-          already correct as-is. Products from the same
-          getPublishedProductCount() the toolbar's own count is built from. */}
-      <div className="mt-8">
-        <ShopStatStrip
-          stats={[
-            { icon: ShoppingBagIcon, value: String(totalCount), label: "Products" },
-            {
-              icon: FolderIcon,
-              value: String(facetCounts.categories.filter((c) => c.count > 0).length),
-              label: "Categories",
-            },
-            { icon: StoreIcon, value: String(brands.length), label: "Brands" },
-            { icon: TruckIcon, value: "Islandwide", label: "Delivery" },
-          ]}
-        />
-      </div>
-
-      <div className="mt-8">
+      <div className="mt-6">
         <CampaignBannerCarousel campaigns={shopCampaigns} />
       </div>
 
