@@ -100,7 +100,16 @@ export function ProductGallery({
                   fill
                   priority
                   sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover transition-transform duration-300 ease-out"
+                  // object-contain (not cover): a gallery image's own real
+                  // aspect ratio varies per photo, and cover crops each one
+                  // differently to fill this square frame -- unpredictably
+                  // cutting off badges/text baked into some photos while
+                  // barely touching others. Matches the zoomed modal below,
+                  // which already used object-contain for the same reason.
+                  // The hover-zoom effect (the transform below) is a
+                  // separate mechanism -- a CSS scale on this same element
+                  // -- and is unaffected by object-fit either way.
+                  className="object-contain transition-transform duration-300 ease-out"
                   style={
                     hoverZoom
                       ? { transform: "scale(1.8)", transformOrigin: zoomOrigin }
@@ -214,13 +223,23 @@ export function ProductGallery({
               }`}
             >
               <span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[var(--radius-sm)] border border-[var(--border)]" />
+              {/* object-contain (not cover), same reasoning as the main
+                  image above -- this is the actual bug: each photo's own
+                  aspect ratio differs, so cover crops every thumbnail
+                  differently (some barely, some cutting off a badge/text
+                  near an edge that's fully visible when that same photo is
+                  shown as the main image, which used to only be
+                  coincidentally less-cropped rather than genuinely
+                  uncropped). contain guarantees every thumbnail shows its
+                  whole photo, consistently, regardless of source aspect
+                  ratio. */}
               <Image
                 src={src}
                 alt={`${name} — photo ${i + 1}`}
                 fill
                 loading="lazy"
                 sizes="76px"
-                className="object-cover"
+                className="object-contain"
               />
             </button>
           ))}
