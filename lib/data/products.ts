@@ -562,133 +562,149 @@ export async function getFacetCounts(
     resolveCampaignProductIds(supabase, filters),
   ]);
 
-  let categories: FacetCounts["categories"] = [];
-  if (options.includeCategoryFacet !== false) {
-    let categoryCountQuery = supabase.from("products").select("category_id").eq("status", "published").eq("is_deleted", false);
-    if (options.restrictToIds) categoryCountQuery = categoryCountQuery.in("id", options.restrictToIds);
+  // The 4 facets below (categories/brands/tags/attributes) are fully
+  // independent of each other -- none reads a value the others compute,
+  // all four only ever depend on `filters`/`options`/the resolver id-lists
+  // above. They used to run one after another (await each block in turn),
+  // which chains their round trips sequentially even though there's no
+  // real data dependency forcing that order -- on a slow connection to the
+  // database this alone could cost as much as the 3 slowest facets'
+  // latencies added together. Running all 4 through one Promise.all lets
+  // them share the same wall-clock window instead, cut to whichever single
+  // facet (tags or attributes, both two-hop) takes longest -- pure
+  // concurrency, no change to what any of them queries or returns.
+  const [categories, brands, tags, attributes] = await Promise.all([
+    (async (): Promise<FacetCounts["categories"]> => {
+      if (options.includeCategoryFacet === false) return [];
+      let categoryCountQuery = supabase.from("products").select("category_id").eq("status", "published").eq("is_deleted", false);
+      if (options.restrictToIds) categoryCountQuery = categoryCountQuery.in("id", options.restrictToIds);
 
-    const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
-      supabase.from("categories").select("*").eq("is_active", true),
-      applyDbFilters(
-        categoryCountQuery,
-        filtersWithoutCategory,
-        [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
+      const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
+        supabase.from("categories").select("*").eq("is_active", true),
+        applyDbFilters(
+          categoryCountQuery,
+          filtersWithoutCategory,
+          [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
+          onSaleProductIds,
+        ),
+      ]);
+
+      const countByCategoryId = new Map<string, number>();
+      for (const row of productRows ?? []) {
+        countByCategoryId.set(row.category_id, (countByCategoryId.get(row.category_id) ?? 0) + 1);
+      }
+      // Depth-first tree order (not a flat sort_order sort) so parent/child
+      // categories group together in the filter sidebar instead of being
+      // interleaved by their raw sort_order values.
+      const orderedCategories = flattenCategoryTree(buildCategoryTree(categoryRows ?? []));
+      return orderedCategories.map((c) => ({
+        slug: c.slug,
+        name: c.name,
+        depth: c.depth,
+        count: countByCategoryId.get(c.id) ?? 0,
+      }));
+    })(),
+
+    (async (): Promise<FacetCounts["brands"]> => {
+      let brandQuery = supabase
+        .from("products")
+        .select("brand_id")
+        .eq("status", "published").eq("is_deleted", false)
+        .not("brand_id", "is", null);
+      if (options.categoryIds) brandQuery = brandQuery.in("category_id", options.categoryIds);
+      if (options.restrictToIds) brandQuery = brandQuery.in("id", options.restrictToIds);
+      const [{ data: brandRows }, { data: brandCatalog }] = await Promise.all([
+        applyDbFilters(
+          brandQuery,
+          filtersWithoutBrand,
+          [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
+          onSaleProductIds,
+        ),
+        supabase.from("brands").select("id, name").eq("is_active", true),
+      ]);
+
+      const countByBrandId = new Map<string, number>();
+      for (const row of brandRows ?? []) {
+        if (row.brand_id) countByBrandId.set(row.brand_id, (countByBrandId.get(row.brand_id) ?? 0) + 1);
+      }
+      return (brandCatalog ?? [])
+        .map((b) => ({ name: b.name, count: countByBrandId.get(b.id) ?? 0 }))
+        .filter((b) => b.count > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    })(),
+
+    (async (): Promise<FacetCounts["tags"]> => {
+      // Tags live in a join table, so the facet needs an extra hop: first
+      // the set of products eligible under every OTHER active filter
+      // (including an active attribute filter, but deliberately NOT
+      // tagProductIds -- that's this facet's own selection), then which
+      // tags those products carry.
+      let tagCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
+      if (options.categoryIds) tagCountQuery = tagCountQuery.in("category_id", options.categoryIds);
+      if (options.restrictToIds) tagCountQuery = tagCountQuery.in("id", options.restrictToIds);
+      const { data: tagEligibleProducts } = await applyDbFilters(
+        tagCountQuery,
+        filtersWithoutTag,
+        [attributeProductIds, priceProductIds, campaignProductIds],
         onSaleProductIds,
-      ),
-    ]);
+      );
+      const tagEligibleProductIds = (tagEligibleProducts ?? []).map((p: { id: string }) => p.id);
+      if (tagEligibleProductIds.length === 0) return [];
 
-    const countByCategoryId = new Map<string, number>();
-    for (const row of productRows ?? []) {
-      countByCategoryId.set(row.category_id, (countByCategoryId.get(row.category_id) ?? 0) + 1);
-    }
-    // Depth-first tree order (not a flat sort_order sort) so parent/child
-    // categories group together in the filter sidebar instead of being
-    // interleaved by their raw sort_order values.
-    const orderedCategories = flattenCategoryTree(buildCategoryTree(categoryRows ?? []));
-    categories = orderedCategories.map((c) => ({
-      slug: c.slug,
-      name: c.name,
-      depth: c.depth,
-      count: countByCategoryId.get(c.id) ?? 0,
-    }));
-  }
+      const [{ data: productTagRows }, { data: tagCatalog }] = await Promise.all([
+        supabase.from("product_tags").select("tag_id").in("product_id", tagEligibleProductIds),
+        supabase.from("tags").select("id, name, slug").eq("is_active", true),
+      ]);
 
-  let brandQuery = supabase
-    .from("products")
-    .select("brand_id")
-    .eq("status", "published").eq("is_deleted", false)
-    .not("brand_id", "is", null);
-  if (options.categoryIds) brandQuery = brandQuery.in("category_id", options.categoryIds);
-  if (options.restrictToIds) brandQuery = brandQuery.in("id", options.restrictToIds);
-  const [{ data: brandRows }, { data: brandCatalog }] = await Promise.all([
-    applyDbFilters(
-      brandQuery,
-      filtersWithoutBrand,
-      [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
-      onSaleProductIds,
-    ),
-    supabase.from("brands").select("id, name").eq("is_active", true),
+      const countByTagId = new Map<string, number>();
+      for (const row of productTagRows ?? []) {
+        countByTagId.set(row.tag_id, (countByTagId.get(row.tag_id) ?? 0) + 1);
+      }
+      return (tagCatalog ?? [])
+        .map((t) => ({ name: t.name, slug: t.slug, count: countByTagId.get(t.id) ?? 0 }))
+        .filter((t) => t.count > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    })(),
+
+    (async (): Promise<FacetCounts["attributes"]> => {
+      // Same two-hop join-table pattern as tags, with an extra grouping
+      // level (values grouped under their parent attribute for the
+      // storefront's one-FilterGroup-per-attribute rendering).
+      let attributeCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
+      if (options.categoryIds) attributeCountQuery = attributeCountQuery.in("category_id", options.categoryIds);
+      if (options.restrictToIds) attributeCountQuery = attributeCountQuery.in("id", options.restrictToIds);
+      const { data: attributeEligibleProducts } = await applyDbFilters(
+        attributeCountQuery,
+        filtersWithoutAttribute,
+        [tagProductIds, priceProductIds, campaignProductIds],
+        onSaleProductIds,
+      );
+      const attributeEligibleProductIds = (attributeEligibleProducts ?? []).map((p: { id: string }) => p.id);
+      if (attributeEligibleProductIds.length === 0) return [];
+
+      const [{ data: productAttributeRows }, { data: attributeCatalog }, { data: valueCatalog }] = await Promise.all([
+        supabase.from("product_attribute_values").select("attribute_value_id").in("product_id", attributeEligibleProductIds),
+        supabase.from("attributes").select("id, name, slug").order("sort_order"),
+        supabase.from("attribute_values").select("id, attribute_id, value, slug").order("sort_order"),
+      ]);
+
+      const countByValueId = new Map<string, number>();
+      for (const row of productAttributeRows ?? []) {
+        countByValueId.set(row.attribute_value_id, (countByValueId.get(row.attribute_value_id) ?? 0) + 1);
+      }
+
+      return (attributeCatalog ?? [])
+        .map((attribute) => ({
+          attributeName: attribute.name,
+          attributeSlug: attribute.slug,
+          values: (valueCatalog ?? [])
+            .filter((v) => v.attribute_id === attribute.id)
+            .map((v) => ({ name: v.value, slug: v.slug, count: countByValueId.get(v.id) ?? 0 }))
+            .filter((v) => v.count > 0),
+        }))
+        .filter((a) => a.values.length > 0);
+    })(),
   ]);
-
-  const countByBrandId = new Map<string, number>();
-  for (const row of brandRows ?? []) {
-    if (row.brand_id) countByBrandId.set(row.brand_id, (countByBrandId.get(row.brand_id) ?? 0) + 1);
-  }
-  const brands = (brandCatalog ?? [])
-    .map((b) => ({ name: b.name, count: countByBrandId.get(b.id) ?? 0 }))
-    .filter((b) => b.count > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  // Tags live in a join table, so the facet needs an extra hop: first the
-  // set of products eligible under every OTHER active filter (including an
-  // active attribute filter, but deliberately NOT tagProductIds -- that's
-  // this facet's own selection), then which tags those products carry.
-  let tagCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
-  if (options.categoryIds) tagCountQuery = tagCountQuery.in("category_id", options.categoryIds);
-  if (options.restrictToIds) tagCountQuery = tagCountQuery.in("id", options.restrictToIds);
-  const { data: tagEligibleProducts } = await applyDbFilters(
-    tagCountQuery,
-    filtersWithoutTag,
-    [attributeProductIds, priceProductIds, campaignProductIds],
-    onSaleProductIds,
-  );
-  const tagEligibleProductIds = (tagEligibleProducts ?? []).map((p: { id: string }) => p.id);
-
-  let tags: FacetCounts["tags"] = [];
-  if (tagEligibleProductIds.length > 0) {
-    const [{ data: productTagRows }, { data: tagCatalog }] = await Promise.all([
-      supabase.from("product_tags").select("tag_id").in("product_id", tagEligibleProductIds),
-      supabase.from("tags").select("id, name, slug").eq("is_active", true),
-    ]);
-
-    const countByTagId = new Map<string, number>();
-    for (const row of productTagRows ?? []) {
-      countByTagId.set(row.tag_id, (countByTagId.get(row.tag_id) ?? 0) + 1);
-    }
-    tags = (tagCatalog ?? [])
-      .map((t) => ({ name: t.name, slug: t.slug, count: countByTagId.get(t.id) ?? 0 }))
-      .filter((t) => t.count > 0)
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  // Attributes: same two-hop join-table pattern as tags, with an extra
-  // grouping level (values grouped under their parent attribute for the
-  // storefront's one-FilterGroup-per-attribute rendering).
-  let attributeCountQuery = supabase.from("products").select("id").eq("status", "published").eq("is_deleted", false);
-  if (options.categoryIds) attributeCountQuery = attributeCountQuery.in("category_id", options.categoryIds);
-  if (options.restrictToIds) attributeCountQuery = attributeCountQuery.in("id", options.restrictToIds);
-  const { data: attributeEligibleProducts } = await applyDbFilters(
-    attributeCountQuery,
-    filtersWithoutAttribute,
-    [tagProductIds, priceProductIds, campaignProductIds],
-    onSaleProductIds,
-  );
-  const attributeEligibleProductIds = (attributeEligibleProducts ?? []).map((p: { id: string }) => p.id);
-
-  let attributes: FacetCounts["attributes"] = [];
-  if (attributeEligibleProductIds.length > 0) {
-    const [{ data: productAttributeRows }, { data: attributeCatalog }, { data: valueCatalog }] = await Promise.all([
-      supabase.from("product_attribute_values").select("attribute_value_id").in("product_id", attributeEligibleProductIds),
-      supabase.from("attributes").select("id, name, slug").order("sort_order"),
-      supabase.from("attribute_values").select("id, attribute_id, value, slug").order("sort_order"),
-    ]);
-
-    const countByValueId = new Map<string, number>();
-    for (const row of productAttributeRows ?? []) {
-      countByValueId.set(row.attribute_value_id, (countByValueId.get(row.attribute_value_id) ?? 0) + 1);
-    }
-
-    attributes = (attributeCatalog ?? [])
-      .map((attribute) => ({
-        attributeName: attribute.name,
-        attributeSlug: attribute.slug,
-        values: (valueCatalog ?? [])
-          .filter((v) => v.attribute_id === attribute.id)
-          .map((v) => ({ name: v.value, slug: v.slug, count: countByValueId.get(v.id) ?? 0 }))
-          .filter((v) => v.count > 0),
-      }))
-      .filter((a) => a.values.length > 0);
-  }
 
   return { categories, brands, tags, attributes };
 }
