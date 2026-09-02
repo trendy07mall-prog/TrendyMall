@@ -76,7 +76,14 @@ export function CampaignBanner({
         </div>
       )}
       {desktop && (
-        <div className="relative hidden aspect-[1920/650] w-full overflow-hidden rounded-[var(--radius-card)] md:block">
+        // 1600/500 (3.2:1) matches the "Recommended 1600×500" hint on the
+        // desktop banner upload field exactly -- this used to be 1920/650
+        // (≈2.95:1), which forced object-cover to crop ~80px off each SIDE
+        // of a genuinely-3.2:1 upload at 1920px wide (exactly where the
+        // logo/headline sit on one edge and the product image/CTA sit on
+        // the other), even though the image itself was correctly sized.
+        // Same root cause and fix as the mobile 4:3 correction above.
+        <div className="relative hidden aspect-[1600/500] w-full overflow-hidden rounded-[var(--radius-card)] md:block">
           <Image
             src={desktop}
             alt={alt}

@@ -75,9 +75,14 @@ export function CampaignBannerCarousel({ campaigns }: { campaigns: Campaign[] })
         />
       )}
       {desktopSlides.length > 0 && (
+        // 1600/500 (3.2:1) matches the "Recommended 1600×500" hint on the
+        // desktop banner upload field exactly -- see CampaignBanner.tsx's
+        // identical fix for the full explanation (this used to be 1920/650,
+        // ≈2.95:1, which forced object-cover to crop ~80px off each side of
+        // a genuinely-3.2:1 upload at 1920px wide).
         <SlideCarousel
           slides={desktopSlides}
-          wrapperClassName="hidden md:block aspect-[1920/650]"
+          wrapperClassName="hidden md:block aspect-[1600/500]"
           ariaLabel="Active campaigns"
           imageSizes={DESKTOP_SIZES}
         />
