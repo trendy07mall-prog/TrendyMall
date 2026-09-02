@@ -165,3 +165,15 @@ export function getDiscountPercent(
   const percent = Math.round((1 - specialPrice / actualPrice) * 100);
   return percent > 0 ? percent : null;
 }
+
+// The price a customer actually pays -- specialPrice (sale price, or an
+// active campaign price, whichever already won via resolveEffectivePriceBand
+// upstream) when set, else the regular price. This is the exact number
+// PriceDisplay renders as the current/prominent price, so it's the only
+// correct key for a "Price: Low to High/High to Low" sort -- sorting by
+// actualPrice alone (the struck-through reference price) puts a Rs 999
+// product marked down to Rs 599 above a genuinely-cheaper Rs 650 product,
+// which is backwards from what the customer is being charged.
+export function getEffectivePrice(actualPrice: number, specialPrice: number | null): number {
+  return specialPrice ?? actualPrice;
+}

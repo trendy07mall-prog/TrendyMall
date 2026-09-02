@@ -11,14 +11,7 @@ import { getCategories } from "@/lib/data/categories";
 import { getBrands } from "@/lib/data/brands";
 import { getTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
-import {
-  getShopCampaigns,
-  getActiveCampaignsForProducts,
-  getCampaignFeaturedDisplayByProduct,
-  applyCampaignFeaturedDisplay,
-  getCampaignSoldCounts,
-} from "@/lib/data/campaigns";
-import { createClient } from "@/lib/supabase/server";
+import { getShopCampaigns } from "@/lib/data/campaigns";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { ProductGrid } from "@/components/product/ProductGrid";
@@ -88,53 +81,16 @@ export default async function ShopPage({
   const currentPage = Number.isInteger(requestedPage)
     ? Math.min(Math.max(requestedPage, 1), totalPages)
     : 1;
+  // getAllProducts/searchProducts (via applyPostFilters, lib/data/products.ts)
+  // already applies the campaign-context price/badge correction to the
+  // WHOLE filtered result set -- before sorting and before this pagination
+  // slice -- whenever state.campaign is set, so `products` here is already
+  // correctly priced/sorted/badged for the Flash Sale filtered view. No
+  // second pass needed here.
   const pagedProducts = products.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE,
   );
-
-  // Campaign-context display fix, scoped to exactly the "Flash Sale"
-  // filtered view (state.campaign) -- reuses the SAME
-  // getCampaignFeaturedDisplayByProduct/applyCampaignFeaturedDisplay pair
-  // the homepage carousel and /campaign/[slug] already use, not a second
-  // pricing implementation. Every product here is already known to be
-  // campaign-joined (that's how the campaign filter included it), but
-  // getAllProducts/attachPrimaryImages above still resolved each one's
-  // display price/badge via the site-wide "lowest price across ALL
-  // variants" rule -- correct everywhere else, wrong here, where a
-  // cheaper non-campaign variant can silently outrank the very deal this
-  // filtered view exists to show. getActiveCampaignsForProducts (not
-  // getShopCampaigns, which is gated by the separate show_in_shop
-  // curation flag) finds every campaign actually backing these specific
-  // products, matching the same unplaced eligibility rule the filter
-  // itself already used to include them.
-  let displayProducts: typeof pagedProducts = pagedProducts;
-  if (state.campaign && pagedProducts.length > 0) {
-    const supabase = await createClient();
-    const productIds = pagedProducts.map((p) => p.id);
-    const activeCampaigns = await getActiveCampaignsForProducts(supabase, productIds);
-    if (activeCampaigns.length > 0) {
-      const campaignIds = activeCampaigns.map((c) => c.id);
-      const [soldCountsByCampaignId, featuredByCampaignId] = await Promise.all([
-        getCampaignSoldCounts(supabase, campaignIds),
-        Promise.all(
-          activeCampaigns.map(
-            async (c) => [c.id, await getCampaignFeaturedDisplayByProduct(supabase, c.id, productIds)] as const,
-          ),
-        ).then((entries) => new Map(entries)),
-      ]);
-      displayProducts = activeCampaigns.reduce(
-        (acc, campaign) =>
-          applyCampaignFeaturedDisplay(
-            acc,
-            campaign,
-            featuredByCampaignId.get(campaign.id) ?? new Map(),
-            soldCountsByCampaignId.get(campaign.id) ?? new Map(),
-          ),
-        pagedProducts,
-      );
-    }
-  }
 
   return (
     <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-[var(--section-padding-y)] max-sm:py-12">
@@ -227,7 +183,7 @@ export default async function ShopPage({
             </div>
             <div className="mt-6">
               <ProductGrid
-                products={displayProducts}
+                products={pagedProducts}
                 emptyMessage={
                   q
                     ? `No products found for "${q}".`

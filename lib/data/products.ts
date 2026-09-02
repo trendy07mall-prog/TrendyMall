@@ -5,10 +5,19 @@ import { newArrivalCutoff } from "@/lib/product-filters";
 import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
-import { pickWinningVariant, getVariantPrice, getDiscountPercent, resolveEffectivePriceBand } from "@/lib/utils";
+import {
+  pickWinningVariant,
+  getVariantPrice,
+  getDiscountPercent,
+  resolveEffectivePriceBand,
+  getEffectivePrice,
+} from "@/lib/utils";
 import {
   getActiveCampaignPricesForVariants,
   getActiveCampaignProductIds,
+  getActiveCampaignsForProducts,
+  getCampaignFeaturedDisplayByProduct,
+  applyCampaignFeaturedDisplay,
   getCampaignSoldCounts,
 } from "@/lib/data/campaigns";
 import type {
@@ -376,10 +385,52 @@ async function applyPostFilters(
   products: ProductWithPrimaryImage[],
   filters: ProductListFilters,
 ): Promise<ProductWithPrimaryImage[]> {
-  const filtered =
+  let filtered =
     filters.minRating != null
       ? products.filter((p) => p.avgRating >= filters.minRating!)
       : products;
+
+  // Campaign-context price/badge correction, scoped to exactly the "on
+  // campaign" filtered view (filters.campaign) -- every product here is
+  // already known to be campaign-joined (that's how getActiveCampaignProductIds
+  // included it above), but attachPrimaryImages still resolved each one's
+  // actual_price/special_price via the site-wide "lowest price across ALL
+  // variants" rule -- correct everywhere else, wrong here, where a cheaper
+  // non-campaign variant can silently outrank the very deal this filtered
+  // view exists to show (and, left uncorrected, would silently mis-sort a
+  // price sort by that same wrong price). Reuses the exact same
+  // getActiveCampaignsForProducts/getCampaignFeaturedDisplayByProduct/
+  // applyCampaignFeaturedDisplay pipeline the homepage carousel and
+  // /campaign/[slug] already use for this -- applied here, before sorting
+  // AND before any caller paginates, so the corrected price is what both
+  // the card display and the sort order agree on, across the whole result
+  // set rather than just whichever page happens to be on screen.
+  if (filters.campaign && filtered.length > 0) {
+    const productIds = filtered.map((p) => p.id);
+    const activeCampaigns = await getActiveCampaignsForProducts(supabase, productIds);
+    if (activeCampaigns.length > 0) {
+      const campaignIds = activeCampaigns.map((c) => c.id);
+      const [soldCountsByCampaignId, featuredByCampaignId] = await Promise.all([
+        getCampaignSoldCounts(supabase, campaignIds),
+        Promise.all(
+          activeCampaigns.map(
+            async (c) =>
+              [c.id, await getCampaignFeaturedDisplayByProduct(supabase, c.id, productIds)] as const,
+          ),
+        ).then((entries) => new Map(entries)),
+      ]);
+      filtered = activeCampaigns.reduce(
+        (acc, campaign) =>
+          applyCampaignFeaturedDisplay(
+            acc,
+            campaign,
+            featuredByCampaignId.get(campaign.id) ?? new Map(),
+            soldCountsByCampaignId.get(campaign.id) ?? new Map(),
+          ),
+        filtered,
+      );
+    }
+  }
 
   if (filters.sort === "best_selling") {
     const ids = filtered.map((p) => p.id);
@@ -403,10 +454,18 @@ async function applyPostFilters(
     return [...filtered].sort((a, b) => b.view_count - a.view_count);
   }
   if (filters.sort === "price_asc") {
-    return [...filtered].sort((a, b) => a.actual_price - b.actual_price);
+    return [...filtered].sort(
+      (a, b) =>
+        getEffectivePrice(a.actual_price, a.special_price) -
+        getEffectivePrice(b.actual_price, b.special_price),
+    );
   }
   if (filters.sort === "price_desc") {
-    return [...filtered].sort((a, b) => b.actual_price - a.actual_price);
+    return [...filtered].sort(
+      (a, b) =>
+        getEffectivePrice(b.actual_price, b.special_price) -
+        getEffectivePrice(a.actual_price, a.special_price),
+    );
   }
   return [...filtered].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
