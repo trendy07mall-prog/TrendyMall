@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FilterDrawer } from "@/components/product/FilterDrawer";
+import { CheckIcon } from "@/components/ui/Icon";
 import { countActiveFilters, filterStateToParams, SORT_LABELS } from "@/lib/product-filters";
 import type { ProductFilterState, SortOption } from "@/lib/product-filters";
 
@@ -128,19 +129,29 @@ export function MobileFilterSortBar({
             }`}
           >
             <p className="mb-2 text-sm font-semibold">Sort by</p>
-            <div className="flex flex-col">
-              {sortOptions.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => setSort(option)}
-                  className={`min-h-11 rounded-lg px-3 py-3 text-left text-sm ${
-                    state.sort === option ? "font-semibold" : ""
-                  }`}
-                >
-                  {SORT_LABELS[option]}
-                </button>
-              ))}
+            <div className="flex flex-col gap-0.5">
+              {sortOptions.map((option) => {
+                const selected = state.sort === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setSort(option)}
+                    aria-pressed={selected}
+                    // Same selected-state language as the desktop SortDropdown
+                    // (light orange tint + orange text + checkmark) so Sort
+                    // reads identically whichever breakpoint renders it.
+                    className={`flex min-h-11 items-center justify-between gap-3 rounded-[var(--radius-sm)] px-3 py-3 text-left text-sm ${
+                      selected
+                        ? "bg-[var(--color-warning)]/10 font-medium text-[var(--color-warning)]"
+                        : "text-[var(--foreground)] hover:bg-black/5 active:bg-black/5"
+                    }`}
+                  >
+                    {SORT_LABELS[option]}
+                    {selected && <CheckIcon className="h-4 w-4 shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
