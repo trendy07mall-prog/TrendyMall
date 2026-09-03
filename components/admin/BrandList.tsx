@@ -7,7 +7,9 @@ import { BrandForm } from "@/components/admin/BrandForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/ToastProvider";
 import { createBrand, deleteBrand, toggleBrandActive, updateBrand } from "@/lib/admin/brands";
-import { AwardIcon } from "@/components/ui/Icon";
+import { AwardIcon, BanIcon, CheckIcon, PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Brand } from "@/types";
 
 export function BrandList({
@@ -103,33 +105,25 @@ export function BrandList({
                 {productCountByBrandId[brand.id] ?? 0} product
                 {(productCountByBrandId[brand.id] ?? 0) === 1 ? "" : "s"}
               </span>
-              <span
-                className={`rounded-full border px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide ${
-                  brand.is_active ? "border-current" : "border-current text-[var(--muted)]"
-                }`}
-              >
+              <StatusBadge tone={brand.is_active ? "success" : "neutral"}>
                 {brand.is_active ? "Active" : "Inactive"}
-              </span>
+              </StatusBadge>
 
-              <div className="flex shrink-0 items-center gap-3">
-                <button type="button" onClick={() => setEditing(brand)} className="text-xs underline">
-                  Edit
-                </button>
-                <button
-                  type="button"
+              <div className="flex shrink-0 items-center gap-2">
+                <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditing(brand)} />
+                <ActionButton
+                  icon={brand.is_active ? BanIcon : CheckIcon}
+                  label={brand.is_active ? "Deactivate" : "Activate"}
+                  tone={brand.is_active ? "warning" : "success"}
                   disabled={pending}
                   onClick={() => handleToggleActive(brand)}
-                  className="text-xs underline disabled:opacity-50"
-                >
-                  {brand.is_active ? "Deactivate" : "Activate"}
-                </button>
-                <button
-                  type="button"
+                />
+                <ActionButton
+                  icon={TrashIcon}
+                  label="Delete"
+                  tone="danger"
                   onClick={() => setDeleting(brand)}
-                  className="text-xs text-red-600 underline"
-                >
-                  Delete
-                </button>
+                />
               </div>
             </div>
           ))

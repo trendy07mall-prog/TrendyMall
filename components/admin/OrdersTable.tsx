@@ -16,6 +16,8 @@ import { useToast } from "@/components/admin/ToastProvider";
 import { useRouter } from "next/navigation";
 import { Pagination } from "@/components/product/Pagination";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
+import { DownloadIcon, PrinterIcon } from "@/components/ui/Icon";
+import { ActionButton, actionButtonClasses } from "@/components/ui/ActionButton";
 import type { AdminOrderItemRow, AdminOrderRow } from "@/lib/admin/orders-query";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
 
@@ -211,13 +213,11 @@ function OrderRow({
             <OrderItemLine key={item.id} item={item} />
           ))}
           {hiddenCount > 0 && (
-            <button
-              type="button"
+            <ActionButton
+              label={expanded ? "Show less" : `+${hiddenCount} more item${hiddenCount === 1 ? "" : "s"}`}
               onClick={() => setExpanded((v) => !v)}
-              className="self-start text-xs font-medium text-[var(--muted)] underline"
-            >
-              {expanded ? "Show less" : `+${hiddenCount} more item${hiddenCount === 1 ? "" : "s"}`}
-            </button>
+              className="self-start"
+            />
           )}
         </div>
       )}
@@ -310,17 +310,36 @@ function TabBody({ order, tab }: { order: AdminOrderRow; tab: AdminOrderTab }) {
             Packing status: <span className="font-medium text-[var(--foreground)]">{isPacked ? "Packed" : "Not Packed"}</span>
           </span>
           <div className="ml-auto flex flex-wrap gap-2">
-            <a href={`/invoices/${order.id}?disposition=inline`} target="_blank" rel="noopener noreferrer" className="text-sm underline">
-              Print Invoice
+            {/* Plain <a>, not ActionLinkButton/next-Link -- these point at
+                route.ts file-streaming endpoints (PDF generation), not
+                pages, so Next's prefetch/soft-navigation doesn't apply;
+                actionButtonClasses gives them the identical visual
+                treatment without going through <Link>. */}
+            <a
+              href={`/invoices/${order.id}?disposition=inline`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={actionButtonClasses("neutral", "xs", false)}
+            >
+              <PrinterIcon className="h-3.5 w-3.5" />
+              <span>Print Invoice</span>
             </a>
-            <a href={`/invoices/${order.id}`} className="text-sm underline">
-              Download Invoice
+            <a href={`/invoices/${order.id}`} className={actionButtonClasses("neutral", "xs", false)}>
+              <DownloadIcon className="h-3.5 w-3.5" />
+              <span>Download Invoice</span>
             </a>
-            <a href={`/shipping-labels/${order.id}?disposition=inline`} target="_blank" rel="noopener noreferrer" className="text-sm underline">
-              Print Shipping Label
+            <a
+              href={`/shipping-labels/${order.id}?disposition=inline`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={actionButtonClasses("neutral", "xs", false)}
+            >
+              <PrinterIcon className="h-3.5 w-3.5" />
+              <span>Print Shipping Label</span>
             </a>
-            <a href={`/shipping-labels/${order.id}`} className="text-sm underline">
-              Download Shipping Label
+            <a href={`/shipping-labels/${order.id}`} className={actionButtonClasses("neutral", "xs", false)}>
+              <DownloadIcon className="h-3.5 w-3.5" />
+              <span>Download Shipping Label</span>
             </a>
             {!isPacked && (
               <QuickActionButton action={() => advanceOrderStatus(order.id)} successMessage="Marked as packed">

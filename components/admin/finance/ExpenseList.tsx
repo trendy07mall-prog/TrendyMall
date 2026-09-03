@@ -9,6 +9,8 @@ import { createExpense, updateExpense, deleteExpense } from "@/lib/admin/expense
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_PAYMENT_METHOD_LABELS } from "@/lib/admin/expenses-shared";
 import { Pagination } from "@/components/product/Pagination";
 import { formatPrice } from "@/lib/utils";
+import { PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import type { ExpenseRow } from "@/lib/admin/expenses-query";
 
 function formatDate(dateStr: string): string {
@@ -126,17 +128,14 @@ export function ExpenseList({
                   {formatPrice(expense.amount)}
                 </td>
                 <td className="px-3 py-2.5 align-top">
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => setEditing(expense)} className="text-xs underline">
-                      Edit
-                    </button>
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-2">
+                    <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditing(expense)} />
+                    <ActionButton
+                      icon={TrashIcon}
+                      label="Delete"
+                      tone="danger"
                       onClick={() => setDeleting(expense)}
-                      className="text-xs text-[var(--color-discount)] underline"
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

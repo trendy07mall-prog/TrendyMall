@@ -6,6 +6,8 @@ import { CommissionRuleForm } from "@/components/admin/finance/CommissionRuleFor
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/ToastProvider";
 import { createCommissionRule, updateCommissionRule, deleteCommissionRule } from "@/lib/admin/commission-rules";
+import { PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import type { CategoryOption, CommissionRuleRow } from "@/lib/admin/commission-rules-query";
 
 // Same swap-in-place list/form shape as components/admin/TagList.tsx and
@@ -84,17 +86,9 @@ export function CommissionCategoryRules({
             >
               <span className="flex-1 text-sm font-medium">{rule.categoryName}</span>
               <span className="text-sm [font-variant-numeric:tabular-nums]">{rule.commissionPercent}%</span>
-              <div className="ml-4 flex items-center gap-3">
-                <button type="button" onClick={() => setEditing(rule)} className="text-xs underline">
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(rule)}
-                  className="text-xs text-[var(--color-discount)] underline"
-                >
-                  Delete
-                </button>
+              <div className="ml-4 flex items-center gap-2">
+                <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditing(rule)} />
+                <ActionButton icon={TrashIcon} label="Delete" tone="danger" onClick={() => setDeleting(rule)} />
               </div>
             </div>
           ))

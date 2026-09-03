@@ -1,3 +1,4 @@
+import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import type { PaymentStatus } from "@/types";
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -11,21 +12,22 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 
 // Color-codes each status (previously every status rendered in the same
 // plain border-only style with no color at all).
-const STATUS_COLOR_CLASS: Record<PaymentStatus, string> = {
-  pending: "border-[var(--color-warning)] text-[var(--color-warning)]",
-  awaiting_verification: "border-[var(--color-warning)] text-[var(--color-warning)]",
-  paid: "border-[var(--color-success)] text-[var(--color-success)]",
-  failed: "border-[var(--color-error)] text-[var(--color-error)]",
-  cancelled: "border-[var(--color-discount)] text-[var(--color-discount)]",
-  refunded: "border-[var(--muted)] text-[var(--muted)]",
+const STATUS_TONES: Record<PaymentStatus, StatusTone> = {
+  pending: "warning",
+  awaiting_verification: "warning",
+  paid: "success",
+  failed: "danger",
+  cancelled: "danger",
+  refunded: "neutral",
 };
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   return (
-    <span
-      className={`border px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide ${STATUS_COLOR_CLASS[status]}`}
+    <StatusBadge
+      tone={STATUS_TONES[status]}
+      className={status === "failed" ? "!bg-[var(--color-error)]/15 !text-[var(--color-error)]" : ""}
     >
       {PAYMENT_STATUS_LABELS[status]}
-    </span>
+    </StatusBadge>
   );
 }

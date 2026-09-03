@@ -9,6 +9,9 @@ import {
   deleteDeliveryZone,
 } from "@/lib/admin/delivery-zones";
 import { useToast } from "@/components/admin/ToastProvider";
+import { BanIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { AdminDeliveryZone } from "@/lib/admin/delivery-zones-query";
 
 type EditingState = { mode: "new" } | { mode: "edit"; data: AdminDeliveryZone } | null;
@@ -105,9 +108,9 @@ export function DeliveryZoneManager({ zones }: { zones: AdminDeliveryZone[] }) {
                 <td className="py-2 pr-4 font-medium">
                   {zone.name}
                   {zone.is_default && (
-                    <span className="ml-2 rounded-full bg-black/5 px-2 py-0.5 text-xs font-normal text-[var(--color-text-secondary)]">
+                    <StatusBadge tone="neutral" uppercase={false} className="ml-2">
                       Default
-                    </span>
+                    </StatusBadge>
                   )}
                 </td>
                 <td className="py-2 pr-4 text-[var(--muted)]">
@@ -118,68 +121,59 @@ export function DeliveryZoneManager({ zones }: { zones: AdminDeliveryZone[] }) {
                 <td className="py-2 pr-4 text-[var(--muted)]">{zone.district_match ?? "Any"}</td>
                 <td className="py-2 pr-4">Rs. {zone.rate}</td>
                 <td className="py-2 pr-4">
-                  <span className="w-fit border border-current px-2 py-0.5 text-xs uppercase tracking-wide">
-                    {zone.status}
-                  </span>
+                  <StatusBadge tone={zone.status === "active" ? "success" : "neutral"}>
+                    {zone.status === "active" ? "Active" : "Inactive"}
+                  </StatusBadge>
                 </td>
                 <td className="py-2 pr-4">
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={ChevronUpIcon}
+                      label="Move up"
+                      iconOnly
                       disabled={pending || index === 0}
                       onClick={() => handleMove(index, -1)}
-                      aria-label="Move up"
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] disabled:opacity-30"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ActionButton
+                      icon={ChevronDownIcon}
+                      label="Move down"
+                      iconOnly
                       disabled={pending || index === zones.length - 1}
                       onClick={() => handleMove(index, 1)}
-                      aria-label="Move down"
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] disabled:opacity-30"
-                    >
-                      ↓
-                    </button>
+                    />
                   </div>
                 </td>
                 <td className="py-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-2">
+                    <ActionButton
+                      icon={PencilIcon}
+                      label="Edit"
                       onClick={() => setEditing({ mode: "edit", data: zone })}
-                      className="text-sm underline"
-                    >
-                      Edit
-                    </button>
+                    />
                     {zone.status === "active" ? (
-                      <button
-                        type="button"
+                      <ActionButton
+                        icon={BanIcon}
+                        label="Disable"
+                        tone="warning"
                         disabled={pending}
                         onClick={() => handleQuickToggle(zone, "inactive")}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        Disable
-                      </button>
+                      />
                     ) : (
-                      <button
-                        type="button"
+                      <ActionButton
+                        icon={CheckIcon}
+                        label="Enable"
+                        tone="success"
                         disabled={pending}
                         onClick={() => handleQuickToggle(zone, "active")}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        Enable
-                      </button>
+                      />
                     )}
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={TrashIcon}
+                      label="Delete"
+                      tone="danger"
                       disabled={pending}
                       onClick={() => handleDelete(zone)}
-                      className="text-sm text-[var(--color-error)] underline disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

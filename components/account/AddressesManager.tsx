@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { AddressForm } from "@/components/account/AddressForm";
 import { deleteAddress, setDefaultAddress } from "@/lib/addresses";
 import { useToast } from "@/components/ui/ToastProvider";
+import { CheckIcon, PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { CustomerAddress } from "@/types";
 
 export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }) {
@@ -77,11 +80,7 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
               <div>
                 <p className="flex items-center gap-2 font-medium">
                   {address.address_label || "Address"}
-                  {address.is_default && (
-                    <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase">
-                      Default
-                    </span>
-                  )}
+                  {address.is_default && <StatusBadge tone="neutral">Default</StatusBadge>}
                 </p>
                 <p className="mt-1 text-[var(--muted)]">
                   {address.first_name} {address.last_name} — {address.phone}
@@ -92,32 +91,26 @@ export function AddressesManager({ addresses }: { addresses: CustomerAddress[] }
                 </p>
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => setEditing(address)}
-                className="inline-flex min-h-11 items-center text-sm underline"
-              >
-                Edit
-              </button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <ActionButton icon={PencilIcon} label="Edit" size="sm" onClick={() => setEditing(address)} />
               {!address.is_default && (
-                <button
-                  type="button"
+                <ActionButton
+                  icon={CheckIcon}
+                  label="Set Default"
+                  size="sm"
+                  tone="success"
                   disabled={pending}
                   onClick={() => handleSetDefault(address)}
-                  className="inline-flex min-h-11 items-center text-sm underline disabled:opacity-50"
-                >
-                  Set Default
-                </button>
+                />
               )}
-              <button
-                type="button"
+              <ActionButton
+                icon={TrashIcon}
+                label="Delete"
+                size="sm"
+                tone="danger"
                 disabled={pending}
                 onClick={() => handleDelete(address)}
-                className="inline-flex min-h-11 items-center text-sm text-[var(--color-discount)] underline disabled:opacity-50"
-              >
-                Delete
-              </button>
+              />
             </div>
           </li>
         ))}

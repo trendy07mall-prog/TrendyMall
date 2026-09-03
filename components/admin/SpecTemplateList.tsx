@@ -15,7 +15,8 @@ import {
   updateField,
   updateTemplate,
 } from "@/lib/admin/spec-templates";
-import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/Icon";
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import type { SpecField, SpecTemplate } from "@/types";
 
 interface TemplateWithFields {
@@ -154,17 +155,14 @@ export function SpecTemplateList({ templatesWithFields }: { templatesWithFields:
                   <span className="text-xs text-[var(--muted)]">
                     {fields.length} field{fields.length === 1 ? "" : "s"}
                   </span>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <button type="button" onClick={() => setEditingTemplate(template)} className="text-xs underline">
-                      Edit
-                    </button>
-                    <button
-                      type="button"
+                  <div className="flex shrink-0 items-center gap-2">
+                    <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditingTemplate(template)} />
+                    <ActionButton
+                      icon={TrashIcon}
+                      label="Delete"
+                      tone="danger"
                       onClick={() => setDeletingTemplate(template)}
-                      className="text-xs text-red-600 underline"
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -179,46 +177,40 @@ export function SpecTemplateList({ templatesWithFields }: { templatesWithFields:
                         <span className="text-xs text-[var(--muted)]">{FIELD_TYPE_LABELS[field.field_type]}</span>
                         {field.unit && <span className="text-xs text-[var(--muted)]">({field.unit})</span>}
                         <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
+                          <ActionButton
+                            icon={ChevronUpIcon}
+                            label="Move up"
+                            iconOnly
                             disabled={pending || index === 0}
                             onClick={() => moveField(fields, field.id, -1)}
-                            className="text-xs underline disabled:opacity-30"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={ChevronDownIcon}
+                            label="Move down"
+                            iconOnly
                             disabled={pending || index === fields.length - 1}
                             onClick={() => moveField(fields, field.id, 1)}
-                            className="text-xs underline disabled:opacity-30"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={PencilIcon}
+                            label="Edit"
                             onClick={() => setEditingField({ templateId: template.id, field })}
-                            className="text-xs underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={TrashIcon}
+                            label="Delete"
+                            tone="danger"
                             onClick={() => setDeletingField(field)}
-                            className="text-xs text-red-600 underline"
-                          >
-                            Delete
-                          </button>
+                          />
                         </div>
                       </div>
                     ))}
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={PlusIcon}
+                      label="Add field"
                       onClick={() => setEditingField({ templateId: template.id, field: "new" })}
-                      className="self-start text-xs underline"
-                    >
-                      + Add field
-                    </button>
+                      className="self-start"
+                    />
                   </div>
                 )}
               </div>

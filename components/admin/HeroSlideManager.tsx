@@ -6,6 +6,9 @@ import Image from "next/image";
 import { HeroSlideForm } from "@/components/admin/HeroSlideForm";
 import { toggleHeroSlideStatus, reorderHeroSlides, deleteHeroSlide } from "@/lib/admin/hero-slides";
 import { useToast } from "@/components/admin/ToastProvider";
+import { BanIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { AdminHeroSlide } from "@/lib/admin/hero-slides-query";
 
 type EditingState = { mode: "new" } | { mode: "edit"; data: AdminHeroSlide } | null;
@@ -115,68 +118,59 @@ export function HeroSlideManager({ slides }: { slides: AdminHeroSlide[] }) {
                   {slide.end_at ? new Date(slide.end_at).toLocaleDateString() : "—"}
                 </td>
                 <td className="py-2 pr-4">
-                  <span className="w-fit border border-current px-2 py-0.5 text-xs uppercase tracking-wide">
-                    {slide.status}
-                  </span>
+                  <StatusBadge tone={slide.status === "published" ? "success" : "neutral"}>
+                    {slide.status === "published" ? "Published" : "Disabled"}
+                  </StatusBadge>
                 </td>
                 <td className="py-2 pr-4">
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={ChevronUpIcon}
+                      label="Move up"
+                      iconOnly
                       disabled={pending || index === 0}
                       onClick={() => handleMove(index, -1)}
-                      aria-label="Move up"
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] disabled:opacity-30"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ActionButton
+                      icon={ChevronDownIcon}
+                      label="Move down"
+                      iconOnly
                       disabled={pending || index === slides.length - 1}
                       onClick={() => handleMove(index, 1)}
-                      aria-label="Move down"
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--border)] disabled:opacity-30"
-                    >
-                      ↓
-                    </button>
+                    />
                   </div>
                 </td>
                 <td className="py-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-2">
+                    <ActionButton
+                      icon={PencilIcon}
+                      label="Edit"
                       onClick={() => setEditing({ mode: "edit", data: slide })}
-                      className="text-sm underline"
-                    >
-                      Edit
-                    </button>
+                    />
                     {slide.status === "published" ? (
-                      <button
-                        type="button"
+                      <ActionButton
+                        icon={BanIcon}
+                        label="Disable"
+                        tone="warning"
                         disabled={pending}
                         onClick={() => handleQuickToggle(slide, "disabled")}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        Disable
-                      </button>
+                      />
                     ) : (
-                      <button
-                        type="button"
+                      <ActionButton
+                        icon={CheckIcon}
+                        label="Publish"
+                        tone="success"
                         disabled={pending}
                         onClick={() => handleQuickToggle(slide, "published")}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        Publish
-                      </button>
+                      />
                     )}
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={TrashIcon}
+                      label="Delete"
+                      tone="danger"
                       disabled={pending}
                       onClick={() => handleDelete(slide)}
-                      className="text-sm text-[var(--color-error)] underline disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

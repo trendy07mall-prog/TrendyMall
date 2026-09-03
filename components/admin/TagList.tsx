@@ -6,6 +6,9 @@ import { TagForm } from "@/components/admin/TagForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/ToastProvider";
 import { createTag, deleteTag, toggleTagActive, updateTag } from "@/lib/admin/tags";
+import { BanIcon, CheckIcon, PencilIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Tag } from "@/types";
 
 export function TagList({
@@ -93,33 +96,20 @@ export function TagList({
                 {productCountByTagId[tag.id] ?? 0} product
                 {(productCountByTagId[tag.id] ?? 0) === 1 ? "" : "s"}
               </span>
-              <span
-                className={`rounded-full border px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide ${
-                  tag.is_active ? "border-current" : "border-current text-[var(--muted)]"
-                }`}
-              >
+              <StatusBadge tone={tag.is_active ? "success" : "neutral"}>
                 {tag.is_active ? "Active" : "Inactive"}
-              </span>
+              </StatusBadge>
 
-              <div className="flex shrink-0 items-center gap-3">
-                <button type="button" onClick={() => setEditing(tag)} className="text-xs underline">
-                  Edit
-                </button>
-                <button
-                  type="button"
+              <div className="flex shrink-0 items-center gap-2">
+                <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditing(tag)} />
+                <ActionButton
+                  icon={tag.is_active ? BanIcon : CheckIcon}
+                  label={tag.is_active ? "Deactivate" : "Activate"}
+                  tone={tag.is_active ? "warning" : "success"}
                   disabled={pending}
                   onClick={() => handleToggleActive(tag)}
-                  className="text-xs underline disabled:opacity-50"
-                >
-                  {tag.is_active ? "Deactivate" : "Activate"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(tag)}
-                  className="text-xs text-red-600 underline"
-                >
-                  Delete
-                </button>
+                />
+                <ActionButton icon={TrashIcon} label="Delete" tone="danger" onClick={() => setDeleting(tag)} />
               </div>
             </div>
           ))

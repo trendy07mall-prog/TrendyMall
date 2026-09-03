@@ -15,7 +15,9 @@ import {
   toggleCategoryActive,
   updateCategory,
 } from "@/lib/admin/categories";
-import { ChevronDownIcon, ChevronRightIcon, FolderIcon } from "@/components/ui/Icon";
+import { BanIcon, CheckIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Category, SpecTemplate } from "@/types";
 
 // Two drop targets per row: dropping on the row's body reparents the
@@ -214,36 +216,33 @@ export function CategoryTree({
 
           <span className="flex-1 truncate text-sm font-medium">{node.name}</span>
           <span className="text-xs text-[var(--muted)]">{node.slug}</span>
-          <span
-            className={`rounded-full border px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide ${
-              node.is_active ? "border-current" : "border-current text-[var(--muted)]"
-            }`}
-          >
+          <StatusBadge tone={node.is_active ? "success" : "neutral"}>
             {node.is_active ? "Active" : "Inactive"}
-          </span>
+          </StatusBadge>
 
-          <div className="flex shrink-0 items-center gap-3">
-            <button type="button" onClick={() => setEditing({ parentId: node.id })} className="text-xs underline">
-              Add child
-            </button>
-            <button type="button" onClick={() => setEditing(node)} className="text-xs underline">
-              Edit
-            </button>
-            <button
-              type="button"
+          <div className="flex shrink-0 items-center gap-2">
+            <ActionButton
+              icon={PlusIcon}
+              label="Add child"
+              iconOnly
+              onClick={() => setEditing({ parentId: node.id })}
+            />
+            <ActionButton icon={PencilIcon} label="Edit" iconOnly onClick={() => setEditing(node)} />
+            <ActionButton
+              icon={node.is_active ? BanIcon : CheckIcon}
+              label={node.is_active ? "Deactivate" : "Activate"}
+              iconOnly
+              tone={node.is_active ? "warning" : "success"}
               disabled={pending}
               onClick={() => handleToggleActive(node)}
-              className="text-xs underline disabled:opacity-50"
-            >
-              {node.is_active ? "Deactivate" : "Activate"}
-            </button>
-            <button
-              type="button"
+            />
+            <ActionButton
+              icon={TrashIcon}
+              label="Delete"
+              iconOnly
+              tone="danger"
               onClick={() => setDeleting(node)}
-              className="text-xs text-red-600 underline"
-            >
-              Delete
-            </button>
+            />
           </div>
         </div>
 

@@ -1,7 +1,12 @@
-// Small ● Active / ○ Disabled badge for settings that visibly affect the
-// live storefront right now (Announcement bar enabled, WhatsApp button
-// enabled) -- not used on settings that are informational/reference-only
-// (e.g. Branding colors, per the WCAG guardrail decision).
+import { StatusBadge } from "@/components/ui/StatusBadge";
+
+// Active/Disabled badge for settings that visibly affect the live
+// storefront right now (Announcement bar enabled, WhatsApp button enabled)
+// -- not used on settings that are informational/reference-only (e.g.
+// Branding colors, per the WCAG guardrail decision). Thin wrapper over the
+// shared StatusBadge (site-wide pill component) so this settings-specific
+// active/inactiveLabel API stays put for its existing callers while the
+// actual pill markup/colors live in exactly one place.
 export function StatusIndicator({
   active,
   activeLabel = "Active",
@@ -12,14 +17,8 @@ export function StatusIndicator({
   inactiveLabel?: string;
 }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-        active
-          ? "bg-[var(--color-success)]/15 text-[var(--color-success)]"
-          : "bg-black/5 text-[var(--color-text-secondary)]"
-      }`}
-    >
-      {active ? "●" : "○"} {active ? activeLabel : inactiveLabel}
-    </span>
+    <StatusBadge tone={active ? "success" : "neutral"} uppercase={false}>
+      {active ? activeLabel : inactiveLabel}
+    </StatusBadge>
   );
 }

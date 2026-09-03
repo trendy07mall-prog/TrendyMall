@@ -1,11 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { StarRating } from "@/components/product/StarRating";
-import { deleteReview, updateReviewStatus } from "@/lib/admin/reviews";
+import { ReviewActions } from "@/components/admin/ReviewActions";
+import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   approved: "Approved",
   rejected: "Rejected",
+};
+
+const STATUS_TONES: Record<string, StatusTone> = {
+  pending: "warning",
+  approved: "success",
+  rejected: "danger",
 };
 
 export default async function AdminReviewsPage() {
@@ -59,9 +66,9 @@ export default async function AdminReviewsPage() {
                   {review.verified_purchase && " · Verified Purchase"}
                 </p>
               </div>
-              <span className="text-xs font-medium tracking-wide uppercase">
+              <StatusBadge tone={STATUS_TONES[review.status] ?? "neutral"}>
                 {STATUS_LABELS[review.status] ?? review.status}
-              </span>
+              </StatusBadge>
             </div>
 
             <div className="mt-2">
@@ -72,27 +79,7 @@ export default async function AdminReviewsPage() {
               <p className="mt-1 text-sm text-[var(--muted)]">{review.comment}</p>
             )}
 
-            <div className="mt-3 flex gap-3">
-              {review.status !== "approved" && (
-                <form action={updateReviewStatus.bind(null, review.id, "approved")}>
-                  <button type="submit" className="text-sm underline">
-                    Approve
-                  </button>
-                </form>
-              )}
-              {review.status !== "rejected" && (
-                <form action={updateReviewStatus.bind(null, review.id, "rejected")}>
-                  <button type="submit" className="text-sm underline">
-                    Reject
-                  </button>
-                </form>
-              )}
-              <form action={deleteReview.bind(null, review.id)}>
-                <button type="submit" className="text-sm text-red-600 underline">
-                  Delete
-                </button>
-              </form>
-            </div>
+            <ReviewActions reviewId={review.id} status={review.status} />
           </div>
         ))}
       </div>

@@ -15,7 +15,8 @@ import {
   updateAttribute,
   updateAttributeValue,
 } from "@/lib/admin/attributes";
-import { ChevronDownIcon, ChevronRightIcon } from "@/components/ui/Icon";
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import type { Attribute, AttributeValue } from "@/types";
 
 interface AttributeWithValues {
@@ -154,17 +155,14 @@ export function AttributeList({ attributesWithValues }: { attributesWithValues: 
                   <span className="text-xs text-[var(--muted)]">
                     {values.length} value{values.length === 1 ? "" : "s"}
                   </span>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <button type="button" onClick={() => setEditingAttribute(attribute)} className="text-xs underline">
-                      Edit
-                    </button>
-                    <button
-                      type="button"
+                  <div className="flex shrink-0 items-center gap-2">
+                    <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditingAttribute(attribute)} />
+                    <ActionButton
+                      icon={TrashIcon}
+                      label="Delete"
+                      tone="danger"
                       onClick={() => setDeletingAttribute(attribute)}
-                      className="text-xs text-red-600 underline"
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </div>
 
@@ -184,46 +182,40 @@ export function AttributeList({ attributesWithValues }: { attributesWithValues: 
                         )}
                         <span className="flex-1 truncate text-sm">{value.value}</span>
                         <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
+                          <ActionButton
+                            icon={ChevronUpIcon}
+                            label="Move up"
+                            iconOnly
                             disabled={pending || index === 0}
                             onClick={() => moveValue(values, value.id, -1)}
-                            className="text-xs underline disabled:opacity-30"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={ChevronDownIcon}
+                            label="Move down"
+                            iconOnly
                             disabled={pending || index === values.length - 1}
                             onClick={() => moveValue(values, value.id, 1)}
-                            className="text-xs underline disabled:opacity-30"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={PencilIcon}
+                            label="Edit"
                             onClick={() => setEditingValue({ attributeId: attribute.id, value })}
-                            className="text-xs underline"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
+                          />
+                          <ActionButton
+                            icon={TrashIcon}
+                            label="Delete"
+                            tone="danger"
                             onClick={() => setDeletingValue(value)}
-                            className="text-xs text-red-600 underline"
-                          >
-                            Delete
-                          </button>
+                          />
                         </div>
                       </div>
                     ))}
-                    <button
-                      type="button"
+                    <ActionButton
+                      icon={PlusIcon}
+                      label="Add value"
                       onClick={() => setEditingValue({ attributeId: attribute.id, value: "new" })}
-                      className="self-start text-xs underline"
-                    >
-                      + Add value
-                    </button>
+                      className="self-start"
+                    />
                   </div>
                 )}
               </div>

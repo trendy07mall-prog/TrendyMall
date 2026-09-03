@@ -5,6 +5,8 @@ import { updateSettings } from "@/lib/admin/settings";
 import { useUnsavedChangesGuard } from "@/components/admin/settings/useUnsavedChangesGuard";
 import { SaveBar, type SaveStatus } from "@/components/admin/settings/SaveBar";
 import { StatusIndicator } from "@/components/admin/settings/StatusIndicator";
+import { PlusIcon, TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, type DeliveryZone } from "@/lib/delivery-fee";
 import { formatPrice } from "@/lib/utils";
 import type { AnnouncementMessage, AnnouncementMessageKind, AnnouncementSettings } from "@/lib/data/settings";
@@ -127,13 +129,7 @@ export function AnnouncementSettingsForm({ initial, zones }: { initial: Announce
             Messages ({values.messages.length}/{MAX_MESSAGES})
           </label>
           {values.messages.length < MAX_MESSAGES && (
-            <button
-              type="button"
-              onClick={addMessage}
-              className="text-xs font-medium underline"
-            >
-              + Add message
-            </button>
+            <ActionButton icon={PlusIcon} label="Add message" onClick={addMessage} />
           )}
         </div>
         <div className="mt-2 flex flex-col gap-3">
@@ -156,13 +152,13 @@ export function AnnouncementSettingsForm({ initial, zones }: { initial: Announce
                     </option>
                   ))}
                 </select>
-                <button
-                  type="button"
+                <ActionButton
+                  icon={TrashIcon}
+                  label="Remove"
+                  iconOnly
+                  tone="danger"
                   onClick={() => removeMessage(index)}
-                  className="text-xs font-medium text-[var(--color-error)]"
-                >
-                  Remove
-                </button>
+                />
               </div>
               {message.kind === "delivery_in_zone" || message.kind === "delivery_outside_zone" ? (
                 <p className="text-xs text-[var(--muted)]">

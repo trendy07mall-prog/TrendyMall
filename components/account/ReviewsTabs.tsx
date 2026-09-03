@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { StarRating } from "@/components/product/StarRating";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { MyReview, PendingReviewItem } from "@/lib/reviews";
 
 type Tab = "my-reviews" | "pending";
@@ -114,20 +115,16 @@ function MyReviewsList({ reviews }: { reviews: MyReview[] }) {
                 ) : (
                   <p className="text-sm font-medium">{review.productName}</p>
                 )}
-                {review.verified_purchase && (
-                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-text-secondary)] uppercase">
-                    Verified Purchase
-                  </span>
-                )}
+                {review.verified_purchase && <StatusBadge tone="neutral">Verified Purchase</StatusBadge>}
                 {review.status === "pending" && (
-                  <span className="rounded-full bg-[var(--color-warning)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-warning)] uppercase">
+                  <StatusBadge tone="warning" uppercase={false}>
                     Pending moderation
-                  </span>
+                  </StatusBadge>
                 )}
                 {review.status === "rejected" && (
-                  <span className="rounded-full bg-[var(--color-error)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--color-error)] uppercase">
+                  <StatusBadge tone="danger" uppercase={false}>
                     Not published
-                  </span>
+                  </StatusBadge>
                 )}
               </div>
               <div className="mt-1">

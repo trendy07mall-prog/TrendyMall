@@ -2,6 +2,8 @@
 
 import { formatPrice } from "@/lib/utils";
 import { campaignPriceUndercuts } from "@/lib/campaign-pricing";
+import { TrashIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
 import type { ItemDraft, SectionDraft } from "@/components/admin/CampaignForm";
 
 export function CampaignItemsTable({
@@ -94,13 +96,12 @@ export function CampaignItemsTable({
                   />
                 </td>
                 <td className="py-2">
-                  <button
-                    type="button"
+                  <ActionButton
+                    icon={TrashIcon}
+                    label="Remove"
+                    tone="danger"
                     onClick={() => removeItem(item.clientKey)}
-                    className="text-sm text-red-600 underline"
-                  >
-                    Remove
-                  </button>
+                  />
                 </td>
               </tr>
             );

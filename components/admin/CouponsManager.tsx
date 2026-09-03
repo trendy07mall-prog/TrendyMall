@@ -6,6 +6,9 @@ import { CouponForm } from "@/components/admin/CouponForm";
 import { toggleCouponActive } from "@/lib/admin/coupons";
 import { useToast } from "@/components/admin/ToastProvider";
 import { formatPrice } from "@/lib/utils";
+import { BanIcon, CheckIcon, PencilIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Coupon } from "@/types";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -99,31 +102,20 @@ export function CouponsManager({ coupons }: { coupons: Coupon[] }) {
                   {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString() : "—"}
                 </td>
                 <td className="py-2 pr-4">
-                  <span
-                    className={`border px-2 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide ${
-                      coupon.is_active ? "border-current" : "border-current text-[var(--muted)]"
-                    }`}
-                  >
+                  <StatusBadge tone={coupon.is_active ? "success" : "neutral"}>
                     {coupon.is_active ? "Active" : "Inactive"}
-                  </span>
+                  </StatusBadge>
                 </td>
                 <td className="py-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setEditing(coupon)}
-                      className="text-sm underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-2">
+                    <ActionButton icon={PencilIcon} label="Edit" onClick={() => setEditing(coupon)} />
+                    <ActionButton
+                      icon={coupon.is_active ? BanIcon : CheckIcon}
+                      label={coupon.is_active ? "Deactivate" : "Activate"}
+                      tone={coupon.is_active ? "warning" : "success"}
                       disabled={pending}
                       onClick={() => handleToggle(coupon)}
-                      className="text-sm underline disabled:opacity-50"
-                    >
-                      {coupon.is_active ? "Deactivate" : "Activate"}
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

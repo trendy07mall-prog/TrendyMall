@@ -7,13 +7,32 @@ import { toggleCampaignStatus, duplicateCampaign } from "@/lib/admin/campaigns";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import { useToast } from "@/components/admin/ToastProvider";
 import { getCampaignRuntimeStatus, RUNTIME_STATUS_LABEL } from "@/lib/campaign-status";
+import { BanIcon, CheckIcon, CopyIcon, PencilIcon } from "@/components/ui/Icon";
+import { ActionButton } from "@/components/ui/ActionButton";
+import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
 import type { AdminCampaignRow, CampaignEditData } from "@/lib/admin/campaigns-query";
+import type { CampaignStatus } from "@/types";
 
 const PROMO_TYPE_LABELS: Record<string, string> = {
   product_discount: "Product discount",
   flash_sale: "Flash sale",
   free_shipping: "Free shipping",
   coupon: "Coupon",
+};
+
+const STATUS_LABELS: Record<CampaignStatus, string> = {
+  published: "Published",
+  draft: "Draft",
+  disabled: "Disabled",
+};
+
+// draft = warning (not live yet, same "pending" meaning as elsewhere) --
+// disabled is a deliberate off state, closer to Inactive's neutral gray
+// than a warning.
+const STATUS_TONES: Record<CampaignStatus, StatusTone> = {
+  published: "success",
+  draft: "warning",
+  disabled: "neutral",
 };
 
 type EditingState = { mode: "new" } | { mode: "edit"; data: CampaignEditData } | null;
@@ -115,10 +134,8 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
                   </td>
                   <td className="py-2 pr-4">{campaign.itemCount}</td>
                   <td className="py-2 pr-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="w-fit border border-current px-2 py-0.5 text-xs uppercase tracking-wide">
-                        {campaign.status}
-                      </span>
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge tone={STATUS_TONES[campaign.status]}>{STATUS_LABELS[campaign.status]}</StatusBadge>
                       {diverges && (
                         <span className="text-xs text-[var(--color-warning)]">
                           {RUNTIME_STATUS_LABEL[runtime]}
@@ -127,42 +144,36 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
                     </div>
                   </td>
                   <td className="py-2">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
+                    <div className="flex items-center gap-2">
+                      <ActionButton
+                        icon={PencilIcon}
+                        label={loadingId === campaign.id ? "Loading…" : "Edit"}
                         disabled={loadingId === campaign.id}
                         onClick={() => openEdit(campaign)}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        {loadingId === campaign.id ? "Loading…" : "Edit"}
-                      </button>
+                      />
                       {campaign.status === "published" ? (
-                        <button
-                          type="button"
+                        <ActionButton
+                          icon={BanIcon}
+                          label="Disable"
+                          tone="warning"
                           disabled={pending}
                           onClick={() => handleQuickToggle(campaign, "disabled")}
-                          className="text-sm underline disabled:opacity-50"
-                        >
-                          Disable
-                        </button>
+                        />
                       ) : (
-                        <button
-                          type="button"
+                        <ActionButton
+                          icon={CheckIcon}
+                          label="Publish"
+                          tone="success"
                           disabled={pending}
                           onClick={() => handleQuickToggle(campaign, "published")}
-                          className="text-sm underline disabled:opacity-50"
-                        >
-                          Publish
-                        </button>
+                        />
                       )}
-                      <button
-                        type="button"
+                      <ActionButton
+                        icon={CopyIcon}
+                        label="Duplicate"
                         disabled={pending}
                         onClick={() => handleDuplicate(campaign)}
-                        className="text-sm underline disabled:opacity-50"
-                      >
-                        Duplicate
-                      </button>
+                      />
                     </div>
                   </td>
                 </tr>
