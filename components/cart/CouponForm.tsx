@@ -9,10 +9,17 @@ export function CouponForm({
   subtotal,
   deliveryFee,
   onPreview,
+  onCheckingChange,
 }: {
   subtotal: number;
   deliveryFee: number;
   onPreview: (discount: number, label: string, isFreeShipping: boolean) => void;
+  // Lets the cart page disable "Proceed to Checkout" for exactly as long as
+  // a preview is in flight (both this form's own manual Apply click AND
+  // the auto-preview effect below) -- see that page's own comment on why:
+  // navigating away before applyCoupon() actually runs is the cart-page
+  // twin of the checkout-page race CheckoutForm.tsx already guards against.
+  onCheckingChange: (checking: boolean) => void;
 }) {
   const { couponCode, applyCoupon, removeCoupon } = useCart();
   const [input, setInput] = useState("");
@@ -25,10 +32,12 @@ export function CouponForm({
     const code = (codeOverride ?? input).trim();
     if (!code) return;
     setChecking(true);
+    onCheckingChange(true);
     setError(null);
 
     const result = await previewCoupon(code, subtotal, deliveryFee);
     setChecking(false);
+    onCheckingChange(false);
 
     if (result.error || result.discount == null) {
       setError(result.error ?? "Invalid coupon code.");

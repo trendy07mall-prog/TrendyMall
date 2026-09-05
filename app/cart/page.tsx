@@ -49,6 +49,14 @@ export default function CartPage() {
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings | null>(null);
   const [discount, setDiscount] = useState(0);
   const [couponIsFreeShipping, setCouponIsFreeShipping] = useState(false);
+  // True while CouponForm has a preview in flight -- either its own manual
+  // Apply click, or its mount-time auto-preview of a coupon already
+  // applied from a previous session. Checkout blocks navigation to
+  // checkout for the exact same reason CheckoutForm.tsx blocks Place
+  // Order during its own coupon preview: leaving this page (or, there,
+  // submitting) before applyCoupon()/the discount actually lands means the
+  // coupon silently never took effect, with no error shown anywhere.
+  const [couponChecking, setCouponChecking] = useState(false);
   const [redirecting, startRedirect] = useTransition();
   const stickyBarRef = useRef<HTMLDivElement>(null);
 
@@ -255,7 +263,7 @@ export default function CartPage() {
       : formatPrice(total);
 
   function handleCheckout() {
-    if (hasBlockingIssue) return;
+    if (hasBlockingIssue || couponChecking) return;
     startRedirect(() => {
       router.push("/checkout");
     });
@@ -386,6 +394,7 @@ export default function CartPage() {
                 setDiscount(nextDiscount);
                 setCouponIsFreeShipping(isFreeShipping);
               }}
+              onCheckingChange={setCouponChecking}
             />
           </div>
 
@@ -432,11 +441,11 @@ export default function CartPage() {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={hasBlockingIssue || redirecting}
+            disabled={hasBlockingIssue || redirecting || couponChecking}
             className="transition-brand mt-6 hidden w-full items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
             <LockIcon className="h-4 w-4" />
-            {redirecting ? "Redirecting…" : "Proceed to Checkout"}
+            {redirecting ? "Redirecting…" : couponChecking ? "Applying coupon…" : "Proceed to Checkout"}
           </button>
           <Link
             href="/shop"
@@ -481,11 +490,11 @@ export default function CartPage() {
         <button
           type="button"
           onClick={handleCheckout}
-          disabled={hasBlockingIssue || redirecting}
+          disabled={hasBlockingIssue || redirecting || couponChecking}
           className="transition-brand flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--foreground)] px-5 text-sm font-medium text-white hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <LockIcon className="h-4 w-4" />
-          {redirecting ? "Redirecting…" : "Checkout"}
+          {redirecting ? "Redirecting…" : couponChecking ? "Applying…" : "Checkout"}
         </button>
       </div>
     </div>
