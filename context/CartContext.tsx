@@ -69,6 +69,16 @@ interface CartContextValue {
   clear: () => Promise<void>;
   subtotal: number;
   count: number;
+  // True once `items`/`subtotal` reflect their real, authoritative source —
+  // not just "the localStorage read has happened." For a guest that's the
+  // same moment as the localStorage hydration below; for a logged-in
+  // customer, `items` is a guest-cart placeholder until mergeCartOnLogin
+  // resolves (or fails) and replaces it with the server-side cart, which
+  // can take a real network round trip. Anything that computes money from
+  // `subtotal` (checkout's coupon preview, most notably — see
+  // CheckoutForm.tsx) must wait for this before trusting it, or it can
+  // silently compute against a subtotal of 0.
+  ready: boolean;
   couponCode: string | null;
   applyCoupon: (code: string) => void;
   removeCoupon: () => void;
@@ -87,6 +97,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // know how the cart is persisted, only that items/addItem/etc. work
   // correctly either way.
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // See the `ready` field's own comment on CartContextValue above.
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     // Reading localStorage only after mount (not in useState's initializer)
@@ -134,6 +146,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setItems([]);
         setCouponCode(null);
         setNotes("");
+        setReady(true);
         return;
       }
 
@@ -154,8 +167,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           .catch((error) => {
             console.error("Cart merge on login failed:", error);
             setIsLoggedIn(true);
-          });
+          })
+          // `ready` flips regardless of whether the merge succeeded or
+          // failed — a failed merge already falls back to whatever `items`
+          // held before (logged in this catch), and callers waiting on
+          // `ready` need that resolution either way, not a hang.
+          .finally(() => setReady(true));
+        return;
       }
+
+      // INITIAL_SESSION with no session (a guest) or any other event with
+      // no session: nothing to merge, the localStorage-hydrated guest cart
+      // above is already the authoritative one.
+      setReady(true);
     });
 
     return () => subscription.unsubscribe();
@@ -277,6 +301,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clear,
       subtotal,
       count,
+      ready,
       couponCode,
       applyCoupon,
       removeCoupon,
@@ -292,6 +317,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clear,
       subtotal,
       count,
+      ready,
       couponCode,
       applyCoupon,
       removeCoupon,

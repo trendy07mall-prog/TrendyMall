@@ -145,7 +145,15 @@ export function CheckoutForm({
   zones: DeliveryZone[];
   shippingSettings: ShippingSettings;
 }) {
-  const { items, subtotal, clear, couponCode: cartCouponCode, notes: cartNotes, syncPrices } = useCart();
+  const {
+    items,
+    subtotal,
+    clear,
+    ready: cartReady,
+    couponCode: cartCouponCode,
+    notes: cartNotes,
+    syncPrices,
+  } = useCart();
   const router = useRouter();
 
   const [form, setForm] = useState<FormState>(() => ({
@@ -203,6 +211,11 @@ export function CheckoutForm({
   // not render, or the round-trip reads as "checkout lost my coupon."
   const [couponAutoApplying, setCouponAutoApplying] = useState(Boolean(cartCouponCode));
   const couponAutoAppliedRef = useRef(false);
+  // Mirrors couponAutoAppliedRef.current for render — a ref can't be read
+  // during render (React lint forbids it, and rightly: it wouldn't
+  // reliably trigger a re-render). Set in the same effect call as the ref,
+  // right before couponAutoApplying, so the two are always consistent.
+  const [couponAutoApplyStarted, setCouponAutoApplyStarted] = useState(false);
 
   // Pricing keys off the normalized postal code within the Colombo
   // district — see lib/delivery-fee.ts for why (the city text field is
@@ -237,6 +250,13 @@ export function CheckoutForm({
     freeShippingActive && deliveryMethod !== "pickup" ? Math.max(0, shippingFee - shippingWaivedByCoupon) : 0;
   const discount = (appliedCoupon?.discount ?? 0) + campaignShippingWaiver;
   const total = Math.max(0, subtotal + shippingFee - discount);
+  // True while the total/discount shown above cannot yet be trusted for
+  // submission: the cart's real subtotal hasn't loaded (cartReady), the
+  // mount-time coupon-from-cart preview is still in flight
+  // (couponAutoApplying), or a manual "Apply" click is (couponChecking).
+  // Both submit buttons and handleSubmit itself gate on this — see the
+  // effect above for the bug this closes.
+  const couponSettling = !cartReady || couponAutoApplying || couponChecking;
 
   const itemsKey = items.map((i) => `${i.productId}:${i.variantId ?? "base"}:${i.quantity}`).join(",");
   useEffect(() => {
@@ -410,25 +430,40 @@ export function CheckoutForm({
   // from rendering, which would otherwise read as "checkout lost the
   // coupon I already applied."
   //
-  // Deliberately keyed on cartCouponCode (not a run-once mount effect):
-  // CartContext hydrates its own coupon code from localStorage inside
-  // its own effect, which is itself async — on a hard navigation
-  // straight into /checkout (refresh, bookmark, external link), that
-  // hydration can still be pending on CheckoutForm's first render. A
-  // mount-only effect would see cartCouponCode as null at that instant
-  // and never get another chance to apply it. Tracking the real value
-  // (with a ref so it still only ever auto-applies once) fires
-  // correctly whichever render it first becomes available on.
+  // Deliberately keyed on cartCouponCode AND cartReady (not a run-once
+  // mount effect): CartContext hydrates its own coupon code from
+  // localStorage inside its own effect, which is itself async — on a hard
+  // navigation straight into /checkout (refresh, bookmark, external link),
+  // that hydration can still be pending on CheckoutForm's first render. A
+  // mount-only effect would see cartCouponCode as null at that instant and
+  // never get another chance to apply it. Tracking the real value (with a
+  // ref so it still only ever auto-applies once) fires correctly whichever
+  // render it first becomes available on.
+  //
+  // Waiting on cartReady too (not just cartCouponCode) is what closes a
+  // real, previously-shipped bug: for a logged-in customer, `subtotal` is
+  // still the guest-cart placeholder (often 0) until CartContext's own
+  // login-merge finishes — a real network round trip. Previewing the
+  // coupon before that lands in a discount computed against the WRONG
+  // subtotal, permanently (this only ever runs once, guarded by the ref
+  // above) — silently undercharging the discount for the rest of checkout
+  // and, at submit time, disagreeing with the server's from-scratch
+  // recalculation. That mismatch is what produced both observed symptoms:
+  // an order placed with the coupon silently dropped (no discount, no
+  // redemption logged) when this had resolved with an empty subtotal
+  // before the cart caught up, or a hard "prices have changed" rejection
+  // when it resolved with a stale-but-nonzero one.
   useEffect(() => {
-    if (cartCouponCode && !couponAutoAppliedRef.current) {
+    if (cartReady && cartCouponCode && !couponAutoAppliedRef.current) {
       couponAutoAppliedRef.current = true;
+      setCouponAutoApplyStarted(true);
       setCouponAutoApplying(true);
       void handleApplyCoupon(cartCouponCode, true).finally(() => {
         setCouponAutoApplying(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartCouponCode]);
+  }, [cartCouponCode, cartReady]);
 
   function handleRemoveCoupon() {
     setAppliedCoupon(null);
@@ -527,6 +562,17 @@ export function CheckoutForm({
       setSubmitError("Your cart is empty.");
       return;
     }
+    // Belt-and-braces alongside the disabled attribute on both submit
+    // buttons below: a disabled <button type="submit"> already blocks a
+    // click, but pressing Enter in a text field submits the form directly
+    // and doesn't consult a button's disabled state the same way in every
+    // browser. Without this, that path could still slip through mid-coupon
+    // -preview and submit against the stale/incomplete total this whole
+    // fix exists to prevent.
+    if (couponSettling) {
+      setSubmitError("Please wait a moment — we're finishing applying your coupon.");
+      return;
+    }
     if (!validateAll()) return;
 
     setPending(true);
@@ -596,7 +642,25 @@ export function CheckoutForm({
 
     if (result.error || !result.orderId || !result.orderNumber) {
       setPending(false);
-      setSubmitError(result.error ?? "Could not place order.");
+      // create_order_atomic is the sole source of truth for pricing and
+      // recomputes the discount from scratch on every call — if it just
+      // rejected this attempt (most plausibly a coupon discount that had
+      // gone stale on this page), whatever total/discount this page was
+      // showing is no longer trustworthy. Re-running the coupon preview
+      // against the CURRENT subtotal/shipping fee refreshes it before the
+      // customer sees the error, so an immediate retry sends numbers that
+      // actually agree with what the server will compute — instead of
+      // resubmitting the exact same stale total and failing the exact same
+      // way again (previously, "refresh your cart and try again" fixed
+      // nothing, because nothing here ever re-checked the coupon).
+      if (appliedCoupon) {
+        await handleApplyCoupon(appliedCoupon.code);
+        setSubmitError(
+          `${result.error ?? "Could not place order."} We've refreshed your total below — please review it and try again.`,
+        );
+      } else {
+        setSubmitError(result.error ?? "Could not place order.");
+      }
       return;
     }
 
@@ -900,10 +964,14 @@ export function CheckoutForm({
 
           <button
             type="submit"
-            disabled={pending || slipUploading || items.length === 0 || !hydrated}
+            disabled={pending || slipUploading || items.length === 0 || !hydrated || couponSettling}
             className="transition-brand hidden w-full items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 py-4 text-[15px] font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
-            {pending ? "Placing order…" : `Place order • ${formatPrice(total)}`}
+            {pending
+              ? "Placing order…"
+              : couponSettling
+                ? "Applying your coupon…"
+                : `Place order • ${formatPrice(total)}`}
           </button>
         </form>
 
@@ -941,7 +1009,24 @@ export function CheckoutForm({
             })}
           </ul>
           <div className="mt-4 flex flex-col gap-2">
-            {couponAutoApplying ? (
+            {/* Covers two separate sub-windows that both need this same
+                placeholder rather than the blank "Coupon code" input below:
+                couponAutoApplying is true while the preview's network call
+                is in flight; the second clause covers the window BEFORE
+                that even starts, while this page is still waiting on
+                cartReady (couponAutoAppliedRef.current is false until the
+                effect above actually fires). Without the second clause, a
+                logged-in customer landing straight on /checkout would see
+                an empty, un-filled coupon box for that whole wait — reading
+                exactly like "checkout lost my coupon," the same bad UX the
+                original couponAutoApplying flag was written to avoid.
+                Checking couponAutoApplyStarted (not just cartCouponCode) is
+                what stops this from reappearing forever after the customer
+                explicitly clicks Remove below -- cartCouponCode itself is
+                untouched by that (it lives in CartContext, not this
+                component), but couponAutoApplyStarted, once the auto-apply
+                has run once, never resets. */}
+            {couponAutoApplying || (Boolean(cartCouponCode) && !couponAutoApplyStarted) ? (
               <div className="flex items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-black/5 px-3 py-2 text-sm text-[var(--muted)]">
                 Applying your saved coupon…
               </div>
@@ -1048,10 +1133,10 @@ export function CheckoutForm({
         <button
           type="submit"
           form="checkout-form"
-          disabled={pending || slipUploading || items.length === 0}
+          disabled={pending || slipUploading || items.length === 0 || !hydrated || couponSettling}
           className="transition-brand flex h-[52px] items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending ? "Placing…" : "Place Order"}
+          {pending ? "Placing…" : couponSettling ? "Applying coupon…" : "Place Order"}
         </button>
       </div>
     </div>
