@@ -104,7 +104,7 @@ export function ContactForm() {
     formData.set("message", fields.message);
     // Honeypot -- left blank by real visitors (hidden below), a bot's
     // scripted form-fill typically populates every input it finds.
-    formData.set("company", honeypotRef.current?.value ?? "");
+    formData.set("hp_ref", honeypotRef.current?.value ?? "");
 
     const result = await submitContactForm(formData);
     if (result.success) {
@@ -130,9 +130,14 @@ export function ContactForm() {
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       {/* Honeypot: off-screen (not display:none, which some bots skip),
           unreachable by keyboard tab order, and unlabeled for screen
-          readers -- a real visitor never sees or fills it. */}
+          readers -- a real visitor never sees or fills it. Deliberately
+          named "hp_ref", not "company" -- a name browser autofill
+          heuristics recognize can get silently populated regardless of
+          autocomplete="off", faking success and silently dropping a real
+          visitor's message (same bug confirmed live on the signup form's
+          identical honeypot, see app/auth/actions.ts). */}
       <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
-        <input ref={honeypotRef} type="text" name="company" tabIndex={-1} autoComplete="off" />
+        <input ref={honeypotRef} type="text" name="hp_ref" tabIndex={-1} autoComplete="off" />
       </div>
 
       <Field

@@ -18,7 +18,12 @@ export async function submitContactForm(formData: FormData): Promise<ContactForm
   // Honeypot: a real visitor never sees or fills this field (it's visually
   // hidden and unreachable by keyboard tab order in ContactForm.tsx) -- a
   // bot filling it gets a fake success so detection is never revealed.
-  const honeypot = String(formData.get("company") ?? "").trim();
+  // Deliberately NOT named "company" (or any other name a browser's
+  // autofill heuristics recognize) -- see app/auth/actions.ts's signup()
+  // for why: that exact field name let a real visitor's browser silently
+  // autofill it (autocomplete="off" or not), faking success and dropping
+  // their submission with no error shown anywhere.
+  const honeypot = String(formData.get("hp_ref") ?? "").trim();
   if (honeypot) return { success: true };
 
   const name = String(formData.get("name") ?? "").trim();

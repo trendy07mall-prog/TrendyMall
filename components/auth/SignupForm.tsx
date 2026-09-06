@@ -135,12 +135,16 @@ export function SignupForm({
       </p>
 
       <form action={action} onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-        {/* Honeypot, same pattern as ContactForm.tsx's "company" field —
-            off-screen (not display:none, which some bots skip), unreachable
-            by keyboard tab order, unlabeled. A real visitor never fills
-            this; signup() rejects silently (fake success) if it's set. */}
+        {/* Honeypot, same pattern as ContactForm.tsx's field -- off-screen
+            (not display:none, which some bots skip), unreachable by
+            keyboard tab order, unlabeled. A real visitor never fills this;
+            signup() rejects silently (fake success) if it's set.
+            Deliberately named "hp_ref" (see actions.ts's signup() comment)
+            -- a name like "company" gets silently autofilled by browsers
+            that have any saved company/organization value, autocomplete
+            attribute or not, faking success for a genuine signup. */}
         <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
-          <input type="text" name="company" tabIndex={-1} autoComplete="off" />
+          <input type="text" name="hp_ref" tabIndex={-1} autoComplete="off" />
         </div>
 
         {/* Server action still receives one combined "fullName" value,

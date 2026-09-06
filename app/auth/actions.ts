@@ -24,12 +24,22 @@ export async function signup(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  // Honeypot, same pattern as lib/contact.ts's "company" field — a real
-  // visitor never sees or fills it (SignupForm.tsx). A bot that does gets
-  // routed to the same success redirect as a real signup, so detection is
-  // never revealed — no Supabase signUp() call happens, so no email is
-  // sent and no bounce risk from this path.
-  const honeypot = String(formData.get("company") ?? "").trim();
+  // Honeypot, same pattern as lib/contact.ts's field — a real visitor
+  // never sees or fills it (SignupForm.tsx). A bot that does gets routed
+  // to the same success redirect as a real signup, so detection is never
+  // revealed — no Supabase signUp() call happens, so no email is sent and
+  // no bounce risk from this path.
+  //
+  // Deliberately NOT named "company" (or any other field name a browser's
+  // autofill heuristics recognize, like "organization") -- a real visitor
+  // whose browser has ANY saved company/organization value can have it
+  // silently autofilled into a hidden field despite autocomplete="off",
+  // which Chrome and others ignore for fields matching a known category.
+  // That silently faked "success" for genuine signups (confirmed live: a
+  // real customer got "Account created, check your email" with no account
+  // ever created and no email ever sent) is worse than the bot traffic
+  // this exists to filter. hp_ref has no autofill category to match.
+  const honeypot = String(formData.get("hp_ref") ?? "").trim();
   if (honeypot) redirect("/login?confirmEmail=1");
 
   const fullName = String(formData.get("fullName") ?? "");
