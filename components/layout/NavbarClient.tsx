@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { signOut } from "@/app/auth/actions";
+import { clientSignOut } from "@/lib/supabase/client-auth";
 import { useScrollState } from "@/context/ScrollStateContext";
 import { CartCount } from "@/components/cart/CartCount";
 import { WishlistCount } from "@/components/cart/WishlistCount";
@@ -103,6 +103,7 @@ export function NavbarClient({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const isCheckout = pathname === "/checkout";
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
@@ -539,14 +540,13 @@ export function NavbarClient({
                         Admin
                       </Link>
                     )}
-                    <form action={signOut}>
-                      <button
-                        type="submit"
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-black/5"
-                      >
-                        Log out
-                      </button>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={() => clientSignOut(router)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-black/5"
+                    >
+                      Log out
+                    </button>
                   </>
                 ) : (
                   <>
@@ -724,15 +724,14 @@ export function NavbarClient({
                         </Link>
                       </div>
                     )}
-                    <form action={signOut}>
-                      <button
-                        type="submit"
-                        className="transition-brand flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-black/5"
-                      >
-                        <LogoutIcon className="h-[18px] w-[18px]" />
-                        Log out
-                      </button>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={() => clientSignOut(router)}
+                      className="transition-brand flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-black/5"
+                    >
+                      <LogoutIcon className="h-[18px] w-[18px]" />
+                      Log out
+                    </button>
                   </>
                 ) : (
                   <>

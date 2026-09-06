@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { login } from "@/app/auth/actions";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Field } from "@/components/ui/Field";
 import { FieldError } from "@/components/ui/FieldError";
 
@@ -34,10 +34,12 @@ const LOGIN_FIELD_FOCUS_ORDER: { key: LoginFieldKey; domId: string }[] = [
 ];
 
 export function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") ?? "/";
   const justSignedUp = searchParams.get("confirmEmail") === "1";
-  const [state, action, pending] = useActionState(login, undefined);
+  const [pending, startTransition] = useTransition();
+  const [formError, setFormError] = useState<string | undefined>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,18 +58,38 @@ export function LoginForm() {
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const fieldErrors = validateLoginFields({ email, password });
     setErrors(fieldErrors);
 
     const firstInvalid = LOGIN_FIELD_FOCUS_ORDER.find((f) => fieldErrors[f.key]);
     if (firstInvalid) {
-      event.preventDefault();
       requestAnimationFrame(() => {
         const el = document.getElementById(firstInvalid.domId);
         el?.focus();
         el?.scrollIntoView({ behavior: "smooth", block: "center" });
       });
+      return;
     }
+
+    setFormError(undefined);
+    startTransition(async () => {
+      // Signing in through THIS tab's own browser Supabase client (not a
+      // Server Action) is required, not a style choice -- CartContext's
+      // guest-cart-merge listens for onAuthStateChange on this exact
+      // client instance, which only fires for auth changes this client
+      // itself witnesses. See lib/supabase/client-auth.ts's comment for
+      // the full "why" (a Server Action's redirect never tells this tab's
+      // client anything changed, so the merge silently never ran before).
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        setFormError(error.message);
+        return;
+      }
+      router.push(redirectTo);
+      router.refresh();
+    });
   }
 
   return (
@@ -85,9 +107,7 @@ export function LoginForm() {
         </p>
       )}
 
-      <form action={action} onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-        <input type="hidden" name="redirect" value={redirectTo} />
-
+      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
         <Field
           id="email"
           name="email"
@@ -113,7 +133,7 @@ export function LoginForm() {
           required
         />
 
-        {state?.error && <FieldError message={state.error} />}
+        {formError && <FieldError message={formError} />}
 
         <button
           type="submit"

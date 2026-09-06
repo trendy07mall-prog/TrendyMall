@@ -8,26 +8,17 @@ import { isValidEmail } from "@/lib/utils";
 
 export type AuthFormState = { error: string } | undefined;
 
-export async function login(
-  _prevState: AuthFormState,
-  formData: FormData,
-): Promise<AuthFormState> {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirect") ?? "/");
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  redirect(redirectTo);
-}
+// login and signOut used to live here as Server Actions, but a Server
+// Action's auth.signInWithPassword()/signOut() runs against a separate
+// server-side Supabase client -- it updates the session cookie, but the
+// browser tab's OWN long-lived Supabase client (the one CartContext's
+// onAuthStateChange listens to for the guest-cart-merge) never witnesses
+// the change, and a Server Action's redirect is a soft client-side
+// transition that doesn't force that client to re-check either. That left
+// the merge silently never running on login (confirmed via direct
+// database checks, not just console noise) and a signed-out tab still
+// believing it was signed in. Both now happen client-side instead -- see
+// app/login/login-form.tsx and lib/supabase/client-auth.ts.
 
 export async function signup(
   _prevState: AuthFormState,
@@ -78,12 +69,6 @@ export async function signup(
   }
 
   redirect("/login?confirmEmail=1");
-}
-
-export async function signOut() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
-  redirect("/");
 }
 
 export type ChangePasswordFormState = { error: string; success?: undefined } | { success: true; error?: undefined } | undefined;

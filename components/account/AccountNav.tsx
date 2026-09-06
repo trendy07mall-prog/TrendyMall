@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "@/app/auth/actions";
+import { usePathname, useRouter } from "next/navigation";
+import { clientSignOut } from "@/lib/supabase/client-auth";
 import { AccountAvatar } from "@/components/account/AccountAvatar";
 import {
   UserIcon,
@@ -37,6 +37,7 @@ export function AccountNav({
   phone: string | null;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <nav className="flex flex-col gap-4 md:w-64 md:shrink-0">
@@ -68,15 +69,14 @@ export function AccountNav({
           );
         })}
 
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="transition-brand flex min-h-11 w-full items-center gap-2.5 rounded-[var(--radius-btn)] px-3 text-left text-sm font-medium text-[var(--foreground)] hover:bg-black/5"
-          >
-            <LogoutIcon className="h-4 w-4 shrink-0" />
-            Log out
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={() => clientSignOut(router)}
+          className="transition-brand flex min-h-11 w-full items-center gap-2.5 rounded-[var(--radius-btn)] px-3 text-left text-sm font-medium text-[var(--foreground)] hover:bg-black/5"
+        >
+          <LogoutIcon className="h-4 w-4 shrink-0" />
+          Log out
+        </button>
       </div>
     </nav>
   );
