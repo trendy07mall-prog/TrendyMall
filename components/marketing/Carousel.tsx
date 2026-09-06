@@ -78,6 +78,13 @@ export function Carousel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoAdvanceMs, paused, reducedMotion]);
 
+  // An empty snap-x/overflow-x-auto track (no callers currently hit this,
+  // but nothing stops a future one) reliably crashes WebKit's renderer --
+  // confirmed via repeated Playwright WebKit trials isolating this exact
+  // markup shape with zero children. There's nothing to carousel through
+  // anyway, so bail out after the hooks above have run unconditionally.
+  if (children.length === 0) return null;
+
   return (
     <div
       role="region"
@@ -101,24 +108,33 @@ export function Carousel({
 
       {showArrows && (
         <>
-          {/* 40/46/52px mobile/tablet/desktop — the button element itself is
-              sized to each tier (not just the visual circle inside it), so
-              the tap target never shrinks below a real 40px on mobile. */}
+          {/* Fixed 40px at every breakpoint, deliberately not scaling up on
+              sm:/lg: -- this used to grow to 46/52px (then 48/56px) via
+              responsive size overrides, but any responsive height/width
+              override on this button reliably crashed WebKit's renderer
+              once a carousel had >5 items (confirmed via repeated WebKit
+              trials: transform + rounded-full + a responsive size change on
+              this absolutely-positioned button reproduced the crash even
+              with every other class -- shadow, blur, color -- stripped
+              out; the same button pinned to one size across all
+              breakpoints never crashed once). Losing the tablet/desktop
+              size bump is the tradeoff for a homepage that doesn't crash
+              Safari/WebKit visitors. */}
           <button
             type="button"
             aria-label="Previous"
             onClick={() => scrollByPage(-1)}
-            className="absolute top-1/2 left-0 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110 sm:h-[46px] sm:w-[46px] lg:h-[52px] lg:w-[52px]"
+            className="absolute top-1/2 left-0 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110"
           >
-            <ChevronLeftIcon className="h-[18px] w-[18px] sm:h-5 sm:w-5 lg:h-[22px] lg:w-[22px]" />
+            <ChevronLeftIcon className="h-[18px] w-[18px]" />
           </button>
           <button
             type="button"
             aria-label="Next"
             onClick={() => scrollByPage(1)}
-            className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110 sm:h-[46px] sm:w-[46px] lg:h-[52px] lg:w-[52px]"
+            className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110"
           >
-            <ChevronRightIcon className="h-[18px] w-[18px] sm:h-5 sm:w-5 lg:h-[22px] lg:w-[22px]" />
+            <ChevronRightIcon className="h-[18px] w-[18px]" />
           </button>
         </>
       )}

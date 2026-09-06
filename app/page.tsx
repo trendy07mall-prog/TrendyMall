@@ -164,16 +164,18 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
-        <SectionHeader title="Explore by Category" viewAllHref="/shop" />
-        <div className="mt-6">
-          <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
-            {categories.map((category) => (
-              <CategoryCard key={category.id} category={category} />
-            ))}
-          </Carousel>
-        </div>
-      </section>
+      {categories.length > 0 && (
+        <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
+          <SectionHeader title="Explore by Category" viewAllHref="/shop" />
+          <div className="mt-6">
+            <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
+              {categories.map((category) => (
+                <CategoryCard key={category.id} category={category} />
+              ))}
+            </Carousel>
+          </div>
+        </section>
+      )}
 
       <WhyShopWithUs businessHoursSummary={businessHoursSummary} />
 
