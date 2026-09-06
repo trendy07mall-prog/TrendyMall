@@ -4,11 +4,21 @@ import { getBrandingSettings } from "@/lib/data/settings";
 import { NavbarClient } from "@/components/layout/NavbarClient";
 
 export async function Navbar() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const branding = await getBrandingSettings();
+  // These three don't depend on each other, so they run together rather
+  // than as three sequential round trips -- the header re-renders on every
+  // navigation (and on every auth change), so its latency is felt on each
+  // one. Only the is_admin lookup below genuinely has to wait, since it
+  // needs the resolved user id.
+  //
+  // Top-level categories only -- the header's Categories dropdown is a
+  // simple flat list, not a nested flyout, so a deeply-nested tree would
+  // just clutter it.
+  const [supabase, { data: { user } }, branding, categories] = await Promise.all([
+    createClient(),
+    getAuthUser(),
+    getBrandingSettings(),
+    getCategories({ depth: 0 }),
+  ]);
 
   let isAdmin = false;
   if (user) {
@@ -19,10 +29,6 @@ export async function Navbar() {
       .maybeSingle();
     isAdmin = profile?.is_admin ?? false;
   }
-
-  // Top-level only -- the header's Categories dropdown is a simple flat
-  // list, not a nested flyout, so a deeply-nested tree would just clutter it.
-  const categories = await getCategories({ depth: 0 });
 
   return (
     <NavbarClient

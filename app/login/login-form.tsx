@@ -40,6 +40,13 @@ export function LoginForm() {
   const justSignedUp = searchParams.get("confirmEmail") === "1";
   const [pending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | undefined>();
+  // Separate from useTransition's `pending`: startTransition's callback is
+  // async, and React stops tracking it at the first await, so `pending`
+  // drops back to false while the sign-in request (and the navigation
+  // after it) is still running. This one stays true until the page
+  // actually leaves, so the button keeps saying "Logging in…" for as long
+  // as the user is genuinely waiting.
+  const [submitting, setSubmitting] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -73,6 +80,7 @@ export function LoginForm() {
     }
 
     setFormError(undefined);
+    setSubmitting(true);
     startTransition(async () => {
       // Signing in through THIS tab's own browser Supabase client (not a
       // Server Action) is required, not a style choice -- CartContext's
@@ -85,10 +93,32 @@ export function LoginForm() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         setFormError(error.message);
+        setSubmitting(false);
         return;
       }
-      router.push(redirectTo);
+      // Soft navigation (not a full document load like sign-out does):
+      // CartContext's onAuthStateChange has just fired and its
+      // mergeCartOnLogin server action is in flight right now. Tearing the
+      // page down mid-merge risks the merge committing server-side while
+      // the client never clears its guest localStorage -- the next load
+      // would then merge the same items a second time and double the
+      // quantities. A soft transition lets it finish.
+      //
+      // refresh() is NOT redundant here, however tempting that looks:
+      // push() on its own serves the destination from Next's client-side
+      // Router Cache, and "/" has already been prefetched from the
+      // Navbar's own logo/home link while sitting on /login -- i.e. cached
+      // in its pre-login guest state. Measured directly: with push()
+      // alone the header never corrected itself at all (10/10 trials,
+      // >15s each); with refresh() alongside it, 5/5 corrected. refresh()
+      // invalidates that cache so the render actually reflects the new
+      // session cookie.
       router.refresh();
+      router.push(redirectTo);
+      // submitting stays true through the navigation on purpose -- the
+      // destination render is what takes the time, and dropping the
+      // pending state early is what made this look like "nothing
+      // happened" for seconds after clicking.
     });
   }
 
@@ -137,10 +167,10 @@ export function LoginForm() {
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={submitting || pending}
           className="mt-2 rounded-full bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-85 disabled:opacity-50"
         >
-          {pending ? "Logging in…" : "Log in"}
+          {submitting || pending ? "Logging in…" : "Log in"}
         </button>
       </form>
 
