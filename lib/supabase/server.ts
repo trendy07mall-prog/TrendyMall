@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createPublicClient } from "@/lib/supabase/public-client";
+import { isPublicScope } from "@/lib/supabase/public-scope";
 import type { Database } from "@/types/database.types";
 
 // Request-scoped, not cross-request -- React's cache() is cleared for every
@@ -11,7 +13,7 @@ import type { Database } from "@/types/database.types";
 // on any function that takes this client as an argument (its own cache key
 // includes the client reference -- a new instance per call would never
 // match, even with otherwise-identical arguments).
-export const createClient = cache(async () => {
+const createSessionClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -37,6 +39,17 @@ export const createClient = cache(async () => {
   );
 });
 
+// Every data function in the app calls this. Inside a cached scope it
+// hands back a session-less client instead, so a cached read never touches
+// cookies (which unstable_cache forbids) and never captures one visitor's
+// view into a result shared with everyone -- see public-client.ts. Outside
+// a cached scope this is exactly the request-scoped, cookie-bound client
+// it has always been, memoised per request as before.
+export async function createClient() {
+  if (isPublicScope()) return createPublicClient();
+  return createSessionClient();
+}
+
 // Shared by every Server Component that just needs to know "is anyone
 // logged in, and who" (Navbar, Footer, MobileBottomNav, and several page
 // components) -- cache() memoizes this per request the same way createClient
@@ -48,6 +61,26 @@ export const createClient = cache(async () => {
 // call site would be a separate hit no matter how many times createClient()
 // itself gets reused.
 export const getAuthUser = cache(async () => {
+  // A request carrying no Supabase session cookie is definitionally a
+  // guest, so there is nothing for auth.getUser() to verify -- and since it
+  // always goes to the network (that being the whole point of using it over
+  // getSession), skipping it removes a full Supabase round trip from the
+  // critical path of every page a logged-OUT visitor loads. That was
+  // measurable: it's most of why a near-empty page cost the same as the
+  // homepage. Same cookie test proxy.ts has always used for the same
+  // reason; the shape below matches auth.getUser()'s own return so every
+  // caller's destructuring is unchanged.
+  const cookieStore = await cookies();
+  const hasSessionCookie = cookieStore
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
   const supabase = await createClient();
+  if (!hasSessionCookie) {
+    return { data: { user: null }, error: null } satisfies {
+      data: { user: null };
+      error: null;
+    };
+  }
+
   return supabase.auth.getUser();
 });

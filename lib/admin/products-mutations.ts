@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify } from "@/lib/utils";
 import type { ProductStatus } from "@/types";
@@ -37,6 +38,7 @@ export async function quickUpdateProduct(
   if (error) return { error: error.message };
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { success: true };
 }
 
@@ -70,6 +72,7 @@ export async function quickUpdateVariantPrice(
   if (error) return { error: error.message };
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { success: true };
 }
 
@@ -94,6 +97,7 @@ export async function quickUpdateVariantActive(
   if (error) return { error: error.message };
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { success: true };
 }
 
@@ -117,6 +121,7 @@ export async function quickUpdateVariantStock(
   if (error) return { error: error.message };
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { success: true };
 }
 
@@ -228,6 +233,7 @@ export async function duplicateProduct(productId: string): Promise<DuplicateResu
   const supabase = await requireAdminClient();
   const result = await duplicateOne(supabase, productId);
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return result;
 }
 
@@ -245,6 +251,7 @@ export async function deleteProductInline(productId: string): Promise<QuickEditR
 
   if (error) return { error: error.message };
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { success: true };
 }
 
@@ -261,6 +268,7 @@ export async function bulkUpdateStatus(
   const { error } = await supabase.from("products").update({ status }).in("id", productIds);
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   if (error) return { successCount: 0, errors: [error.message] };
   return { successCount: productIds.length, errors: [] };
 }
@@ -273,6 +281,7 @@ export async function bulkSoftDelete(productIds: string[]): Promise<BulkResult> 
     .in("id", productIds);
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   if (error) return { successCount: 0, errors: [error.message] };
   return { successCount: productIds.length, errors: [] };
 }
@@ -285,6 +294,7 @@ export async function bulkRestore(productIds: string[]): Promise<BulkResult> {
     .in("id", productIds);
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   if (error) return { successCount: 0, errors: [error.message] };
   return { successCount: productIds.length, errors: [] };
 }
@@ -301,5 +311,6 @@ export async function bulkDuplicate(productIds: string[]): Promise<BulkResult> {
   }
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   return { successCount, errors };
 }

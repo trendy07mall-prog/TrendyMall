@@ -1,17 +1,18 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { getCategories } from "@/lib/data/categories";
-import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
+import { getAuthUser } from "@/lib/supabase/server";
+import { applyCampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import {
-  getHomepageCampaigns,
-  getCampaignSections,
-  getCampaignFeaturedDisplayByProduct,
-  applyCampaignFeaturedDisplay,
-  getCampaignSoldCounts,
-} from "@/lib/data/campaigns";
-import { getGeneralSettings } from "@/lib/data/settings";
+  getCachedCategories,
+  getCachedNewArrivals,
+  getCachedProductsByIds,
+  getCachedHomepageCampaigns,
+  getCachedCampaignSections,
+  getCachedCampaignSoldCounts,
+  getCachedCampaignFeaturedDisplay,
+  getCachedGeneralSettings,
+} from "@/lib/data/cached";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
@@ -68,12 +69,11 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 }
 
 export default async function HomePage() {
-  const supabase = await createClient();
   const [categories, newArrivals, homepageCampaigns, general, { data: { user } }] = await Promise.all([
-    getCategories({ depth: 0 }),
-    getNewArrivals(10),
-    getHomepageCampaigns(),
-    getGeneralSettings(),
+    getCachedCategories(0),
+    getCachedNewArrivals(10),
+    getCachedHomepageCampaigns(),
+    getCachedGeneralSettings(),
     getAuthUser(),
   ]);
   const businessHoursSummary = `WhatsApp or call us, ${formatBusinessHoursSummary(general.businessHours).replace("Daily,", "daily")}.`;
@@ -82,10 +82,10 @@ export default async function HomePage() {
   // getProductsByIds call for the union of every campaign's product ids --
   // flat query count regardless of how many campaigns/products are active,
   // never one query per campaign or per product.
-  const campaignSectionGroups = await getCampaignSections(homepageCampaigns);
+  const campaignSectionGroups = await getCachedCampaignSections(homepageCampaigns);
   const allCampaignProductIds = [...new Set(campaignSectionGroups.flatMap((g) => g.productIds))];
   const campaignProducts =
-    allCampaignProductIds.length > 0 ? await getProductsByIds(allCampaignProductIds) : [];
+    allCampaignProductIds.length > 0 ? await getCachedProductsByIds(allCampaignProductIds) : [];
   const campaignProductsById = new Map(campaignProducts.map((p) => [p.id, p]));
 
   // Campaign-context display fix: a product's card in THIS carousel must
@@ -103,11 +103,11 @@ export default async function HomePage() {
   // awaiting the sold-count query before starting the featured-display
   // one -- same query count, one fewer round trip's worth of latency.
   const [soldCountsByCampaignId, featuredByCampaignId] = await Promise.all([
-    getCampaignSoldCounts(supabase, campaignIds),
+    getCachedCampaignSoldCounts(campaignIds),
     Promise.all(
       campaignSectionGroups.map(
         async (g) =>
-          [g.campaign.id, await getCampaignFeaturedDisplayByProduct(supabase, g.campaign.id, g.productIds)] as const,
+          [g.campaign.id, await getCachedCampaignFeaturedDisplay(g.campaign.id, g.productIds)] as const,
       ),
     ).then((entries) => new Map(entries)),
   ]);

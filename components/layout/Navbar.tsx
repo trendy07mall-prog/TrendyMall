@@ -1,6 +1,5 @@
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { getCategories } from "@/lib/data/categories";
-import { getBrandingSettings } from "@/lib/data/settings";
+import { getCachedCategories, getCachedBrandingSettings } from "@/lib/data/cached";
 import { NavbarClient } from "@/components/layout/NavbarClient";
 
 export async function Navbar() {
@@ -16,8 +15,8 @@ export async function Navbar() {
   const [supabase, { data: { user } }, branding, categories] = await Promise.all([
     createClient(),
     getAuthUser(),
-    getBrandingSettings(),
-    getCategories({ depth: 0 }),
+    getCachedBrandingSettings(),
+    getCachedCategories(0),
   ]);
 
   let isAdmin = false;

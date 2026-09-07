@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { sendOrderStatusEmail, sendPaymentReceivedNotification } from "@/lib/email";
 import { getNotificationSettings } from "@/lib/data/settings";
@@ -16,6 +17,12 @@ function revalidateOrderPaths(orderId: string) {
   revalidatePath("/admin");
   revalidatePath("/account/orders");
   revalidatePath(`/account/orders/${orderId}`);
+  // An order moving through fulfilment changes two things the storefront
+  // caches: stock (carried on cached product rows) and per-campaign units
+  // sold. Neither has an admin "edit" to invalidate it, so without this
+  // they'd sit stale until their TTL expired.
+  updateTag(CACHE_TAGS.products);
+  updateTag(CACHE_TAGS.soldCounts);
 }
 
 export async function confirmOrder(orderId: string): Promise<OrderActionResult> {

@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import sanitizeHtml from "sanitize-html";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { setProductTags } from "@/lib/admin/tags";
@@ -429,6 +430,7 @@ export async function createProduct(
   }
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   redirect("/admin/products");
 }
 
@@ -502,6 +504,7 @@ export async function updateProduct(
   }
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   redirect("/admin/products");
 }
 
@@ -520,5 +523,6 @@ export async function deleteProduct(productId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/products");
+  updateTag(CACHE_TAGS.products);
   redirect("/admin/products");
 }

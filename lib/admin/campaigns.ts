@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify, formatPrice } from "@/lib/utils";
 import { sriLankaInputToUtcIso } from "@/lib/campaign-datetime";
@@ -205,6 +206,7 @@ export async function saveCampaign(
   }
 
   revalidatePath("/admin/campaigns");
+  updateTag(CACHE_TAGS.campaigns);
   return undefined;
 }
 
@@ -224,6 +226,7 @@ export async function toggleCampaignStatus(
     .eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/campaigns");
+  updateTag(CACHE_TAGS.campaigns);
   return {};
 }
 
@@ -235,6 +238,7 @@ export async function toggleCampaignArchived(id: string, isArchived: boolean): P
     .eq("id", id);
   if (error) return { error: error.message };
   revalidatePath("/admin/campaigns");
+  updateTag(CACHE_TAGS.campaigns);
   return {};
 }
 
@@ -307,5 +311,6 @@ export async function duplicateCampaign(id: string): Promise<{ error?: string }>
   }
 
   revalidatePath("/admin/campaigns");
+  updateTag(CACHE_TAGS.campaigns);
   return {};
 }

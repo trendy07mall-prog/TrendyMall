@@ -2,7 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { getAuthUser } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
-import { getBrandingSettings, getGeneralSettings, getPaymentSettings, getSocialSettings } from "@/lib/data/settings";
+import { getPaymentSettings, getSocialSettings } from "@/lib/data/settings";
+import { getCachedBrandingSettings, getCachedGeneralSettings } from "@/lib/data/cached";
 import { isPayHereEnabled } from "@/lib/payhere";
 import { getWhatsAppUrl } from "@/lib/site";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
@@ -68,12 +69,12 @@ function ContactRow({
 }
 
 export async function Footer() {
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const [branding, general, social, payment] = await Promise.all([
-    getBrandingSettings(),
-    getGeneralSettings(),
+  // Auth stays out of the cached reads (it's per-visitor) but still runs
+  // alongside them rather than before them.
+  const [{ data: { user } }, branding, general, social, payment] = await Promise.all([
+    getAuthUser(),
+    getCachedBrandingSettings(),
+    getCachedGeneralSettings(),
     getSocialSettings(),
     getPaymentSettings(),
   ]);
