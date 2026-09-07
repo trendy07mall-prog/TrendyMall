@@ -5,16 +5,22 @@ production. Follow the sections in order the first time.
 
 ## Known temporary workarounds
 
-- **`images.unoptimized = true` (`next.config.ts`)** — set to `true` on
-  **2026-08-14** as a temporary fix for the Aug 2026 Image Transformations
-  quota (5,074/5,000 on Vercel's Hobby plan), which was breaking every
-  `next/image` render in production. This disables Vercel's on-the-fly
-  image resizing/format-conversion, so images serve as their original
-  files (larger, unoptimized, but free — zero Image Transformations used).
-  **Revert to normal Vercel image optimization on or after September 6,
-  2026**, once the monthly quota resets: delete the `unoptimized: true`
-  line (and its comment) from the `images: {}` block in `next.config.ts`,
-  commit, and push.
+_None currently._
+
+The `images.unoptimized = true` workaround (added 2026-08-14 after the Aug
+2026 Image Transformations quota hit 5,074/5,000 on Vercel's Hobby plan)
+was **reverted on 2026-09-07**, once the quota had reset with comfortable
+headroom. Image optimization is active again.
+
+To keep it from recurring, `next.config.ts` now also constrains what gets
+billed: `minimumCacheTTL` is 31 days (a transformation is only billed when
+a source+size+format+quality combination isn't already cached, and these
+images are immutable — a changed image is a new upload at a new URL), and
+`deviceSizes`/`imageSizes` are trimmed to the breakpoints this layout
+actually uses, since every distinct width is separately billed per image.
+If the quota is ever approached again, check those two settings before
+reaching for `unoptimized` — disabling optimization outright should be a
+last resort, as it serves full-size originals to every visitor.
 
 ## 1. Create your Supabase project
 
