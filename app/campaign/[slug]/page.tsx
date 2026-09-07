@@ -79,23 +79,53 @@ export default async function CampaignPage({
   const allProductIds = [...new Set(groups.flatMap((g) => g.productIds))];
   const products = await getProductsByIds(allProductIds);
 
+  // The campaign's pricing/badge/countdown only exist while it's actually
+  // running. Applying them unconditionally (as this used to) made a
+  // scheduled campaign's own page contradict itself: the banner above said
+  // "Starts in ...", while every card below it already showed the
+  // discounted price, the live badge, an "Ends in" countdown and a working
+  // Add to Cart -- i.e. the deal looked purchasable before it began. The
+  // same overlay was equally wrong once a campaign had ended (an expired
+  // discount, counting down to a date already past). Anything other than
+  // `active` therefore shows the products exactly as they appear anywhere
+  // else on the site: their own ordinary pricing, no campaign chrome.
+  //
+  // This is display-only. It was never a pricing hole -- the PDP and /shop
+  // already withhold campaign pricing until start, so nothing here could
+  // have been bought at the campaign price early.
+  const isRunning = runtime === "active";
+
   // Campaign-context display fix: every product on this page must feature
   // its OWN campaign-joined variant's price/badge/countdown/sold-count,
   // never the product's globally-cheapest variant if that happens to be a
   // different, non-campaign one -- see getCampaignFeaturedDisplayByProduct's
-  // own comment in lib/data/campaigns.ts.
+  // own comment in lib/data/campaigns.ts. Skipped entirely when the
+  // campaign isn't running, which also spares two queries whose results
+  // would only have been discarded.
   const supabase = await createClient();
-  const [soldCounts, featuredByProductId] = await Promise.all([
-    getCampaignSoldCounts(supabase, [campaign.id]),
-    getCampaignFeaturedDisplayByProduct(supabase, campaign.id, allProductIds),
-  ]);
-  const featuredProducts = applyCampaignFeaturedDisplay(
-    products,
-    campaign,
-    featuredByProductId,
-    soldCounts.get(campaign.id) ?? new Map(),
-  );
+  const featuredProducts = isRunning
+    ? await (async () => {
+        const [soldCounts, featuredByProductId] = await Promise.all([
+          getCampaignSoldCounts(supabase, [campaign.id]),
+          getCampaignFeaturedDisplayByProduct(supabase, campaign.id, allProductIds),
+        ]);
+        return applyCampaignFeaturedDisplay(
+          products,
+          campaign,
+          featuredByProductId,
+          soldCounts.get(campaign.id) ?? new Map(),
+        );
+      })()
+    : products;
   const productById = new Map(featuredProducts.map((p) => [p.id, p]));
+
+  // Buying from THIS page is gated with the rest of the campaign chrome --
+  // an enabled "Add to Cart" here would read as "this campaign deal is
+  // available now". The product itself stays fully purchasable at its
+  // normal price from /shop and its own product page, which is where a
+  // customer who wants it before the campaign starts should buy it.
+  const unavailableLabel =
+    runtime === "scheduled" ? "Not yet available" : runtime === "ended" ? "Campaign ended" : null;
 
   const totalCount = allProductIds.length;
   const sp = await searchParams;
@@ -187,7 +217,8 @@ export default async function CampaignPage({
               <ProductGrid
                 products={pagedProducts}
                 emptyMessage="No products in this campaign."
-                linkToFeaturedVariant
+                linkToFeaturedVariant={isRunning}
+                unavailableLabel={unavailableLabel}
               />
               <Pagination
                 basePath={basePath}
@@ -211,7 +242,11 @@ export default async function CampaignPage({
                   {group.section.name}
                 </h2>
               )}
-              <ProductGrid products={groupProducts} linkToFeaturedVariant />
+              <ProductGrid
+                products={groupProducts}
+                linkToFeaturedVariant={isRunning}
+                unavailableLabel={unavailableLabel}
+              />
             </div>
           );
         })

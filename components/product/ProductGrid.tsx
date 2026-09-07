@@ -11,9 +11,16 @@ export function ProductGrid({
   emptyMessage = "No products in this category yet.",
   variant = "default",
   linkToFeaturedVariant = false,
+  unavailableLabel = null,
 }: {
   products: ProductWithPrimaryImage[];
   emptyMessage?: string;
+  // Page-level reason this grid's products can't be bought right now,
+  // forwarded to both view modes' cards -- see QuickAddButton's own prop
+  // comment. Only /campaign/[slug] sets it, for a campaign that hasn't
+  // started yet (or has ended); every other grid omits it and keeps a
+  // normal, enabled Add to Cart.
+  unavailableLabel?: string | null;
   // "shop" opts into the /shop redesign's bigger cards -- every other
   // caller (category, search, related products) omits this and keeps
   // today's rendering untouched.
@@ -50,6 +57,7 @@ export function ProductGrid({
             product={product}
             variant={variant}
             linkVariantId={linkToFeaturedVariant ? product.defaultVariantId : null}
+            unavailableLabel={unavailableLabel}
           />
         ))}
       </div>
@@ -64,6 +72,7 @@ export function ProductGrid({
           product={product}
           variant={variant}
           linkVariantId={linkToFeaturedVariant ? product.defaultVariantId : null}
+          unavailableLabel={unavailableLabel}
         />
       ))}
     </div>

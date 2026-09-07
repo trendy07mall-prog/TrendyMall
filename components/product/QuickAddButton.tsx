@@ -12,16 +12,27 @@ const ADDED_MS = 1200;
 export function QuickAddButton({
   product,
   variant = "default",
+  unavailableLabel = null,
 }: {
   product: ProductWithPrimaryImage;
   // "shop" is the /shop redesign's taller/rounder button — opt-in only,
   // every other render site (category/search/PDP-related/homepage) keeps
   // today's sizing untouched.
   variant?: "default" | "shop";
+  // Set only where the PAGE's own context makes buying from this card
+  // wrong regardless of the product itself -- currently just a not-yet-
+  // started (or already-ended) campaign's own landing page, where an
+  // enabled "Add to Cart" would imply the campaign deal is purchasable
+  // right now. Product-level reasons (out of stock) stay owned by this
+  // component and take precedence, since they're the more specific truth
+  // about that particular card. Omitted everywhere else, so every other
+  // grid's button behaviour is unchanged.
+  unavailableLabel?: string | null;
 }) {
   const { addItem } = useCart();
   const [status, setStatus] = useState<"idle" | "adding" | "added">("idle");
   const outOfStock = product.stock <= 0;
+  const unavailable = !outOfStock && unavailableLabel != null;
 
   function handleClick(event: React.MouseEvent) {
     event.preventDefault();
@@ -67,7 +78,7 @@ export function QuickAddButton({
   return (
     <button
       type="button"
-      disabled={outOfStock || status !== "idle"}
+      disabled={outOfStock || unavailable || status !== "idle"}
       onClick={handleClick}
       className={`transition-brand group-hover:bg-[var(--color-btn-hover)] flex w-full items-center justify-center gap-1.5 bg-[var(--foreground)] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
         variant === "shop"
@@ -77,6 +88,8 @@ export function QuickAddButton({
     >
       {outOfStock ? (
         "Out of stock"
+      ) : unavailable ? (
+        unavailableLabel
       ) : status === "adding" ? (
         reducedMotion ? (
           "Adding…"

@@ -19,11 +19,17 @@ export function ProductListItem({
   product,
   variant = "default",
   linkVariantId = null,
+  unavailableLabel = null,
 }: {
   product: ProductWithPrimaryImage;
   variant?: "default" | "shop";
   // See ProductCard.tsx's identical prop -- campaign-context callers only.
   linkVariantId?: string | null;
+  // See ProductCard.tsx's identical prop. List view has to gate the
+  // purchase action for the same reason grid view does, or switching view
+  // mode on a not-yet-started campaign page would hand back a working
+  // "Add to Cart" the grid had just withheld.
+  unavailableLabel?: string | null;
 }) {
   const productHref = linkVariantId
     ? `/product/${product.slug}?variant=${linkVariantId}`
@@ -106,7 +112,7 @@ export function ProductListItem({
             )}
           </div>
           <div className="w-36 shrink-0">
-            <QuickAddButton product={product} variant={variant} />
+            <QuickAddButton product={product} variant={variant} unavailableLabel={unavailableLabel} />
           </div>
         </div>
       </div>

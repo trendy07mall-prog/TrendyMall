@@ -42,8 +42,13 @@ export function ProductCard({
   product,
   variant = "default",
   linkVariantId = null,
+  unavailableLabel = null,
 }: {
   product: ProductWithPrimaryImage;
+  // Page-level "can't buy from here right now" reason, forwarded to
+  // QuickAddButton -- see its own prop comment. Only /campaign/[slug]
+  // sets it, for a campaign that hasn't started (or has ended).
+  unavailableLabel?: string | null;
   // Only affects QuickAddButton's own button styling now (its taller/
   // rounder /shop treatment) -- the card itself renders identically
   // regardless of variant, so every grid this component appears in stays
@@ -266,7 +271,7 @@ export function ProductCard({
             padding here on top of it was the redundant "leftover empty
             space before Add to Cart." */}
         <div className="mt-auto">
-          <QuickAddButton product={product} variant={variant} />
+          <QuickAddButton product={product} variant={variant} unavailableLabel={unavailableLabel} />
         </div>
       </div>
     </div>
