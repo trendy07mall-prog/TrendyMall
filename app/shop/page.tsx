@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
+import { getFacetCounts, getSearchMatchIds, searchProducts } from "@/lib/data/products";
 import {
-  getAllProducts,
-  getFacetCounts,
-  getPublishedProductCount,
-  getSearchMatchIds,
-  hasAnyApprovedReviews,
-  searchProducts,
-} from "@/lib/data/products";
-import { getCategories } from "@/lib/data/categories";
-import { getBrands } from "@/lib/data/brands";
-import { getTags } from "@/lib/data/tags";
-import { getAllAttributeValues } from "@/lib/data/attributes";
-import { getShopCampaigns } from "@/lib/data/campaigns";
+  getCachedCategories,
+  getCachedBrands,
+  getCachedTags,
+  getCachedAttributeValues,
+  getCachedShopCampaigns,
+  getCachedPublishedProductCount,
+  getCachedHasAnyApprovedReviews,
+  getCachedAllProducts,
+  getCachedFacetCounts,
+} from "@/lib/data/cached";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { ProductGrid } from "@/components/product/ProductGrid";
@@ -49,10 +48,10 @@ export default async function ShopPage({
   const extraQuery = q ? { q } : undefined;
 
   const [categories, brands, tags, attributeValues] = await Promise.all([
-    getCategories(),
-    getBrands(),
-    getTags(),
-    getAllAttributeValues(),
+    getCachedCategories(),
+    getCachedBrands(),
+    getCachedTags(),
+    getCachedAttributeValues(),
   ]);
   const filters = toProductListFilters(state, categories, brands, tags, attributeValues);
 
@@ -63,15 +62,17 @@ export default async function ShopPage({
   // before this redesign.
   const matchIds = q ? await getSearchMatchIds(q) : null;
 
+  // The search branch stays uncached on purpose: a free-text query is an
+  // unbounded cache key space, and it's the minority path. Plain /shop --
+  // what most visitors and every crawler request -- is the cached one.
   const [products, totalCount, facetCounts, hasReviews, shopCampaigns] = await Promise.all([
-    matchIds ? searchProducts(q, filters) : getAllProducts(filters),
-    getPublishedProductCount(),
-    getFacetCounts(filters, {
-      includeCategoryFacet: true,
-      ...(matchIds ? { restrictToIds: matchIds } : {}),
-    }),
-    hasAnyApprovedReviews(),
-    getShopCampaigns(),
+    matchIds ? searchProducts(q, filters) : getCachedAllProducts(filters),
+    getCachedPublishedProductCount(),
+    matchIds
+      ? getFacetCounts(filters, { includeCategoryFacet: true, restrictToIds: matchIds })
+      : getCachedFacetCounts(filters, { includeCategoryFacet: true }),
+    getCachedHasAnyApprovedReviews(),
+    getCachedShopCampaigns(),
   ]);
 
   const hasActiveCampaign = shopCampaigns.length > 0;

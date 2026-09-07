@@ -3,16 +3,29 @@ import { CACHE_TAGS, CACHE_TTL } from "@/lib/cache-tags";
 import { runInPublicScope } from "@/lib/supabase/public-scope";
 import { getCategories } from "@/lib/data/categories";
 import { getGeneralSettings, getBrandingSettings } from "@/lib/data/settings";
-import { getNewArrivals, getProductsByIds } from "@/lib/data/products";
+import {
+  getNewArrivals,
+  getProductsByIds,
+  getAllProducts,
+  getFacetCounts,
+  getPublishedProductCount,
+  hasAnyApprovedReviews,
+} from "@/lib/data/products";
+import { getBrands } from "@/lib/data/brands";
+import { getTags } from "@/lib/data/tags";
+import { getAllAttributeValues } from "@/lib/data/attributes";
 import {
   getHomepageCampaigns,
+  getShopCampaigns,
   getCampaignSections,
   getCampaignSoldCounts,
   getCampaignFeaturedDisplayByProduct,
 } from "@/lib/data/campaigns";
 import { createPublicClient } from "@/lib/supabase/public-client";
-import type { Campaign, Category, ProductWithPrimaryImage } from "@/types";
+import type { Campaign, Category, ProductWithPrimaryImage, Brand, Tag, AttributeValue } from "@/types";
 import type { CampaignSectionData, CampaignFeaturedDisplay } from "@/lib/data/campaigns";
+import type { FacetCounts } from "@/lib/data/products";
+import type { ProductListFilters } from "@/lib/product-filters";
 import type { BrandingSettings, GeneralSettings } from "@/lib/data/settings";
 
 // Cached wrappers over the storefront's PUBLIC reads. Nothing personalised
@@ -26,10 +39,16 @@ import type { BrandingSettings, GeneralSettings } from "@/lib/data/settings";
 // mutations that change each kind of data. The TTLs are a backstop for
 // anything that changes without an admin action, not the primary mechanism.
 
-export const getCachedCategories = (depth = 0): Promise<Category[]> =>
+// depth omitted = the whole active tree (/shop's sidebar); depth 0 = just
+// top-level (the header and homepage carousel). The depth is part of the
+// cache key, so those two shapes can never be served for one another.
+export const getCachedCategories = (depth?: number): Promise<Category[]> =>
   unstable_cache(
-    () => runInPublicScope(() => getCategories({ depth, activeOnly: true })),
-    ["categories", String(depth)],
+    () =>
+      runInPublicScope(() =>
+        getCategories({ ...(depth != null ? { depth } : {}), activeOnly: true }),
+      ),
+    ["categories", depth != null ? String(depth) : "all"],
     { revalidate: CACHE_TTL.categories, tags: [CACHE_TAGS.categories] },
   )();
 
@@ -119,3 +138,77 @@ export const getCachedCampaignFeaturedDisplay = async (
   )();
   return new Map(entries);
 };
+
+
+// --- /shop -------------------------------------------------------------
+//
+// Two groups here. The first is filter-independent: the same answer no
+// matter what the visitor has selected, so it caches under a fixed key.
+// The second depends on the active filters, and those go into the cache
+// key -- getting that wrong would serve one filter's results under
+// another's, which is a far worse failure than being slow. JSON.stringify
+// of the resolved filter object is deterministic for a given shape, and
+// the failure mode if two equivalent filter states serialise differently
+// is only a cache miss, never a wrong hit.
+//
+// Free-text search is deliberately NOT cached: the key space is unbounded
+// (every distinct query string is its own entry), and it's the less
+// travelled path. /shop without a search term -- what most visitors and
+// every crawler load -- is what this speeds up.
+
+export const getCachedBrands = (): Promise<Brand[]> =>
+  unstable_cache(() => runInPublicScope(() => getBrands()), ["brands"], {
+    revalidate: CACHE_TTL.categories,
+    tags: [CACHE_TAGS.categories],
+  })();
+
+export const getCachedTags = (): Promise<Tag[]> =>
+  unstable_cache(() => runInPublicScope(() => getTags()), ["tags"], {
+    revalidate: CACHE_TTL.categories,
+    tags: [CACHE_TAGS.categories],
+  })();
+
+export const getCachedAttributeValues = (): Promise<AttributeValue[]> =>
+  unstable_cache(() => runInPublicScope(() => getAllAttributeValues()), ["attribute-values"], {
+    revalidate: CACHE_TTL.categories,
+    tags: [CACHE_TAGS.categories],
+  })();
+
+export const getCachedShopCampaigns = (): Promise<Campaign[]> =>
+  unstable_cache(() => runInPublicScope(() => getShopCampaigns()), ["shop-campaigns"], {
+    // Same reasoning as the homepage's campaigns: a campaign starting or
+    // ending is time-based, with no admin edit at the boundary.
+    revalidate: 60,
+    tags: [CACHE_TAGS.campaigns],
+  })();
+
+export const getCachedPublishedProductCount = (): Promise<number> =>
+  unstable_cache(() => runInPublicScope(() => getPublishedProductCount()), ["published-count"], {
+    revalidate: CACHE_TTL.products,
+    tags: [CACHE_TAGS.products],
+  })();
+
+export const getCachedHasAnyApprovedReviews = (): Promise<boolean> =>
+  unstable_cache(() => runInPublicScope(() => hasAnyApprovedReviews()), ["has-reviews"], {
+    revalidate: CACHE_TTL.products,
+    tags: [CACHE_TAGS.products],
+  })();
+
+export const getCachedAllProducts = (
+  filters: ProductListFilters,
+): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getAllProducts(filters)),
+    ["all-products", JSON.stringify(filters)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+export const getCachedFacetCounts = (
+  filters: ProductListFilters,
+  options: { categoryIds?: string[]; includeCategoryFacet?: boolean; restrictToIds?: string[] },
+): Promise<FacetCounts> =>
+  unstable_cache(
+    () => runInPublicScope(() => getFacetCounts(filters, options)),
+    ["facet-counts", JSON.stringify(filters), JSON.stringify(options)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
