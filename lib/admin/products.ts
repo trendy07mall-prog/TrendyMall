@@ -424,6 +424,29 @@ export async function createProduct(
     await setProductSpecValues(supabase, product.id, specValues);
     await setProductAttributeValues(supabase, product.id, fields.attributeValueIds);
   } catch (err) {
+    // Roll the product row back, so a failure part-way through never leaves
+    // a half-created product behind.
+    //
+    // The row has to be inserted first because everything below needs its
+    // id, so anything that throws here -- most commonly a duplicate variant
+    // SKU -- used to leave a product with no variants sitting in the table.
+    // That is worse than it sounds: it has already claimed the slug, so the
+    // obvious recovery (correct the SKU, submit again) then failed on
+    // products_slug_key, and the user was stuck behind a leftover they
+    // could not see.
+    //
+    // supabase-js has no client-side transaction, so this is an explicit
+    // compensating delete rather than a true rollback. Deleting the product
+    // is enough on its own: product_images, product_variants, product_tags,
+    // spec values and attribute values all reference products(id) with
+    // "on delete cascade", so whatever the calls above did manage to write
+    // goes with it.
+    //
+    // Best-effort on purpose. If the cleanup itself fails there is nothing
+    // useful to tell the user about it, and surfacing it would replace the
+    // real, actionable error (their duplicate SKU) with a confusing one --
+    // so the original error is always what gets returned.
+    await supabase.from("products").delete().eq("id", product.id);
     return {
       error: err instanceof Error ? err.message : "Could not save product images/variants.",
     };
