@@ -205,9 +205,23 @@ export function TikTokIcon({ className }: IconProps) {
 
 export function YouTubeIcon({ className }: IconProps) {
   return (
+    // One path with fill-rule="evenodd", so the play triangle is a HOLE in
+    // the body rather than a shape painted on top of it.
+    //
+    // It was previously two paths: the body in currentColor and the
+    // triangle hardcoded fill="#fff". Everywhere this icon is used on a
+    // dark surface -- the footer's navy card, where currentColor resolves
+    // to white -- that painted a white triangle onto a white body, so the
+    // icon rendered as a blank white rounded square with no visible glyph.
+    // Knocking the triangle out instead lets whatever is behind the icon
+    // show through, so it reads correctly on any background and in any
+    // colour, exactly like the other social icons in this set.
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
-      <path d="M22 12s0-3.1-.4-4.6a2.9 2.9 0 0 0-2-2C17.9 5 12 5 12 5s-5.9 0-7.6.4a2.9 2.9 0 0 0-2 2C2 8.9 2 12 2 12s0 3.1.4 4.6a2.9 2.9 0 0 0 2 2C6.1 19 12 19 12 19s5.9 0 7.6-.4a2.9 2.9 0 0 0 2-2C22 15.1 22 12 22 12Z" />
-      <path d="m10 15 5.2-3L10 9v6Z" fill="#fff" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M22 12s0-3.1-.4-4.6a2.9 2.9 0 0 0-2-2C17.9 5 12 5 12 5s-5.9 0-7.6.4a2.9 2.9 0 0 0-2 2C2 8.9 2 12 2 12s0 3.1.4 4.6a2.9 2.9 0 0 0 2 2C6.1 19 12 19 12 19s5.9 0 7.6-.4a2.9 2.9 0 0 0 2-2C22 15.1 22 12 22 12ZM10 15l5.2-3L10 9v6Z"
+      />
     </svg>
   );
 }
