@@ -372,16 +372,23 @@ export function NavbarClient({
               the icon row needs every spare pixel to fit next to the logo
               at 320px (width/height props stay full-size for a correct
               intrinsic aspect ratio — only the display size is smaller). */}
-          {/* unoptimized: static 563x334 source, displayed at a fixed
-              small size -- no benefit from Next's Image Optimization
-              pipeline, and this renders on every single page. */}
+          {/* Previously unoptimized, on the reasoning that a small fixed
+              display size gains nothing from the optimizer. That was
+              backwards: the SOURCE is 563x334 and ~158KB, and it was being
+              shipped whole to render at 77px -- the single heaviest asset
+              on the site, heavier than the hero image itself. Optimized, it
+              is a few KB.
+              Also no longer `priority`: that emitted a non-media-gated
+              <link rel=preload as=image> which competed for bandwidth with
+              the actual LCP element (the hero image), whose own preloads
+              HeroSlider emits properly media-gated. eager keeps it fetched
+              immediately without claiming a preload slot. */}
           <Image
             src={logoUrl}
             alt="TrendyMall"
             width={77}
             height={46}
-            priority
-            unoptimized
+            loading="eager"
             className={isCheckout ? "h-7 w-auto sm:h-8" : "h-9 w-auto sm:h-11"}
           />
         </Link>
@@ -612,7 +619,6 @@ export function NavbarClient({
                 alt="TrendyMall"
                 width={61}
                 height={36}
-                unoptimized
                 className="h-9 w-auto"
               />
               <button

@@ -211,7 +211,16 @@ export function SlideCarousel({
               // (built with next/image's own getImageProps so the
               // preloaded URL exactly matches what this <Image> will
               // request, no wasted duplicate fetch).
+              // Stays lazy deliberately, per Next 16's own guidance for
+              // art-directed pairs: HeroSlider renders this component twice
+              // (mobile + desktop slide sets, one hidden by CSS), and
+              // eager/preload on the <img> would fetch BOTH breakpoints'
+              // images. fetchPriority lifts the first slide -- the LCP
+              // element -- out of the lazy queue without that waste, and
+              // pairs with the media-gated <link rel=preload> HeroSlider
+              // already emits for the correct breakpoint.
               loading="lazy"
+              fetchPriority={index === 0 ? "high" : "auto"}
               quality={88}
               placeholder={slide.blurDataURL ? "blur" : undefined}
               blurDataURL={slide.blurDataURL}

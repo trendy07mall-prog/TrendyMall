@@ -114,7 +114,6 @@ export async function Footer() {
                 alt={general.storeName}
                 width={77}
                 height={46}
-                unoptimized
               />
             </div>
             <p className="mt-4 text-sm text-white/70">{general.tagline}</p>
