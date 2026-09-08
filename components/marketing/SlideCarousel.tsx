@@ -81,6 +81,37 @@ export function SlideCarousel({
   // as a plain static banner, not a 1-slide carousel with dead controls.
   const isCarousel = slides.length > 1;
 
+  // Which slides are allowed to download yet.
+  //
+  // Every slide sits stacked in the viewport at opacity 0, so the browser
+  // considers them all visible and loading="lazy" defers nothing -- all of
+  // them downloaded at page load and competed for bandwidth with the LCP
+  // image (measured: ~210KB of hero + banner images in contention while
+  // the LCP image waited its turn). Slide 0 is the only one actually
+  // visible at load, so it is the only one rendered until `warmed` flips.
+  //
+  // `warmed` turns on shortly after first paint -- well before autoplay
+  // reaches slide 1 at ~4s, so the first advance never shows a gap, but
+  // late enough that the initial load belongs to the LCP image alone.
+  // After that, readiness is derived from `active` rather than stored:
+  // the current slide plus one either side, since prev() is as reachable
+  // as next() via arrows, dots and swipe. Slides further away unmount,
+  // and remount from cache instantly if revisited.
+  const [warmed, setWarmed] = useState(false);
+
+  useEffect(() => {
+    if (!isCarousel) return;
+    const id = setTimeout(() => setWarmed(true), 1200);
+    return () => clearTimeout(id);
+  }, [isCarousel]);
+
+  const shouldRenderSlide = (index: number) => {
+    if (index === 0 || index === active) return true;
+    if (!warmed) return false;
+    const n = slides.length;
+    return index === (active + 1) % n || index === (active - 1 + n) % n;
+  };
+
   useEffect(() => {
     const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
     // Reading the OS/browser's current preference on mount is the same
@@ -200,6 +231,10 @@ export function SlideCarousel({
               transition: `opacity ${reducedMotion ? 0 : transitionDuration}ms ease-in-out`,
             }}
           >
+            {/* Not rendered at all until this slide is warmed -- see
+                readySlides above. The wrapper still mounts, so the
+                crossfade and the text overlay are unaffected. */}
+            {shouldRenderSlide(index) && (
             <Image
               src={slide.src}
               alt={slide.alt}
@@ -227,6 +262,7 @@ export function SlideCarousel({
               sizes={imageSizes}
               className="object-cover object-center"
             />
+            )}
             {(slide.subtitle || slide.buttonText) && (
               <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-6 py-6 sm:px-10 sm:py-10">
                 <p className="max-w-lg text-lg font-bold text-white drop-shadow-sm sm:text-2xl">{slide.alt}</p>
