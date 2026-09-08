@@ -19,16 +19,17 @@ import { getActiveBanner } from "@/lib/data/banner";
 import {
   getAnnouncementSettings,
   getContactSettings,
-  getGeneralSettings,
   getSeoSettings,
   getSocialSettings,
 } from "@/lib/data/settings";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { StorefrontOnly } from "@/components/analytics/StorefrontOnly";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -110,7 +111,11 @@ export default async function RootLayout({
     getActiveBanner(),
     getAnnouncementSettings(),
     getContactSettings(),
-    getGeneralSettings(),
+    // Cached rather than live: Footer and the homepage already read this
+    // exact cached entry on every storefront page, so this shares their
+    // hit instead of adding a seventh live query per request -- including
+    // on /admin, which inherits this layout but uses none of it.
+    getCachedGeneralSettings(),
     getActiveDeliveryZones(),
     getSocialSettings(),
   ]);
@@ -151,9 +156,11 @@ export default async function RootLayout({
         style={{ paddingBottom: "var(--pdp-floating-bar-height, 0px)" }}
       >
         <JsonLd data={organizationSchema} />
-        <GoogleAnalytics />
-        <MetaPixel />
-        <PageViewTracker />
+        <StorefrontOnly>
+          <GoogleAnalytics />
+          <MetaPixel />
+          <PageViewTracker />
+        </StorefrontOnly>
         <ToastProvider>
           <CartProvider>
             <WishlistProvider>

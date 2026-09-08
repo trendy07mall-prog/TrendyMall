@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { VERIFIED_USER_HEADER } from "@/lib/auth-headers";
 
 // Next.js 16 renamed Middleware to Proxy (same functionality, file must be
 // named proxy.ts at the project root). This refreshes the Supabase session
@@ -86,8 +87,34 @@ function resolveSource(request: NextRequest): string {
   return request.headers.get("referer") ? "organic" : "direct";
 }
 
+// How the already-verified user id reaches app/admin/layout.tsx, so that
+// layout doesn't have to make a second auth.getUser() round trip of its own
+// for a user this proxy has already verified on the same request.
+//
+// SECURITY: this is only trustworthy because the inbound value is deleted
+// unconditionally below before anything is written to it. A client that
+// sends this header itself has it stripped, and the only thing that can
+// ever set it is a successful supabase.auth.getUser() here. It is also not
+// the security boundary on its own -- the layout still reads is_admin under
+// RLS, and every mutation still re-verifies independently via
+// requireAdminClient().
+
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
-  let response = NextResponse.next({ request });
+  // Forwarded to the app in place of the original request headers.
+  //
+  // Blanked with set(), NOT delete(). NextResponse.next({request:{headers}})
+  // propagates headers as an OVERRIDE LIST: only names present in this
+  // object replace the originals, and anything absent from it passes
+  // through from the inbound request untouched. So delete() does not strip
+  // a client-supplied header -- it removes it from the override list and
+  // thereby lets the original through, which is the exact opposite of what
+  // is wanted here. Setting it empty is what actually overwrites whatever
+  // the client sent. (Caught by the forged-header test: a logged-in
+  // non-admin sending an admin's id reached /admin.)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(VERIFIED_USER_HEADER, "");
+
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Decided now, applied to `response` at the very end (not here) --
   // Supabase's own setAll callback below reassigns `response` to a whole
@@ -110,7 +137,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           );
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -128,6 +155,19 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   // before expiry, so a logged-in user browsing only public pages for an
   // extended visit doesn't get silently signed out.
   const user = hasSupabaseSessionCookie(request) ? (await supabase.auth.getUser()).data.user : null;
+
+  // Hand the verified id forward so app/admin/layout.tsx can skip repeating
+  // this exact round trip. NextResponse.next() snapshots the headers it is
+  // given, so the response has to be rebuilt here rather than mutating
+  // `requestHeaders` after the fact -- and rebuilding has to carry over any
+  // refreshed auth cookie the setAll callback above already wrote, which is
+  // the whole reason that callback reassigns `response` in the first place.
+  if (user) {
+    requestHeaders.set(VERIFIED_USER_HEADER, user.id);
+    const withVerifiedUser = NextResponse.next({ request: { headers: requestHeaders } });
+    for (const cookie of response.cookies.getAll()) withVerifiedUser.cookies.set(cookie);
+    response = withVerifiedUser;
+  }
 
   const path = request.nextUrl.pathname;
 

@@ -13,7 +13,27 @@ export interface SidebarBadges {
 // currently active (same gating as getRunningCampaignsWithAnalytics,
 // but a count only -- this runs on every admin page via the layout, not
 // just the dashboard, so it deliberately doesn't fetch full campaign rows).
+// Module-level rather than per-request, deliberately, and for the same
+// reason proxy.ts caches the maintenance flag that way: the whole point is
+// to survive ACROSS requests on a warm instance, so that clicking through
+// five admin pages costs one set of counts instead of five.
+//
+// Safe to share between callers because there is nothing per-user in it --
+// every admin sees the same three numbers -- and because the layout only
+// reaches this after its is_admin gate, so a non-admin can never be the one
+// who populates it. unstable_cache would have been the wrong tool: these
+// read through the cookie-bound session client under RLS, which it forbids,
+// and the public client would just return zeros.
+//
+// 30s of staleness on a "how many pending orders" badge is invisible in
+// practice, and it self-corrects on the next navigation after the window.
+const BADGES_TTL_MS = 30_000;
+let badgesCache: { value: SidebarBadges; expiresAt: number } | null = null;
+
 export async function getSidebarBadges(): Promise<SidebarBadges> {
+  const cachedAt = Date.now();
+  if (badgesCache && badgesCache.expiresAt > cachedAt) return badgesCache.value;
+
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
 
@@ -31,5 +51,7 @@ export async function getSidebarBadges(): Promise<SidebarBadges> {
   const now = Date.now();
   const campaigns = (campaignRows ?? []).filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now).length;
 
-  return { orders: orders ?? 0, reviews: reviews ?? 0, campaigns };
+  const value = { orders: orders ?? 0, reviews: reviews ?? 0, campaigns };
+  badgesCache = { value, expiresAt: Date.now() + BADGES_TTL_MS };
+  return value;
 }
