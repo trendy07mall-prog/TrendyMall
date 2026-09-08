@@ -141,10 +141,27 @@ export function ProductForm({
     stock: product?.stock != null,
   }));
 
-  function syncRequiredFilled(form: HTMLFormElement) {
+  // Attached to the two inputs themselves, NOT to the form.
+  //
+  // A form-level onInput fires for every control in the form, <select>s
+  // included, and the re-render it queued landed between a select's
+  // `input` and `change` events. React re-applies a controlled <select>'s
+  // value on every commit (it re-syncs the option list, unlike <input>,
+  // where it only writes when the value prop changes), so the DOM reverted
+  // to the pre-selection value and `change` then read that stale value
+  // back -- making it impossible to choose a brand at all.
+  function syncRequiredFilled(event: React.FormEvent<HTMLInputElement>) {
+    const form = event.currentTarget.form;
+    if (!form) return;
     const named = (fieldName: string) =>
       (form.elements.namedItem(fieldName) as HTMLInputElement | null)?.value.trim() ?? "";
-    setRequiredFilled({ name: named("name") !== "", stock: named("stock") !== "" });
+    const next = { name: named("name") !== "", stock: named("stock") !== "" };
+    // Same object back unless something actually flipped: this readout is
+    // consulted on every render but changes on almost no keystroke, and a
+    // fresh object each time would re-render the whole form per character.
+    setRequiredFilled((prev) =>
+      prev.name === next.name && prev.stock === next.stock ? prev : next,
+    );
   }
 
   const hasAttributes = attributesWithValues.some((g) => g.values.length > 0);
@@ -213,10 +230,12 @@ export function ProductForm({
         const formData = new FormData(event.currentTarget);
         startTransition(() => formAction(formData));
       }}
-      // Both listeners are read-only observers feeding the progress strip.
-      // onFocus stands in for focusin (React delegates it, so it bubbles)
-      // to tell which section the admin is working in.
-      onInput={(event) => syncRequiredFilled(event.currentTarget)}
+      // Read-only observer feeding the progress strip. onFocus stands in
+      // for focusin (React delegates it, so it bubbles) to tell which
+      // section the admin is working in. Safe at form level where onInput
+      // was not: focus fires before a select's input/change pair rather
+      // than between them, and setting the same section id back is a
+      // no-op React bails out of.
       onFocus={(event) => {
         const section = (event.target as HTMLElement).closest?.("[data-section]");
         setActiveSection(section?.getAttribute("data-section") ?? null);
@@ -244,6 +263,7 @@ export function ProductForm({
                 type="text"
                 defaultValue={product?.name}
                 required
+                onInput={syncRequiredFilled}
                 className={inputClass}
               />
             </div>
@@ -284,6 +304,7 @@ export function ProductForm({
                 min="0"
                 defaultValue={product?.stock}
                 required
+                onInput={syncRequiredFilled}
                 className={inputClass}
               />
             </div>
