@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, startTransition } from "react";
 import dynamic from "next/dynamic";
 import type {
   Attribute,
@@ -115,7 +115,31 @@ export function ProductForm({
     .filter((g) => g.values.length > 0);
 
   return (
-    <form action={formAction} className="mt-8 flex flex-col gap-6">
+    <form
+      // Submitted by handing the FormData to the action inside a
+      // transition, rather than via action={formAction} directly.
+      //
+      // React 19 resets a form automatically once its action completes --
+      // including when the action came back with an error. That wiped
+      // every uncontrolled field here (name, slug, SKU, stock, keywords,
+      // the SEO fields, the spec fields) on a failed submit, so a
+      // duplicate-SKU error meant retyping the whole product. Making those
+      // fields controlled would not have fixed it either: the brand select
+      // already is controlled and still cleared, because the reset happens
+      // to the DOM without React's knowledge and React only rewrites a
+      // field when its value prop CHANGES between renders.
+      //
+      // Calling the action programmatically skips that automatic reset
+      // entirely, so nothing the user typed is touched on error. Native
+      // validation is unaffected: the browser only fires submit once the
+      // form's own required/type constraints pass, exactly as before.
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => formAction(formData));
+      }}
+      className="mt-8 flex flex-col gap-6"
+    >
       <CategoryField categories={categories} value={categoryId} onChange={setCategoryId} />
 
       <div className="grid gap-4 sm:grid-cols-2">
