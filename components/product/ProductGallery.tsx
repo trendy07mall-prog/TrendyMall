@@ -2,12 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence } from "framer-motion";
 import { CloseIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 
 // Fade-only, no bounce, short duration -- same motion rule this project's
 // other crossfade (HeroSlider.tsx's slide transition) already follows.
-const FADE_TRANSITION = { duration: 0.25, ease: "easeInOut" as const };
 
 export function ProductGallery({
   images,
@@ -84,16 +82,14 @@ export function ProductGallery({
           aria-label="Zoom image"
           className="relative block h-full w-full cursor-zoom-in"
         >
-          <AnimatePresence initial={false}>
+          {/* Was AnimatePresence + motion.div. key={active} still remounts
+              on image change, which replays the CSS fade-in below. The old
+              exit fade is gone -- the outgoing image is replaced rather
+              than fading out under the incoming one -- which is the one
+              visible difference from the Framer Motion version. */}
+          <>
             {current ? (
-              <motion.div
-                key={active}
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={FADE_TRANSITION}
-              >
+              <div key={active} className="gallery-image-fade absolute inset-0">
                 <Image
                   src={current}
                   alt={name}
@@ -116,13 +112,13 @@ export function ProductGallery({
                       : undefined
                   }
                 />
-              </motion.div>
+              </div>
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm text-[var(--muted)]">
                 No image
               </div>
             )}
-          </AnimatePresence>
+          </>
         </button>
 
         {images.length > 1 && (

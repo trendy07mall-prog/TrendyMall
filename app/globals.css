@@ -444,3 +444,95 @@ input:-webkit-autofill:focus {
   content: counter(legal-section) ". ";
   color: var(--color-text-secondary);
 }
+
+/* ---------------------------------------------------------------------
+   Animations that used to be Framer Motion components. Framer Motion was
+   ~118KB of the shared JS bundle and was only ever doing opacity/scale
+   transitions that CSS does natively, off the main thread. Each keyframe
+   below reproduces the motion values of the component it replaced, and
+   each honours prefers-reduced-motion the way the old useReducedMotion
+   checks did.
+   --------------------------------------------------------------------- */
+
+/* WhatsAppButton's pulsing ring. The original was scale [1,1.6,1] with
+   opacity [.5,0,.5] over 2.5s, then a 2s pause before repeating -- so one
+   full cycle is 4.5s, and the pulse occupies the first 55.6% of it. */
+@keyframes whatsapp-ring-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  27.8% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  55.6%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+}
+.whatsapp-ring {
+  animation: whatsapp-ring-pulse 4.5s ease-out infinite;
+}
+
+/* FadeIn's reveal: opacity 0 -> 1 with a 24px rise. The trigger stays in
+   JS (an IntersectionObserver, matching whileInView's `once` + -80px
+   margin); this is only the visual half. */
+.fade-in-target {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+  transition-delay: var(--fade-in-delay, 0ms);
+}
+.fade-in-target.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* OrderSuccessCheck's entrance: scale .6 -> 1 with a fade, 350ms ease-out. */
+@keyframes success-check-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.success-check-pop {
+  animation: success-check-pop 350ms ease-out both;
+}
+
+/* ProductGallery's crossfade when the selected image changes. Keyed on the
+   active index in JSX, so React remounts the element and replays this. */
+@keyframes gallery-image-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.gallery-image-fade {
+  animation: gallery-image-fade 250ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-ring,
+  .success-check-pop,
+  .gallery-image-fade {
+    animation: none;
+  }
+  .fade-in-target {
+    transition: none;
+  }
+  /* Never leave content stuck invisible when motion is suppressed. */
+  .fade-in-target {
+    opacity: 1;
+    transform: none;
+  }
+}

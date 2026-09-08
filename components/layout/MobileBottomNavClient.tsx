@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
 import { CartIcon, HomeIcon, SearchIcon, ShoppingBagIcon, UserIcon } from "@/components/ui/Icon";
 import { CartCount } from "@/components/cart/CartCount";
 import { useScrollState } from "@/context/ScrollStateContext";
@@ -28,14 +27,6 @@ interface NavItem {
 export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   const pathname = usePathname() ?? "/";
   const barRef = useRef<HTMLElement>(null);
-  // No spring/bounce anywhere in this component, per spec — and instant
-  // (zero-duration) once prefers-reduced-motion is on, same pattern as
-  // components/motion/FadeIn.tsx.
-  const reducedMotion = useReducedMotion();
-  const TRANSITION = reducedMotion
-    ? { duration: 0 }
-    : { type: "tween" as const, duration: 0.22, ease: "easeInOut" as const };
-
   const hiddenByRoute = HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   // Sitewide, same `headerStuck` source the header's own scroll-past-top
@@ -154,9 +145,13 @@ export function MobileBottomNavClient({ isLoggedIn }: { isLoggedIn: boolean }) {
                 // the site's status/success color everywhere else (cart
                 // badges, stock status, admin toggles), this is the one
                 // deliberate exception.
-                <motion.span
-                  layoutId="bottom-nav-active-pill"
-                  transition={TRANSITION}
+                // Was a Framer Motion layoutId pill, which slid between
+                // tabs as the route changed. That shared-element animation
+                // is the one thing here CSS can't reproduce without
+                // restructuring the nav, so it's dropped: the pill now
+                // appears on the active tab instead of travelling to it.
+                // Its own size transition (compact <-> full) is unchanged.
+                <span
                   className={`absolute inset-0 m-auto rounded-full bg-black/[0.07] transition-[width,height] duration-200 ease-in-out motion-reduce:transition-none ${
                     compact ? "h-9 w-9" : "h-10 w-10"
                   }`}

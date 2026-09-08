@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { WhatsAppIcon } from "@/components/ui/Icon";
 
@@ -51,7 +50,7 @@ export function WhatsAppButton({
       >
         Chat with us on WhatsApp
       </span>
-      <motion.a
+      <a
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
@@ -60,17 +59,14 @@ export function WhatsAppButton({
         // tokens — those are now flattened for inline content cards, but a
         // floating action button still needs real elevation to read as
         // floating above the page, so its shadow is set explicitly here.
-        className="transition-brand relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_48px_rgba(0,0,0,0.1)]"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        // hover/tap scale and the pulsing ring were Framer Motion; both
+        // are plain CSS now (see .whatsapp-ring in globals.css), which also
+        // means they keep working with JS still loading.
+        className="transition-brand relative flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_40px_rgba(0,0,0,0.06)] hover:scale-105 hover:shadow-[0_16px_48px_rgba(0,0,0,0.1)] active:scale-95 motion-reduce:transform-none"
       >
-        <motion.span
-          className="absolute inset-0 rounded-full bg-[#25D366]"
-          animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
-          transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2 }}
-        />
+        <span className="whatsapp-ring absolute inset-0 rounded-full bg-[#25D366]" />
         <WhatsAppIcon className="relative h-7 w-7" />
-      </motion.a>
+      </a>
     </div>
   );
 }

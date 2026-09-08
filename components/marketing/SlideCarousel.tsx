@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 
 export interface Slide {
@@ -191,15 +190,15 @@ export function SlideCarousel({
         const isActive = index === active;
 
         const content = (
-          <motion.div
+          // Was a Framer Motion crossfade; identical values, done in CSS
+          // so the hero no longer pulls ~118KB of animation runtime into
+          // the shared bundle just to transition one opacity.
+          <div
             className="relative h-full w-full"
-            initial={false}
-            animate={{ opacity: isActive ? 1 : 0 }}
-            transition={
-              reducedMotion
-                ? { duration: 0 }
-                : { duration: transitionDuration / 1000, ease: "easeInOut" }
-            }
+            style={{
+              opacity: isActive ? 1 : 0,
+              transition: `opacity ${reducedMotion ? 0 : transitionDuration}ms ease-in-out`,
+            }}
           >
             <Image
               src={slide.src}
@@ -232,7 +231,7 @@ export function SlideCarousel({
                 )}
               </div>
             )}
-          </motion.div>
+          </div>
         );
 
         // Only the "click" slide is interactive — the others render a
