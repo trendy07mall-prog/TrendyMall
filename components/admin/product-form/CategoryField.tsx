@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
 import { FileInputButton } from "@/components/admin/FileInputButton";
+import { CategoryCombobox } from "./CategoryCombobox";
 import type { Category } from "@/types";
 
 const inputClass =
@@ -50,33 +51,16 @@ export function CategoryField({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="categoryId" className="text-sm font-medium">
-          Category
-        </label>
-        <select
-          id="categoryId"
-          name="categoryId"
-          value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setImageUrl(null);
-            setError(null);
-          }}
-          required
-          className={inputClass}
-        >
-          <option value="" disabled>
-            Select…
-          </option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {"—".repeat(category.depth)} {category.name}
-            </option>
-          ))}
-          <option value={NEW_CATEGORY_VALUE}>+ Add new category</option>
-        </select>
-      </div>
+      <CategoryCombobox
+        categories={categories}
+        value={value}
+        onChange={(next) => {
+          onChange(next);
+          setImageUrl(null);
+          setError(null);
+        }}
+        newCategoryValue={NEW_CATEGORY_VALUE}
+      />
 
       {isNewCategory && (
         <div className="flex flex-col gap-3 rounded-[var(--radius-md)] border border-[var(--border)] p-4">

@@ -4,6 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import { uploadAdminImage } from "@/lib/admin/uploads";
 import { FileInputButton } from "@/components/admin/FileInputButton";
+import { VariantCountPreview } from "./VariantCountPreview";
+import { VariantSkuField } from "./VariantSkuField";
 import type { Attribute, AttributeValue } from "@/types";
 
 const MAX_VARIANT_IMAGES = 4;
@@ -80,12 +82,16 @@ export function VariantsEditor({
   value,
   onChange,
   variantAttributes,
+  onSkuChecked,
 }: {
   value: VariantDraft[];
   onChange: (next: VariantDraft[]) => void;
   // Non-color attributes currently checked in AttributesField, grouped --
   // one optional single-select picker is rendered per group, per variant.
   variantAttributes: { attribute: Attribute; values: AttributeValue[] }[];
+  // Passed straight through to each row's SKU field. Advisory only: it
+  // feeds the sticky bar's wording and never gates saving.
+  onSkuChecked?: (sku: string, taken: boolean) => void;
 }) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   // Rows whose hex the admin has manually set (via either the color picker
@@ -136,6 +142,8 @@ export function VariantsEditor({
 
   function removeRow(index: number) {
     onChange(value.filter((_, i) => i !== index));
+    // Keyed by row index, so removing a row has to shift every entry after
+    // it down one rather than leaving them pointing at their old neighbours.
     setTouchedHexRows((prev) => {
       const next = new Set<number>();
       for (const i of prev) {
@@ -188,21 +196,31 @@ export function VariantsEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <label className="text-sm font-medium">Variants &amp; Pricing</label>
-        <p className="text-xs text-[var(--muted)]">
+      <div className="flex gap-2.5 rounded-[var(--radius-sm)] border border-[var(--pf-info-border)] bg-[var(--pf-info-bg)] p-3">
+        <span
+          aria-hidden="true"
+          className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--pf-info-icon)] text-[10px] font-bold text-white"
+        >
+          i
+        </span>
+        <p className="text-[13px] text-[var(--pf-info-text)]">
           Every product needs at least one row here for its price. If this product has no
           real color choice, leave the color fields blank on a single row — no color
           selector will show on the product page.
         </p>
       </div>
 
+      <VariantCountPreview variantAttributes={variantAttributes} />
+
       {value.map((row, index) => (
         <div
           key={index}
           className="flex flex-col gap-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3"
         >
-          <div className="flex items-center gap-2">
+          {/* Wraps: at ~390px the name field, swatch, hex box and Remove
+              button together overrun the viewport and push the whole page
+              into a horizontal scroll. */}
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="text"
               placeholder="Color name"
@@ -261,12 +279,12 @@ export function VariantsEditor({
               className={inputClass}
               title="Leave blank if this variant isn't on sale"
             />
-            <input
-              type="text"
-              placeholder="SKU (optional)"
+            <VariantSkuField
               value={row.sku}
-              onChange={(e) => updateRow(index, { sku: e.target.value })}
+              onChange={(sku) => updateRow(index, { sku })}
+              variantId={row.id}
               className={inputClass}
+              onChecked={onSkuChecked}
             />
           </div>
 

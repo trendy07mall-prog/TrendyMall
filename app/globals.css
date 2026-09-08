@@ -536,3 +536,29 @@ input:-webkit-autofill:focus {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Admin product form palette.
+
+   Scoped to .product-form rather than :root so nothing outside the form
+   inherits a second, competing set of greys -- the storefront's own
+   --background/--border/--foreground already cover those and happen to
+   match this design's #FAFAFA / #E5E7EB / #111111 exactly, so only the
+   genuinely new accents are defined here.
+   --------------------------------------------------------------------- */
+.product-form {
+  --pf-navy: #0f2d52;
+  --pf-navy-soft: #eef2f7;
+  --pf-highlight: #f97316;
+  --pf-ok: #059669;
+  --pf-ok-bg: #f0fbf6;
+  --pf-bad: #dc2626;
+  --pf-bad-bg: #fef2f2;
+  --pf-info-bg: #eff6ff;
+  --pf-info-border: #bfdbfe;
+  --pf-info-icon: #3b82f6;
+  --pf-info-text: #1e3a5f;
+  --pf-text-2: #6b7280;
+  --pf-text-3: #9ca3af;
+  --pf-card-shadow: 0 1px 3px rgba(15, 45, 82, 0.06);
+}
