@@ -1913,6 +1913,33 @@ export interface Database {
         };
         Relationships: [];
       };
+      // sql/076. One admin-only note per customer, keyed by the customer's
+      // auth user id -- no separate row id, because there is deliberately
+      // never more than one note per customer (no history in v1).
+      customer_notes: {
+        Row: {
+          customer_id: string;
+          note: string;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          customer_id: string;
+          note?: string;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          customer_id?: string;
+          note?: string;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       product_rating_summary: {

@@ -1,14 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { formatPrice } from "@/lib/utils";
-
-interface CustomerSummary {
-  name: string;
-  email: string;
-  phone: string;
-  orderCount: number;
-  totalSpent: number;
-  lastOrderAt: string;
-}
+import { CustomersManager } from "@/components/admin/customers/CustomersManager";
+import type { CustomerSummary } from "@/lib/admin/customer-segments";
 
 export default async function AdminCustomersPage() {
   const supabase = await createClient();
@@ -17,6 +9,14 @@ export default async function AdminCustomersPage() {
     .select("user_id, customer_name, customer_email, customer_phone, total, created_at")
     .order("created_at", { ascending: false });
 
+  // Unchanged from before this redesign, deliberately: a customer is
+  // whoever has a user_id on at least one order, and their name/email/phone
+  // come from their most recent one (this list arrives newest-first, so the
+  // first row seen per user_id is the latest). Guest orders carry no
+  // user_id and are skipped, exactly as they always were.
+  //
+  // No account is excluded, the store owner's included -- their orders are
+  // real activity and belong in the totals like anyone else's.
   const customersByUserId = new Map<string, CustomerSummary>();
   for (const order of orders ?? []) {
     if (!order.user_id) continue;
@@ -26,6 +26,7 @@ export default async function AdminCustomersPage() {
       existing.totalSpent += order.total;
     } else {
       customersByUserId.set(order.user_id, {
+        userId: order.user_id,
         name: order.customer_name,
         email: order.customer_email,
         phone: order.customer_phone,
@@ -36,46 +37,5 @@ export default async function AdminCustomersPage() {
     }
   }
 
-  const customers = [...customersByUserId.values()].sort(
-    (a, b) => b.totalSpent - a.totalSpent,
-  );
-
-  return (
-    <div>
-      <h1 className="font-heading text-2xl font-bold tracking-tight">Customers</h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">
-        {customers.length} customer{customers.length === 1 ? "" : "s"} who&apos;ve placed
-        at least one order.
-      </p>
-      <div className="mt-8 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-left">
-              <th className="py-2 pr-4">Name</th>
-              <th className="py-2 pr-4">Contact</th>
-              <th className="py-2 pr-4">Orders</th>
-              <th className="py-2 pr-4">Total spent</th>
-              <th className="py-2">Last order</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customers.map((customer) => (
-              <tr key={customer.email} className="border-b border-[var(--border)]">
-                <td className="py-2 pr-4">{customer.name}</td>
-                <td className="py-2 pr-4">
-                  <div>{customer.email}</div>
-                  <div className="text-[var(--muted)]">{customer.phone}</div>
-                </td>
-                <td className="py-2 pr-4">{customer.orderCount}</td>
-                <td className="py-2 pr-4">{formatPrice(customer.totalSpent)}</td>
-                <td className="py-2">
-                  {new Date(customer.lastOrderAt).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  return <CustomersManager customers={[...customersByUserId.values()]} />;
 }

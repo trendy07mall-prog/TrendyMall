@@ -562,3 +562,23 @@ input:-webkit-autofill:focus {
   --pf-text-3: #9ca3af;
   --pf-card-shadow: 0 1px 3px rgba(15, 45, 82, 0.06);
 }
+
+/* ---------------------------------------------------------------------
+   Admin customers palette.
+
+   Same brand values as the product form's --pf-* block above, scoped
+   separately rather than shared. Hoisting one set of tokens to :root for
+   both would mean editing the product form to point at the new names, and
+   that form is freshly shipped work -- a rename touching it buys nothing
+   here and risks a regression there. If a third admin surface wants these,
+   that is the point to promote them once, deliberately.
+   --------------------------------------------------------------------- */
+.admin-customers {
+  --ac-navy: #0f2d52;
+  --ac-navy-soft: #eef2f7;
+  --ac-orange: #f97316;
+  --ac-orange-soft: #fff3e9;
+  --ac-green: #059669;
+  --ac-text-2: #6b7280;
+  --ac-text-3: #9ca3af;
+}
