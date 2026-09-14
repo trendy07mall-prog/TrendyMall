@@ -16,9 +16,17 @@ import type { CartItemValidation } from "@/lib/cart-validation";
 export function CartItemCard({
   item,
   validation,
+  previousPrice,
 }: {
   item: CartItem;
   validation?: CartItemValidation;
+  // What this line cost when it was added, supplied by the cart page only
+  // for lines whose price has since moved. It has to come from there
+  // rather than from `validation`: by the time this renders, syncPrices
+  // has already rewritten item.price to the new value, and
+  // CartItemValidation only carries the new one (currentPrice), so the old
+  // number exists nowhere else on this screen.
+  previousPrice?: number | null;
 }) {
   const { updateQuantity, removeItem, addItem } = useCart();
   const { add: addToWishlist, remove: removeFromWishlist } = useWishlist();
@@ -128,8 +136,24 @@ export function CartItemCard({
               )}
             </div>
           </div>
-          <span className="shrink-0 text-sm whitespace-nowrap text-[var(--muted)]">
+          <span className="shrink-0 text-right text-sm whitespace-nowrap text-[var(--muted)]">
             {formatPrice(item.price)} each
+            {/* The durable half of the price-change signal. The cart page
+                also fires a toast, but that clears itself after 3s -- a
+                customer who was scrolled elsewhere, or who came back to
+                the tab later, would otherwise just find a higher number
+                with no explanation, which reads as a bait and switch even
+                though the new price is the correct one.
+
+                Deliberately does NOT name a cause: a price moves here
+                because a campaign lapsed OR because an admin edited it,
+                and validation can't tell those apart. Stating the wrong
+                reason would be worse than stating none. */}
+            {validation?.priceChanged && previousPrice != null && (
+              <span className="mt-0.5 block text-xs font-medium whitespace-normal text-[var(--color-discount)]">
+                Price updated from {formatPrice(previousPrice)} since you added this
+              </span>
+            )}
           </span>
         </div>
 

@@ -36,6 +36,11 @@ export default function CartPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [validation, setValidation] = useState<Map<string, CartItemValidation>>(new Map());
+  // Line key -> the price that line had when it was added, recorded only
+  // for lines whose price has since moved. Kept here rather than derived
+  // from `validation` because syncPrices rewrites item.price immediately,
+  // erasing the only other copy of the old number.
+  const [previousPrices, setPreviousPrices] = useState<Map<string, number>>(new Map());
   const [freeShipping, setFreeShipping] = useState(false);
   const [recommendations, setRecommendations] = useState<ProductWithPrimaryImage[]>([]);
   // Compared against `itemsKey` at render time (rather than a separate
@@ -64,6 +69,24 @@ export default function CartPage() {
   // live stock/availability whenever the cart's contents change. This is
   // the lighter, Phase 1 version of the full re-validation Phase 4 adds
   // for the persisted cart.
+  //
+  // Deliberately EXCLUDES price, and the price-change note depends on that.
+  // syncPrices (below) rewrites item.price as soon as a change is detected;
+  // because price isn't in this key, that write does NOT re-run the effect,
+  // so the validation result keeps priceChanged=true and CartItemCard's
+  // "Price updated from Rs X" note stays on screen. Add price to this key
+  // and the effect re-runs immediately, the fresh result comes back with
+  // priceChanged=false, and the note clears itself the moment the price
+  // syncs -- the customer is back to a silently raised total, which is the
+  // exact thing that note exists to prevent.
+  //
+  // This breaks SILENTLY if changed. No test catches a "note flashes and
+  // vanishes" regression on its own -- an assertion that samples early
+  // enough still passes. Verify by hand if this key changes: put an item
+  // in the cart, change its price, load /cart, and confirm the per-line
+  // note is still there ten seconds later (the toast is separate and is
+  // *supposed* to disappear after ~3s). Same applies to the checkout
+  // notice -- see the matching itemsKey in CheckoutForm.tsx.
   const itemsKey = items
     .map((i) => `${i.productId}:${i.variantId ?? "base"}:${i.quantity}`)
     .join(",");
@@ -90,6 +113,21 @@ export default function CartPage() {
       // and say so, rather than silently showing a stale number.
       const changed = results.filter((r) => r.priceChanged && r.currentPrice != null);
       if (changed.length > 0) {
+        // Captured BEFORE syncPrices, which overwrites item.price with the
+        // new value -- after that call the old number is gone from both
+        // the cart item and the validation result, and the per-line note
+        // has nothing to say "updated from" about. Merged into the
+        // existing map rather than replacing it so a second change in the
+        // same session doesn't drop the first line's note.
+        setPreviousPrices((prev) => {
+          const next = new Map(prev);
+          for (const r of changed) {
+            const key = cartLineKey(r.productId, r.variantId);
+            const before = items.find((i) => cartLineKey(i.productId, i.variantId) === key)?.price;
+            if (before != null && !next.has(key)) next.set(key, before);
+          }
+          return next;
+        });
         syncPrices(
           changed.map((r) => ({
             productId: r.productId,
@@ -336,6 +374,7 @@ export default function CartPage() {
               <CartItemCard
                 item={item}
                 validation={validation.get(cartLineKey(item.productId, item.variantId))}
+                previousPrice={previousPrices.get(cartLineKey(item.productId, item.variantId))}
               />
             </li>
           ))}

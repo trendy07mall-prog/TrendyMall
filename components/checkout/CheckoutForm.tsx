@@ -173,6 +173,10 @@ export function CheckoutForm({
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [pending, setPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Persistent, unlike the cart page's toast: a customer who lands here
+  // with a corrected total needs the explanation to still be on screen
+  // while they read the summary, not three seconds after page load.
+  const [priceNotice, setPriceNotice] = useState<string | null>(null);
   const [payHereRedirect, setPayHereRedirect] = useState<{
     checkoutUrl: string;
     params: PayHereCheckoutParams;
@@ -258,6 +262,21 @@ export function CheckoutForm({
   // effect above for the bug this closes.
   const couponSettling = !cartReady || couponAutoApplying || couponChecking;
 
+  // Deliberately EXCLUDES price. That is what lets the mount effect below
+  // call syncPrices to correct a stale total without re-triggering its own
+  // validation: if price were part of this key, syncPrices would change
+  // it, the effect would re-run, the fresh result would come back with
+  // priceChanged=false, and the "your total is up to date" notice would
+  // clear itself the instant the price synced -- leaving the customer with
+  // a silently corrected total again, which is the exact bug that notice
+  // exists to fix.
+  //
+  // If price is ever added to this key, the checkout notice here and the
+  // per-line note in CartItemCard both break SILENTLY. No test catches a
+  // "notice flashes and vanishes" regression on its own -- the assertions
+  // still pass if they sample early enough. Verify by hand: put an item in
+  // the cart, change its price, load /checkout, and confirm the notice is
+  // still on screen ten seconds later.
   const itemsKey = items.map((i) => `${i.productId}:${i.variantId ?? "base"}:${i.quantity}`).join(",");
   useEffect(() => {
     if (items.length === 0) return;
@@ -284,6 +303,30 @@ export function CheckoutForm({
     ).then((results) => {
       if (cancelled) return;
       setValidation(new Map(results.map((r) => [cartLineKey(r.productId, r.variantId), r])));
+
+      // Correct a stale total on ARRIVAL, not only when Place Order is
+      // pressed. This effect previously just recorded validation for the
+      // campaign badge, so landing here with a price that had moved since
+      // the cart page (or since the product page) showed the old, usually
+      // lower, total with nothing said about it -- the first the customer
+      // heard of it was the submit-time block below. Same syncPrices call
+      // the cart page already makes; the hard block on submit is untouched
+      // and still the thing that actually guarantees correctness.
+      const changed = results.filter((r) => r.priceChanged && r.currentPrice != null);
+      if (changed.length > 0) {
+        syncPrices(
+          changed.map((r) => ({
+            productId: r.productId,
+            variantId: r.variantId,
+            price: r.currentPrice as number,
+          })),
+        );
+        setPriceNotice(
+          changed.length === 1
+            ? "The price of an item in your cart changed since you added it. Your total below is up to date."
+            : `${changed.length} item prices changed since you added them. Your total below is up to date.`,
+        );
+      }
     });
     return () => {
       cancelled = true;
@@ -977,6 +1020,14 @@ export function CheckoutForm({
 
         <div className="h-fit min-w-0 rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
           <h2 className="text-lg font-medium">Order summary</h2>
+          {priceNotice && (
+            <p
+              role="status"
+              className="mt-3 rounded-[10px] border border-[var(--border)] bg-black/[0.03] px-3 py-2 text-xs text-[var(--color-discount)]"
+            >
+              {priceNotice}
+            </p>
+          )}
           <ul className="mt-4 flex flex-col gap-3">
             {items.map((item) => {
               const campaignName = validation.get(cartLineKey(item.productId, item.variantId))?.campaignName;

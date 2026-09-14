@@ -253,6 +253,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // added -- local state only, never synced to the server, since
   // cart_items has no price column of its own (price is a display-only
   // client snapshot, always re-derived authoritatively at order time).
+  //
+  // Both callers (app/cart/page.tsx and CheckoutForm.tsx) run this from
+  // inside an effect keyed on an `itemsKey` that deliberately omits price.
+  // That is load-bearing: this write must NOT re-trigger those effects, or
+  // the re-validation that follows returns priceChanged=false and wipes
+  // the price-change messaging the caller just showed. Adding price to
+  // either itemsKey breaks the cart's per-line note and the checkout
+  // notice silently -- see the long comment on either definition before
+  // changing this contract.
   const syncPrices = useCallback(
     (updates: { productId: string; variantId: string | null; price: number }[]) => {
       if (updates.length === 0) return;
