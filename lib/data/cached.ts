@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS, CACHE_TTL } from "@/lib/cache-tags";
 import { runInPublicScope } from "@/lib/supabase/public-scope";
@@ -7,6 +8,7 @@ import {
   getNewArrivals,
   getProductsByIds,
   getAllProducts,
+  getProductDetailBySlug,
   getFacetCounts,
   getPublishedProductCount,
   hasAnyApprovedReviews,
@@ -23,6 +25,7 @@ import {
 } from "@/lib/data/campaigns";
 import { createPublicClient } from "@/lib/supabase/public-client";
 import type { Campaign, Category, ProductWithPrimaryImage, Brand, Tag, AttributeValue } from "@/types";
+import type { ProductDetail } from "@/lib/data/products";
 import type { CampaignSectionData, CampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import type { FacetCounts } from "@/lib/data/products";
 import type { ProductListFilters } from "@/lib/product-filters";
@@ -70,6 +73,50 @@ export const getCachedNewArrivals = (limit = 8): Promise<ProductWithPrimaryImage
     ["new-arrivals", String(limit)],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();
+
+// The product detail page's entire data payload -- product row, images,
+// variants (with their images, attribute values and live campaign pricing)
+// and the product's attribute groups. This is the single most expensive
+// read on the storefront: four sequential query waves, re-run in full on
+// every single product view.
+//
+// SERIALISATION: verified JSON-safe before this was added, not assumed.
+// The whole payload was walked for Maps/Sets/Dates/class instances and
+// deep-compared against its own JSON round trip, across products with
+// attribute groups, multiple variants, and a live campaign. Every value is
+// a plain JSON type -- notably campaign_end_at is already an ISO string
+// (PostgREST never hands back Date objects), and the two places the
+// underlying code builds a Map (getProductAttributesForDetail's grouping,
+// getCampaignSoldCounts) both resolve to arrays/numbers before returning,
+// so neither Map ever crosses this boundary. That check mattered: a Map
+// silently becoming {} through this exact API is a bug this codebase has
+// already shipped once (see getCachedCampaignSoldCounts below).
+//
+// 60s, NOT CACHE_TTL.products. A campaign starting or ending is purely
+// time-based -- there is no admin edit at that boundary to invalidate on,
+// so the TTL is the only thing bounding how long a product page can show
+// pricing from the wrong side of it. Same reasoning, and same number, as
+// getCachedHomepageCampaigns/getCachedShopCampaigns above.
+//
+// Tagged with BOTH products and campaigns: the payload mixes the two, and
+// either kind of admin edit has to drop it. Every product mutation
+// (including the quick-edit price/stock/status actions and the stock
+// decrement in orderActions) already calls updateTag(CACHE_TAGS.products),
+// and the campaign actions call updateTag(CACHE_TAGS.campaigns) -- both
+// expire immediately, so a price change is visible on the next request
+// rather than up to a TTL later.
+//
+// React's cache() on the outside dedupes within a request: the product
+// page reads this twice (generateMetadata and the body), and on a cache
+// miss that would otherwise be two full four-wave fetches racing.
+export const getCachedProductDetailBySlug = cache(
+  (slug: string): Promise<ProductDetail | null> =>
+    unstable_cache(
+      () => runInPublicScope(() => getProductDetailBySlug(slug)),
+      ["product-detail", slug],
+      { revalidate: 60, tags: [CACHE_TAGS.products, CACHE_TAGS.campaigns] },
+    )(),
+);
 
 export const getCachedProductsByIds = (ids: string[]): Promise<ProductWithPrimaryImage[]> =>
   unstable_cache(

@@ -1,11 +1,11 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
-  getProductDetailBySlug,
   getProductSlugRedirect,
   getRelatedProducts,
   incrementProductViewCount,
 } from "@/lib/data/products";
+import { getCachedProductDetailBySlug } from "@/lib/data/cached";
 import { getCategoryAncestors, getCategoryById } from "@/lib/data/categories";
 import { getProductTags } from "@/lib/data/tags";
 import { getProductSpecs } from "@/lib/data/spec-templates";
@@ -28,7 +28,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const detail = await getProductDetailBySlug(slug);
+  const detail = await getCachedProductDetailBySlug(slug);
   if (!detail) return { title: "Product not found" };
 
   const { product, images } = detail;
@@ -63,7 +63,7 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const detail = await getProductDetailBySlug(slug);
+  const detail = await getCachedProductDetailBySlug(slug);
   if (!detail) {
     const redirectSlug = await getProductSlugRedirect(slug);
     if (redirectSlug) permanentRedirect(`/product/${redirectSlug}`);
