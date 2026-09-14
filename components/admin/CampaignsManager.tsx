@@ -6,7 +6,11 @@ import { CampaignForm } from "@/components/admin/CampaignForm";
 import { toggleCampaignStatus, duplicateCampaign } from "@/lib/admin/campaigns";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import { useToast } from "@/components/admin/ToastProvider";
-import { getCampaignRuntimeStatus, RUNTIME_STATUS_LABEL } from "@/lib/campaign-status";
+import {
+  getCampaignRuntimeStatus,
+  RUNTIME_STATUS_LABEL,
+  type CampaignRuntimeStatus,
+} from "@/lib/campaign-status";
 import { BanIcon, CheckIcon, CopyIcon, PencilIcon } from "@/components/ui/Icon";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { StatusBadge, type StatusTone } from "@/components/ui/StatusBadge";
@@ -26,11 +30,19 @@ const STATUS_LABELS: Record<CampaignStatus, string> = {
   disabled: "Disabled",
 };
 
-// draft = warning (not live yet, same "pending" meaning as elsewhere) --
-// disabled is a deliberate off state, closer to Inactive's neutral gray
-// than a warning.
-const STATUS_TONES: Record<CampaignStatus, StatusTone> = {
-  published: "success",
+// Tones for the stored lifecycle are gone with the badge that used them:
+// the stored status now renders as plain muted text, and only the runtime
+// status is colour-coded.
+//
+// The badge shows RUNTIME status, so it needs its own tones. Only
+// `active` is a success: a published campaign that has ended, or hasn't
+// started, is not a live promotion no matter what its stored status says.
+// `ended` is neutral rather than danger -- finishing is the normal end of
+// a campaign's life, not a failure.
+const RUNTIME_STATUS_TONES: Record<CampaignRuntimeStatus, StatusTone> = {
+  active: "success",
+  scheduled: "warning",
+  ended: "neutral",
   draft: "warning",
   disabled: "neutral",
 };
@@ -133,12 +145,28 @@ export function CampaignsManager({ campaigns }: { campaigns: AdminCampaignRow[] 
                     {campaign.end_at ? new Date(campaign.end_at).toLocaleString() : "—"}
                   </td>
                   <td className="py-2 pr-4">{campaign.itemCount}</td>
+                  {/* Runtime status leads, stored lifecycle is the footnote
+                      -- the reverse of how this used to read. A campaign
+                      that had ended showed a prominent green "PUBLISHED"
+                      badge with a small "Ended" under it: two contradictory
+                      words with the wrong one dominant, since what an admin
+                      actually needs to know at a glance is whether it is
+                      running, not which lifecycle value is stored.
+
+                      The stored status is still worth showing (it is what
+                      the edit form edits, and the only one an admin can
+                      change), so it stays -- just demoted, and only when it
+                      says something the badge doesn't. For a draft or
+                      disabled campaign the two are the same word by
+                      definition, and printing it twice is noise. */}
                   <td className="py-2 pr-4">
                     <div className="flex flex-col gap-1">
-                      <StatusBadge tone={STATUS_TONES[campaign.status]}>{STATUS_LABELS[campaign.status]}</StatusBadge>
+                      <StatusBadge tone={RUNTIME_STATUS_TONES[runtime]}>
+                        {RUNTIME_STATUS_LABEL[runtime]}
+                      </StatusBadge>
                       {diverges && (
-                        <span className="text-xs text-[var(--color-warning)]">
-                          {RUNTIME_STATUS_LABEL[runtime]}
+                        <span className="text-xs text-[var(--muted)]">
+                          {STATUS_LABELS[campaign.status]}
                         </span>
                       )}
                     </div>
