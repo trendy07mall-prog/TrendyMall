@@ -5,6 +5,7 @@ import { updateSettings } from "@/lib/admin/settings";
 import { useUnsavedChangesGuard } from "@/components/admin/settings/useUnsavedChangesGuard";
 import { SaveBar, type SaveStatus } from "@/components/admin/settings/SaveBar";
 import { StatusIndicator } from "@/components/admin/settings/StatusIndicator";
+import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import type { HomepageSettings } from "@/lib/data/settings";
 
 const inputClass =
@@ -83,15 +84,39 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
         group_name: "homepage",
       },
       {
-        key: "homepage.hero_show_arrows",
-        value: values.heroShowArrows,
+        key: "homepage.hero_show_dots",
+        value: values.heroShowDots,
         type: "boolean",
         group_name: "homepage",
       },
       {
-        key: "homepage.hero_show_dots",
-        value: values.heroShowDots,
-        type: "boolean",
+        key: "homepage.promo_banner_image_url",
+        value: values.promoBannerImageUrl ?? "",
+        type: "image",
+        group_name: "homepage",
+      },
+      {
+        key: "homepage.promo_banner_alone_image_url",
+        value: values.promoBannerAloneImageUrl ?? "",
+        type: "image",
+        group_name: "homepage",
+      },
+      {
+        key: "homepage.promo_banner_title",
+        value: values.promoBannerTitle.trim(),
+        type: "string",
+        group_name: "homepage",
+      },
+      {
+        key: "homepage.promo_banner_button_text",
+        value: values.promoBannerButtonText.trim(),
+        type: "string",
+        group_name: "homepage",
+      },
+      {
+        key: "homepage.promo_banner_link",
+        value: values.promoBannerLink.trim(),
+        type: "string",
         group_name: "homepage",
       },
     ]);
@@ -130,17 +155,80 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
         />
       </div>
       <ToggleRow
-        label="Arrows"
-        hint="Show the prev/next arrow buttons. Only appears with 2+ published slides regardless of this setting."
-        checked={values.heroShowArrows}
-        onChange={(checked) => set("heroShowArrows", checked)}
-      />
-      <ToggleRow
         label="Dots"
         hint="Show the slide indicator dots. Only appears with 2+ published slides regardless of this setting."
         checked={values.heroShowDots}
         onChange={(checked) => set("heroShowDots", checked)}
       />
+
+      <div className="flex flex-col gap-4 rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+        <div>
+          <p className="text-sm font-medium">Hero promo banner</p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            Static banner in the right-hand column beside the hero carousel, on screens 1024px and wider
+            (not shown on phones or tablets). It sits under the active campaign&apos;s banner, or fills the
+            column on its own when no campaign is active. Leave both images empty to hide it.
+          </p>
+        </div>
+        {/* Guidance only, same as the campaign banner hints -- nothing here
+            rejects an off-ratio upload. Ratios are measured from the real
+            rendered boxes (see HeroSlider.tsx). */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SingleImageUploader
+            label="Wide banner image (10:3)"
+            name="promoBannerImageUploader"
+            value={values.promoBannerImageUrl}
+            onChange={(url) => set("promoBannerImageUrl", url)}
+            prefix="hero"
+            hint={
+              "Ratio about 10:3 · Recommended 1200 × 360px · JPG or PNG, under ~300KB.\n" +
+              "Shown under the active campaign's banner."
+            }
+          />
+          <SingleImageUploader
+            label="Compact banner image (8:5)"
+            name="promoBannerAloneImageUploader"
+            value={values.promoBannerAloneImageUrl}
+            onChange={(url) => set("promoBannerAloneImageUrl", url)}
+            prefix="hero"
+            hint={
+              "Ratio 8:5 · Recommended 960 × 600px · JPG or PNG, under ~300KB.\n" +
+              "Fills the whole column when no campaign is active.\n" +
+              "Optional — if left empty, the wide image is used here instead, cropped to fit."
+            }
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Title (optional)</label>
+            <input
+              type="text"
+              value={values.promoBannerTitle}
+              onChange={(e) => set("promoBannerTitle", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Button text (optional)</label>
+            <input
+              type="text"
+              value={values.promoBannerButtonText}
+              onChange={(e) => set("promoBannerButtonText", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Link (optional)</label>
+            <input
+              type="text"
+              placeholder="/shop or https://..."
+              value={values.promoBannerLink}
+              onChange={(e) => set("promoBannerLink", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </div>
 
       <SaveBar status={status} errorMessage={errorMessage} isDirty={isDirty} onSave={handleSave} />
     </div>

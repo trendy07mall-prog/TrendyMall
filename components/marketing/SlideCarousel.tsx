@@ -58,8 +58,9 @@ export function SlideCarousel({
   imageSizes: string;
   slideDuration?: number;
   transitionDuration?: number;
-  // Settings-backed (homepage.hero_autoplay/hero_show_arrows/hero_show_dots)
-  // — all default to today's live behavior (unconditionally on). autoplay
+  // autoplay/showDots are settings-backed for the homepage hero
+  // (homepage.hero_autoplay/hero_show_dots), which always passes
+  // showArrows={false} — all default to on for other callers. autoplay
   // composes with, never overrides, the existing reduced-motion gate below.
   // showArrows/showDots AND with the existing `isCarousel` check, so a
   // single slide still never shows controls regardless of these.

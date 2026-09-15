@@ -132,7 +132,24 @@ export default async function HomePage() {
 
   return (
     <div className={`home-fonts ${poppins.variable} flex flex-1 flex-col`}>
-      <HeroSlider />
+      {/* homepageCampaigns is already sorted soonest-ending first -- the
+          same list ActiveCampaignSections below is built from. */}
+      <HeroSlider campaign={homepageCampaigns[0] ?? null} />
+
+      {categories.length > 0 && (
+        <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
+          <SectionHeader title="Explore by Category" viewAllHref="/shop" />
+          <div className="mt-6">
+            <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
+              {categories.map((category) => (
+                <CategoryCard key={category.id} category={category} />
+              ))}
+            </Carousel>
+          </div>
+        </section>
+      )}
+
+      <ActiveCampaignSections sections={campaignSections} />
 
       {/* A separate, distinctly-positioned signal from ServiceCards' own
           "Special Price Sale" card below -- that card stays sale_price-only
@@ -140,9 +157,11 @@ export default async function HomePage() {
           currently-active campaigns, never derived from the same data.
           Rotates through every qualifying campaign (each slide links to its
           own /campaign/[slug]) rather than picking just one. */}
-      <CampaignBannerCarousel campaigns={homepageCampaigns} />
-
-      <ActiveCampaignSections sections={campaignSections} />
+      {/* Hidden from lg up, where the hero's right column already shows the
+          same campaign. */}
+      <div className="lg:hidden">
+        <CampaignBannerCarousel campaigns={homepageCampaigns} />
+      </div>
 
       <ServiceCards />
 
@@ -158,19 +177,6 @@ export default async function HomePage() {
             >
               {newArrivals.map((product) => (
                 <ProductCard key={product.id} product={product} />
-              ))}
-            </Carousel>
-          </div>
-        </section>
-      )}
-
-      {categories.length > 0 && (
-        <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
-          <SectionHeader title="Explore by Category" viewAllHref="/shop" />
-          <div className="mt-6">
-            <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
-              {categories.map((category) => (
-                <CategoryCard key={category.id} category={category} />
               ))}
             </Carousel>
           </div>

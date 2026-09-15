@@ -73,7 +73,10 @@ export function HeroSlideForm({
           value={desktopImageUrl}
           onChange={setDesktopImageUrl}
           prefix="hero"
-          hint="Wide aspect ratio, shown at 768px and up."
+          hint={
+            "Ratio about 3:1 · Recommended 1920 × 650px.\n" +
+            "Shown at 768px and up; from 1024px it sits in the left column beside the promo banners at this same ratio. Tablets (768–1023px) crop about 10% off each side — keep text away from the left and right edges."
+          }
         />
         <SingleImageUploader
           label="Mobile image"
@@ -81,7 +84,7 @@ export function HeroSlideForm({
           value={mobileImageUrl}
           onChange={setMobileImageUrl}
           prefix="hero"
-          hint="16:9 crop, shown below 768px."
+          hint="Ratio 16:9 · Recommended 1200 × 675px. Shown below 768px."
         />
       </div>
 

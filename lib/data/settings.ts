@@ -71,8 +71,14 @@ export interface HomepageSettings {
   heroEnabled: boolean;
   heroAutoplay: boolean;
   heroSlideDurationMs: number;
-  heroShowArrows: boolean;
   heroShowDots: boolean;
+  // Static hero promo banner: a wide (10:3) and a compact (8:5) image, each
+  // falling back to the other; neither set = not shown.
+  promoBannerImageUrl: string | null;
+  promoBannerAloneImageUrl: string | null;
+  promoBannerTitle: string;
+  promoBannerButtonText: string;
+  promoBannerLink: string;
 }
 
 export interface ShippingSettings {
@@ -210,8 +216,12 @@ const HOMEPAGE_FALLBACK: HomepageSettings = {
   heroEnabled: true,
   heroAutoplay: true,
   heroSlideDurationMs: 4000,
-  heroShowArrows: true,
   heroShowDots: true,
+  promoBannerImageUrl: null,
+  promoBannerAloneImageUrl: null,
+  promoBannerTitle: "",
+  promoBannerButtonText: "",
+  promoBannerLink: "",
 };
 
 // No sitewide free-shipping threshold existed before Phase 3 -- off by
@@ -447,6 +457,8 @@ export async function getAnnouncementSettings(): Promise<AnnouncementSettings> {
 }
 
 export async function getHomepageSettings(): Promise<HomepageSettings> {
+  // A stored homepage.hero_show_arrows row may still exist; the hero is
+  // dots-only now, so it is simply never read.
   const values = await getGroupValues("homepage");
   return {
     heroEnabled: (values.get("homepage.hero_enabled") as boolean) ?? HOMEPAGE_FALLBACK.heroEnabled,
@@ -455,10 +467,18 @@ export async function getHomepageSettings(): Promise<HomepageSettings> {
     heroSlideDurationMs:
       (values.get("homepage.hero_slide_duration_ms") as number) ??
       HOMEPAGE_FALLBACK.heroSlideDurationMs,
-    heroShowArrows:
-      (values.get("homepage.hero_show_arrows") as boolean) ?? HOMEPAGE_FALLBACK.heroShowArrows,
     heroShowDots:
       (values.get("homepage.hero_show_dots") as boolean) ?? HOMEPAGE_FALLBACK.heroShowDots,
+    promoBannerImageUrl:
+      (values.get("homepage.promo_banner_image_url") as string) || HOMEPAGE_FALLBACK.promoBannerImageUrl,
+    promoBannerAloneImageUrl:
+      (values.get("homepage.promo_banner_alone_image_url") as string) || HOMEPAGE_FALLBACK.promoBannerAloneImageUrl,
+    promoBannerTitle:
+      (values.get("homepage.promo_banner_title") as string) ?? HOMEPAGE_FALLBACK.promoBannerTitle,
+    promoBannerButtonText:
+      (values.get("homepage.promo_banner_button_text") as string) ?? HOMEPAGE_FALLBACK.promoBannerButtonText,
+    promoBannerLink:
+      (values.get("homepage.promo_banner_link") as string) ?? HOMEPAGE_FALLBACK.promoBannerLink,
   };
 }
 
