@@ -1198,3 +1198,25 @@ export function PrinterIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+// Tabler's outline "bolt" (ti-bolt) -- the project has no lightning/flash
+// icon yet; CampaignInfoBlock's campaign-name row uses a plain "⚡" emoji
+// today. Added for the product gallery's campaign bar (GalleryCampaignBar),
+// which needs a real SVG so its stroke color follows the bar's text color
+// via currentColor, the same way every other icon here does.
+export function BoltIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11" />
+    </svg>
+  );
+}

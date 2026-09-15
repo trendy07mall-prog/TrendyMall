@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductGallery } from "@/components/product/ProductGallery";
+import { resolveEffectivePriceBand } from "@/lib/utils";
 import type { ProductVariantWithImages } from "@/lib/data/products";
 
 // Purely presentational now -- color selection state and the full
@@ -27,6 +28,24 @@ export function ProductGalleryWithVariants({
   const displayImages =
     resolvedVariant && resolvedVariant.images.length > 0 ? resolvedVariant.images : images;
 
+  // Same pure function, same input (resolvedVariant) that ProductPurchaseSection
+  // uses for the price display -- reused rather than reimplemented, so this
+  // can never disagree with the price actually shown next to it about
+  // whether a campaign is genuinely winning. campaignId is only set when
+  // the campaign price actually beats both regular and sale price (see
+  // resolveEffectivePriceBand in lib/utils.ts), which is the "genuinely
+  // active" gate -- an expired or losing campaign_price on the row still
+  // resolves to null here, same as it always has for the price band.
+  const priceBand = resolvedVariant ? resolveEffectivePriceBand(resolvedVariant) : null;
+  const campaign =
+    priceBand?.campaignId && priceBand.campaignName
+      ? {
+          name: priceBand.campaignName,
+          endAt: priceBand.campaignEndAt,
+          soldCount: resolvedVariant?.campaign_sold_count ?? null,
+        }
+      : null;
+
   return (
     // min-w-0 overrides the grid item's default min-width:auto -- without
     // it, this column's intrinsic content width (e.g. the thumbnail row)
@@ -35,7 +54,12 @@ export function ProductGalleryWithVariants({
       {/* key forces a remount (resetting the gallery's internal "active"
           thumbnail index) whenever the resolved variant changes, instead of
           syncing that reset via an effect. */}
-      <ProductGallery key={resolvedVariant?.id ?? "base"} images={displayImages} name={name} />
+      <ProductGallery
+        key={resolvedVariant?.id ?? "base"}
+        images={displayImages}
+        name={name}
+        campaign={campaign}
+      />
     </div>
   );
 }

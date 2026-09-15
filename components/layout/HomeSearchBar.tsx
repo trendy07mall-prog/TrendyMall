@@ -4,15 +4,27 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SiteSearchBar } from "@/components/layout/SiteSearchBar";
 
-// Every other page keeps the existing always-visible search bar exactly as
-// it was — this component only changes behavior on "/". There, the bar is
+// Every other page keeps the existing sitewide bar at sm+ widths exactly as
+// it was; below sm it's hidden (redundant with the mobile header's own
+// search icon -- see the isSearchPage note below for the one exception).
+// "/" itself works differently regardless of viewport: the bar starts
 // hidden at the top of the page and fades/slides in once the visitor has
 // scrolled past the hero (watched via the #hero-sentinel div HeroSlider
 // renders right after itself), rather than reserving space in the normal
-// flow the way the sitewide bar does.
+// flow the way the sitewide bar does -- and is likewise mobile-hidden.
 export function HomeSearchBar() {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  // /search is the one page this bar is NOT redundant on -- its own
+  // "Use the search bar above" empty-state copy (app/search/page.tsx)
+  // means it, and on mobile the header offers no OTHER way to type a
+  // query (NavbarClient's mobile search control is a plain link to
+  // /search itself, not an input -- see its own comment). Hiding this bar
+  // there too would have left a phone with a results/filter page and no
+  // way to actually search from it. Every other non-home page keeps
+  // hiding it, since those all reach a working query box via either this
+  // same /search page or the desktop-only inline SearchBox.
+  const isSearchPage = pathname === "/search";
   const [visible, setVisible] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [headerBottom, setHeaderBottom] = useState(84);
@@ -123,9 +135,19 @@ export function HomeSearchBar() {
     };
   }, [isHome]);
 
+  // hidden sm:block on both branches below -- this bar sat directly under
+  // the header on every page, on every viewport, duplicating the search
+  // icon NavbarClient's mobile header already shows (that icon links
+  // straight to /search, unchanged, untouched here). `hidden` only sets
+  // display:none; it doesn't touch the `fixed` positioning below (a
+  // separate property), so `sm:block` still restores the exact same
+  // desktop behavior these two branches always had. No component tree
+  // changes on desktop, no changes to SiteSearchBar itself, no changes to
+  // /search's own search input, no changes to the header or bottom nav --
+  // this is the only edit in HomeSearchBar.tsx.
   if (!isHome) {
     return (
-      <div className="py-4 print:hidden">
+      <div className={`py-4 print:hidden ${isSearchPage ? "" : "hidden sm:block"}`}>
         <SiteSearchBar />
       </div>
     );
@@ -134,7 +156,7 @@ export function HomeSearchBar() {
   return (
     <div
       style={{ top: headerBottom }}
-      className={`fixed inset-x-0 z-[var(--z-sticky-bar)] py-4 print:hidden ${
+      className={`fixed inset-x-0 z-[var(--z-sticky-bar)] hidden py-4 sm:block print:hidden ${
         reducedMotion ? "" : "transition-[opacity,transform] duration-300 ease-in-out"
       } ${visible ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"}`}
       aria-hidden={!visible}
@@ -144,8 +166,11 @@ export function HomeSearchBar() {
       inert={!visible ? true : undefined}
     >
       {/* compact only changes SiteSearchBar's unprefixed (<640px) classes —
-          identical to the default bar at sm:+ widths, so this is scoped to
-          mobile without a separate viewport check. */}
+          now dead code at that breakpoint since `hidden` above removes
+          this whole bar below sm, but left in place: at sm+ (where this
+          renders) compact and non-compact are defined to look identical,
+          so there is nothing to gain by pulling the prop and a real risk
+          of silently changing sm+ rendering by mistake. */}
       <SiteSearchBar compact />
     </div>
   );

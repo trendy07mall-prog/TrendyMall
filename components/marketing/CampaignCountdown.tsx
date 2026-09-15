@@ -30,6 +30,7 @@ export function CampaignCountdown({
   target,
   label,
   size = "md",
+  tone = "muted",
 }: {
   target: string;
   label: string;
@@ -38,6 +39,13 @@ export function CampaignCountdown({
   // additive, for contexts with less room to spare (ProductCard's one-line Slot A)
   // than a compact CampaignInfoBlock already assumed it'd have.
   size?: "md" | "sm";
+  // "muted" (default, unchanged) is every existing caller's color -- the
+  // label reads in --muted, digits inherit whatever the caller's own text
+  // color is. "navy" is additive, for GalleryCampaignBar's orange bar,
+  // where --muted's gray fails contrast against orange and the digits'
+  // inherited color can't be trusted (the bar sits on a background none of
+  // this component's other callers use).
+  tone?: "muted" | "navy";
 }) {
   const targetMs = new Date(target).getTime();
   // Starts at null (rendered identically on server and at first client
@@ -89,11 +97,13 @@ export function CampaignCountdown({
           CampaignInfoBlock's/the campaign landing page's own "md" usage is
           unaffected. */}
       {size === "sm" ? (
-        <span className="hidden text-[var(--muted)] min-[375px]:inline">{label}</span>
+        <span className={`hidden min-[375px]:inline ${tone === "navy" ? "text-[#0F2D52]" : "text-[var(--muted)]"}`}>
+          {label}
+        </span>
       ) : (
-        <span className="text-[var(--muted)]">{label}</span>
+        <span className={tone === "navy" ? "text-[#0F2D52]" : "text-[var(--muted)]"}>{label}</span>
       )}
-      <span className="font-mono tabular-nums">
+      <span className={`font-mono tabular-nums ${tone === "navy" ? "text-[#0F2D52]" : ""}`}>
         {days > 0 && `${days}d `}
         {pad(hours)}:{pad(minutes)}:{pad(seconds)}
       </span>

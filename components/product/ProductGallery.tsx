@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CloseIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
+import { GalleryCampaignBar } from "@/components/product/GalleryCampaignBar";
 
 // Fade-only, no bounce, short duration -- same motion rule this project's
 // other crossfade (HeroSlider.tsx's slide transition) already follows.
@@ -10,9 +11,14 @@ import { CloseIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Ic
 export function ProductGallery({
   images,
   name,
+  campaign = null,
 }: {
   images: string[];
   name: string;
+  // Only ever set when the resolved variant is genuinely on a winning
+  // campaign price (see ProductGalleryWithVariants, the only caller) --
+  // null renders no bar at all, never a placeholder/empty one.
+  campaign?: { name: string; endAt: string | null; soldCount: number | null } | null;
 }) {
   const [active, setActive] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -68,8 +74,15 @@ export function ProductGallery({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* No rounded-[var(--radius-lg)] here (unlike before) -- edge-to-edge
+          per the redesign, scoped to just this main-image container. The
+          thumbnail row below keeps its own corners; this doesn't touch
+          anything outside the media area. bg-black/5 stays: it's the
+          letterbox behind object-contain for a non-square source photo,
+          not decorative whitespace, so it's unrelated to the "no
+          padding/margin/whitespace" requirement. */}
       <div
-        className="group relative aspect-square w-full overflow-hidden rounded-[var(--radius-lg)] bg-black/5"
+        className="group relative aspect-square w-full overflow-hidden bg-black/5"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -120,6 +133,21 @@ export function ProductGallery({
             )}
           </>
         </button>
+
+        {/* Painted after the zoom button, same "later in the DOM wins the
+            stacking" convention the thumbnail border below already relies
+            on (see its own comment) -- no z-index needed, this project's
+            other absolutely-positioned overlays on this image (the arrow
+            buttons just below) follow the same rule. Only occupies the top
+            strip of the image, so it doesn't block zoom clicks anywhere
+            else on the photo. */}
+        {campaign && (
+          <GalleryCampaignBar
+            campaignName={campaign.name}
+            campaignEndAt={campaign.endAt}
+            soldCount={campaign.soldCount}
+          />
+        )}
 
         {images.length > 1 && (
           <>
@@ -212,10 +240,19 @@ export function ProductGallery({
               onClick={() => setActive(i)}
               aria-label={`View image ${i + 1}`}
               aria-current={i === active}
-              className={`relative h-[76px] w-[76px] shrink-0 overflow-hidden rounded-[var(--radius-sm)] ring-2 ring-offset-2 transition-all duration-150 ease-in-out ${
+              // Borderless per the redesign -- no permanent per-thumbnail
+              // border (removed below) and no ring-offset halo (which read
+              // as its own thin card border once rendered). ring-inset
+              // keeps the selected indicator flush against the thumbnail's
+              // own edge instead of floating outside it, still triggered
+              // by the exact same onClick as before -- only the styling of
+              // "which one is selected" changed, not how selection works.
+              // Unselected rows dim instead of carrying any border/ring,
+              // full opacity on hover as the only other affordance.
+              className={`relative h-[64px] w-[64px] shrink-0 overflow-hidden rounded-[var(--radius-sm)] transition-all duration-150 ease-in-out sm:h-[76px] sm:w-[76px] ${
                 i === active
-                  ? "ring-[#0F2D52]"
-                  : "ring-transparent hover:ring-[var(--border-hover)]"
+                  ? "opacity-100 ring-2 ring-inset ring-[#0F2D52]"
+                  : "opacity-60 hover:opacity-100"
               }`}
             >
               {/* object-contain (not cover), same reasoning as the main
@@ -236,21 +273,11 @@ export function ProductGallery({
                 sizes="76px"
                 className="object-contain"
               />
-              {/* Painted AFTER the image (not before) so it always renders
-                  on top -- both this and the Image above are absolute
-                  inset-0 with no z-index, so whichever comes later in the
-                  DOM wins the stacking. With the border first, the image's
-                  own opaque pixels covered it completely on whatever
-                  side(s) the photo's content happened to reach edge-to-
-                  edge (only the letterboxed/transparent sides showed
-                  through), reading as an incomplete border that also
-                  picked up the photo's own dark content as a false "black"
-                  edge. On top, it now always draws as a complete, uncovered
-                  box in the real border color on every side. */}
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 rounded-[var(--radius-sm)] border border-[var(--border)]"
-              />
+              {/* The permanent per-thumbnail border that used to sit here
+                  is gone -- "borderless thumbnails" per the redesign. The
+                  ring above (on the button itself, ring-inset) is now the
+                  only outline any thumbnail ever draws, and only the
+                  selected one draws it. */}
             </button>
           ))}
         </div>

@@ -14,7 +14,6 @@ import { ShareButtons } from "@/components/product/ShareButtons";
 import { NotifyMeForm } from "@/components/product/NotifyMeForm";
 import { WhatsInBox } from "@/components/product/WhatsInBox";
 import { TrustBadges } from "@/components/marketing/TrustBadges";
-import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { StarRating } from "@/components/product/StarRating";
 import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
@@ -505,15 +504,14 @@ export function ProductPurchaseSection({
           otherwise the price line's flex-nowrap or the title's natural width
           can push this column (and the whole page) wider than the viewport. */}
       <div className="min-w-0">
-        {priceBand?.campaignId && priceBand.campaignName && (
-          <div className="mb-3">
-            <CampaignInfoBlock
-              campaignName={priceBand.campaignName}
-              campaignEndAt={priceBand.campaignEndAt}
-              soldCount={resolvedVariant?.campaign_sold_count ?? null}
-            />
-          </div>
-        )}
+        {/* Campaign name/countdown/sold-count used to render here via
+            CampaignInfoBlock. It now lives on the gallery's main image
+            instead (GalleryCampaignBar, driven by this exact same
+            priceBand/resolvedVariant data via ProductGalleryWithVariants)
+            -- moved, not duplicated, so the page shows one campaign
+            surface, not two saying the same thing in two places.
+            CampaignInfoBlock itself is untouched and still renders
+            unchanged everywhere else (ProductCard). */}
         {tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {tags.map((tag) => (
