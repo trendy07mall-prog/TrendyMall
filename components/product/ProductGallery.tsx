@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import Image from "next/image";
 import { CloseIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 import { GalleryCampaignBar } from "@/components/product/GalleryCampaignBar";
+import { galleryZoomReducer, INITIAL_GALLERY_ZOOM } from "@/lib/gallery-zoom";
 
 // Fade-only, no bounce, short duration -- same motion rule this project's
 // other crossfade (HeroSlider.tsx's slide transition) already follows.
@@ -24,17 +25,16 @@ export function ProductGallery({
   campaign?: { name: string; endAt: string | null; soldCount: number | null; imageUrl: string | null } | null;
 }) {
   const [active, setActive] = useState(0);
-  const [zoomOpen, setZoomOpen] = useState(false);
-  const [hoverZoom, setHoverZoom] = useState(false);
+  const [zoom, dispatchZoom] = useReducer(galleryZoomReducer, INITIAL_GALLERY_ZOOM);
   const [zoomOrigin, setZoomOrigin] = useState("50% 50%");
   const current = images[active];
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!zoomOpen) return;
+    if (!zoom.viewerOpen) return;
     document.body.style.overflow = "hidden";
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setZoomOpen(false);
+      if (event.key === "Escape") dispatchZoom({ type: "closeViewer" });
       if (event.key === "ArrowRight") setActive((i) => Math.min(images.length - 1, i + 1));
       if (event.key === "ArrowLeft") setActive((i) => Math.max(0, i - 1));
     }
@@ -43,7 +43,7 @@ export function ProductGallery({
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [zoomOpen, images.length]);
+  }, [zoom.viewerOpen, images.length]);
 
   function next() {
     setActive((i) => (i + 1) % images.length);
@@ -120,10 +120,10 @@ export function ProductGallery({
       >
         <button
           type="button"
-          onClick={() => current && setZoomOpen(true)}
+          onClick={() => current && dispatchZoom({ type: "openViewer" })}
           onMouseMove={onMouseMove}
-          onMouseEnter={() => setHoverZoom(true)}
-          onMouseLeave={() => setHoverZoom(false)}
+          onPointerEnter={(event) => dispatchZoom({ type: "pointerEnter", pointerType: event.pointerType })}
+          onPointerLeave={() => dispatchZoom({ type: "pointerLeave" })}
           aria-label="Zoom image"
           className="relative block h-full w-full cursor-zoom-in"
         >
@@ -152,7 +152,7 @@ export function ProductGallery({
                   // -- and is unaffected by object-fit either way.
                   className="object-contain transition-transform duration-300 ease-out"
                   style={
-                    hoverZoom
+                    zoom.hoverZoom
                       ? { transform: "scale(1.8)", transformOrigin: zoomOrigin }
                       : undefined
                   }
@@ -204,18 +204,18 @@ export function ProductGallery({
         )}
       </div>
 
-      {zoomOpen && current && (
+      {zoom.viewerOpen && current && (
         <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-6">
           <button
             type="button"
             aria-label="Close zoomed image"
             className="absolute inset-0 bg-black/80"
-            onClick={() => setZoomOpen(false)}
+            onClick={() => dispatchZoom({ type: "closeViewer" })}
           />
           <button
             type="button"
             aria-label="Close zoomed image"
-            onClick={() => setZoomOpen(false)}
+            onClick={() => dispatchZoom({ type: "closeViewer" })}
             className="absolute top-5 right-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           >
             <CloseIcon className="h-5 w-5" />
