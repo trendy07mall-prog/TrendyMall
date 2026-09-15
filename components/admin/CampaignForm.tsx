@@ -456,7 +456,15 @@ export function CampaignForm({
                   name="productBannerUrl"
                   value={productBannerUrl}
                   onChange={setProductBannerUrl}
-                  hint="Shown across the top of every product's photo in this campaign. Required to publish."
+                  // Guidance only -- nothing here rejects an off-ratio or
+                  // oversized upload. uploadAdminImage's existing type/5MB
+                  // checks are unchanged, and the only publish block is
+                  // still "no image at all" (saveCampaign).
+                  hint={
+                    "Shown across the top of every product's photo in this campaign. Required to publish.\n" +
+                    "Ratio 6:1 · Recommended 1200 × 200px · JPG or PNG, under ~300KB.\n" +
+                    "The countdown and sold count sit on top of the image over a dark tint — keep important text and detail in the middle of the image, away from the left and right ends."
+                  }
                 />
               </div>
             </div>

@@ -46,15 +46,21 @@ export function GalleryCampaignBar({
           sizes="(max-width: 1024px) 100vw, 50vw"
           className="object-cover"
         />
-        {/* Semi-transparent dark strip + white text, not a color picked
-            per-upload -- the ticket calls for something that "stays
-            readable regardless of the uploaded image's colors... consistent
-            for all campaign images," so this deliberately doesn't try to
-            sample the image. Same bg-black/45 + backdrop-blur treatment
-            ProductCard already uses for its own campaign-name overlay on a
-            product photo (RelatedProducts' cards) -- reused, not a new
-            pattern. */}
-        <div className="absolute inset-0 flex items-center justify-between gap-2 bg-black/45 px-3 backdrop-blur-md backdrop-saturate-150 sm:px-4">
+        {/* Semi-transparent dark tint + white text, not a color picked
+            per-upload -- it has to stay readable regardless of the uploaded
+            image's colors, so this deliberately doesn't try to sample the
+            image.
+
+            NO backdrop-blur here, deliberately. This used to copy
+            ProductCard's full glass recipe (bg-black/45 backdrop-blur-md
+            backdrop-saturate-150), but the two aren't the same shape:
+            ProductCard's strip is a thin py-1.5 band along the bottom edge
+            of a product photo, so its blur only softens a sliver. This scrim
+            is inset-0 over the ENTIRE banner, so backdrop-filter blurred
+            100% of the admin's uploaded image, every time -- measured as
+            blur(12px) saturate(1.5) on the scrim. The tint alone is what
+            provides the contrast; the blur was never doing that job. */}
+        <div className="absolute inset-0 flex items-center justify-between gap-2 bg-black/45 px-3 sm:px-4">
           <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold text-white sm:text-base">
             <BoltIcon className="h-4 w-4 shrink-0 sm:h-[18px] sm:w-[18px]" />
             <span className="truncate">{campaignName}</span>

@@ -64,7 +64,10 @@ export function SingleImageUploader({
   return (
     <div className="flex flex-col gap-1">
       <label className="text-sm font-medium">{label}</label>
-      {hint && <span className="text-xs text-[var(--muted)]">{hint}</span>}
+      {/* whitespace-pre-line lets a caller break a longer hint over lines
+          with "\n". No visual change for any existing single-line hint --
+          none of them contain a newline. */}
+      {hint && <span className="text-xs whitespace-pre-line text-[var(--muted)]">{hint}</span>}
       <FileInputButton label="Choose Image" accept="image/*" onChange={handleChange} />
       {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
