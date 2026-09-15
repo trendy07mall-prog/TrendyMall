@@ -58,6 +58,7 @@ export async function saveCampaign(
   const endAtRaw = String(formData.get("endAt") ?? "").trim();
   const status: "draft" | "published" =
     String(formData.get("status") ?? "draft") === "published" ? "published" : "draft";
+  const productBannerUrl = String(formData.get("productBannerUrl") ?? "").trim() || null;
 
   if (!name) return { error: "Name is required." };
   if (!PROMO_TYPES.includes(promotionTypeRaw as CampaignPromotionType)) {
@@ -85,6 +86,15 @@ export async function saveCampaign(
 
   if (status === "published" && items.length === 0) {
     return { error: "Add at least one product before publishing. Save as draft instead." };
+  }
+  // sql/077. One banner is shared across every product in the campaign
+  // (not chosen per-product), so this is the one point that can enforce
+  // "no active campaign without a banner" -- the frontend still degrades
+  // gracefully (falls back to the flat orange bar) for any campaign that
+  // was published before this field existed, but nothing NEW can reach
+  // that state going forward.
+  if (status === "published" && !productBannerUrl) {
+    return { error: "Add a product page banner image before publishing. Save as draft instead." };
   }
 
   // Admin-only feature, but never trust the client's own request size --
@@ -148,6 +158,7 @@ export async function saveCampaign(
     desktop_banner_url: String(formData.get("desktopBannerUrl") ?? "").trim() || null,
     mobile_banner_url: String(formData.get("mobileBannerUrl") ?? "").trim() || null,
     thumbnail_url: String(formData.get("thumbnailUrl") ?? "").trim() || null,
+    product_banner_url: productBannerUrl,
     show_on_homepage: formData.get("showOnHomepage") === "on",
     show_in_shop: formData.get("showInShop") === "on",
     show_badge: formData.get("showBadge") === "on",
@@ -220,6 +231,24 @@ export async function toggleCampaignStatus(
   newStatus: "draft" | "published" | "disabled",
 ): Promise<{ error?: string }> {
   const supabase = await requireAdminClient();
+
+  // Same publish-time gate saveCampaign enforces, needed again here since
+  // this is a second, independent path to "published" -- the admin list's
+  // quick-toggle button, which bypasses the full form entirely. Only
+  // queried on the way TO published (not draft/disabled) to avoid an
+  // extra round trip on the two far more common transitions.
+  if (newStatus === "published") {
+    const { data: campaign, error: fetchError } = await supabase
+      .from("campaigns")
+      .select("product_banner_url")
+      .eq("id", id)
+      .maybeSingle();
+    if (fetchError) return { error: fetchError.message };
+    if (!campaign?.product_banner_url) {
+      return { error: "Add a product page banner image before publishing. Edit the campaign to add one." };
+    }
+  }
+
   const { error } = await supabase
     .from("campaigns")
     .update({ status: newStatus, updated_at: new Date().toISOString() })

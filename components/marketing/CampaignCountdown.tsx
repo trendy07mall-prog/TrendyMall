@@ -41,11 +41,12 @@ export function CampaignCountdown({
   size?: "md" | "sm";
   // "muted" (default, unchanged) is every existing caller's color -- the
   // label reads in --muted, digits inherit whatever the caller's own text
-  // color is. "navy" is additive, for GalleryCampaignBar's orange bar,
-  // where --muted's gray fails contrast against orange and the digits'
-  // inherited color can't be trusted (the bar sits on a background none of
-  // this component's other callers use).
-  tone?: "muted" | "navy";
+  // color is. "navy" and "white" are additive, both for
+  // GalleryCampaignBar: navy for its flat-orange fallback bar, white for
+  // its image-banner variant's dark scrim -- neither can rely on --muted's
+  // gray or on inheriting the caller's color, since both sit on
+  // backgrounds none of this component's other callers use.
+  tone?: "muted" | "navy" | "white";
 }) {
   const targetMs = new Date(target).getTime();
   // Starts at null (rendered identically on server and at first client
@@ -75,6 +76,13 @@ export function CampaignCountdown({
   if (remaining == null || remaining <= 0) return null;
 
   const { days, hours, minutes, seconds } = splitRemaining(remaining);
+  const toneColorClass =
+    tone === "navy" ? "text-[#0F2D52]" : tone === "white" ? "text-white" : "text-[var(--muted)]";
+  // The digits span never inherited --muted (only the label did), so
+  // "muted" here means "leave it unset, inherit the caller's own color" --
+  // navy/white both need to set it explicitly, since GalleryCampaignBar's
+  // two variants don't have a reliable ambient text color to inherit.
+  const digitsColorClass = tone === "muted" ? "" : toneColorClass;
 
   return (
     <div
@@ -97,13 +105,11 @@ export function CampaignCountdown({
           CampaignInfoBlock's/the campaign landing page's own "md" usage is
           unaffected. */}
       {size === "sm" ? (
-        <span className={`hidden min-[375px]:inline ${tone === "navy" ? "text-[#0F2D52]" : "text-[var(--muted)]"}`}>
-          {label}
-        </span>
+        <span className={`hidden min-[375px]:inline ${toneColorClass}`}>{label}</span>
       ) : (
-        <span className={tone === "navy" ? "text-[#0F2D52]" : "text-[var(--muted)]"}>{label}</span>
+        <span className={toneColorClass}>{label}</span>
       )}
-      <span className={`font-mono tabular-nums ${tone === "navy" ? "text-[#0F2D52]" : ""}`}>
+      <span className={`font-mono tabular-nums ${digitsColorClass}`}>
         {days > 0 && `${days}d `}
         {pad(hours)}:{pad(minutes)}:{pad(seconds)}
       </span>

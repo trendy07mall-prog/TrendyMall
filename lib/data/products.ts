@@ -952,6 +952,11 @@ export type ProductVariantWithImages = ProductVariant & {
   campaign_name: string | null;
   campaign_end_at: string | null;
   campaign_sold_count: number | null;
+  // The campaign's shared product_banner_url (sql/077), null for a
+  // campaign published before that field existed -- GalleryCampaignBar
+  // falls back to the flat bar in that case, same as a missing badge/name
+  // would already fall back to no badge.
+  campaign_image_url: string | null;
 };
 
 export interface ProductDetail {
@@ -1061,6 +1066,7 @@ export const getProductDetailBySlug = cache(
         campaign_badge_label: campaign?.badgeLabel ?? null,
         campaign_name: campaign?.campaignName ?? null,
         campaign_end_at: campaign?.campaignEndAt ?? null,
+        campaign_image_url: campaign?.campaignImageUrl ?? null,
         campaign_sold_count: campaign?.campaignId
           ? (soldCounts.get(campaign.campaignId)?.get(product.id) ?? null)
           : null,

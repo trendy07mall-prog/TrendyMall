@@ -1,0 +1,21 @@
+-- One additive column. Distinct from desktop_banner_url/mobile_banner_url
+-- (sql/062) -- those are the /campaign/[slug] landing page's own hero pair,
+-- a single wide image with two responsive crops. This is a different
+-- placement entirely: the thin strip shown across the top of a product's
+-- own gallery image on the product detail page, for every product in the
+-- campaign. One column, one image, shared across every product -- there is
+-- deliberately no per-product override, matching how badge_label/
+-- show_countdown already work at the campaign level, not the product level.
+--
+-- Nullable, like every other campaign image field. A campaign with no
+-- banner set can still be saved as a draft; lib/admin/campaigns.ts's
+-- saveCampaign (and the admin list's quick-publish toggle,
+-- toggleCampaignStatus) are what actually block PUBLISHING one without it
+-- -- enforced in application code, not a NOT NULL/CHECK constraint here,
+-- because a check constraint can't distinguish "draft, no image yet, fine"
+-- from "trying to publish with no image, blocked" -- both are simply
+-- product_banner_url is null at the row level. The already-existing
+-- campaigns_end_after_start_check constraint is the one case in this table
+-- where a CHECK genuinely captures the whole rule; this validation doesn't
+-- fit that shape.
+alter table public.campaigns add column product_banner_url text;

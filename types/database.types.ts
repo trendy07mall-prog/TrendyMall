@@ -1556,6 +1556,10 @@ export interface Database {
           desktop_banner_url: string | null;
           mobile_banner_url: string | null;
           thumbnail_url: string | null;
+          // sql/077. The product-gallery strip image (PDP), distinct from
+          // desktop_banner_url/mobile_banner_url above (the campaign
+          // landing page's own hero pair).
+          product_banner_url: string | null;
           show_on_homepage: boolean;
           show_in_shop: boolean;
           show_badge: boolean;
@@ -1582,6 +1586,7 @@ export interface Database {
           desktop_banner_url?: string | null;
           mobile_banner_url?: string | null;
           thumbnail_url?: string | null;
+          product_banner_url?: string | null;
           show_on_homepage?: boolean;
           show_in_shop?: boolean;
           show_badge?: boolean;
@@ -1608,6 +1613,7 @@ export interface Database {
           desktop_banner_url?: string | null;
           mobile_banner_url?: string | null;
           thumbnail_url?: string | null;
+          product_banner_url?: string | null;
           show_on_homepage?: boolean;
           show_in_shop?: boolean;
           show_badge?: boolean;

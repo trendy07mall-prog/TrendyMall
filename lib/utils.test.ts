@@ -74,7 +74,7 @@ describe("pickWinningVariant", () => {
 // in lib/data/products.test.ts, via pickWinningVariant's winner-selection
 // first -- these call it directly instead, isolating the band logic itself
 // from winner selection.
-const NO_EXTRA = { badgeLabel: null, campaignName: null, campaignEndAt: null };
+const NO_EXTRA = { badgeLabel: null, campaignName: null, campaignEndAt: null, campaignImageUrl: null };
 
 describe("resolveEffectivePriceBand", () => {
   test("no sale, no campaign: regular price, source regular", () => {
@@ -142,6 +142,7 @@ describe("resolveEffectivePriceBand", () => {
       badgeLabel: "FLASH SALE",
       campaignName: null,
       campaignEndAt: null,
+      campaignImageUrl: null,
     });
   });
 
@@ -180,5 +181,37 @@ describe("resolveEffectivePriceBand", () => {
     });
     assert.equal(result.campaignName, null);
     assert.equal(result.campaignEndAt, null);
+  });
+
+  test("campaign wins with an image: campaignImageUrl is surfaced", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 80,
+      campaign_price: 50,
+      campaign_id: "c1",
+      campaign_image_url: "https://example.com/banner.jpg",
+    });
+    assert.equal(result.campaignImageUrl, "https://example.com/banner.jpg");
+  });
+
+  test("campaign wins with no image set: campaignImageUrl is null, not a broken layout", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 80,
+      campaign_price: 50,
+      campaign_id: "c1",
+    });
+    assert.equal(result.campaignImageUrl, null);
+  });
+
+  test("campaign loses to sale: campaignImageUrl never leaks through either", () => {
+    const result = resolveEffectivePriceBand({
+      regular_price: 100,
+      sale_price: 70,
+      campaign_price: 90,
+      campaign_id: "c1",
+      campaign_image_url: "https://example.com/banner.jpg",
+    });
+    assert.equal(result.campaignImageUrl, null);
   });
 });

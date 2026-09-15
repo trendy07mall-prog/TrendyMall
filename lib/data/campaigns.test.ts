@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { selectLowestActiveCampaignPrices } from "./campaigns";
 
 const NOW = new Date("2026-06-15T12:00:00Z");
-const NO_BADGE = { show_badge: false, badge_label: null };
+const NO_BADGE = { show_badge: false, badge_label: null, product_banner_url: null };
 
 describe("selectLowestActiveCampaignPrices", () => {
   test("active campaign with future end_at is included", () => {
@@ -24,6 +24,7 @@ describe("selectLowestActiveCampaignPrices", () => {
       badgeLabel: null,
       campaignName: "Campaign 1",
       campaignEndAt: "2026-06-20T00:00:00Z",
+      campaignImageUrl: null,
     });
   });
 
@@ -45,6 +46,7 @@ describe("selectLowestActiveCampaignPrices", () => {
       badgeLabel: null,
       campaignName: "Campaign 1",
       campaignEndAt: null,
+      campaignImageUrl: null,
     });
   });
 
@@ -93,6 +95,7 @@ describe("selectLowestActiveCampaignPrices", () => {
       badgeLabel: null,
       campaignName: "Campaign 2",
       campaignEndAt: null,
+      campaignImageUrl: null,
     });
   });
 
@@ -127,6 +130,7 @@ describe("selectLowestActiveCampaignPrices", () => {
       badgeLabel: null,
       campaignName: "Campaign 2",
       campaignEndAt: null,
+      campaignImageUrl: null,
     });
   });
 
@@ -137,7 +141,13 @@ describe("selectLowestActiveCampaignPrices", () => {
           variant_id: "v1",
           campaign_price: 50,
           campaign_id: "c1",
-          campaigns: { name: "Campaign 1", end_at: null, show_badge: true, badge_label: "FLASH SALE" },
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: true,
+            badge_label: "FLASH SALE",
+            product_banner_url: null,
+          },
         },
       ],
       NOW,
@@ -152,7 +162,13 @@ describe("selectLowestActiveCampaignPrices", () => {
           variant_id: "v1",
           campaign_price: 50,
           campaign_id: "c1",
-          campaigns: { name: "Campaign 1", end_at: null, show_badge: true, badge_label: null },
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: true,
+            badge_label: null,
+            product_banner_url: null,
+          },
         },
       ],
       NOW,
@@ -167,7 +183,13 @@ describe("selectLowestActiveCampaignPrices", () => {
           variant_id: "v1",
           campaign_price: 50,
           campaign_id: "c1",
-          campaigns: { name: "Campaign 1", end_at: null, show_badge: false, badge_label: "FLASH SALE" },
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: false,
+            badge_label: "FLASH SALE",
+            product_banner_url: null,
+          },
         },
       ],
       NOW,
@@ -182,7 +204,13 @@ describe("selectLowestActiveCampaignPrices", () => {
           variant_id: "v1",
           campaign_price: 80,
           campaign_id: "c1",
-          campaigns: { name: "Campaign 1", end_at: null, show_badge: true, badge_label: "FLASH SALE" },
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: true,
+            badge_label: "FLASH SALE",
+            product_banner_url: null,
+          },
         },
         {
           variant_id: "v1",
@@ -201,6 +229,7 @@ describe("selectLowestActiveCampaignPrices", () => {
       badgeLabel: null,
       campaignName: "Campaign 2",
       campaignEndAt: null,
+      campaignImageUrl: null,
     });
   });
 
@@ -220,5 +249,78 @@ describe("selectLowestActiveCampaignPrices", () => {
     assert.equal(info?.campaignName, "No Badge Campaign");
     assert.equal(info?.campaignEndAt, "2026-06-25T00:00:00Z");
     assert.equal(info?.badgeLabel, null);
+  });
+
+  // campaignImageUrl: unconditional like campaignName/campaignEndAt above,
+  // NOT gated by show_badge (there is no separate "show banner" toggle --
+  // having an uploaded image at all is what turns it on, enforced at
+  // publish time in lib/admin/campaigns.ts, not here).
+  test("campaignImageUrl passes through when the campaign has one, regardless of show_badge", () => {
+    const result = selectLowestActiveCampaignPrices(
+      [
+        {
+          variant_id: "v1",
+          campaign_price: 50,
+          campaign_id: "c1",
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: false,
+            badge_label: null,
+            product_banner_url: "https://example.com/banner.jpg",
+          },
+        },
+      ],
+      NOW,
+    );
+    assert.equal(result.get("v1")?.campaignImageUrl, "https://example.com/banner.jpg");
+  });
+
+  test("campaignImageUrl is null for a campaign with none set -- the gallery bar's fallback case", () => {
+    const result = selectLowestActiveCampaignPrices(
+      [
+        {
+          variant_id: "v1",
+          campaign_price: 50,
+          campaign_id: "c1",
+          campaigns: { name: "Campaign 1", end_at: null, ...NO_BADGE },
+        },
+      ],
+      NOW,
+    );
+    assert.equal(result.get("v1")?.campaignImageUrl, null);
+  });
+
+  test("lowest price wins, and ITS OWN image travels with it -- not the pricier campaign's", () => {
+    const result = selectLowestActiveCampaignPrices(
+      [
+        {
+          variant_id: "v1",
+          campaign_price: 80,
+          campaign_id: "c1",
+          campaigns: {
+            name: "Campaign 1",
+            end_at: null,
+            show_badge: false,
+            badge_label: null,
+            product_banner_url: "https://example.com/pricier-campaign-banner.jpg",
+          },
+        },
+        {
+          variant_id: "v1",
+          campaign_price: 40,
+          campaign_id: "c2",
+          campaigns: {
+            name: "Campaign 2",
+            end_at: null,
+            show_badge: false,
+            badge_label: null,
+            product_banner_url: "https://example.com/cheaper-campaign-banner.jpg",
+          },
+        },
+      ],
+      NOW,
+    );
+    assert.equal(result.get("v1")?.campaignImageUrl, "https://example.com/cheaper-campaign-banner.jpg");
   });
 });

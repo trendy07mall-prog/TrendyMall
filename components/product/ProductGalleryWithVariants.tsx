@@ -43,6 +43,10 @@ export function ProductGalleryWithVariants({
           name: priceBand.campaignName,
           endAt: priceBand.campaignEndAt,
           soldCount: resolvedVariant?.campaign_sold_count ?? null,
+          // null for a campaign published before product_banner_url
+          // existed -- GalleryCampaignBar itself decides what to render
+          // when this is null (the flat bar), not this component.
+          imageUrl: priceBand.campaignImageUrl,
         }
       : null;
 

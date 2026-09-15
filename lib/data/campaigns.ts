@@ -18,6 +18,16 @@ export interface CampaignPriceInfo {
   // gating check below, this just adds one more column.
   campaignName: string;
   campaignEndAt: string | null;
+  // Unconditional, like campaignName/campaignEndAt above -- not gated by a
+  // separate "show banner" toggle the way badgeLabel is by show_badge.
+  // Having (or not having) an image IS the toggle: the admin form blocks
+  // publishing a campaign with no product_banner_url set (see
+  // saveCampaign/toggleCampaignStatus in lib/admin/campaigns.ts), so by the
+  // time a campaign can be genuinely active here, this is either a real
+  // url or -- for a campaign published before that field existed -- null,
+  // which the gallery bar treats as "fall back to the plain bar," not as
+  // an error.
+  campaignImageUrl: string | null;
 }
 
 type CampaignItemJoinRow = {
@@ -29,6 +39,7 @@ type CampaignItemJoinRow = {
     end_at: string | null;
     show_badge: boolean;
     badge_label: string | null;
+    product_banner_url: string | null;
   };
 };
 
@@ -57,6 +68,7 @@ export function selectLowestActiveCampaignPrices(
         badgeLabel,
         campaignName: row.campaigns.name,
         campaignEndAt: row.campaigns.end_at,
+        campaignImageUrl: row.campaigns.product_banner_url,
       });
     }
   }
@@ -86,7 +98,7 @@ export async function getActiveCampaignPricesForVariants(
   const { data, error } = await supabase
     .from("campaign_items")
     .select(
-      "variant_id, campaign_price, campaign_id, campaigns!inner(name, status, is_archived, start_at, end_at, show_badge, badge_label)",
+      "variant_id, campaign_price, campaign_id, campaigns!inner(name, status, is_archived, start_at, end_at, show_badge, badge_label, product_banner_url)",
     )
     .in("variant_id", variantIds)
     .eq("is_active", true)

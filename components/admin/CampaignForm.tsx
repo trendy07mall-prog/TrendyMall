@@ -128,6 +128,12 @@ export function CampaignForm({
   const [desktopBannerUrl, setDesktopBannerUrl] = useState(initial?.campaign.desktop_banner_url ?? null);
   const [mobileBannerUrl, setMobileBannerUrl] = useState(initial?.campaign.mobile_banner_url ?? null);
   const [thumbnailUrl, setThumbnailUrl] = useState(initial?.campaign.thumbnail_url ?? null);
+  // Distinct from the desktop/mobile pair above -- those are this
+  // campaign's OWN landing page hero; this is what shows on top of every
+  // PRODUCT's gallery image while this campaign is running (sql/077).
+  // saveCampaign blocks publishing without one; a draft can be saved
+  // without it same as any other optional field.
+  const [productBannerUrl, setProductBannerUrl] = useState(initial?.campaign.product_banner_url ?? null);
 
   const [showOnHomepage, setShowOnHomepage] = useState(initial?.campaign.show_on_homepage ?? false);
   const [showInShop, setShowInShop] = useState(initial?.campaign.show_in_shop ?? false);
@@ -430,6 +436,29 @@ export function CampaignForm({
                 onChange={setThumbnailUrl}
                 hint="Square, for homepage cards"
               />
+            </div>
+          </div>
+
+          {/* Separated from the trio above, deliberately: those three are
+              this campaign's OWN /campaign/[slug] landing page (a single
+              hero image in two crops, plus its homepage-card thumbnail).
+              This one is a different placement entirely -- it appears on
+              every PRODUCT page in this campaign, across the top of that
+              product's own gallery photo, in place of the plain orange
+              bar. Grouping it with the trio above (same 3-column grid,
+              same unlabeled section) would have made two unrelated
+              concepts look like variants of the same thing. */}
+          <div className="border-t border-[var(--border)] pt-5">
+            <div className="max-w-xs">
+              <div className="rounded-xl border border-[var(--border)] p-4">
+                <SingleImageUploader
+                  label="Product page banner"
+                  name="productBannerUrl"
+                  value={productBannerUrl}
+                  onChange={setProductBannerUrl}
+                  hint="Shown across the top of every product's photo in this campaign. Required to publish."
+                />
+              </div>
             </div>
           </div>
         </section>

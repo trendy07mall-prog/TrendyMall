@@ -17,8 +17,11 @@ export function ProductGallery({
   name: string;
   // Only ever set when the resolved variant is genuinely on a winning
   // campaign price (see ProductGalleryWithVariants, the only caller) --
-  // null renders no bar at all, never a placeholder/empty one.
-  campaign?: { name: string; endAt: string | null; soldCount: number | null } | null;
+  // null renders no bar at all, never a placeholder/empty one. imageUrl is
+  // independently nullable within that: GalleryCampaignBar falls back to
+  // the flat orange bar when it's null (a campaign with no banner
+  // uploaded yet).
+  campaign?: { name: string; endAt: string | null; soldCount: number | null; imageUrl: string | null } | null;
 }) {
   const [active, setActive] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -80,9 +83,35 @@ export function ProductGallery({
           anything outside the media area. bg-black/5 stays: it's the
           letterbox behind object-contain for a non-square source photo,
           not decorative whitespace, so it's unrelated to the "no
-          padding/margin/whitespace" requirement. */}
+          padding/margin/whitespace" requirement.
+
+          -mx-6 sm:mx-0: TRUE edge-to-edge to the physical screen, not just
+          to this component's own container. The PDP's outer wrapper (app/
+          product/[slug]/page.tsx) is px-6 (24px) on every side, and that's
+          the only thing between this image and the viewport edge below
+          `sm` -- no ancestor between here and there adds its own padding
+          or clips overflow, so a negative margin exactly canceling that
+          24px expands this box (and, via inset-x-0 below, the campaign bar
+          riding on top of it) flush to both screen edges. sm:mx-0 turns it
+          off at 640px+ -- desktop is unaffected, matching the mockup
+          (which only ever showed this on a phone-width screenshot) and
+          "Desktop layout unaffected" from the ticket. The thumbnail row
+          and everything in the info column keep their normal padding;
+          this only touches the one div it's on.
+
+          w-auto sm:w-full, NOT plain w-full -- caught by measuring the
+          rendered box, not by eye: w-full resolves to a FIXED pixel width
+          (100% of the padded parent's content box, computed before the
+          negative margin is applied), so it only slides the box left by
+          24px rather than widening it. That put the left edge exactly at
+          the screen edge but left the right edge 48px short (390 viewport
+          - 342 measured). width:auto is what lets a block box actually
+          fill all the space its now-wider margins make available, on both
+          sides -- the standard mechanism this bleed technique depends on.
+          sm:w-full restores the exact original desktop sizing once mx-0
+          also turns off, so nothing here changes above 640px. */}
       <div
-        className="group relative aspect-square w-full overflow-hidden bg-black/5"
+        className="group relative -mx-6 aspect-square w-auto overflow-hidden bg-black/5 sm:mx-0 sm:w-full"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -146,6 +175,7 @@ export function ProductGallery({
             campaignName={campaign.name}
             campaignEndAt={campaign.endAt}
             soldCount={campaign.soldCount}
+            imageUrl={campaign.imageUrl}
           />
         )}
 
@@ -249,9 +279,16 @@ export function ProductGallery({
               // "which one is selected" changed, not how selection works.
               // Unselected rows dim instead of carrying any border/ring,
               // full opacity on hover as the only other affordance.
+              //
+              // ring-[1.5px] + orange (#F97316, this project's brand
+              // accent -- --color-warning elsewhere in this file) replaces
+              // the earlier ring-2 navy (#0F2D52), which read as a heavy
+              // near-black outline. 1.5px is a genuine arbitrary value, not
+              // Tailwind's ring-1 (1px, felt too thin against a 64-76px
+              // thumbnail) or ring-2 (2px, the weight being toned down).
               className={`relative h-[64px] w-[64px] shrink-0 overflow-hidden rounded-[var(--radius-sm)] transition-all duration-150 ease-in-out sm:h-[76px] sm:w-[76px] ${
                 i === active
-                  ? "opacity-100 ring-2 ring-inset ring-[#0F2D52]"
+                  ? "opacity-100 ring-[1.5px] ring-inset ring-[#F97316]"
                   : "opacity-60 hover:opacity-100"
               }`}
             >
