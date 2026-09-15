@@ -76,7 +76,10 @@ export function ProductGallery({
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    // Block flow, not flex-col: WebKit (all iOS browsers) sized the bleeding
+    // aspect-square box below from its pre-bleed width as a flex item, so it
+    // came out 390x342 on a 390px phone and clipped the photo's bottom 48px.
+    <div>
       {/* No rounded-[var(--radius-lg)] here (unlike before) -- edge-to-edge
           per the redesign, scoped to just this main-image container. The
           thumbnail row below keeps its own corners; this doesn't touch
@@ -262,7 +265,7 @@ export function ProductGallery({
       )}
 
       {images.length > 1 && (
-        <div className="flex min-w-0 gap-3 overflow-x-auto pb-1">
+        <div className="mt-4 flex min-w-0 gap-3 overflow-x-auto pb-1">
           {images.map((src, i) => (
             <button
               key={`${src}-${i}`}
