@@ -24,7 +24,7 @@ export function ShareButtons({ productName }: { productName: string }) {
   const facebookHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getUrl())}`;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)] bg-[var(--color-card)] px-4 py-3">
       <span className="text-sm font-medium text-[var(--muted)]">Share:</span>
       <a
         href={whatsappHref}
@@ -33,7 +33,7 @@ export function ShareButtons({ productName }: { productName: string }) {
         aria-label="Share on WhatsApp"
         className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
       >
-        <WhatsAppIcon className="h-4 w-4" />
+        <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
       </a>
       <a
         href={facebookHref}
@@ -42,7 +42,7 @@ export function ShareButtons({ productName }: { productName: string }) {
         aria-label="Share on Facebook"
         className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] transition-colors hover:bg-black/5"
       >
-        <FacebookIcon className="h-4 w-4" />
+        <FacebookIcon className="h-4 w-4 text-[#1877F2]" />
       </a>
       <button
         type="button"

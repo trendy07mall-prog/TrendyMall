@@ -512,60 +512,89 @@ export function ProductPurchaseSection({
             surface, not two saying the same thing in two places.
             CampaignInfoBlock itself is untouched and still renders
             unchanged everywhere else (ProductCard). */}
-        {tags.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {tags.map((tag) => (
-              <span
-                key={tag.slug}
-                className="rounded-full bg-[var(--foreground)] px-[10px] py-[3px] text-[11px] font-semibold text-white"
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        )}
-        {eyebrowParts.length > 0 && (
-          <p className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
-            {eyebrowParts.join(" · ")}
-          </p>
-        )}
-        <ProductTitleClamp
-          title={product.name}
-          className="font-heading mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-3xl"
-        />
-
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {/* Only rendered for products with real, approved reviews -- an
-              empty/zero-star row here would be exactly the fabricated-looking
-              signal the no-fake-reviews rule exists to prevent. The full
-              Reviews tab below still has its own always-visible empty state
-              today (ProductTabs/ReviewsSection) -- out of scope for this
-              phase, which only touches the title block. */}
-          {ratingSummary && ratingSummary.review_count > 0 && (
-            <div className="flex items-center gap-1.5">
-              <StarRating rating={ratingSummary.avg_rating} size="sm" />
-              <span className="text-sm text-[var(--muted)]">
-                {ratingSummary.avg_rating.toFixed(1)} ({ratingSummary.review_count})
-              </span>
+        <div className="rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4">
+          {tags.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag.slug}
+                  className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-semibold text-[var(--foreground)]"
+                >
+                  {tag.name}
+                </span>
+              ))}
             </div>
           )}
-          {product.sku && (
-            <span className="text-xs text-[var(--muted)]">SKU: {product.sku}</span>
+          {eyebrowParts.length > 0 && (
+            <p className="text-xs font-medium tracking-wide text-[var(--color-text-secondary)] uppercase">
+              {eyebrowParts.join(" · ")}
+            </p>
           )}
-        </div>
-        <div className="mt-3 h-px bg-[var(--border)]" />
+          <ProductTitleClamp
+            title={product.name}
+            className="font-heading mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-3xl"
+          />
 
-        <div className="mt-4">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {/* Only rendered for products with real, approved reviews -- an
+                empty/zero-star row here would be exactly the fabricated-looking
+                signal the no-fake-reviews rule exists to prevent. The full
+                Reviews tab below still has its own always-visible empty state
+                today (ProductTabs/ReviewsSection) -- out of scope for this
+                phase, which only touches the title block. */}
+            {ratingSummary && ratingSummary.review_count > 0 && (
+              <div className="flex items-center gap-1.5">
+                <StarRating rating={ratingSummary.avg_rating} size="sm" />
+                <span className="text-sm text-[var(--muted)]">
+                  {ratingSummary.avg_rating.toFixed(1)} ({ratingSummary.review_count})
+                </span>
+              </div>
+            )}
+            {product.sku && (
+              <span className="text-xs text-[var(--color-text-secondary)]">SKU: {product.sku}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--color-card)] p-4">
           <PriceDisplay
             actualPrice={resolvedVariant?.regular_price ?? 0}
             specialPrice={priceBand?.specialPrice ?? null}
             size="md"
           />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <p className={`flex items-center gap-2 text-sm font-medium ${stockVisual.text}`}>
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stockVisual.dot}`} aria-hidden="true" />
+              {stockVisual.label}
+            </p>
+            {!outOfStock && (
+              <div className="ml-auto flex items-center gap-3">
+                <span className="text-sm font-medium text-[var(--color-text-secondary)]">Quantity</span>
+                <div className="flex items-center overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]">
+                  <button
+                    type="button"
+                    aria-label="Decrease quantity"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="flex h-9 w-9 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-sm" aria-live="polite">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Increase quantity"
+                    onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
+                    className="flex h-9 w-9 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <p className={`mt-3 flex items-center gap-2 text-sm font-medium ${stockVisual.text}`}>
-          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${stockVisual.dot}`} aria-hidden="true" />
-          {stockVisual.label}
-        </p>
 
         {/* All variant selectors grouped into one bordered card,
             immediately below price/stock -- Colour and Capacity (and any
@@ -605,34 +634,10 @@ export function ProductPurchaseSection({
           </AttributeCard>
         )}
 
+        {/* Quantity now lives in the price card above; Share stays the last
+            child here so this observed block's bottom edge -- which drives
+            FloatingPurchaseBar's show/hide timing -- hasn't moved. */}
         <div ref={purchaseActionsRef} className="mt-6 flex flex-col gap-4">
-          {!outOfStock && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">Quantity</span>
-              <div className="flex items-center rounded-full border border-[var(--border)] transition-[border-color,box-shadow] duration-200 ease-in-out focus-within:border-[var(--foreground)] focus-within:ring-4 focus-within:ring-[rgba(0,0,0,0.08)]">
-                <button
-                  type="button"
-                  aria-label="Decrease quantity"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="flex h-10 w-10 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
-                >
-                  −
-                </button>
-                <span className="w-8 text-center text-sm" aria-live="polite">
-                  {quantity}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Increase quantity"
-                  onClick={() => setQuantity((q) => Math.min(effectiveStock, q + 1))}
-                  className="flex h-10 w-10 items-center justify-center text-lg outline-none transition-colors hover:bg-black/5"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          )}
-
           {selectionError && (
             <p role="alert" className="text-sm font-medium text-[var(--color-discount)]">
               {selectionError}
@@ -683,6 +688,8 @@ export function ProductPurchaseSection({
           <ShareButtons productName={product.name} />
         </div>
 
+        <WhatsInBox items={product.whats_in_box} />
+
         {/* Supporting information, not purchase decisions -- moved below
             the purchase actions so it no longer sits between the variant
             selectors and the buttons/quantity that need to be seen
@@ -702,8 +709,6 @@ export function ProductPurchaseSection({
         right column -- Specs needs 5 real columns and Tabs needs its own
         ~820px reading width, neither of which fit in a ~48%-wide column. */}
     <ProductHighlights specs={specs} />
-
-    <WhatsInBox items={product.whats_in_box} />
 
     <div className="mt-10">
       <TrustBadges
