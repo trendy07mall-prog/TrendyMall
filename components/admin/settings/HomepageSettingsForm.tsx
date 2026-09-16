@@ -165,9 +165,10 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
         <div>
           <p className="text-sm font-medium">Hero promo banner</p>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
-            Static banner in the right-hand column beside the hero carousel, on screens 1024px and wider
-            (not shown on phones or tablets). It sits under the active campaign&apos;s banner, or fills the
-            column on its own when no campaign is active. Leave both images empty to hide it.
+            Static banner shown with the hero carousel: in the right-hand column on screens 1024px and wider,
+            and in a row under the carousel on phones (below 768px). Not shown on tablets. It sits alongside
+            the active campaign, or takes the whole space on its own when no campaign is active. Leave both
+            images empty to hide it.
           </p>
         </div>
         {/* Guidance only, same as the campaign banner hints -- nothing here
@@ -182,7 +183,7 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
             prefix="hero"
             hint={
               "Ratio about 10:3 · Recommended 1200 × 360px · JPG or PNG, under ~300KB.\n" +
-              "Shown under the active campaign's banner."
+              "Desktop: under the campaign banner. Phones: full width when no campaign is active."
             }
           />
           <SingleImageUploader
@@ -193,7 +194,7 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
             prefix="hero"
             hint={
               "Ratio 8:5 · Recommended 960 × 600px · JPG or PNG, under ~300KB.\n" +
-              "Fills the whole column when no campaign is active.\n" +
+              "Desktop: fills the column when no campaign is active. Phones: beside the campaign tile.\n" +
               "Optional — if left empty, the wide image is used here instead, cropped to fit."
             }
           />

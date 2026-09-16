@@ -14,35 +14,61 @@ const MOBILE_SIZES = "100vw";
 // (~870px) when promo banners sit beside it, full container width otherwise.
 const DESKTOP_SIZES_WITH_PROMO = "(min-width: 1400px) 870px, (min-width: 1024px) 65vw, 100vw";
 const DESKTOP_SIZES_FULL = "(min-width: 1400px) 1352px, 100vw";
-const PROMO_SIZES = "(min-width: 1400px) 470px, 35vw";
+const PROMO_COLUMN_SIZES = "(min-width: 1400px) 470px, 35vw";
 
 const promoTileClass =
-  "relative block min-h-0 flex-1 overflow-hidden rounded-[24px] bg-black/5 shadow-[0_15px_35px_rgba(0,0,0,0.10)]";
+  "relative block overflow-hidden rounded-[24px] bg-black/5 shadow-[0_15px_35px_rgba(0,0,0,0.10)]";
 
 // Admin-entered link: only same-site paths or http(s) URLs become a link.
 function safeHref(link: string): string | null {
   return /^\/(?!\/)|^https?:\/\//.test(link) ? link : null;
 }
 
-function CampaignPromo({ campaign, image }: { campaign: Campaign; image: string | null }) {
+function CampaignPromo({
+  campaign,
+  image,
+  sizes,
+  className,
+  imageClassName = "object-cover",
+  twoLineCaption = false,
+}: {
+  campaign: Campaign;
+  image: string | null;
+  sizes: string;
+  className: string;
+  imageClassName?: string;
+  twoLineCaption?: boolean;
+}) {
   return (
     <Link
       href={`/campaign/${campaign.slug}`}
-      className={`${promoTileClass} ${image ? "" : "bg-[var(--color-warning)]"}`}
+      className={`${promoTileClass} ${className} ${image ? "" : "bg-[var(--color-warning)]"}`}
     >
-      {image && <Image src={image} alt="" fill quality={88} sizes={PROMO_SIZES} className="object-cover" />}
-      {/* Kept to a 20px strip: campaign banners put their date line low on the
-          image, and the old 32px strip covered "SEP 03 – SEP 10" on the live
-          banner at 1024px. */}
-      <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/55 px-3 py-0.5 text-xs leading-4 text-white">
-        <span className="flex min-w-0 items-center gap-1.5 font-bold">
-          <BoltIcon className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{campaign.name}</span>
+      {image && <Image src={image} alt="" fill quality={88} sizes={sizes} className={imageClassName} />}
+      {/* Kept to a 20px strip (28px two-line on a half-width phone tile):
+          campaign banners put their date line low on the image, and a taller
+          strip covered the live banner's date line at 1024px. */}
+      {twoLineCaption ? (
+        <span className="absolute inset-x-0 bottom-0 flex flex-col bg-black/55 px-2 py-0.5 text-[11px] leading-3 text-white">
+          <span className="flex min-w-0 items-center gap-1 font-bold">
+            <BoltIcon className="h-3 w-3 shrink-0" />
+            <span className="truncate">{campaign.name}</span>
+          </span>
+          {campaign.end_at && (
+            <CampaignCountdown target={campaign.end_at} label="Ends in" size="sm" tone="white" />
+          )}
         </span>
-        {campaign.end_at && (
-          <CampaignCountdown target={campaign.end_at} label="Ends in" size="sm" tone="white" />
-        )}
-      </span>
+      ) : (
+        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/55 px-3 py-0.5 text-xs leading-4 text-white">
+          <span className="flex min-w-0 items-center gap-1.5 font-bold">
+            <BoltIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{campaign.name}</span>
+          </span>
+          {campaign.end_at && (
+            <CampaignCountdown target={campaign.end_at} label="Ends in" size="sm" tone="white" />
+          )}
+        </span>
+      )}
     </Link>
   );
 }
@@ -52,21 +78,39 @@ function StaticPromo({
   title,
   buttonText,
   link,
+  sizes,
+  className,
+  compact = false,
 }: {
   imageUrl: string;
   title: string;
   buttonText: string;
   link: string;
+  sizes: string;
+  className: string;
+  compact?: boolean;
 }) {
   const href = safeHref(link);
   const content = (
     <>
-      <Image src={imageUrl} alt={title || "Promotion"} fill quality={88} sizes={PROMO_SIZES} className="object-cover" />
+      <Image src={imageUrl} alt={title || "Promotion"} fill quality={88} sizes={sizes} className="object-cover" />
       {(title || buttonText) && (
-        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-gradient-to-t from-black/60 to-transparent px-4 pt-6 pb-3">
-          {title && <span className="min-w-0 truncate text-sm font-bold text-white">{title}</span>}
+        <span
+          className={`absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent ${
+            compact ? "gap-1.5 px-2 pt-4 pb-2" : "gap-3 px-4 pt-6 pb-3"
+          }`}
+        >
+          {title && (
+            <span className={`min-w-0 truncate font-bold text-white ${compact ? "text-[11px]" : "text-sm"}`}>
+              {title}
+            </span>
+          )}
           {buttonText && (
-            <span className="ml-auto shrink-0 rounded-full bg-white px-3 py-1 text-xs font-semibold text-black">
+            <span
+              className={`ml-auto shrink-0 rounded-full bg-white font-semibold text-black ${
+                compact ? "px-2 py-0.5 text-[10px]" : "px-3 py-1 text-xs"
+              }`}
+            >
               {buttonText}
             </span>
           )}
@@ -76,18 +120,19 @@ function StaticPromo({
   );
 
   return href ? (
-    <Link href={href} className={promoTileClass}>
+    <Link href={href} className={`${promoTileClass} ${className}`}>
       {content}
     </Link>
   ) : (
-    <div className={promoTileClass}>{content}</div>
+    <div className={`${promoTileClass} ${className}`}>{content}</div>
   );
 }
 
-// Mobile (<768px) and tablet (768–1023px): full-width carousel only.
-// Desktop (1024px+): the same carousel in a 65% column beside a 35% column
-// holding the active campaign and/or the admin's static promo banner --
-// whichever exists fills the column alone.
+// Mobile (<768px): edge-to-edge 16:9 carousel, then a promo row -- campaign
+// and static banner side by side, or whichever exists alone at full width.
+// Tablet (768-1023px): unchanged full-width carousel, no promo. Desktop
+// (1024px+): carousel in a 65% column beside a 35% column of the same
+// promos, stacked.
 export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
   const [homepage, heroSlides] = await Promise.all([getHomepageSettings(), getActiveHeroSlides()]);
 
@@ -100,8 +145,14 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
     wideImage: homepage.promoBannerImageUrl,
     compactImage: homepage.promoBannerAloneImageUrl,
   });
-  const hasPromoColumn = promo.layout !== "none";
-  const desktopSizes = hasPromoColumn ? DESKTOP_SIZES_WITH_PROMO : DESKTOP_SIZES_FULL;
+  const both = promo.layout === "both";
+  const hasPromo = promo.layout !== "none";
+  const desktopSizes = hasPromo ? DESKTOP_SIZES_WITH_PROMO : DESKTOP_SIZES_FULL;
+  const staticText = {
+    title: homepage.promoBannerTitle,
+    buttonText: homepage.promoBannerButtonText,
+    link: homepage.promoBannerLink,
+  };
 
   // Admin-uploaded slides have no hand-authored blurDataURL (the original
   // 6 hardcoded placeholders can't be generated without new image-
@@ -165,10 +216,16 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
         media="(min-width: 768px)"
       />
 
-      {/* Mobile: dedicated 16:9 art-directed images, <768px only. */}
+      {/* Mobile: dedicated 16:9 art-directed images, <768px only. -mx-6 with
+          w-auto (not w-full, which resolves to a fixed pixel width before the
+          negative margin is applied, and so only shifts the box) cancels this
+          container's px-6, making the 16:9 box the full device width -- the
+          size the mobile slide-image hint documents. rounded-none! beats
+          SlideCarousel's own rounded-[24px] regardless of stylesheet order: a
+          radius at the screen edge would show page background in the corners. */}
       <SlideCarousel
         slides={mobileSlides}
-        wrapperClassName="aspect-[1200/675] md:hidden"
+        wrapperClassName="aspect-[1200/675] -mx-6 w-auto! rounded-none! md:hidden"
         ariaLabel="Promotions"
         imageSizes={MOBILE_SIZES}
         slideDuration={homepage.heroSlideDurationMs}
@@ -177,11 +234,37 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
         showDots={homepage.heroShowDots}
       />
 
+      {hasPromo && (
+        <div className={`mt-3 md:hidden ${both ? "grid grid-cols-2 gap-3" : ""}`}>
+          {campaign && (
+            <CampaignPromo
+              campaign={campaign}
+              image={promo.mobile.campaignImage}
+              sizes={both ? "50vw" : "100vw"}
+              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
+              // Pinned to the top in the half-width tile so the 4:3 banner's
+              // text (upper part of the image) is what survives the crop.
+              imageClassName={both ? "object-cover object-top" : "object-cover"}
+              twoLineCaption={both}
+            />
+          )}
+          {promo.mobile.staticImage && (
+            <StaticPromo
+              imageUrl={promo.mobile.staticImage}
+              sizes={both ? "50vw" : "100vw"}
+              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
+              compact={both}
+              {...staticText}
+            />
+          )}
+        </div>
+      )}
+
       {/* The carousel keeps the desktop art's own 1920:650 shape at lg, so
           the shorter hero comes from the narrower column rather than from
           cropping slides whose text runs close to both edges. The promo
           column has no intrinsic height and stretches to that row height. */}
-      <div className={hasPromoColumn ? "lg:grid lg:grid-cols-[65fr_35fr] lg:gap-4" : undefined}>
+      <div className={hasPromo ? "lg:grid lg:grid-cols-[65fr_35fr] lg:gap-4" : undefined}>
         <SlideCarousel
           slides={desktopSlides}
           wrapperClassName="hidden md:block md:aspect-[1400/600] lg:aspect-[1920/650]"
@@ -193,15 +276,22 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
           showDots={homepage.heroShowDots}
         />
 
-        {hasPromoColumn && (
+        {hasPromo && (
           <div className="hidden lg:flex lg:flex-col lg:gap-4">
-            {campaign && <CampaignPromo campaign={campaign} image={promo.campaignImage} />}
-            {promo.staticImage && (
+            {campaign && (
+              <CampaignPromo
+                campaign={campaign}
+                image={promo.desktop.campaignImage}
+                sizes={PROMO_COLUMN_SIZES}
+                className="min-h-0 flex-1"
+              />
+            )}
+            {promo.desktop.staticImage && (
               <StaticPromo
-                imageUrl={promo.staticImage}
-                title={homepage.promoBannerTitle}
-                buttonText={homepage.promoBannerButtonText}
-                link={homepage.promoBannerLink}
+                imageUrl={promo.desktop.staticImage}
+                sizes={PROMO_COLUMN_SIZES}
+                className="min-h-0 flex-1"
+                {...staticText}
               />
             )}
           </div>
