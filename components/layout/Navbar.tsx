@@ -1,5 +1,6 @@
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getCachedCategories, getCachedBrandingSettings } from "@/lib/data/cached";
+import { buildCategoryNav } from "@/lib/category-nav";
 import { NavbarClient } from "@/components/layout/NavbarClient";
 
 export async function Navbar() {
@@ -9,14 +10,15 @@ export async function Navbar() {
   // one. Only the is_admin lookup below genuinely has to wait, since it
   // needs the resolved user id.
   //
-  // Top-level categories only -- the header's Categories dropdown is a
-  // simple flat list, not a nested flyout, so a deeply-nested tree would
-  // just clutter it.
+  // Every active category, not just the top level: the header's Categories
+  // flyout (desktop) and accordion (mobile) both show a category's own
+  // subcategories, which buildCategoryNav pairs up below. Still one cached
+  // query -- deeper levels come along for the ride and are ignored there.
   const [supabase, { data: { user } }, branding, categories] = await Promise.all([
     createClient(),
     getAuthUser(),
     getCachedBrandingSettings(),
-    getCachedCategories(0),
+    getCachedCategories(),
   ]);
 
   let isAdmin = false;
@@ -33,7 +35,7 @@ export async function Navbar() {
     <NavbarClient
       user={user}
       isAdmin={isAdmin}
-      categories={categories}
+      categories={buildCategoryNav(categories)}
       logoUrl={branding.logoDesktopUrl}
     />
   );

@@ -28,7 +28,7 @@ import {
   TrendUpIcon,
   UserIcon,
 } from "@/components/ui/Icon";
-import type { Category } from "@/types";
+import { categoryIcon, type CategoryNavNode } from "@/lib/category-nav";
 
 // icon is only consumed by the mobile drawer below -- the desktop <nav>
 // still renders these through NavLink (label/href/isActive only), so
@@ -80,7 +80,10 @@ export function NavbarClient({
 }: {
   user: User | null;
   isAdmin: boolean;
-  categories: Category[];
+  // Top-level categories, each carrying its own direct children (see
+  // lib/category-nav.ts) -- the desktop flyout and the mobile accordion
+  // both read the same two-level shape.
+  categories: CategoryNavNode[];
   // Settings-backed (branding.logo_desktop_url) — same source image is used
   // for both the header logo and the mobile drawer's logo below (there's no
   // real desktop/mobile *swap* point in this component today, just two
@@ -95,15 +98,25 @@ export function NavbarClient({
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  // Which left-panel row the desktop flyout is showing subcategories for,
+  // and which mobile accordion row is expanded. null = "not chosen yet",
+  // which is why the flyout falls back to the first category on open.
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const drawerWrapperRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const categoriesRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pathname = usePathname();
   const isCheckout = pathname === "/checkout";
+  // Nothing hovered yet falls back to the first category, so the flyout
+  // never opens with an empty right panel.
+  const activeCategory =
+    categories.find((category) => category.id === activeCategoryId) ?? categories[0] ?? null;
 
   // "stuck" mirrors what position:sticky is actually doing visually: once
   // the header's own top edge reaches 0, it's pinned and whatever's below
@@ -175,6 +188,25 @@ export function NavbarClient({
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
+
+  // The categories flyout opens on hover like the account menu next to it,
+  // but it is big enough to need the two dismissals a hover-only menu
+  // never had: Escape, and a click anywhere outside it.
+  useEffect(() => {
+    if (!categoriesOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setCategoriesOpen(false);
+    }
+    function onPointerDown(event: PointerEvent) {
+      if (!categoriesRef.current?.contains(event.target as Node)) setCategoriesOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [categoriesOpen]);
 
   const openDrawer = useCallback(() => {
     if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
@@ -406,7 +438,13 @@ export function NavbarClient({
 
           <div
             className="group relative"
-            onMouseEnter={() => setCategoriesOpen(true)}
+            ref={categoriesRef}
+            // Reopening always starts on the first category again, so the
+            // right panel is never showing a stale selection.
+            onMouseEnter={() => {
+              setActiveCategoryId(null);
+              setCategoriesOpen(true);
+            }}
             onMouseLeave={() => setCategoriesOpen(false)}
           >
             <button
@@ -425,7 +463,7 @@ export function NavbarClient({
                 aria-hidden="true"
               />
             </button>
-            {categoriesOpen && (
+            {categoriesOpen && categories.length > 0 && (
               // Always solid white/dark text regardless of header state —
               // explicit text color here (not just the inherited default)
               // because glass mode makes the ambient text color white, and
@@ -434,16 +472,69 @@ export function NavbarClient({
               // of category names would also just be a legibility problem
               // no version of "glass" fixes, so this one dropdown
               // deliberately stays outside the glass treatment entirely.
-              <div className="absolute top-full left-0 mt-2 min-w-44 rounded-[var(--radius-md)] border border-[var(--border)] bg-white py-2 text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
-                {categories.map((category) => (
-                  <Link
-                    key={category.id}
-                    href={`/category/${category.slug}`}
-                    className="block px-4 py-2 text-sm hover:bg-black/5"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
+              <div className="absolute top-full left-0 mt-2 flex w-[620px] overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-white text-[var(--foreground)] shadow-[0_10px_40px_rgba(0,0,0,0.06)]">
+                {/* Left: every top-level category. Hover or keyboard focus
+                    swaps the right panel; Enter follows the row's own link
+                    to that category page, so the menu is fully usable
+                    without a mouse. */}
+                <div className="w-[230px] shrink-0 border-r border-[var(--border)] py-2">
+                  {categories.map((category) => {
+                    const Icon = categoryIcon(category.slug);
+                    const isActive = category.id === activeCategory?.id;
+                    return (
+                      <Link
+                        key={category.id}
+                        href={`/category/${category.slug}`}
+                        onMouseEnter={() => setActiveCategoryId(category.id)}
+                        onFocus={() => setActiveCategoryId(category.id)}
+                        onClick={() => setCategoriesOpen(false)}
+                        aria-current={isActive ? "true" : undefined}
+                        className={`transition-brand flex items-center gap-2.5 px-4 py-2.5 text-sm ${
+                          isActive ? "bg-black/5 font-semibold" : "hover:bg-black/5"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0 text-[var(--color-text-secondary)]" />
+                        <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                        <ChevronRightIcon className="h-3.5 w-3.5 shrink-0 text-[var(--muted)]" />
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                {/* Right: that category's own subcategories. */}
+                {activeCategory && (
+                  <div className="min-w-0 flex-1 px-5 py-4">
+                    <p className="text-xs font-semibold tracking-wide text-[var(--color-text-secondary)] uppercase">
+                      {activeCategory.name}
+                    </p>
+                    {activeCategory.children.length > 0 ? (
+                      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                        {activeCategory.children.map((child) => (
+                          <Link
+                            key={child.id}
+                            href={`/category/${child.slug}`}
+                            onClick={() => setCategoriesOpen(false)}
+                            className="transition-brand truncate rounded-md px-2 py-1.5 text-[13px] text-[var(--color-text-secondary)] hover:bg-black/5 hover:text-[var(--foreground)]"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-[13px] text-[var(--muted)]">
+                        No subcategories yet.
+                      </p>
+                    )}
+                    <Link
+                      href={`/category/${activeCategory.slug}`}
+                      onClick={() => setCategoriesOpen(false)}
+                      className="mt-3 inline-flex items-center gap-1 px-2 text-[13px] font-semibold text-[var(--color-warning)] hover:underline"
+                    >
+                      View all {activeCategory.name}
+                      <ChevronRightIcon className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -667,17 +758,85 @@ export function NavbarClient({
                   </p>
                 </div>
                 <nav className="mt-1.5 flex flex-col gap-0.5">
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/category/${category.slug}`}
-                      onClick={closeDrawer}
-                      className="transition-brand flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm text-[var(--foreground)] hover:bg-black/5"
-                    >
-                      <span>{category.name}</span>
-                      <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--muted)]" />
-                    </Link>
-                  ))}
+                  {categories.map((category) => {
+                    const Icon = categoryIcon(category.slug);
+                    const expanded = openCategoryId === category.id;
+
+                    // Nothing to expand: the row stays a plain link, as it
+                    // was before this menu grew a second level.
+                    if (category.children.length === 0) {
+                      return (
+                        <Link
+                          key={category.id}
+                          href={`/category/${category.slug}`}
+                          onClick={closeDrawer}
+                          className="transition-brand flex min-h-11 items-center gap-3 rounded-xl px-3 py-2 text-sm text-[var(--foreground)] hover:bg-black/5"
+                        >
+                          <Icon className="h-[18px] w-[18px] shrink-0 text-[var(--muted)]" />
+                          <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                          <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--muted)]" />
+                        </Link>
+                      );
+                    }
+
+                    return (
+                      <div key={category.id}>
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          aria-controls={`drawer-category-${category.id}`}
+                          // One open at a time, same as the FAQ accordion.
+                          onClick={() => setOpenCategoryId(expanded ? null : category.id)}
+                          className={`transition-brand flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm ${
+                            expanded
+                              ? "bg-black/5 font-semibold text-[var(--foreground)]"
+                              : "text-[var(--foreground)] hover:bg-black/5"
+                          }`}
+                        >
+                          <Icon className="h-[18px] w-[18px] shrink-0 text-[var(--muted)]" />
+                          <span className="min-w-0 flex-1 truncate">{category.name}</span>
+                          <ChevronDownIcon
+                            className={`h-4 w-4 shrink-0 text-[var(--muted)] transition-transform duration-200 ${
+                              expanded ? "rotate-180" : ""
+                            }`}
+                          />
+                        </button>
+                        {/* grid-rows 0fr -> 1fr animates the height without
+                            measuring it. inert keeps the collapsed links out
+                            of the tab order while they stay in the DOM for
+                            that transition. */}
+                        <div
+                          id={`drawer-category-${category.id}`}
+                          inert={!expanded}
+                          className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${
+                            expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                          }`}
+                        >
+                          <div className="overflow-hidden">
+                            <div className="mt-0.5 ml-[30px] flex flex-col gap-0.5 border-l border-[var(--border)] pl-2">
+                              <Link
+                                href={`/category/${category.slug}`}
+                                onClick={closeDrawer}
+                                className="transition-brand flex min-h-11 items-center rounded-xl px-3 py-2 text-[13px] font-medium text-[var(--foreground)] hover:bg-black/5"
+                              >
+                                All {category.name}
+                              </Link>
+                              {category.children.map((child) => (
+                                <Link
+                                  key={child.id}
+                                  href={`/category/${child.slug}`}
+                                  onClick={closeDrawer}
+                                  className="transition-brand flex min-h-11 items-center rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-secondary)] hover:bg-black/5"
+                                >
+                                  <span className="min-w-0 truncate">{child.name}</span>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </nav>
               </div>
 
