@@ -1,22 +1,19 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
+import { getCategoryAncestors, getCategorySlugRedirect } from "@/lib/data/categories";
 import {
-  getCategories,
-  getCategoryAncestors,
-  getCategoryBySlug,
-  getCategorySlugRedirect,
-  getChildCategories,
-  getDescendantCategoryIds,
-} from "@/lib/data/categories";
-import { getBrands } from "@/lib/data/brands";
-import { getTags } from "@/lib/data/tags";
-import { getAllAttributeValues } from "@/lib/data/attributes";
-import {
-  getFacetCounts,
-  getProductsByCategory,
-  getPublishedProductCount,
-  hasAnyApprovedReviews,
-} from "@/lib/data/products";
+  getCachedAttributeValues,
+  getCachedBrands,
+  getCachedCategories,
+  getCachedCategoryBySlug,
+  getCachedChildCategories,
+  getCachedDescendantCategoryIds,
+  getCachedFacetCounts,
+  getCachedHasAnyApprovedReviews,
+  getCachedProductsByCategory,
+  getCachedPublishedProductCount,
+  getCachedTags,
+} from "@/lib/data/cached";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { FilterSidebar } from "@/components/product/FilterSidebar";
@@ -41,7 +38,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategoryBySlug(leafSlug(slug));
+  const category = await getCachedCategoryBySlug(leafSlug(slug));
   if (!category || !category.is_active) return { title: "Category not found" };
 
   const title = `${category.name} Accessories`;
@@ -80,7 +77,7 @@ export default async function CategoryPage({
 }) {
   const { slug } = await params;
   const requestedSlug = leafSlug(slug);
-  const category = await getCategoryBySlug(requestedSlug);
+  const category = await getCachedCategoryBySlug(requestedSlug);
 
   if (!category || !category.is_active) {
     const redirectSlug = await getCategorySlugRedirect(requestedSlug);
@@ -90,26 +87,48 @@ export default async function CategoryPage({
 
   const sp = await searchParams;
   const state = parseProductFilterState(sp);
-  const [allCategories, allBrands, allTags, allAttributeValues] = await Promise.all([
-    getCategories(),
-    getBrands(),
-    getTags(),
-    getAllAttributeValues(),
-  ]);
-  const filters = toProductListFilters(state, allCategories, allBrands, allTags, allAttributeValues);
   const basePath = `/category/${category.slug}`;
 
-  const [categoryIds, childCategories, ancestors, hasReviews] = await Promise.all([
-    getDescendantCategoryIds(category),
-    getChildCategories(category.id),
+  // These two groups used to be two separate waves, but nothing in the
+  // second one depends on anything in the first -- every read here needs
+  // only `category`, which is already resolved. Merging them removes a
+  // round trip from the critical path, and each of them is now the same
+  // cached read /shop has always used (or a new one in the same file,
+  // under the same tags), rather than a live query per click.
+  //
+  // getCachedCategories() is active-only, which is what /shop already
+  // passes to toProductListFilters for the identical purpose: it resolves
+  // a filter slug to an id, and an inactive category is not a filter a
+  // visitor can pick. The category facet is switched off on this page
+  // anyway (includeCategoryFacet: false).
+  const [
+    allCategories,
+    allBrands,
+    allTags,
+    allAttributeValues,
+    categoryIds,
+    childCategories,
+    ancestors,
+    hasReviews,
+  ] = await Promise.all([
+    getCachedCategories(),
+    getCachedBrands(),
+    getCachedTags(),
+    getCachedAttributeValues(),
+    getCachedDescendantCategoryIds(category),
+    getCachedChildCategories(category.id),
+    // Not cached: for anything below the root this reads the ancestor ids
+    // straight out of the category's own materialized path, and for a
+    // top-level category it makes no query at all.
     getCategoryAncestors(category),
-    hasAnyApprovedReviews(),
+    getCachedHasAnyApprovedReviews(),
   ]);
+  const filters = toProductListFilters(state, allCategories, allBrands, allTags, allAttributeValues);
 
   const [products, totalCount, facetCounts] = await Promise.all([
-    getProductsByCategory(categoryIds, filters),
-    getPublishedProductCount(categoryIds),
-    getFacetCounts(filters, { categoryIds, includeCategoryFacet: false }),
+    getCachedProductsByCategory(categoryIds, filters),
+    getCachedPublishedProductCount(categoryIds),
+    getCachedFacetCounts(filters, { categoryIds, includeCategoryFacet: false }),
   ]);
 
   return (

@@ -2,19 +2,30 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { CACHE_TAGS, CACHE_TTL } from "@/lib/cache-tags";
 import { runInPublicScope } from "@/lib/supabase/public-scope";
-import { getCategories } from "@/lib/data/categories";
+import {
+  getCategories,
+  getCategoryAncestors,
+  getCategoryById,
+  getCategoryBySlug,
+  getChildCategories,
+  getDescendantCategoryIds,
+} from "@/lib/data/categories";
 import { getGeneralSettings, getBrandingSettings } from "@/lib/data/settings";
 import {
   getNewArrivals,
   getProductsByIds,
   getAllProducts,
   getProductDetailBySlug,
+  getProductsByCategory,
+  getRelatedProducts,
   getFacetCounts,
   getPublishedProductCount,
   hasAnyApprovedReviews,
 } from "@/lib/data/products";
 import { getBrands } from "@/lib/data/brands";
-import { getTags } from "@/lib/data/tags";
+import { getProductSpecs } from "@/lib/data/spec-templates";
+import { getProductReviews, getProductRatingSummary } from "@/lib/reviews";
+import { getTags, getProductTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
 import {
   getHomepageCampaigns,
@@ -24,8 +35,18 @@ import {
   getCampaignFeaturedDisplayByProduct,
 } from "@/lib/data/campaigns";
 import { createPublicClient } from "@/lib/supabase/public-client";
-import type { Campaign, Category, ProductWithPrimaryImage, Brand, Tag, AttributeValue } from "@/types";
+import type {
+  Campaign,
+  Category,
+  ProductWithPrimaryImage,
+  Brand,
+  Tag,
+  AttributeValue,
+  ProductRatingSummary,
+} from "@/types";
 import type { ProductDetail } from "@/lib/data/products";
+import type { DisplaySpec } from "@/lib/data/spec-templates";
+import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { CampaignSectionData, CampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import type { FacetCounts } from "@/lib/data/products";
 import type { ProductListFilters } from "@/lib/product-filters";
@@ -229,16 +250,24 @@ export const getCachedShopCampaigns = (): Promise<Campaign[]> =>
     tags: [CACHE_TAGS.campaigns],
   })();
 
-export const getCachedPublishedProductCount = (): Promise<number> =>
-  unstable_cache(() => runInPublicScope(() => getPublishedProductCount()), ["published-count"], {
-    revalidate: CACHE_TTL.products,
-    tags: [CACHE_TAGS.products],
-  })();
+// categoryIds omitted = the whole catalogue (/shop's "N products" total);
+// passed = that category's subtree (/category's own total). The id list is
+// part of the cache key, so the two can never be served for one another.
+export const getCachedPublishedProductCount = (categoryIds?: string[]): Promise<number> =>
+  unstable_cache(
+    () => runInPublicScope(() => getPublishedProductCount(categoryIds)),
+    ["published-count", categoryIds ? [...categoryIds].sort().join(",") : "all"],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
 
 export const getCachedHasAnyApprovedReviews = (): Promise<boolean> =>
   unstable_cache(() => runInPublicScope(() => hasAnyApprovedReviews()), ["has-reviews"], {
     revalidate: CACHE_TTL.products,
-    tags: [CACHE_TAGS.products],
+    // Also the reviews tag now that one exists: the first approved review
+    // in the store is what flips this, and that is a review moderation
+    // event, not a product edit. The products tag stays so nothing that
+    // used to drop this entry stops doing so.
+    tags: [CACHE_TAGS.products, CACHE_TAGS.reviews],
   })();
 
 export const getCachedAllProducts = (
@@ -258,4 +287,160 @@ export const getCachedFacetCounts = (
     () => runInPublicScope(() => getFacetCounts(filters, options)),
     ["facet-counts", JSON.stringify(filters), JSON.stringify(options)],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+
+// --- /category/[...slug] ------------------------------------------------
+//
+// Same treatment /shop already had, applied to the route that had none:
+// every read below was previously live on every single click, which is
+// what made a category click sit on its skeleton for well over a second
+// (each Supabase round trip from a cold client costs ~200ms, and the page
+// chained four waves of them). Nothing here is personalised -- a category,
+// its children, its descendant ids and its product grid are the same for
+// every visitor -- so all of it caches under the existing tags, with the
+// same TTLs /shop's equivalents already use.
+
+// Not activeOnly: the page itself decides what an inactive category means
+// (404, or a redirect to its replacement slug), so this has to be able to
+// return one. cache() on the outside dedupes generateMetadata's lookup
+// against the page body's, exactly as getCachedProductDetailBySlug does.
+export const getCachedCategoryBySlug = cache(
+  (slug: string): Promise<Category | null> =>
+    unstable_cache(
+      () => runInPublicScope(() => getCategoryBySlug(slug)),
+      ["category-by-slug", slug],
+      { revalidate: CACHE_TTL.categories, tags: [CACHE_TAGS.categories] },
+    )(),
+);
+
+// Keyed on the materialized path, not the id: the path IS the subtree
+// this resolves, so a category moved to a new parent gets a different key
+// rather than a stale hit on its old subtree.
+export const getCachedDescendantCategoryIds = (category: Category): Promise<string[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getDescendantCategoryIds(category)),
+    ["descendant-category-ids", category.path],
+    { revalidate: CACHE_TTL.categories, tags: [CACHE_TAGS.categories] },
+  )();
+
+export const getCachedChildCategories = (parentId: string): Promise<Category[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getChildCategories(parentId)),
+    ["child-categories", parentId],
+    { revalidate: CACHE_TTL.categories, tags: [CACHE_TAGS.categories] },
+  )();
+
+// The product page's breadcrumb trail and category name, as one entry.
+// Both derive from a single category id and neither is personalised; they
+// were two SEQUENTIAL round trips on the PDP's critical path (the ancestor
+// query needs the category's path, which the first one returns), so a
+// cache miss still costs two waves but only once per TTL instead of once
+// per product view. Deliberately NOT derived from getCachedCategories():
+// that list is active-only, and a product whose category was deactivated
+// must keep showing the same name and breadcrumbs it shows today.
+export const getCachedCategoryWithAncestors = (
+  categoryId: string,
+): Promise<{ category: Category | null; ancestors: Category[] }> =>
+  unstable_cache(
+    () =>
+      runInPublicScope(async () => {
+        const category = await getCategoryById(categoryId);
+        if (!category) return { category: null, ancestors: [] };
+        return { category, ancestors: await getCategoryAncestors(category) };
+      }),
+    ["category-with-ancestors", categoryId],
+    { revalidate: CACHE_TTL.categories, tags: [CACHE_TAGS.categories] },
+  )();
+
+// The category page's product grid -- the single most expensive read on
+// that route (~900ms measured, three internal waves). Same cache key
+// discipline as getCachedAllProducts: the resolved filters are part of the
+// key, so one filter state can never be served under another's, and the
+// descendant id list is too, so two categories never share an entry.
+//
+// Stock and price accuracy: identical policy to /shop's grid, which has
+// used it since it was added -- CACHE_TTL.products (5 min) as a backstop,
+// and the `products` tag, which every product mutation and the stock
+// decrement in orderActions already call updateTag on. So an admin price
+// or stock edit, and a sale that changes stock, both show up on the next
+// request rather than up to a TTL later. Checkout still re-validates stock
+// server-side (fetchValidatedServerCart), so this window can never
+// oversell -- it is a display window only.
+export const getCachedProductsByCategory = (
+  categoryIds: string[],
+  filters: ProductListFilters,
+): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductsByCategory(categoryIds, filters)),
+    ["products-by-category", [...categoryIds].sort().join(","), JSON.stringify(filters)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+// --- /product/[slug] ---------------------------------------------------
+//
+// The detail payload itself was already cached; everything AROUND it was
+// not, and that surrounding work was most of the page's cost. None of it
+// is personalised (hasUserReviewed is the one that is, and it stays live).
+
+export const getCachedRelatedProducts = (
+  categoryId: string,
+  excludeProductId: string,
+): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getRelatedProducts(categoryId, excludeProductId)),
+    ["related-products", categoryId, excludeProductId],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+export const getCachedProductTags = (
+  productId: string,
+): Promise<{ name: string; slug: string }[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductTags(productId)),
+    ["product-tags", productId],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+// Two sequential round trips inside (the category's template, then the
+// product's saved values), which is why it measured ~540ms uncached.
+// Takes the ids rather than the Product object so the cache key is the
+// two things the answer actually depends on.
+export const getCachedProductSpecs = (
+  productId: string,
+  categoryId: string,
+): Promise<DisplaySpec[]> =>
+  unstable_cache(
+    () =>
+      runInPublicScope(() =>
+        getProductSpecs({ id: productId, category_id: categoryId }),
+      ),
+    ["product-specs", productId, categoryId],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+// Reviews get their own tag, not `products`: what changes them is a
+// customer submitting one or an admin approving/rejecting/deleting one,
+// none of which is a product edit. All three of those now call
+// updateTag(CACHE_TAGS.reviews), so an approval is visible on the next
+// request. Only APPROVED reviews are ever returned here, so a visitor can
+// never be shown a review that has since been taken down for longer than
+// that; and "have I already reviewed this?" (hasUserReviewed) is
+// per-visitor and deliberately stays uncached.
+export const getCachedProductReviews = (
+  productId: string,
+): Promise<ReviewWithReviewerName[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductReviews(productId)),
+    ["product-reviews", productId],
+    { revalidate: CACHE_TTL.reviews, tags: [CACHE_TAGS.reviews] },
+  )();
+
+export const getCachedProductRatingSummary = (
+  productId: string,
+): Promise<ProductRatingSummary | null> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductRatingSummary(productId)),
+    ["product-rating-summary", productId],
+    { revalidate: CACHE_TTL.reviews, tags: [CACHE_TAGS.reviews] },
   )();

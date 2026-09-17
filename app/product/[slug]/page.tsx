@@ -1,17 +1,19 @@
+import { after } from "next/server";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
+import { getProductSlugRedirect, incrementProductViewCount } from "@/lib/data/products";
 import {
-  getProductSlugRedirect,
-  getRelatedProducts,
-  incrementProductViewCount,
-} from "@/lib/data/products";
-import { getCachedProductDetailBySlug } from "@/lib/data/cached";
-import { getCategoryAncestors, getCategoryById } from "@/lib/data/categories";
-import { getProductTags } from "@/lib/data/tags";
-import { getProductSpecs } from "@/lib/data/spec-templates";
+  getCachedCategoryWithAncestors,
+  getCachedProductDetailBySlug,
+  getCachedProductRatingSummary,
+  getCachedProductReviews,
+  getCachedProductSpecs,
+  getCachedProductTags,
+  getCachedRelatedProducts,
+} from "@/lib/data/cached";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
-import { getProductRatingSummary, getProductReviews, hasUserReviewed } from "@/lib/reviews";
+import { hasUserReviewed } from "@/lib/reviews";
 import { getAuthUser } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { ProductPurchaseSection } from "@/components/product/ProductPurchaseSection";
@@ -77,29 +79,47 @@ export default async function ProductPage({
   // full, untruncated product.name.
   const breadcrumbProductName =
     product.name.length > 40 ? `${product.name.slice(0, 40).trimEnd()}…` : product.name;
-  const category = await getCategoryById(product.category_id);
-  const categoryAncestors = category ? await getCategoryAncestors(category) : [];
   const imageUrls = images.map((i) => i.image_url);
 
-  // Awaited (not fire-and-forget): Vercel's serverless runtime can cut off
-  // un-awaited work once the response is sent, so a detached call risks
-  // silently never running. incrementProductViewCount already swallows its
-  // own errors, so this can't fail the page.
-  await incrementProductViewCount(product.id);
+  // after() rather than await: a view-count bump is bookkeeping, and
+  // awaiting it put a full Supabase round trip (~200ms measured) in front
+  // of the page every single time. It still must not be a detached
+  // promise -- Vercel's runtime can cut those off once the response is
+  // sent -- and after() is exactly the supported form of "real background
+  // work the platform keeps the function alive for", the same guarantee
+  // proxy.ts already relies on via event.waitUntil.
+  // incrementProductViewCount still swallows its own errors.
+  after(() => incrementProductViewCount(product.id));
+
+  // Started, not awaited, so the one read that depends on it can join the
+  // wave below instead of serialising in front of it. getAuthUser is
+  // cache()d, so awaiting it again afterwards costs nothing, and for a
+  // logged-out visitor it never touches the network at all.
+  const authUser = getAuthUser();
+
+  // One wave, not five. Everything public here is cached (see
+  // lib/data/cached.ts) and keyed on ids that come from the already-cached
+  // detail payload; "have I reviewed this?" is the only per-visitor read
+  // and stays live. The page shows exactly the same values as before --
+  // these are the same functions, just cached and no longer chained.
+  const [categoryInfo, relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones] =
+    await Promise.all([
+      getCachedCategoryWithAncestors(product.category_id),
+      getCachedRelatedProducts(product.category_id, product.id),
+      getCachedProductReviews(product.id),
+      getCachedProductRatingSummary(product.id),
+      authUser.then(({ data: { user } }) =>
+        user ? hasUserReviewed(product.id, user.id) : false,
+      ),
+      getCachedProductTags(product.id),
+      getCachedProductSpecs(product.id, product.category_id),
+      getActiveDeliveryZones(),
+    ]);
+  const { category, ancestors: categoryAncestors } = categoryInfo;
 
   const {
     data: { user },
-  } = await getAuthUser();
-
-  const [relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones] = await Promise.all([
-    getRelatedProducts(product.category_id, product.id),
-    getProductReviews(product.id),
-    getProductRatingSummary(product.id),
-    user ? hasUserReviewed(product.id, user.id) : Promise.resolve(false),
-    getProductTags(product.id),
-    getProductSpecs(product),
-    getActiveDeliveryZones(),
-  ]);
+  } = await authUser;
 
   // No address is known on the PDP -- this is the same generic
   // Colombo/outside-Colombo split app/cart/page.tsx shows before an

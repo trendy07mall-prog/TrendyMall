@@ -1,13 +1,19 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { slugify } from "@/lib/utils";
 
 export type TemplateFormState = { error: string } | { success: true } | undefined;
 export type FieldFormState = { error: string } | { success: true } | undefined;
 
 function revalidateSpecTemplatePaths() {
+  // revalidatePath invalidates rendered routes; the product page's spec
+  // table is now a cached READ (getCachedProductSpecs), which only a tag
+  // drops. Specs belong to a product's presentation, so they share the
+  // products tag rather than inventing another one.
+  updateTag(CACHE_TAGS.products);
   revalidatePath("/admin/spec-templates");
   revalidatePath("/", "layout");
 }

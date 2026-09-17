@@ -20,6 +20,11 @@ export const CACHE_TAGS = {
   // Per-campaign units sold. Moves with every order rather than with admin
   // edits, so it's cached separately and briefly -- see lib/data/cached.ts.
   soldCounts: "sold-counts",
+  // Approved customer reviews and the rating summary built from them.
+  // Separate from `products` because the things that change them are
+  // different events -- a customer submitting one, and an admin approving,
+  // rejecting or deleting one -- none of which are product edits.
+  reviews: "reviews",
 } as const;
 
 // Seconds. Deliberately three tiers rather than one number:
@@ -39,4 +44,8 @@ export const CACHE_TTL = {
   products: 5 * 60,
   campaigns: 5 * 60,
   soldCounts: 60,
+  // Reviews only become visible after an admin approves them, and that
+  // action invalidates this tag directly, so the TTL is a backstop --
+  // matched to products since the PDP reads both together.
+  reviews: 5 * 60,
 } as const;

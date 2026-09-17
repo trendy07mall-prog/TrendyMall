@@ -87,7 +87,12 @@ export async function getProductSpecValues(productId: string): Promise<Record<st
 // Display-ready rows for the PDP's SpecsTable -- joins the product's
 // category's template fields with its saved values, formats list values
 // (JSON-encoded, same shape TagInput produces) and booleans for display.
-export async function getProductSpecs(product: Product): Promise<DisplaySpec[]> {
+export async function getProductSpecs(
+  // Only the two fields the lookup actually keys on, so the cached wrapper
+  // in lib/data/cached.ts can call this with ids rather than fabricating a
+  // partial Product. A full Product still satisfies this.
+  product: Pick<Product, "id" | "category_id">,
+): Promise<DisplaySpec[]> {
   const fields = await getSpecFieldsForCategory(product.category_id);
   if (fields.length === 0) return [];
 

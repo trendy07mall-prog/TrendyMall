@@ -1,6 +1,8 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { sendNewReviewNotification } from "@/lib/email";
 import { getNotificationSettings } from "@/lib/data/settings";
 
@@ -45,6 +47,13 @@ export async function submitReview(
     }
     return { error: "Could not submit your review. Please try again." };
   }
+
+  // A new review lands as pending, so nothing visible changes yet -- but
+  // the rating summary view can move the moment the row exists, and this
+  // is the cheapest place to keep the cached PDP reads honest rather than
+  // relying on the TTL. Nothing here depends on it, so it's before the
+  // best-effort notification below.
+  updateTag(CACHE_TAGS.reviews);
 
   // Best-effort, never blocks the review itself -- see lib/email.ts for
   // why every notification send follows this shape.
