@@ -12,7 +12,7 @@ import {
 import type { Category } from "@/types";
 
 export interface CategoryNavNode extends Category {
-  children: Category[];
+  children: CategoryNavNode[];
 }
 
 type IconComponent = typeof FolderIcon;
@@ -22,6 +22,9 @@ type IconComponent = typeof FolderIcon;
 // of inventing icon data in the database. Shared by the desktop flyout and
 // the mobile accordion -- add a row when a new top-level category is
 // created, otherwise it falls back to the generic folder icon.
+// Wrapped in an object so callers render it as <icon.Icon /> (a member
+// expression, like NAV_LINKS entries in NavbarClient) rather than
+// assigning a component to a local during render.
 const ICONS_BY_SLUG: Record<string, IconComponent> = {
   "tools-diy-outdoor": GearIcon,
   "health-beauty": HeartIcon,
@@ -33,18 +36,36 @@ const ICONS_BY_SLUG: Record<string, IconComponent> = {
   electronic: BoltIcon,
 };
 
-export function categoryIcon(slug: string): IconComponent {
-  return ICONS_BY_SLUG[slug] ?? FolderIcon;
+export function categoryIcon(slug: string): { Icon: IconComponent } {
+  return { Icon: ICONS_BY_SLUG[slug] ?? FolderIcon };
 }
 
-// Top-level categories, each with its own direct children (depth 1). Deeper
-// levels exist in the data and keep working on the category pages
-// themselves -- the header only ever shows two levels, so they are not
-// flattened in here. Input order (sort_order, from the query) is preserved.
+// The whole active tree, to whatever depth the data actually has (today:
+// four levels, e.g. Health & Beauty > Men's Care > Shaving & Grooming >
+// Trimmers). Every category keeps ALL of its direct children, so no
+// sibling is dropped at any level. Input order (sort_order, from the
+// query) is preserved at every level.
 export function buildCategoryNav(categories: Category[]): CategoryNavNode[] {
-  const tops = categories.filter((category) => category.depth === 0);
-  return tops.map((top) => ({
-    ...top,
-    children: categories.filter((category) => category.parent_id === top.id),
-  }));
+  const childrenByParent = new Map<string, Category[]>();
+  for (const category of categories) {
+    if (!category.parent_id) continue;
+    const siblings = childrenByParent.get(category.parent_id) ?? [];
+    siblings.push(category);
+    childrenByParent.set(category.parent_id, siblings);
+  }
+
+  const attach = (category: Category): CategoryNavNode => ({
+    ...category,
+    children: (childrenByParent.get(category.id) ?? []).map(attach),
+  });
+
+  return categories.filter((category) => category.depth === 0).map(attach);
+}
+
+// Levels of children below this node: 0 = none, 1 = a flat list (which the
+// desktop flyout can lay out as a plain two-column grid), 2+ = needs the
+// nested, expandable list instead.
+export function categoryTreeDepth(node: CategoryNavNode): number {
+  if (node.children.length === 0) return 0;
+  return 1 + Math.max(...node.children.map(categoryTreeDepth));
 }
