@@ -2,8 +2,8 @@ import Image, { getImageProps } from "next/image";
 import Link from "next/link";
 import { SlideCarousel } from "@/components/marketing/SlideCarousel";
 import type { Slide } from "@/components/marketing/SlideCarousel";
-import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
-import { BoltIcon } from "@/components/ui/Icon";
+import { CampaignPromoRotator } from "@/components/marketing/CampaignPromoRotator";
+import type { CampaignPromoItem } from "@/components/marketing/CampaignPromoRotator";
 import { getActiveHeroSlides } from "@/lib/data/hero-slides";
 import { getHomepageSettings } from "@/lib/data/settings";
 import { planHeroPromo } from "@/lib/hero-promo";
@@ -22,55 +22,6 @@ const promoTileClass =
 // Admin-entered link: only same-site paths or http(s) URLs become a link.
 function safeHref(link: string): string | null {
   return /^\/(?!\/)|^https?:\/\//.test(link) ? link : null;
-}
-
-function CampaignPromo({
-  campaign,
-  image,
-  sizes,
-  className,
-  imageClassName = "object-cover",
-  twoLineCaption = false,
-}: {
-  campaign: Campaign;
-  image: string | null;
-  sizes: string;
-  className: string;
-  imageClassName?: string;
-  twoLineCaption?: boolean;
-}) {
-  return (
-    <Link
-      href={`/campaign/${campaign.slug}`}
-      className={`${promoTileClass} ${className} ${image ? "" : "bg-[var(--color-warning)]"}`}
-    >
-      {image && <Image src={image} alt="" fill quality={88} sizes={sizes} className={imageClassName} />}
-      {/* Kept to a 20px strip (28px two-line on a half-width phone tile):
-          campaign banners put their date line low on the image, and a taller
-          strip covered the live banner's date line at 1024px. */}
-      {twoLineCaption ? (
-        <span className="absolute inset-x-0 bottom-0 flex flex-col bg-black/55 px-2 py-0.5 text-[11px] leading-3 text-white">
-          <span className="flex min-w-0 items-center gap-1 font-bold">
-            <BoltIcon className="h-3 w-3 shrink-0" />
-            <span className="truncate">{campaign.name}</span>
-          </span>
-          {campaign.end_at && (
-            <CampaignCountdown target={campaign.end_at} label="Ends in" size="sm" tone="white" />
-          )}
-        </span>
-      ) : (
-        <span className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/55 px-3 py-0.5 text-xs leading-4 text-white">
-          <span className="flex min-w-0 items-center gap-1.5 font-bold">
-            <BoltIcon className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">{campaign.name}</span>
-          </span>
-          {campaign.end_at && (
-            <CampaignCountdown target={campaign.end_at} label="Ends in" size="sm" tone="white" />
-          )}
-        </span>
-      )}
-    </Link>
-  );
 }
 
 function StaticPromo({
@@ -133,20 +84,35 @@ function StaticPromo({
 // Tablet (768-1023px): unchanged full-width carousel, no promo. Desktop
 // (1024px+): carousel in a 65% column beside a 35% column of the same
 // promos, stacked.
-export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
+// `campaigns` is every currently-active homepage campaign, not just the
+// first: the campaign tile rotates through them when there is more than
+// one, and renders exactly the static tile it always did when there is one.
+export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
   const [homepage, heroSlides] = await Promise.all([getHomepageSettings(), getActiveHeroSlides()]);
 
   if (!homepage.heroEnabled || heroSlides.length === 0) return null;
 
   const promo = planHeroPromo({
-    campaign: campaign
-      ? { desktopBanner: campaign.desktop_banner_url, mobileBanner: campaign.mobile_banner_url }
-      : null,
+    campaigns: campaigns.map((c) => ({
+      desktopBanner: c.desktop_banner_url,
+      mobileBanner: c.mobile_banner_url,
+    })),
     wideImage: homepage.promoBannerImageUrl,
     compactImage: homepage.promoBannerAloneImageUrl,
   });
   const both = promo.layout === "both";
   const hasPromo = promo.layout !== "none";
+  const hasCampaign = campaigns.length > 0;
+  // Only the fields the tile actually renders cross into the client
+  // component, rather than the whole campaign row per breakpoint.
+  const promoItems = (images: (string | null)[]): CampaignPromoItem[] =>
+    campaigns.map((c, index) => ({
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      endAt: c.end_at,
+      image: images[index] ?? null,
+    }));
   const desktopSizes = hasPromo ? DESKTOP_SIZES_WITH_PROMO : DESKTOP_SIZES_FULL;
   const staticText = {
     title: homepage.promoBannerTitle,
@@ -236,10 +202,9 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
 
       {hasPromo && (
         <div className={`mt-3 md:hidden ${both ? "grid grid-cols-2 gap-3" : ""}`}>
-          {campaign && (
-            <CampaignPromo
-              campaign={campaign}
-              image={promo.mobile.campaignImage}
+          {hasCampaign && (
+            <CampaignPromoRotator
+              campaigns={promoItems(promo.mobile.campaignImages)}
               sizes={both ? "50vw" : "100vw"}
               className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
               // Pinned to the top in the half-width tile so the 4:3 banner's
@@ -278,10 +243,9 @@ export async function HeroSlider({ campaign }: { campaign: Campaign | null }) {
 
         {hasPromo && (
           <div className="hidden lg:flex lg:flex-col lg:gap-4">
-            {campaign && (
-              <CampaignPromo
-                campaign={campaign}
-                image={promo.desktop.campaignImage}
+            {hasCampaign && (
+              <CampaignPromoRotator
+                campaigns={promoItems(promo.desktop.campaignImages)}
                 sizes={PROMO_COLUMN_SIZES}
                 className="min-h-0 flex-1"
               />

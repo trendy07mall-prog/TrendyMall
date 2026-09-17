@@ -133,8 +133,10 @@ export default async function HomePage() {
   return (
     <div className={`home-fonts ${poppins.variable} flex flex-1 flex-col`}>
       {/* homepageCampaigns is already sorted soonest-ending first -- the
-          same list ActiveCampaignSections below is built from. */}
-      <HeroSlider campaign={homepageCampaigns[0] ?? null} />
+          same list ActiveCampaignSections below is built from. All of them,
+          not just the first: the hero's campaign tile rotates through every
+          active campaign rather than silently dropping the rest. */}
+      <HeroSlider campaigns={homepageCampaigns} />
 
       {categories.length > 0 && (
         <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
@@ -151,15 +153,16 @@ export default async function HomePage() {
 
       <ActiveCampaignSections sections={campaignSections} />
 
-      {/* A separate, distinctly-positioned signal from ServiceCards' own
-          "Special Price Sale" card below -- that card stays sale_price-only
-          and unchanged; this only ever renders genuinely admin-curated,
-          currently-active campaigns, never derived from the same data.
-          Rotates through every qualifying campaign (each slide links to its
-          own /campaign/[slug]) rather than picking just one. */}
-      {/* Hidden from lg up, where the hero's right column already shows the
-          same campaign. */}
-      <div className="lg:hidden">
+      {/* Tablet only (768-1023px). Below 768 the hero's own promo ROW shows
+          the rotating campaign tile, and from 1024 its promo COLUMN does --
+          this carousel was a duplicate of both, so it is hidden there. But
+          the hero's promo slot exists at neither size in between (the row is
+          md:hidden, the column is hidden lg:flex), so removing this outright
+          left tablet with no campaign visibility at all. Kept here as the
+          stopgap: tablet stays on this older banner-carousel design until
+          the promo slot is extended to that range in its own right.
+          /shop renders the same component, unchanged. */}
+      <div className="hidden md:block lg:hidden">
         <CampaignBannerCarousel campaigns={homepageCampaigns} />
       </div>
 
