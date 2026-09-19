@@ -44,6 +44,14 @@ export type ProductStatus = "draft" | "published";
 
 export type CampaignStatus = "draft" | "published" | "disabled";
 
+// How a brand renders wherever it is shown as itself (the homepage grid,
+// the brand page header). "wordmark" is the default for every row (sql/078):
+// a brand only ever renders as a pictorial logo when this is deliberately
+// set to "logo" AND image_path is present -- see lib/brand-display.ts, which
+// enforces the same rule in the app so an unauthorised logo upload can never
+// start rendering on its own.
+export type BrandDisplayStyle = "logo" | "wordmark";
+
 export type CampaignPromotionType = "product_discount" | "flash_sale" | "free_shipping" | "coupon";
 
 export interface Database {
@@ -254,8 +262,15 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
+          // Doubles as the brand page's intro copy (sql/078) -- deliberately
+          // reused rather than adding a parallel intro_copy column.
           description: string | null;
+          // Doubles as the brand's logo, rendered only when display_style
+          // is "logo" (sql/078).
           image_path: string | null;
+          display_style: BrandDisplayStyle;
+          is_featured: boolean;
+          sort_order: number;
           is_active: boolean;
           created_at: string;
         };
@@ -265,6 +280,9 @@ export interface Database {
           slug: string;
           description?: string | null;
           image_path?: string | null;
+          display_style?: BrandDisplayStyle;
+          is_featured?: boolean;
+          sort_order?: number;
           is_active?: boolean;
           created_at?: string;
         };
@@ -274,6 +292,9 @@ export interface Database {
           slug?: string;
           description?: string | null;
           image_path?: string | null;
+          display_style?: BrandDisplayStyle;
+          is_featured?: boolean;
+          sort_order?: number;
           is_active?: boolean;
           created_at?: string;
         };

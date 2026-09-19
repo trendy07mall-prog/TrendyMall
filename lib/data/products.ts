@@ -504,6 +504,40 @@ export async function getProductsByCategory(
   return applyPostFilters(supabase, withImages, filters);
 }
 
+// The brand page's grid. Same shape as getProductsByCategory -- the only
+// difference is which column narrows the candidate set -- so campaign
+// pricing, primary images, ratings, sold counts and every post-filter are
+// applied by exactly the same pipeline the shop and category grids use, and
+// a brand page can never price a product differently from the rest of the
+// site.
+export async function getProductsByBrand(
+  brandId: string,
+  filters: ProductListFilters = { sort: "newest" },
+): Promise<ProductWithPrimaryImage[]> {
+  const supabase = await createClient();
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
+  ]);
+  const { data, error } = await applyDbFilters(
+    supabase
+      .from("products")
+      .select("*")
+      .eq("brand_id", brandId)
+      .eq("status", "published").eq("is_deleted", false),
+    filters,
+    [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
+    onSaleProductIds,
+  );
+
+  if (error) throw error;
+  const withImages = await attachPrimaryImages(supabase, data);
+  return applyPostFilters(supabase, withImages, filters);
+}
+
 export async function getAllProducts(
   filters: ProductListFilters = { sort: "newest" },
 ): Promise<ProductWithPrimaryImage[]> {

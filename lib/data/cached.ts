@@ -16,13 +16,20 @@ import {
   getProductsByIds,
   getAllProducts,
   getProductDetailBySlug,
+  getProductsByBrand,
   getProductsByCategory,
   getRelatedProducts,
   getFacetCounts,
   getPublishedProductCount,
   hasAnyApprovedReviews,
 } from "@/lib/data/products";
-import { getBrands } from "@/lib/data/brands";
+import {
+  getBrands,
+  getBrandBySlug,
+  getBrandsAlphabetical,
+  getBrandProductCounts,
+  getFeaturedBrands,
+} from "@/lib/data/brands";
 import { getProductSpecs } from "@/lib/data/spec-templates";
 import { getProductReviews, getProductRatingSummary } from "@/lib/reviews";
 import { getTags, getProductTags } from "@/lib/data/tags";
@@ -443,4 +450,67 @@ export const getCachedProductRatingSummary = (
     () => runInPublicScope(() => getProductRatingSummary(productId)),
     ["product-rating-summary", productId],
     { revalidate: CACHE_TTL.reviews, tags: [CACHE_TAGS.reviews] },
+  )();
+
+
+// --- "Shop by Brand" ----------------------------------------------------
+//
+// Brands are near-static store configuration that only an admin edit
+// changes, so they sit under the categories tag/TTL alongside brands'
+// existing cached reader above -- every brand mutation in lib/admin/brands.ts
+// already revalidates, and updateTag(CACHE_TAGS.categories) drops these the
+// same way it drops getCachedBrands.
+//
+// Deliberately NOT `export const revalidate = 3600` on the brand route.
+// The grid on a brand page shows live prices and stock, and an ISR page
+// would hold them for an hour AND ignore updateTag entirely -- so an admin
+// price edit would be invisible there while every other grid on the site
+// picked it up within five minutes. These wrappers put the brand page on
+// exactly the same footing as /shop and /category instead.
+
+export const getCachedFeaturedBrands = (): Promise<Brand[]> =>
+  unstable_cache(() => runInPublicScope(() => getFeaturedBrands()), ["brands", "featured"], {
+    revalidate: CACHE_TTL.categories,
+    tags: [CACHE_TAGS.categories],
+  })();
+
+export const getCachedBrandsAlphabetical = (): Promise<Brand[]> =>
+  unstable_cache(() => runInPublicScope(() => getBrandsAlphabetical()), ["brands", "alphabetical"], {
+    revalidate: CACHE_TTL.categories,
+    tags: [CACHE_TAGS.categories],
+  })();
+
+// cache() on the outside so generateMetadata and the page body share one
+// lookup, the same way getCachedProductDetailBySlug does.
+export const getCachedBrandBySlug = cache(
+  (slug: string): Promise<Brand | null> =>
+    unstable_cache(() => runInPublicScope(() => getBrandBySlug(slug)), ["brand-by-slug", slug], {
+      revalidate: CACHE_TTL.categories,
+      tags: [CACHE_TAGS.categories],
+    })(),
+);
+
+// Counts move with the catalogue, not with brand edits, so this one is
+// tagged products -- every product mutation already drops it. Also cache()d
+// per request: the homepage grid and a brand page's metadata both read it.
+export const getCachedBrandProductCounts = cache(
+  (): Promise<Record<string, number>> =>
+    unstable_cache(() => runInPublicScope(() => getBrandProductCounts()), ["brand-product-counts"], {
+      revalidate: CACHE_TTL.products,
+      tags: [CACHE_TAGS.products],
+    })(),
+);
+
+// Same cache-key discipline and the same staleness policy as
+// getCachedProductsByCategory: the resolved filters are part of the key, and
+// the products tag plus a 5-minute backstop means an admin price or stock
+// edit, and a sale that moves stock, both show up on the next request.
+export const getCachedProductsByBrand = (
+  brandId: string,
+  filters: ProductListFilters,
+): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductsByBrand(brandId, filters)),
+    ["products-by-brand", brandId, JSON.stringify(filters)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();
