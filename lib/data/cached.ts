@@ -31,6 +31,8 @@ import {
   getFeaturedBrands,
 } from "@/lib/data/brands";
 import { getProductSpecs } from "@/lib/data/spec-templates";
+import { getCustomerFavourites } from "@/lib/data/customer-favourites";
+import { REVALIDATE_SECONDS } from "@/lib/customer-favourites";
 import { getProductReviews, getProductRatingSummary } from "@/lib/reviews";
 import { getTags, getProductTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
@@ -53,6 +55,7 @@ import type {
 } from "@/types";
 import type { ProductDetail } from "@/lib/data/products";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
+import type { CustomerFavourites } from "@/lib/data/customer-favourites";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { CampaignSectionData, CampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import type { FacetCounts } from "@/lib/data/products";
@@ -513,4 +516,29 @@ export const getCachedProductsByBrand = (
     () => runInPublicScope(() => getProductsByBrand(brandId, filters)),
     ["products-by-brand", brandId, JSON.stringify(filters)],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+
+// --- Customer Favourites (homepage carousel) ----------------------------
+//
+// One entry for the whole section, mode included, so the Top Rated /
+// Best Sellers decision is made once per cache window rather than per
+// request. Tagged with BOTH products and reviews: the section's membership
+// moves when stock, publish state or price changes (products) and when a
+// review is approved or deleted (reviews), and either should drop it.
+//
+// 15 minutes, from REVALIDATE_SECONDS in lib/customer-favourites.ts --
+// the ticket's own 10-15 minute window, and longer than the product TTL
+// because this is a curated shelf rather than a live listing. Prices and
+// stock on the cards still come through getProductsByIds inside the same
+// entry, so they are at most this stale; the tag invalidation is what
+// keeps an admin edit from waiting the full window.
+export const getCachedCustomerFavourites = (): Promise<CustomerFavourites | null> =>
+  unstable_cache(
+    () => runInPublicScope(() => getCustomerFavourites()),
+    ["customer-favourites"],
+    {
+      revalidate: REVALIDATE_SECONDS,
+      tags: [CACHE_TAGS.products, CACHE_TAGS.reviews],
+    },
   )();

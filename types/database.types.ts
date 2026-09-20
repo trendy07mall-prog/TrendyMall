@@ -1985,6 +1985,25 @@ export interface Database {
           },
         ];
       };
+      // sql/079. Same shape as product_rating_summary above, but counting
+      // only reviews written from non-admin accounts -- the homepage's
+      // Customer Favourites section ranks on genuine customer sentiment.
+      product_customer_rating_summary: {
+        Row: {
+          product_id: string;
+          avg_rating: number;
+          review_count: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_sales_summary: {
         Row: {
           product_id: string;
@@ -2021,6 +2040,13 @@ export interface Database {
       increment_product_view_count: {
         Args: { p_product_id: string };
         Returns: undefined;
+      };
+      // sql/079. Units sold in DELIVERED orders over a caller-supplied
+      // window -- security definer, because orders are not readable by a
+      // storefront visitor under RLS.
+      get_recent_top_sellers: {
+        Args: { p_days: number; p_limit: number };
+        Returns: { product_id: string; units_sold: number }[];
       };
       reduce_stock: {
         Args: { p_product_id: string; p_quantity: number };
