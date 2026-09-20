@@ -18,6 +18,7 @@ import {
   getProductDetailBySlug,
   getProductsByBrand,
   getProductsByCategory,
+  getProductsByIdSet,
   getRelatedProducts,
   getFacetCounts,
   getPublishedProductCount,
@@ -31,8 +32,9 @@ import {
   getFeaturedBrands,
 } from "@/lib/data/brands";
 import { getProductSpecs } from "@/lib/data/spec-templates";
-import { getCustomerFavourites } from "@/lib/data/customer-favourites";
+import { getCustomerFavourites, getCollectionProductIds } from "@/lib/data/customer-favourites";
 import { REVALIDATE_SECONDS } from "@/lib/customer-favourites";
+import type { FavouritesMode } from "@/lib/customer-favourites";
 import { getProductReviews, getProductRatingSummary } from "@/lib/reviews";
 import { getTags, getProductTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
@@ -541,4 +543,26 @@ export const getCachedCustomerFavourites = (): Promise<CustomerFavourites | null
       revalidate: REVALIDATE_SECONDS,
       tags: [CACHE_TAGS.products, CACHE_TAGS.reviews],
     },
+  )();
+
+
+// The /shop collection filter's membership, from the same shared function
+// the homepage carousel uses. Cached on the same tags and window as the
+// carousel so the shelf and its "View all" page can't drift apart even at
+// the cache layer.
+export const getCachedCollectionProductIds = (mode: FavouritesMode): Promise<string[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getCollectionProductIds(mode)),
+    ["collection-product-ids", mode],
+    { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.products, CACHE_TAGS.reviews] },
+  )();
+
+export const getCachedProductsByIdSet = (
+  ids: string[],
+  filters: ProductListFilters,
+): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getProductsByIdSet(ids, filters)),
+    ["products-by-id-set", [...ids].sort().join(","), JSON.stringify(filters)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();

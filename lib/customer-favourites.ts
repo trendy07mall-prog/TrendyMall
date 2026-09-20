@@ -32,6 +32,37 @@ export const REVALIDATE_SECONDS = 15 * 60;
 
 export type FavouritesMode = "top_rated" | "best_sellers";
 
+/**
+ * The ?collection= value each mode links to on /shop. These are the same
+ * two rule sets the homepage carousel uses -- see getCollectionProductIds
+ * in lib/data/customer-favourites.ts, which both the carousel and the shop
+ * page call, so the two can never disagree about what qualifies.
+ *
+ * Previously the links were ?sort=highest_rated / ?sort=best_selling,
+ * which only REORDERED the full catalogue instead of narrowing it.
+ */
+export const COLLECTION_SLUGS = {
+  top_rated: "top-rated",
+  best_sellers: "best-sellers",
+} as const;
+
+export type CollectionSlug = (typeof COLLECTION_SLUGS)[keyof typeof COLLECTION_SLUGS];
+
+const MODE_BY_COLLECTION: Record<string, FavouritesMode> = {
+  "top-rated": "top_rated",
+  "best-sellers": "best_sellers",
+};
+
+/**
+ * Resolves a raw ?collection= value. Anything unrecognised returns null,
+ * and the shop page then behaves exactly as if no collection were set --
+ * an unknown value is ignored, never an error or an empty result.
+ */
+export function parseCollection(raw: string | undefined | null): FavouritesMode | null {
+  if (!raw) return null;
+  return MODE_BY_COLLECTION[raw.trim().toLowerCase()] ?? null;
+}
+
 export interface FavouritesCopy {
   eyebrow: string;
   heading: string;
@@ -46,8 +77,7 @@ export interface FavouritesCopy {
 
 // Everything that differs between the two modes, in one place, so a mode
 // can never end up with (say) a Top Rated heading over a Best Seller
-// badge. The hrefs point at sort options /shop already supports
-// (lib/product-filters.ts's SortOption) -- no new sort was needed.
+// badge -- including the /shop collection each one links to.
 export const FAVOURITES_COPY: Record<FavouritesMode, FavouritesCopy> = {
   top_rated: {
     eyebrow: "CUSTOMER FAVOURITES",
@@ -56,7 +86,7 @@ export const FAVOURITES_COPY: Record<FavouritesMode, FavouritesCopy> = {
     badge: "Top Rated",
     linkLabel: "View all top rated",
     linkLabelShort: "View all",
-    href: "/shop?sort=highest_rated",
+    href: "/shop?collection=top-rated",
     ariaLabel: "Top rated products",
     swipeHintSuffix: "top rated products",
   },
@@ -67,7 +97,7 @@ export const FAVOURITES_COPY: Record<FavouritesMode, FavouritesCopy> = {
     badge: "Best Seller",
     linkLabel: "View all best sellers",
     linkLabelShort: "View all",
-    href: "/shop?sort=best_selling",
+    href: "/shop?collection=best-sellers",
     ariaLabel: "Best selling products",
     swipeHintSuffix: "best sellers",
   },
@@ -131,18 +161,58 @@ export function discountPercent(actual: number, special: number | null): number 
 }
 
 /**
- * The card's one-line description. There is no short_description column on
- * products, so this follows the precedent the product page's own metadata
- * already set: the admin-authored meta description when present, otherwise
- * the real description with its HTML stripped. Returns null when there is
- * nothing to show, and the card then omits the line entirely.
+ * The quote under a card's rating row. Plain text only: review comments
+ * come from a plain textarea today, but this strips tags and collapses
+ * whitespace anyway rather than trusting that, since the string is
+ * rendered straight into the card.
+ *
+ * Returns null when there is nothing worth showing, and the card then
+ * omits the line entirely rather than leaving a gap.
+ *
+ * 90 characters is about two full lines in the card's detail column, which
+ * is what line-clamp-2 will show. The reviewer's name is rendered as its
+ * own line BELOW this rather than appended here -- see the card -- because
+ * anything inside the clamped paragraph is pushed off the end by a quote
+ * of any useful length and never appears.
  */
-export function shortDescription(
-  product: { meta_description: string | null; description: string },
-  maxLength = 120,
-): string | null {
-  const source = product.meta_description?.trim() || product.description.replace(/<[^>]+>/g, " ");
-  const text = source.replace(/\s+/g, " ").trim();
+export function reviewQuote(comment: string | null | undefined, maxLength = 90): string | null {
+  if (!comment) return null;
+  const text = comment
+    // Reference-style link definitions on their own lines ("[1]: https://…"),
+    // which carry no prose at all.
+    .replace(/^\s*\[[^\]]*\]:\s*\S+.*$/gm, " ")
+    // Inline links and images: keep the label, drop the URL.
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+    // Any HTML that made it into a comment.
+    .replace(/<[^>]+>/g, " ")
+    // Emphasis, inline code and heading/quote/list markers. Real review
+    // text reached this function with literal "**" in it (a comment pasted
+    // in from a formatted source), which would otherwise print as-is.
+    .replace(/(\*\*|__|[*_`~])/g, "")
+    .replace(/^\s{0,3}(#{1,6}|>)\s*/gm, " ")
+    .replace(/^\s*[-+]\s+/gm, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!text) return null;
   return text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}…` : text;
+}
+
+/**
+ * The reviewer's display name for the card: first name only, never a
+ * surname, e-mail or phone number. The view in sql/080 already narrows to
+ * a first name; this guards the app side of the same rule (and drops
+ * anything that still looks like contact details rather than a name).
+ */
+export function reviewerFirstName(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const first = raw.trim().split(/\s+/)[0] ?? "";
+  if (!first) return null;
+  // An e-mail address is not a name.
+  if (first.includes("@")) return null;
+  // Neither is a phone number. Tested as "contains no letter at all"
+  // rather than "looks like digits": a country code split off on its own
+  // ("+94" from "+94 77 123 4567") is only two digits and slipped past a
+  // digit-count rule, but it still has no letters in it.
+  if (!/\p{L}/u.test(first)) return null;
+  return first.length > 20 ? `${first.slice(0, 20)}…` : first;
 }

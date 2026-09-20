@@ -1,3 +1,5 @@
+import { COLLECTION_SLUGS, parseCollection } from "@/lib/customer-favourites";
+import type { FavouritesMode } from "@/lib/customer-favourites";
 import type { AttributeValue, Brand, Category, Tag } from "@/types";
 
 // Shared by getNewArrivals() and the shop filter's "New Arrival" checkbox
@@ -60,6 +62,15 @@ export interface ProductFilterState {
   featured: boolean;
   campaign: boolean;
   sort: SortOption;
+  // A curated collection (?collection=top-rated / best-sellers). Unlike
+  // every other field here it is NOT translated into ProductListFilters:
+  // a collection narrows the catalogue to an explicit id set resolved from
+  // lib/data/customer-favourites.ts (the same function the homepage
+  // carousel uses), and the remaining filters then apply on top of that
+  // set -- the same restrict-then-filter shape /search already uses. Null
+  // when absent or unrecognised; an unknown value is ignored, never an
+  // error.
+  collection: FavouritesMode | null;
 }
 
 export interface ProductListFilters {
@@ -111,6 +122,7 @@ export function parseProductFilterState(
     featured: flag("featured"),
     campaign: flag("campaign"),
     sort: (SORT_OPTIONS as string[]).includes(sortRaw) ? (sortRaw as SortOption) : "newest",
+    collection: parseCollection(get("collection")),
   };
 }
 
@@ -144,6 +156,7 @@ export function filterStateToParams(
   if (state.featured) params.set("featured", "1");
   if (state.campaign) params.set("campaign", "1");
   if (state.sort !== "newest") params.set("sort", state.sort);
+  if (state.collection) params.set("collection", COLLECTION_SLUGS[state.collection]);
   return params;
 }
 
@@ -204,6 +217,7 @@ export function toProductListFilters(
 
 export function countActiveFilters(state: ProductFilterState): number {
   return (
+    (state.collection ? 1 : 0) +
     state.categorySlugs.length +
     state.brands.length +
     state.tagSlugs.length +
@@ -240,4 +254,5 @@ export const EMPTY_FILTER_STATE: ProductFilterState = {
   featured: false,
   campaign: false,
   sort: "newest",
+  collection: null,
 };

@@ -1,5 +1,6 @@
 import { getCachedCustomerFavourites } from "@/lib/data/cached";
 import { CustomerFavouritesCarousel } from "@/components/marketing/CustomerFavouritesCarousel";
+import { CustomerFavouritesSkeleton } from "@/components/marketing/CustomerFavouritesSkeleton";
 
 // Server half of the homepage's Customer Favourites carousel: it decides
 // whether the section exists at all and which mode it runs in, so no
@@ -18,3 +19,7 @@ export async function CustomerFavouritesSection() {
     <CustomerFavouritesCarousel mode={favourites.mode} products={favourites.products} />
   );
 }
+
+// Re-exported so the homepage can wrap the async section in a Suspense
+// boundary whose fallback is already the right size.
+export { CustomerFavouritesSkeleton };

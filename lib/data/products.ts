@@ -892,6 +892,38 @@ export async function searchProducts(
   return applyPostFilters(supabase, withImages, filters);
 }
 
+// A listing narrowed to an explicit id set, with every other filter still
+// applied on top -- the /shop collection filter (?collection=top-rated),
+// whose membership comes from lib/data/customer-favourites.ts. Same
+// restrict-then-filter shape as searchProducts above, so category, brand,
+// price and the rest compose with a collection exactly as they compose
+// with a search term.
+export async function getProductsByIdSet(
+  ids: string[],
+  filters: ProductListFilters = { sort: "newest" },
+): Promise<ProductWithPrimaryImage[]> {
+  if (ids.length === 0) return [];
+  const supabase = await createClient();
+  const [tagProductIds, attributeProductIds, priceProductIds, onSaleProductIds, campaignProductIds] = await Promise.all([
+    resolveTagProductIds(filters),
+    resolveAttributeValueProductIds(filters),
+    resolvePriceFilterProductIds(supabase, filters),
+    resolveOnSaleProductIds(supabase, filters),
+    resolveCampaignProductIds(supabase, filters),
+  ]);
+
+  const { data, error } = await applyDbFilters(
+    supabase.from("products").select("*").eq("status", "published").eq("is_deleted", false).in("id", ids),
+    filters,
+    [tagProductIds, attributeProductIds, priceProductIds, campaignProductIds],
+    onSaleProductIds,
+  );
+  if (error) throw error;
+
+  const withImages = await attachPrimaryImages(supabase, data);
+  return applyPostFilters(supabase, withImages, filters);
+}
+
 export async function getRelatedProducts(
   categoryId: string,
   excludeProductId: string,

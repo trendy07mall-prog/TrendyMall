@@ -10,8 +10,12 @@ import {
   getCachedHasAnyApprovedReviews,
   getCachedAllProducts,
   getCachedFacetCounts,
+  getCachedCollectionProductIds,
+  getCachedProductsByIdSet,
 } from "@/lib/data/cached";
 import { parseProductFilterState, toProductListFilters } from "@/lib/product-filters";
+import { COLLECTION_SLUGS, FAVOURITES_COPY, parseCollection } from "@/lib/customer-favourites";
+import { CollectionHeader } from "@/components/product/CollectionHeader";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { FilterSidebar } from "@/components/product/FilterSidebar";
@@ -28,12 +32,31 @@ import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { Pagination } from "@/components/product/Pagination";
 import { ViewModeProvider } from "@/context/ViewModeContext";
 
-export const metadata: Metadata = {
-  title: "Shop All Accessories",
-  description:
-    "Browse the full TrendyMall catalogue of mobile phone accessories — earbuds, speakers, power banks, and headphones.",
-  alternates: { canonical: "/shop" },
-};
+// generateMetadata rather than a static export: with ?collection= the page
+// is a named collection, and its title/description/canonical should say so.
+// Without one, this returns exactly what the static export used to.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const collection = parseCollection(typeof sp.collection === "string" ? sp.collection : undefined);
+  if (!collection) {
+    return {
+      title: "Shop All Accessories",
+      description:
+        "Browse the full TrendyMall catalogue of mobile phone accessories — earbuds, speakers, power banks, and headphones.",
+      alternates: { canonical: "/shop" },
+    };
+  }
+  const copy = FAVOURITES_COPY[collection];
+  return {
+    title: copy.heading,
+    description: `${copy.subtitle}. Shop ${copy.heading.toLowerCase()} mobile phone accessories at TrendyMall.`,
+    alternates: { canonical: `/shop?collection=${COLLECTION_SLUGS[collection]}` },
+  };
+}
 
 const PAGE_SIZE = 24;
 
@@ -62,14 +85,33 @@ export default async function ShopPage({
   // before this redesign.
   const matchIds = q ? await getSearchMatchIds(q) : null;
 
+  // The collection narrows the catalogue to an explicit id set BEFORE any
+  // other filter -- the same membership the homepage carousel shows,
+  // resolved by the same shared function, just without its 12-product cap.
+  // Every other filter (category, brand, price, ...) then applies on top,
+  // exactly as they do on top of a search term.
+  const collectionIds = state.collection
+    ? await getCachedCollectionProductIds(state.collection)
+    : null;
+  // A collection combined with a search term intersects the two id sets,
+  // so neither silently wins over the other.
+  const restrictIds =
+    collectionIds && matchIds
+      ? collectionIds.filter((id) => matchIds.includes(id))
+      : (collectionIds ?? matchIds);
+
   // The search branch stays uncached on purpose: a free-text query is an
   // unbounded cache key space, and it's the minority path. Plain /shop --
   // what most visitors and every crawler request -- is the cached one.
   const [products, totalCount, facetCounts, hasReviews, shopCampaigns] = await Promise.all([
-    matchIds ? searchProducts(q, filters) : getCachedAllProducts(filters),
+    collectionIds
+      ? getCachedProductsByIdSet(restrictIds ?? [], filters)
+      : matchIds
+        ? searchProducts(q, filters)
+        : getCachedAllProducts(filters),
     getCachedPublishedProductCount(),
-    matchIds
-      ? getFacetCounts(filters, { includeCategoryFacet: true, restrictToIds: matchIds })
+    restrictIds
+      ? getFacetCounts(filters, { includeCategoryFacet: true, restrictToIds: restrictIds })
       : getCachedFacetCounts(filters, { includeCategoryFacet: true }),
     getCachedHasAnyApprovedReviews(),
     getCachedShopCampaigns(),
@@ -98,7 +140,22 @@ export default async function ShopPage({
       {/* Hero/header section (eyebrow label, "Shop All" heading, subtitle,
           and the 4-stat strip) removed per request -- breadcrumb now flows
           directly into the campaign banner/filters/grid below. */}
-      <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Shop" }]} />
+      <Breadcrumbs
+        items={
+          state.collection
+            ? [
+                { label: "Home", href: "/" },
+                { label: "Shop", href: "/shop" },
+                { label: FAVOURITES_COPY[state.collection].heading },
+              ]
+            : [{ label: "Home", href: "/" }, { label: "Shop" }]
+        }
+      />
+
+      {/* Only rendered for a collection. The plain /shop page deliberately
+          has no heading (removed in an earlier pass), so this adds one for
+          the named-collection case rather than reinstating one everywhere. */}
+      {state.collection && <CollectionHeader mode={state.collection} state={state} />}
 
       <div className="mt-6">
         <CampaignBannerCarousel campaigns={shopCampaigns} />

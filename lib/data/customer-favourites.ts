@@ -13,25 +13,38 @@ import {
 import type { FavouritesMode } from "@/lib/customer-favourites";
 import type { ProductWithPrimaryImage } from "@/types";
 
-// The homepage "Customer Favourites" carousel's data. Products come back
-// through getProductsByIds -- the same pipeline /shop, /category and the
-// campaign sections use -- so pricing, campaign badges, primary images and
-// variant resolution are identical to every other grid on the site and
-// there is no second product-shaping path to keep in sync.
+// THE one place that decides what "Top Rated" and "Best Sellers" mean.
+//
+// getCollectionProductIds is called by BOTH the homepage carousel (with a
+// limit) and /shop?collection= (without one), so the shelf and the "View
+// all" page it links to can never disagree about which products qualify.
+// Nothing else in the app reimplements these rules.
+//
+// Products themselves come back through getProductsByIds -- the same
+// pipeline /shop, /category and the campaign sections use -- so pricing,
+// campaign badges, primary images and variant resolution are identical to
+// every other grid, and there is no second product-shaping path.
+
+export interface CustomerRating {
+  avgRating: number;
+  reviewCount: number;
+}
+
+export interface ReviewSnippet {
+  comment: string;
+  reviewerFirstName: string | null;
+}
 
 export interface FavouriteProduct extends ProductWithPrimaryImage {
   // Customer-only rating, from product_customer_rating_summary. This
-  // deliberately SHADOWS the avgRating/reviewCount that
-  // getProductsByIds attaches: those come from product_rating_summary,
-  // which counts admin-authored reviews too. Nothing else on the site
-  // needs that distinction today, so the override is applied here rather
-  // than changing the shared product shape.
+  // deliberately SHADOWS the avgRating/reviewCount getProductsByIds
+  // attaches: those come from product_rating_summary, which counts
+  // admin-authored reviews too.
   avgRating: number;
   reviewCount: number;
-  // How many active variants the product has. Drives the card's Add to
-  // Cart rule: exactly one variant can be added straight from the card,
-  // more than one has to be chosen on the product page.
-  variantCount: number;
+  // The quote under the rating row, or null when no approved customer
+  // review with text and 4+ stars exists (sql/080 applies those rules).
+  review: ReviewSnippet | null;
 }
 
 export interface CustomerFavourites {
@@ -39,12 +52,7 @@ export interface CustomerFavourites {
   products: FavouriteProduct[];
 }
 
-// Customer-only ratings for a set of products, keyed by product id. Reads
-// the view added in sql/079, which excludes reviews written from admin
-// accounts; see that migration for why this can't be an app-side join.
-async function getCustomerRatings(
-  productIds: string[],
-): Promise<Map<string, { avgRating: number; reviewCount: number }>> {
+async function getCustomerRatings(productIds: string[]): Promise<Map<string, CustomerRating>> {
   if (productIds.length === 0) return new Map();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -61,64 +69,33 @@ async function getCustomerRatings(
   );
 }
 
-// Active variants per product, in one batched query rather than one per
-// card.
-async function getVariantCounts(productIds: string[]): Promise<Map<string, number>> {
+async function getReviewSnippets(productIds: string[]): Promise<Map<string, ReviewSnippet>> {
   if (productIds.length === 0) return new Map();
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("product_variants")
-    .select("product_id")
-    .in("product_id", productIds)
-    .eq("is_active", true);
+    .from("product_customer_review_snippets")
+    .select("product_id, comment, reviewer_first_name")
+    .in("product_id", productIds);
 
   if (error) throw error;
-  const counts = new Map<string, number>();
-  for (const row of data ?? []) {
-    counts.set(row.product_id, (counts.get(row.product_id) ?? 0) + 1);
-  }
-  return counts;
+  return new Map(
+    (data ?? []).map((row) => [
+      row.product_id as string,
+      { comment: row.comment as string, reviewerFirstName: row.reviewer_first_name as string | null },
+    ]),
+  );
 }
 
-// Shapes a set of product ids into cards, in the order given, dropping any
-// product that is no longer live. Ratings and variant counts are attached
-// here so both modes produce exactly the same card shape.
-async function buildFavourites(
-  orderedIds: string[],
-  ratings: Map<string, { avgRating: number; reviewCount: number }>,
-): Promise<FavouriteProduct[]> {
-  if (orderedIds.length === 0) return [];
-  const [products, variantCounts] = await Promise.all([
-    getProductsByIds(orderedIds),
-    getVariantCounts(orderedIds),
-  ]);
-  const byId = new Map(products.map((p) => [p.id, p]));
+// --- the shared rules --------------------------------------------------
 
-  return orderedIds
-    .map((id) => {
-      const product = byId.get(id);
-      if (!product) return null;
-      const rating = ratings.get(id);
-      return {
-        ...product,
-        avgRating: rating?.avgRating ?? 0,
-        reviewCount: rating?.reviewCount ?? 0,
-        variantCount: variantCounts.get(id) ?? 0,
-      } satisfies FavouriteProduct;
-    })
-    .filter((p): p is FavouriteProduct => p != null)
-    .filter((p) => p.stock > 0);
-}
-
-// MODE A. Every in-stock published product whose CUSTOMER reviews clear
-// both thresholds, best-rated first.
-async function getTopRatedIds(): Promise<{
-  ids: string[];
-  ratings: Map<string, { avgRating: number; reviewCount: number }>;
-}> {
+// MODE A membership. `limit` omitted = every qualifying product, which is
+// what /shop?collection=top-rated needs; the carousel passes SECTION_LIMIT.
+async function getTopRatedIds(
+  limit?: number,
+): Promise<{ ids: string[]; ratings: Map<string, CustomerRating> }> {
   const supabase = await createClient();
-  // The rating bar is applied in the database so a store with thousands of
-  // products doesn't pull every rating row back to filter in memory.
+  // The rating bar is applied in the database so a large catalogue doesn't
+  // pull every rating row back to filter in memory.
   const { data: ratingRows, error } = await supabase
     .from("product_customer_rating_summary")
     .select("product_id, avg_rating, review_count")
@@ -129,9 +106,6 @@ async function getTopRatedIds(): Promise<{
   const candidateIds = (ratingRows ?? []).map((r) => r.product_id as string);
   if (candidateIds.length === 0) return { ids: [], ratings: new Map() };
 
-  // Only genuinely live, in-stock products can qualify. created_at comes
-  // back here so the sort's newest-product tie-break doesn't need a second
-  // read.
   const { data: liveRows, error: liveError } = await supabase
     .from("products")
     .select("id, created_at")
@@ -142,7 +116,7 @@ async function getTopRatedIds(): Promise<{
 
   if (liveError) throw liveError;
 
-  const ratings = new Map(
+  const ratings = new Map<string, CustomerRating>(
     (ratingRows ?? []).map((r) => [
       r.product_id as string,
       { avgRating: Number(r.avg_rating ?? 0), reviewCount: Number(r.review_count ?? 0) },
@@ -155,25 +129,21 @@ async function getTopRatedIds(): Promise<{
       createdAt: row.created_at,
       ...(ratings.get(row.id) ?? { avgRating: 0, reviewCount: 0 }),
     })),
-  )
-    // Belt and braces: the thresholds are already applied above, but this
-    // keeps the qualification rule in one place (lib/customer-favourites)
-    // rather than only in a query.
-    .filter(qualifiesAsTopRated)
-    .slice(0, SECTION_LIMIT);
+  ).filter(qualifiesAsTopRated);
 
-  return { ids: ranked.map((r) => r.id), ratings };
+  return { ids: (limit == null ? ranked : ranked.slice(0, limit)).map((r) => r.id), ratings };
 }
 
-// MODE B. Units sold in delivered orders over the configured window, via
-// the security-definer function in sql/079 (orders are not readable by a
-// storefront visitor). Falls back to newest products when there is no
-// order history yet.
-async function getBestSellerIds(): Promise<string[]> {
+// MODE B membership, via the security-definer function in sql/079 (orders
+// are not readable by a storefront visitor). Falls back to newest products
+// when there is no order history yet.
+async function getBestSellerIds(limit?: number): Promise<string[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_recent_top_sellers", {
     p_days: BEST_SELLER_WINDOW_DAYS,
-    p_limit: SECTION_LIMIT,
+    // The RPC needs a bound; without a caller limit ask for far more than
+    // any realistic best-seller list, rather than leaving it unbounded.
+    p_limit: limit ?? 1000,
   });
 
   if (error) throw error;
@@ -181,39 +151,83 @@ async function getBestSellerIds(): Promise<string[]> {
   if (ids.length >= SECTION_MIN_PRODUCTS) return ids;
 
   // No meaningful sales yet -- show the newest live stock instead of an
-  // empty section. Deliberately not merged with the partial sales list:
+  // empty shelf. Deliberately not merged with the partial sales list:
   // mixing "sold 4" with "just arrived" would make the ordering meaningless.
-  const { data: newest, error: newestError } = await supabase
+  let newestQuery = supabase
     .from("products")
     .select("id")
     .eq("status", "published")
     .eq("is_deleted", false)
     .gt("stock", 0)
-    .order("created_at", { ascending: false })
-    .limit(SECTION_LIMIT);
+    .order("created_at", { ascending: false });
+  if (limit != null) newestQuery = newestQuery.limit(limit);
 
+  const { data: newest, error: newestError } = await newestQuery;
   if (newestError) throw newestError;
   return (newest ?? []).map((row) => row.id);
 }
 
 /**
- * The whole section's data, mode included. Returns null when neither mode
- * can fill a credible carousel, and the section then renders nothing at
- * all rather than a half-empty row.
+ * Product ids for one collection, in its ranked order. THE shared entry
+ * point: the homepage carousel and /shop?collection= both call this, so a
+ * product can never appear on the shelf but be missing from "View all".
+ * Omit `limit` for every qualifying product.
+ */
+export async function getCollectionProductIds(
+  mode: FavouritesMode,
+  limit?: number,
+): Promise<string[]> {
+  if (mode === "top_rated") return (await getTopRatedIds(limit)).ids;
+  return getBestSellerIds(limit);
+}
+
+// --- card shaping ------------------------------------------------------
+
+async function buildFavourites(
+  orderedIds: string[],
+  ratings: Map<string, CustomerRating>,
+): Promise<FavouriteProduct[]> {
+  if (orderedIds.length === 0) return [];
+  const [products, snippets] = await Promise.all([
+    getProductsByIds(orderedIds),
+    getReviewSnippets(orderedIds),
+  ]);
+  const byId = new Map(products.map((p) => [p.id, p]));
+
+  return orderedIds
+    .map((id) => {
+      const product = byId.get(id);
+      if (!product) return null;
+      const rating = ratings.get(id);
+      return {
+        ...product,
+        avgRating: rating?.avgRating ?? 0,
+        reviewCount: rating?.reviewCount ?? 0,
+        review: snippets.get(id) ?? null,
+      } satisfies FavouriteProduct;
+    })
+    .filter((p): p is FavouriteProduct => p != null)
+    .filter((p) => p.stock > 0);
+}
+
+/**
+ * The homepage carousel's data, mode included. Returns null when neither
+ * mode can fill a credible carousel, and the section then renders nothing
+ * at all rather than a half-empty row.
  */
 export async function getCustomerFavourites(): Promise<CustomerFavourites | null> {
-  const { ids: topRatedIds, ratings: topRatedRatings } = await getTopRatedIds();
+  const { ids: topRatedIds, ratings: topRatedRatings } = await getTopRatedIds(SECTION_LIMIT);
   const mode = pickFavouritesMode(topRatedIds.length);
 
   if (mode === "top_rated") {
     const products = await buildFavourites(topRatedIds, topRatedRatings);
     if (products.length >= SECTION_MIN_PRODUCTS) return { mode, products };
     // The rating rows said there were enough, but shaping them dropped
-    // some (unpublished between the two reads, say). Rather than render a
-    // thin Top Rated row, fall through to Best Sellers.
+    // some (unpublished between the two reads, say) -- fall through rather
+    // than render a thin Top Rated row.
   }
 
-  const bestSellerIds = await getBestSellerIds();
+  const bestSellerIds = await getBestSellerIds(SECTION_LIMIT);
   const ratings = await getCustomerRatings(bestSellerIds);
   const products = await buildFavourites(bestSellerIds, ratings);
   if (products.length < SECTION_MIN_PRODUCTS) return null;

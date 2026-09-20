@@ -3,14 +3,13 @@
 import { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Check, Heart, ShoppingCart, Star } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useToast } from "@/components/ui/ToastProvider";
 import { trackConversion } from "@/lib/analytics/track";
 import { formatPrice } from "@/lib/utils";
-import { discountPercent, shortDescription } from "@/lib/customer-favourites";
+import { discountPercent, reviewQuote, reviewerFirstName } from "@/lib/customer-favourites";
 import type { FavouriteProduct } from "@/lib/data/customer-favourites";
 
 // The horizontal card in the homepage's Customer Favourites carousel:
@@ -73,7 +72,6 @@ export function FavouriteProductCard({
   const { addItem } = useCart();
   const { toggle, has } = useWishlist();
   const { showToast } = useToast();
-  const router = useRouter();
   const [status, setStatus] = useState<"idle" | "adding" | "added">("idle");
   // Survives the re-render the success state causes, so a second tap
   // during the success window can't queue a second add.
@@ -81,21 +79,19 @@ export function FavouriteProductCard({
 
   const price = product.special_price ?? product.actual_price;
   const percent = discountPercent(product.actual_price, product.special_price);
-  const description = shortDescription(product);
+  const quote = reviewQuote(product.review?.comment);
+  const reviewer = reviewerFirstName(product.review?.reviewerFirstName);
   const wishlisted = has(product.id);
   const href = `/product/${product.slug}`;
-  // More than one variant means there is a real choice to make (colour,
-  // size); the card must not pick one on the customer's behalf.
-  const needsVariantChoice = product.variantCount > 1;
 
+  // Every card adds to the cart; none of them navigate. For a
+  // multi-variant product that means the DEFAULT variant, which is exactly
+  // what product.defaultVariantId already is: pickWinningVariant prefers
+  // in-stock variants over out-of-stock ones and is the same tie-break the
+  // product page pre-selects, so "default, or the first in-stock one if
+  // the default is sold out" needs no extra logic here.
   function handleAddToCart() {
     if (busyRef.current) return;
-
-    if (needsVariantChoice) {
-      router.push(href);
-      return;
-    }
-
     busyRef.current = true;
     setStatus("adding");
     try {
@@ -142,17 +138,11 @@ export function FavouriteProductCard({
 
   return (
     <article
-      className={`group relative flex h-[216px] w-full gap-3 rounded-xl bg-[#F3F4F6] p-3.5 transition-[transform,box-shadow] duration-200 md:h-[292px] md:gap-[18px] md:p-5 ${
+      className={`group relative flex h-[264px] w-full cursor-pointer gap-3 rounded-xl bg-[#F3F4F6] px-3.5 pt-3.5 pb-6 transition-[transform,box-shadow] duration-200 md:h-[292px] md:gap-[18px] md:px-5 md:pt-5 md:pb-[30px] ${
         // No lift for anyone who has asked for less motion.
         "motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-[0_10px_28px_rgba(15,45,82,0.10)]"
       }`}
     >
-      {/* The card-wide link. Under the buttons in the stacking order, so
-          they stay clickable, and labelled by the product name. */}
-      <Link href={href} className="absolute inset-0 z-0 rounded-xl" aria-label={product.name}>
-        <span className="sr-only">{product.name}</span>
-      </Link>
-
       {/* Image column */}
       <div className="relative w-[104px] shrink-0 md:w-[160px]">
         <span className="absolute top-0 left-0 z-10 inline-flex items-center gap-1 rounded-md bg-[#0F2D52] px-2 py-1 text-[10px] font-semibold text-white md:px-2.5 md:text-[11px]">
@@ -186,8 +176,25 @@ export function FavouriteProductCard({
             card (measured 61/68/70px from the card top). Held at exactly
             two lines, every card's price, rating and description start at
             the same y. */}
-        <h3 className="font-heading line-clamp-2 h-[38px] shrink-0 text-[14.5px] leading-[19px] font-semibold text-[#0F2D52] md:h-11 md:text-[17px] md:leading-[22px]">
-          {product.name}
+        {/* The stretched link: the product name is the real <a>, and its
+            ::after covers the whole card, so tapping the image, badge,
+            price, rating, quote or empty space opens the product page --
+            without wrapping buttons inside an anchor, which is invalid
+            markup and breaks keyboard activation. The two buttons below
+            sit above this pseudo-element with their own z-index.
+
+            font-semibold! (important) is required, not stylistic:
+            app/globals.css sets a bare `h1..h6 { font-weight: 800 }` in an
+            UNLAYERED rule, which outranks Tailwind's layered utilities, so
+            a plain font-semibold rendered at 800 here. Same fix pattern as
+            w-auto!/rounded-none! elsewhere in this codebase. */}
+        <h3 className="font-heading h-[38px] shrink-0 text-[14.5px] leading-[19px] font-semibold! text-[#0F2D52] md:h-11 md:text-[17px] md:leading-[22px]">
+          <Link
+            href={href}
+            className="line-clamp-2 after:absolute after:inset-0 after:rounded-xl after:content-['']"
+          >
+            {product.name}
+          </Link>
         </h3>
 
         <p className="font-heading mt-1 shrink-0 text-[19px] font-bold text-[#111111] md:mt-1.5 md:text-[22px]">
@@ -213,29 +220,40 @@ export function FavouriteProductCard({
           </div>
         )}
 
-        {/* max-md:hidden, NOT "hidden md:block": line-clamp-2 works by
-            setting display:-webkit-box, and md:block would overwrite that
-            display at exactly the breakpoint where the line is shown --
-            which silently un-clamped it and let four lines render down into
-            the button row. Hiding via max-md: leaves the clamp's own
-            display rule intact. */}
-        {description && (
-          <p className="mt-1.5 line-clamp-2 text-[13px] leading-[19px] text-[#6B7280] max-md:hidden">
-            {description}
+        {/* One real customer quote, directly under the stars. Nothing here
+            uses a display utility at any breakpoint, so line-clamp-2's own
+            display:-webkit-box survives -- an md:block here is exactly what
+            previously un-clamped the old description line and let it spill
+            into the button row. Regular weight on purpose: the quote is
+            supporting evidence, not a heading. */}
+        {quote && (
+          <p className="mt-1 line-clamp-2 text-xs leading-[17px] font-normal text-[#4B5563] md:mt-1.5 md:text-[13px] md:leading-[19px]">
+            &ldquo;{quote}&rdquo;
+          </p>
+        )}
+        {/* The reviewer's name is its OWN line, not appended inside the
+            paragraph above. Inside it, the clamp cuts it off: a quote long
+            enough to be worth printing already fills both lines, so the
+            name was in the DOM but never on screen (measured at 110, then
+            at 70 characters -- both clipped). Desktop only, first name
+            only, never a surname, e-mail or phone number (see
+            reviewerFirstName and sql/080). */}
+        {quote && reviewer && (
+          <p className="hidden truncate text-[13px] leading-[19px] text-[#6B7280] md:block">
+            — {reviewer}
           </p>
         )}
 
         {/* Pinned to the bottom, above the card link so both stay clickable. */}
+        {/* relative + z-10 lifts these above the name link's ::after, which
+            is what keeps them clickable while the rest of the card is a
+            link. */}
         <div className="relative z-10 mt-auto flex items-center gap-2 pt-2">
           <button
             type="button"
             onClick={handleAddToCart}
             disabled={status !== "idle"}
-            aria-label={
-              needsVariantChoice
-                ? `Choose options for ${product.name}`
-                : `Add ${product.name} to cart`
-            }
+            aria-label={`Add ${product.name} to cart`}
             className={`transition-brand flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-white disabled:cursor-default ${
               status === "added" ? "bg-[#15803D]" : "bg-[#0F2D52] hover:bg-[#163B69]"
             }`}

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
@@ -21,7 +22,7 @@ import { ActiveCampaignSections } from "@/components/marketing/ActiveCampaignSec
 import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
-import { CustomerFavouritesSection } from "@/components/marketing/CustomerFavouritesSection";
+import { CustomerFavouritesSection, CustomerFavouritesSkeleton } from "@/components/marketing/CustomerFavouritesSection";
 import { ShopByBrandSection } from "@/components/marketing/ShopByBrandSection";
 import { WhyShopWithUs } from "@/components/marketing/WhyShopWithUs";
 import { CustomerReviews } from "@/components/marketing/CustomerReviews";
@@ -192,7 +193,12 @@ export default async function HomePage() {
           only consumer of it, and it decides its own mode server-side), so
           it is a plain child here rather than another prop threaded
           through this page's data block. */}
-      <CustomerFavouritesSection />
+      {/* Suspense so the rest of the homepage is not held behind this
+          section's own query, with a fallback at the final card size so
+          nothing below it shifts when the cards arrive. */}
+      <Suspense fallback={<CustomerFavouritesSkeleton />}>
+        <CustomerFavouritesSection />
+      </Suspense>
 
       {/* Directly above Why Shop With Us, per the brand-pages ticket. This
           section fetches its own data (it is the only consumer of it), so

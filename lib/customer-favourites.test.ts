@@ -5,7 +5,9 @@ import {
   qualifiesAsTopRated,
   sortTopRated,
   discountPercent,
-  shortDescription,
+  reviewQuote,
+  reviewerFirstName,
+  parseCollection,
   FAVOURITES_COPY,
   SECTION_MIN_PRODUCTS,
   TOP_RATED_MIN_RATING,
@@ -98,38 +100,84 @@ describe("discountPercent", () => {
   });
 });
 
-describe("shortDescription", () => {
-  test("prefers the admin-authored meta description", () => {
-    assert.equal(
-      shortDescription({ meta_description: "Crisp sound, all day.", description: "<p>Long copy</p>" }),
-      "Crisp sound, all day.",
-    );
+describe("reviewQuote", () => {
+  test("plain text passes through", () => {
+    assert.equal(reviewQuote("Great sound for the price"), "Great sound for the price");
   });
 
-  test("falls back to the real description with HTML stripped and whitespace collapsed", () => {
-    assert.equal(
-      shortDescription({ meta_description: null, description: "<p>Great   <b>sound</b></p>" }),
-      "Great sound",
-    );
+  test("HTML is stripped and whitespace collapsed", () => {
+    assert.equal(reviewQuote("<b>Great</b>   sound" + String.fromCharCode(10, 10) + "here"), "Great sound here");
   });
 
-  test("an empty meta description is ignored rather than shown as blank", () => {
-    assert.equal(
-      shortDescription({ meta_description: "   ", description: "<p>Real copy</p>" }),
-      "Real copy",
-    );
+  test("nothing to show returns null so the line is omitted", () => {
+    assert.equal(reviewQuote(null), null);
+    assert.equal(reviewQuote(""), null);
+    assert.equal(reviewQuote("   "), null);
+    assert.equal(reviewQuote("<p> </p>"), null);
   });
 
-  test("nothing to show at all returns null so the card can omit the line", () => {
-    assert.equal(shortDescription({ meta_description: null, description: "" }), null);
-    assert.equal(shortDescription({ meta_description: null, description: "<p> </p>" }), null);
+  // Real data hit this: a review comment pasted in from a formatted source
+  // arrived full of markdown, which would otherwise have printed literally.
+  test("markdown emphasis is stripped, not printed", () => {
+    assert.equal(reviewQuote("**AirPods Pro** deliver rich sound"), "AirPods Pro deliver rich sound");
+    assert.equal(reviewQuote("_really_ `good` ~stuff~"), "really good stuff");
   });
 
-  test("long copy is truncated with an ellipsis", () => {
-    const long = "word ".repeat(100);
-    const out = shortDescription({ meta_description: null, description: long }, 40);
+  test("markdown links keep their label and drop the URL", () => {
+    assert.equal(reviewQuote("See [the specs](https://example.com) here"), "See the specs here");
+  });
+
+  test("reference-style link definitions are dropped entirely", () => {
+    const out = reviewQuote("Great sound" + String.fromCharCode(10) + "[1]: https://example.com \"Title\"");
+    assert.equal(out, "Great sound");
+  });
+
+  test("heading, quote and list markers are stripped", () => {
+    assert.equal(reviewQuote("> Premium sound"), "Premium sound");
+    assert.equal(reviewQuote("## Great" + String.fromCharCode(10) + "- crisp"), "Great crisp");
+  });
+
+  test("long quotes are truncated with an ellipsis", () => {
+    const out = reviewQuote("x".repeat(300), 40);
+    assert.equal(out?.length, 41);
     assert.equal(out?.endsWith("…"), true);
-    assert.ok((out?.length ?? 0) <= 41);
+  });
+});
+
+describe("reviewerFirstName", () => {
+  test("takes only the first name, never the surname", () => {
+    assert.equal(reviewerFirstName("Fathima Rizwan"), "Fathima");
+    assert.equal(reviewerFirstName("  Nuwan   Perera  "), "Nuwan");
+  });
+
+  test("no name available returns null so the card omits it", () => {
+    assert.equal(reviewerFirstName(null), null);
+    assert.equal(reviewerFirstName(""), null);
+    assert.equal(reviewerFirstName("   "), null);
+  });
+
+  test("an e-mail or phone number is never printed as a name", () => {
+    assert.equal(reviewerFirstName("someone@example.com"), null);
+    assert.equal(reviewerFirstName("0771234567"), null);
+    assert.equal(reviewerFirstName("+94 77 123 4567"), null);
+  });
+});
+
+describe("parseCollection", () => {
+  test("recognises both collection slugs", () => {
+    assert.equal(parseCollection("top-rated"), "top_rated");
+    assert.equal(parseCollection("best-sellers"), "best_sellers");
+  });
+
+  test("is forgiving about case and surrounding space", () => {
+    assert.equal(parseCollection("  Top-Rated "), "top_rated");
+  });
+
+  test("an unknown or missing value is ignored, not an error", () => {
+    assert.equal(parseCollection("xyz"), null);
+    assert.equal(parseCollection(""), null);
+    assert.equal(parseCollection(undefined), null);
+    assert.equal(parseCollection(null), null);
   });
 });
 
@@ -137,12 +185,12 @@ describe("FAVOURITES_COPY", () => {
   test("each mode's heading, badge, link and aria label move together", () => {
     assert.equal(FAVOURITES_COPY.top_rated.heading, "Top Rated");
     assert.equal(FAVOURITES_COPY.top_rated.badge, "Top Rated");
-    assert.equal(FAVOURITES_COPY.top_rated.href, "/shop?sort=highest_rated");
+    assert.equal(FAVOURITES_COPY.top_rated.href, "/shop?collection=top-rated");
     assert.equal(FAVOURITES_COPY.top_rated.ariaLabel, "Top rated products");
 
     assert.equal(FAVOURITES_COPY.best_sellers.heading, "Best Sellers");
     assert.equal(FAVOURITES_COPY.best_sellers.badge, "Best Seller");
-    assert.equal(FAVOURITES_COPY.best_sellers.href, "/shop?sort=best_selling");
+    assert.equal(FAVOURITES_COPY.best_sellers.href, "/shop?collection=best-sellers");
     assert.equal(FAVOURITES_COPY.best_sellers.ariaLabel, "Best selling products");
   });
 

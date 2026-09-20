@@ -2004,6 +2004,27 @@ export interface Database {
           },
         ];
       };
+      // sql/080. One quote per product for the Customer Favourites card:
+      // the most recent approved, 4-or-better, non-empty review written by
+      // a non-admin account. Exposes the reviewer's FIRST NAME only.
+      product_customer_review_snippets: {
+        Row: {
+          product_id: string;
+          comment: string;
+          rating: number;
+          created_at: string;
+          reviewer_first_name: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_sales_summary: {
         Row: {
           product_id: string;
