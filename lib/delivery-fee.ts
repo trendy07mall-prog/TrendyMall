@@ -127,6 +127,34 @@ export function calculateDeliveryFee(
 
   const normalized = normalizePostalCode(input.postalCode);
   const matched = matchZone(input.district, normalized, zones);
+
+  // Log only -- the fallback behaviour below is unchanged.
+  //
+  // matchZone returns the default zone whenever the table is usable, so a
+  // null here means the zones array was empty or had no default: either
+  // getActiveDeliveryZones() hit an error (it swallows one and returns [])
+  // or every zone is inactive. Both are silent failures that quietly swap
+  // admin-configured rates for the hardcoded constants below, and the
+  // constants currently happen to equal the live rates -- so nothing on
+  // screen looks wrong and the substitution is invisible.
+  //
+  // That is not hypothetical: a delivery zone was accidentally deactivated
+  // on 2026-09-21 and the storefront kept displaying the right-looking
+  // numbers from these constants, which made the cause very hard to see.
+  // This line is the record that would have made it obvious.
+  if (!matched) {
+    console.warn(
+      "[delivery-fee] no usable delivery zone — falling back to hardcoded rates",
+      {
+        district: input.district,
+        postalCode: normalized,
+        zonesReceived: zones.length,
+        activeZoneNames: zones.map((zone) => zone.name),
+        fallbackRate: RATE_OUTSIDE_ZONE,
+      },
+    );
+  }
+
   return matched?.rate ?? RATE_OUTSIDE_ZONE;
 }
 
