@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { FadeIn } from "@/components/motion/FadeIn";
+import { optimizeRichTextImages } from "@/lib/rich-text";
 
 // Shared "full policy text" card for the redesigned Shipping/Returns/
 // Warranty pages -- the new visual sections (rate cards, comparisons,
@@ -25,7 +26,12 @@ export function PolicyDetailsCard({
         <FadeIn>
           <div className="mx-auto max-w-3xl rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-[var(--card-padding)] sm:p-8">
             <h2 className="font-heading text-lg font-bold">{title}</h2>
-            <div className="prose-editor mt-3 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />
+            {/* Same rewrite as the other two admin-HTML surfaces, for the
+                same reason -- see lib/rich-text.ts. */}
+            <div
+              className="prose-editor mt-3 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: optimizeRichTextImages(html) }}
+            />
             {children}
           </div>
         </FadeIn>

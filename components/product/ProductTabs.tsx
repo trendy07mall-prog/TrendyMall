@@ -13,6 +13,7 @@ type Tab = "description" | "specifications" | "reviews" | "shipping";
 
 export function ProductTabs({
   product,
+  descriptionHtml,
   categoryName,
   specs,
   reviews,
@@ -20,6 +21,12 @@ export function ProductTabs({
   reviewState,
 }: {
   product: Product;
+  // product.description with its <img> tags already routed through the
+  // image optimizer (lib/rich-text.ts). Passed in rather than derived
+  // here so the rewrite happens once, on the server, instead of in every
+  // client render -- and so this component never has to know the storage
+  // URL shape.
+  descriptionHtml: string;
   categoryName: string;
   specs: DisplaySpec[];
   reviews: ReviewWithReviewerName[];
@@ -78,6 +85,13 @@ export function ProductTabs({
       </div>
 
       <div className="rounded-b-[var(--radius-lg)] border border-t-0 border-[var(--border)] bg-[var(--color-card)]">
+        {/* All four panels mount, with `hidden` toggling which one shows.
+            Deliberate: specifications, reviews and shipping are real page
+            copy that should be in the server-rendered HTML whether or not
+            a visitor clicks the tab, and none of them contain an image, so
+            mounting them costs nothing in decoded memory. The description
+            is the one panel that DID cost something, and that is fixed at
+            the image level instead — see lib/rich-text.ts. */}
         <div
           role="tabpanel"
           id="panel-description"
@@ -85,8 +99,10 @@ export function ProductTabs({
           hidden={active !== "description"}
           className="prose-editor p-6 text-sm text-[var(--muted)]"
           // Sanitized server-side (sanitize-html) before it was ever
-          // stored — see lib/admin/products.ts.
-          dangerouslySetInnerHTML={{ __html: product.description }}
+          // stored — see lib/admin/products.ts — and its <img> tags
+          // rewritten on read so they are served through the image
+          // optimizer at a capped width, lazily: lib/rich-text.ts.
+          dangerouslySetInnerHTML={{ __html: descriptionHtml }}
         />
 
         <div

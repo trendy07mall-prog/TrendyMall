@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "6mb",
     },
   },
+  // sharp is a native binary and must not be traced into the server bundle
+  // -- lib/admin/uploads.ts now imports it at request time to downscale
+  // inline description images before storing them.
+  serverExternalPackages: ["sharp"],
   images: {
     // HeroSlider requests quality={88}; Next 16 rejects any quality not
     // explicitly listed here (75 is the implicit default used everywhere

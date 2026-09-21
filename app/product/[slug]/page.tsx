@@ -16,6 +16,7 @@ import { hasUserReviewed } from "@/lib/reviews";
 import { getAuthUser } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { ProductPurchaseSection } from "@/components/product/ProductPurchaseSection";
+import { optimizeRichTextImages } from "@/lib/rich-text";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { RecordRecentlyViewed } from "@/components/product/RecordRecentlyViewed";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
@@ -186,6 +187,10 @@ export default async function ProductPage({
         reviewState={reviewState}
         tags={tags}
         zones={zones}
+        // Rewritten server-side, once per render, rather than in the
+        // client component that renders it: see lib/rich-text.ts for why
+        // stored description images need it at all.
+        descriptionHtml={optimizeRichTextImages(product.description)}
       />
 
       <RelatedProducts products={relatedProducts} />

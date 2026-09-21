@@ -1,4 +1,5 @@
 import { PageShell } from "@/components/content/PageShell";
+import { optimizeRichTextImages } from "@/lib/rich-text";
 
 // Shared shell for every policy page (Shipping/Returns/Privacy/Terms/
 // Warranty, Phase 4) -- `html` is the admin-editable body, sanitized
@@ -18,7 +19,10 @@ export function PolicyBody({
 }) {
   return (
     <PageShell title={title}>
-      <div className="prose-editor" dangerouslySetInnerHTML={{ __html: html }} />
+      {/* Rewritten here rather than at each call site so a policy page
+          that gains an image later cannot quietly reintroduce the
+          full-resolution decode this fixed -- see lib/rich-text.ts. */}
+      <div className="prose-editor" dangerouslySetInnerHTML={{ __html: optimizeRichTextImages(html) }} />
       {children}
     </PageShell>
   );

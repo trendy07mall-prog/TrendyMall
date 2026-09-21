@@ -413,6 +413,10 @@ input:-webkit-autofill:focus {
 }
 .prose-editor img {
   max-width: 100%;
+  /* These now carry a srcset (lib/rich-text.ts), so the intrinsic size of
+     whichever candidate the browser picks varies -- height must follow the
+     constrained width rather than any inherited value. */
+  height: auto;
   border-radius: var(--radius-sm);
   margin: 0.75em 0;
 }

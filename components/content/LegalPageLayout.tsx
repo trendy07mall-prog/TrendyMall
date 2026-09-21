@@ -2,6 +2,7 @@ import { Breadcrumbs, type Crumb } from "@/components/product/Breadcrumbs";
 import { PageHero } from "@/components/content/PageHero";
 import { PolicyToc } from "@/components/content/PolicyToc";
 import type { PolicyTocEntry } from "@/lib/policy-toc";
+import { optimizeRichTextImages } from "@/lib/rich-text";
 
 function formatLastUpdated(iso: string | null): string {
   if (!iso) return "";
@@ -50,7 +51,12 @@ export function LegalPageLayout({
         <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
           <PolicyToc toc={toc} />
           <div className="min-w-0 flex-1">
-            <div className="legal-policy-body prose-editor text-sm text-[var(--foreground)]" dangerouslySetInnerHTML={{ __html: html }} />
+            {/* See lib/rich-text.ts: stored <img> tags are routed through
+                the image optimizer at a capped width and lazy-loaded. */}
+            <div
+              className="legal-policy-body prose-editor text-sm text-[var(--foreground)]"
+              dangerouslySetInnerHTML={{ __html: optimizeRichTextImages(html) }}
+            />
             {children}
           </div>
         </div>

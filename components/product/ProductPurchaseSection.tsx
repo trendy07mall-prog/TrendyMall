@@ -59,6 +59,7 @@ export function ProductPurchaseSection({
   reviewState,
   tags,
   zones,
+  descriptionHtml,
 }: {
   product: Product;
   images: string[];
@@ -71,6 +72,7 @@ export function ProductPurchaseSection({
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
   tags: { name: string; slug: string }[];
   zones: DeliveryZone[];
+  descriptionHtml: string;
 }) {
   // ?variant=<id> deep link -- set by campaign-context product cards
   // (ActiveCampaignSections.tsx, /campaign/[slug]'s ProductGrid) so the PDP
@@ -718,6 +720,7 @@ export function ProductPurchaseSection({
 
     <ProductTabs
       product={product}
+      descriptionHtml={descriptionHtml}
       categoryName={categoryName}
       specs={specs}
       reviews={reviews}
