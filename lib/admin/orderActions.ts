@@ -3,6 +3,8 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
+import { getAdminOrderIdsForFilters } from "@/lib/admin/orders-query";
+import type { AdminOrderFilterState } from "@/lib/admin/order-filters";
 import { sendOrderStatusEmail, sendPaymentReceivedNotification } from "@/lib/email";
 import { getNotificationSettings } from "@/lib/data/settings";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
@@ -140,6 +142,49 @@ export async function markOrderShipped(
     customerEmail: order.customer_email,
     label: ORDER_STATUS_LABELS.shipped,
     detail: `Tracking added — ${courier}: ${trackingNumber}`,
+  });
+
+  revalidateOrderPaths(orderId);
+  return { success: true };
+}
+
+// Ready to Ship → Out for Delivery, with NO tracking requirement.
+//
+// Deliberately distinct from markOrderShipped above, which gates on
+// courier+tracking. Dispatching a batch to a rider is a different act from
+// handing a parcel to a courier with a consignment number: the admin's
+// bulk "Mark Out for Delivery" has to work on a whole tab at once, and
+// requiring a typed tracking number per order would make that impossible.
+// markOrderShipped is untouched, so the per-order "add tracking and ship"
+// path keeps its gate exactly as before.
+//
+// Goes straight to 'out_for_delivery' rather than stepping through
+// 'shipped'. That is what the Out for Delivery tab means operationally,
+// and markOrderDelivered accepts ONLY 'out_for_delivery' -- routing
+// through 'shipped' would leave orders in a state the next bulk step
+// refuses. Tracking stays editable before or after, via addOrderTracking
+// (the Ready to Ship row form and the order detail page both use it).
+export async function markOrderOutForDelivery(orderId: string): Promise<OrderActionResult> {
+  const supabase = await requireAdminClient();
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update({ order_status: "out_for_delivery" })
+    .eq("id", orderId)
+    // Guards the transition at the database, so a stale page cannot push
+    // an order forward from some other status.
+    .eq("order_status", "packing")
+    .select("order_number, customer_name, customer_email")
+    .maybeSingle();
+
+  if (error) return { error: error.message };
+  if (!order) return { error: "This order is not ready to ship." };
+
+  await sendOrderStatusEmail({
+    orderNumber: order.order_number,
+    customerName: order.customer_name,
+    customerEmail: order.customer_email,
+    label: ORDER_STATUS_LABELS.out_for_delivery,
   });
 
   revalidateOrderPaths(orderId);
@@ -528,6 +573,9 @@ export async function markOrderReturned(orderId: string): Promise<OrderActionRes
 export interface BulkOrderActionResult {
   successCount: number;
   errors: string[];
+  // Orders the bulk action deliberately did NOT touch, grouped by reason
+  // -- distinct from errors, which are failures. See bulkMarkDelivered.
+  skipped?: { orderIds: string[]; reason: string }[];
 }
 
 // Loops the existing single-order actions (confirmOrder/cancelOrder) one
@@ -557,4 +605,114 @@ export async function bulkCancelOrders(orderIds: string[]): Promise<BulkOrderAct
     else successCount += 1;
   }
   return { successCount, errors };
+}
+
+// Packaging → Ready to Ship. advanceOrderStatus is the same function the
+// row-level "Mark Packed" button calls, so bulk and single-order can't
+// drift: whatever one does to an order, the other does identically.
+export async function bulkMarkPacked(orderIds: string[]): Promise<BulkOrderActionResult> {
+  const errors: string[] = [];
+  let successCount = 0;
+  for (const id of orderIds) {
+    const result = await advanceOrderStatus(id);
+    if ("error" in result) errors.push(result.error);
+    else successCount += 1;
+  }
+  return { successCount, errors };
+}
+
+// Ready to Ship → Out for Delivery. No tracking required; see
+// markOrderOutForDelivery for why this doesn't reuse markOrderShipped.
+export async function bulkMarkOutForDelivery(orderIds: string[]): Promise<BulkOrderActionResult> {
+  const errors: string[] = [];
+  let successCount = 0;
+  for (const id of orderIds) {
+    const result = await markOrderOutForDelivery(id);
+    if ("error" in result) errors.push(result.error);
+    else successCount += 1;
+  }
+  return { successCount, errors };
+}
+
+// Out for Delivery → Delivered.
+//
+// Two groups are deliberately SKIPPED rather than delivered, both
+// mirroring what the row-level UI already does on this tab:
+//
+//  * Orders still at 'shipped'. The Out for Delivery tab holds 'shipped',
+//    'out_for_delivery' and 'failed_delivery', and its row UI shows a
+//    "Mark Out for Delivery" button for a shipped order rather than a
+//    "Mark Delivered" one -- markOrderDelivered accepts 'out_for_delivery'
+//    alone. Delivering them here would either fail with a misleading
+//    "status changed, please refresh" or silently skip a pipeline stage.
+//  * Unpaid Cash on Delivery orders. markOrderDelivered also writes
+//    payment_status for those -- 'paid' if cash was collected, 'failed' if
+//    not -- so a bulk call with no answer would record every unpaid COD
+//    customer as a failed payment, including the ones who did pay. Money
+//    state is never guessed: staff mark these individually, where the cash
+//    prompt is shown.
+//
+// Everything else goes through the same markOrderDelivered the row button
+// calls.
+export async function bulkMarkDelivered(orderIds: string[]): Promise<BulkOrderActionResult> {
+  if (orderIds.length === 0) return { successCount: 0, errors: [] };
+  const supabase = await requireAdminClient();
+
+  const { data: rows, error } = await supabase
+    .from("orders")
+    .select("id, payment_method, payment_status, order_status")
+    .in("id", orderIds);
+
+  if (error) return { successCount: 0, errors: [error.message] };
+
+  const byId = new Map((rows ?? []).map((r) => [r.id, r]));
+  const notOutForDelivery: string[] = [];
+  const unpaidCod: string[] = [];
+  const deliverable: string[] = [];
+
+  for (const id of orderIds) {
+    const row = byId.get(id);
+    if (!row) continue;
+    if (row.order_status !== "out_for_delivery") notOutForDelivery.push(id);
+    else if (row.payment_method === "cod" && row.payment_status !== "paid") unpaidCod.push(id);
+    else deliverable.push(id);
+  }
+
+  const errors: string[] = [];
+  let successCount = 0;
+  for (const id of deliverable) {
+    const result = await markOrderDelivered(id);
+    if ("error" in result) errors.push(result.error);
+    else successCount += 1;
+  }
+
+  const skipped: { orderIds: string[]; reason: string }[] = [];
+  if (notOutForDelivery.length > 0) {
+    skipped.push({
+      orderIds: notOutForDelivery,
+      reason: "not out for delivery yet — mark them out for delivery first",
+    });
+  }
+  if (unpaidCod.length > 0) {
+    skipped.push({
+      orderIds: unpaidCod,
+      reason: "unpaid Cash on Delivery — mark individually to record whether cash was collected",
+    });
+  }
+
+  return { successCount, errors, ...(skipped.length > 0 ? { skipped } : {}) };
+}
+
+// Server-action wrapper so the client table can ask for "every order
+// matching this tab and these filters", for the select-all-beyond-this-
+// page banner. The query itself lives in orders-query.ts alongside the
+// paginated one, sharing its filter clauses so the two can never select
+// different sets; this adds the admin guard, since a Server Action is
+// callable by any signed-in user and RLS alone would otherwise just hand
+// a customer their own order ids.
+export async function getOrderIdsForCurrentFilters(
+  filters: AdminOrderFilterState,
+): Promise<string[]> {
+  await requireAdminClient();
+  return getAdminOrderIdsForFilters(filters);
 }

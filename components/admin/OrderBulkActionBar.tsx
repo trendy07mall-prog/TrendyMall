@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/admin/ToastProvider";
-import { bulkConfirmOrders, bulkCancelOrders } from "@/lib/admin/orderActions";
+import {
+  bulkConfirmOrders,
+  bulkCancelOrders,
+  bulkMarkPacked,
+  bulkMarkOutForDelivery,
+  bulkMarkDelivered,
+} from "@/lib/admin/orderActions";
 import { exportOrdersCsvByIds } from "@/lib/admin/orders-export";
 import { getBulkInvoicePdfBase64, getBulkShippingLabelsPdfBase64 } from "@/lib/admin/orders-bulk-print";
 import type { BulkOrderActionResult } from "@/lib/admin/orderActions";
@@ -34,10 +40,14 @@ function base64ToBlob(base64: string, contentType: string): Blob {
 export function OrderBulkActionBar({
   selectedIds,
   tab,
+  spansAllPages = false,
   onClear,
 }: {
   selectedIds: string[];
   tab: AdminOrderTab;
+  // True when the selection was extended past the current page, so the
+  // count can say so -- the ids are real either way.
+  spansAllPages?: boolean;
   onClear: () => void;
 }) {
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
@@ -46,11 +56,37 @@ export function OrderBulkActionBar({
   const router = useRouter();
 
   function reportBulkResult(result: BulkOrderActionResult, verb: string) {
+    const skippedCount = (result.skipped ?? []).reduce((n, g) => n + g.orderIds.length, 0);
     if (result.errors.length > 0) {
       showToast(`${result.successCount} ${verb}, ${result.errors.length} failed`, "error");
+    } else if (skippedCount > 0) {
+      // Skipped is not a failure -- bulkMarkDelivered deliberately leaves
+      // some orders alone rather than guess (see its comment). Said
+      // plainly, with each reason, rather than hidden inside a success
+      // count that wouldn't add up.
+      const detail = (result.skipped ?? [])
+        .map((g) => `${g.orderIds.length} ${g.reason}`)
+        .join("; ");
+      showToast(`${result.successCount} ${verb}. Skipped: ${detail}`, "error");
     } else {
       showToast(`${result.successCount} order${result.successCount === 1 ? "" : "s"} ${verb}`);
     }
+  }
+
+  // One helper for all three pipeline steps: each passes the bulk function
+  // that loops the SAME single-order action the row button calls, so bulk
+  // and single-order can never drift apart.
+  async function runBulkStage(
+    key: string,
+    fn: (ids: string[]) => Promise<BulkOrderActionResult>,
+    verb: string,
+  ) {
+    setPending(key);
+    const result = await fn(selectedIds);
+    setPending(null);
+    reportBulkResult(result, verb);
+    onClear();
+    router.refresh();
   }
 
   async function handleConfirm() {
@@ -133,11 +169,47 @@ export function OrderBulkActionBar({
   return (
     <>
       <div className="sticky bottom-4 z-[var(--z-drawer-overlay)] mt-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] bg-[var(--foreground)] px-4 py-3 text-white shadow-[var(--shadow-card-hover)]">
-        <span className="text-sm font-medium">{selectedIds.length} selected</span>
+        <span className="text-sm font-medium">
+          {selectedIds.length} selected{spansAllPages ? " (all pages)" : ""}
+        </span>
         <div className="flex flex-wrap items-center gap-2">
           {tab === "new" && (
             <button type="button" onClick={handleConfirm} disabled={pending !== null} className={buttonClass}>
               Confirm Orders
+            </button>
+          )}
+          {/* One bulk button per pipeline stage, each moving the selection
+              exactly one step, mirroring that tab's row-level button. */}
+          {tab === "packaging" && (
+            <button
+              type="button"
+              onClick={() => runBulkStage("packed", bulkMarkPacked, "marked packed")}
+              disabled={pending !== null}
+              className={buttonClass}
+            >
+              Mark Packed
+            </button>
+          )}
+          {tab === "ready_to_ship" && (
+            <button
+              type="button"
+              onClick={() =>
+                runBulkStage("out-for-delivery", bulkMarkOutForDelivery, "marked out for delivery")
+              }
+              disabled={pending !== null}
+              className={buttonClass}
+            >
+              Mark Out for Delivery
+            </button>
+          )}
+          {tab === "out_for_delivery" && (
+            <button
+              type="button"
+              onClick={() => runBulkStage("delivered", bulkMarkDelivered, "marked delivered")}
+              disabled={pending !== null}
+              className={buttonClass}
+            >
+              Mark Delivered
             </button>
           )}
           <button type="button" onClick={handlePrintInvoice} disabled={pending !== null} className={buttonClass}>

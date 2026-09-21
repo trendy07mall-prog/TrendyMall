@@ -8,6 +8,8 @@ import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { OrderActionsMenu } from "@/components/admin/OrderActionsMenu";
 import { OrderBulkActionBar } from "@/components/admin/OrderBulkActionBar";
+import { getOrderIdsForCurrentFilters } from "@/lib/admin/orderActions";
+import { parseAdminOrderFilterState, countActiveAdminOrderFilters } from "@/lib/admin/order-filters";
 import { MarkDeliveredButton } from "@/components/admin/MarkDeliveredButton";
 import { ShippingInfoForm } from "@/components/admin/ShippingInfoForm";
 import { MarkFailedDeliveryForm } from "@/components/admin/MarkFailedDeliveryForm";
@@ -19,6 +21,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import { DownloadIcon, PrinterIcon } from "@/components/ui/Icon";
 import { ActionButton, actionButtonClasses } from "@/components/ui/ActionButton";
 import type { AdminOrderItemRow, AdminOrderRow } from "@/lib/admin/orders-query";
+import { ADMIN_ORDER_TAB_LABELS } from "@/lib/admin/orderStatusFlow";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
 
 function formatDateTime(iso: string): string {
@@ -92,13 +95,42 @@ export function OrdersTable({
   tab: AdminOrderTab;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // True once the selection has been extended past this page, so the
+  // banner can say so instead of offering again.
+  const [selectionSpansAllPages, setSelectionSpansAllPages] = useState(false);
+  const [extending, setExtending] = useState(false);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, totalCount);
   const allSelected = orders.length > 0 && orders.every((o) => selectedIds.has(o.id));
+  // Only worth offering when there are matching orders this page cannot
+  // show.
+  const canExtendSelection =
+    allSelected && !selectionSpansAllPages && totalCount > orders.length;
 
   function toggleAll() {
+    setSelectionSpansAllPages(false);
     setSelectedIds(allSelected ? new Set() : new Set(orders.map((o) => o.id)));
+  }
+
+  // Extends the selection to every order matching the current tab AND the
+  // active filters, across all pages. The ids come from the server (the
+  // same filter clauses the list itself uses), so the bulk actions receive
+  // a real id list and need no separate "apply by filter" path.
+  async function extendSelectionToAllMatching() {
+    setExtending(true);
+    try {
+      const ids = await getOrderIdsForCurrentFilters(parseAdminOrderFilterState(searchParams));
+      setSelectedIds(new Set(ids));
+      setSelectionSpansAllPages(true);
+    } finally {
+      setExtending(false);
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setSelectionSpansAllPages(false);
   }
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -122,6 +154,36 @@ export function OrdersTable({
           </label>
         )}
       </div>
+
+      {(canExtendSelection || selectionSpansAllPages) && (
+        <div className="mt-3 rounded-[var(--radius-card)] bg-[var(--color-surface-subtle,rgba(15,45,82,0.05))] px-4 py-2.5 text-sm">
+          {selectionSpansAllPages ? (
+            <span>
+              All <strong>{selectedIds.size}</strong> order{selectedIds.size === 1 ? "" : "s"} in{" "}
+              {ADMIN_ORDER_TAB_LABELS[tab]} {countActiveAdminOrderFilters(parseAdminOrderFilterState(searchParams)) > 0 ? "matching the current filters " : ""}
+              are selected.{" "}
+              <button type="button" onClick={clearSelection} className="font-semibold underline">
+                Clear selection
+              </button>
+            </span>
+          ) : (
+            <span>
+              All <strong>{orders.length}</strong> order{orders.length === 1 ? "" : "s"} on this page are
+              selected.{" "}
+              <button
+                type="button"
+                onClick={extendSelectionToAllMatching}
+                disabled={extending}
+                className="font-semibold underline disabled:opacity-50"
+              >
+                {extending
+                  ? "Selecting…"
+                  : `Select all ${totalCount} orders in ${ADMIN_ORDER_TAB_LABELS[tab]}`}
+              </button>
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col gap-3">
         {orders.map((order) => (
@@ -153,7 +215,8 @@ export function OrdersTable({
         <OrderBulkActionBar
           selectedIds={[...selectedIds]}
           tab={tab}
-          onClear={() => setSelectedIds(new Set())}
+          spansAllPages={selectionSpansAllPages}
+          onClear={clearSelection}
         />
       )}
     </div>

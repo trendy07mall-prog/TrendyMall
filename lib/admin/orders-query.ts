@@ -293,6 +293,43 @@ async function attachFirstReachedTimestamp(
 // One small head-count query per tab, run in parallel — no RPC/migration,
 // stays entirely app-layer. Cheap: order_status is indexed and every query
 // is count-only (head: true fetches no rows).
+// Every order id matching the CURRENT tab and filters, ignoring
+// pagination -- what "select all N in Packaging" needs.
+//
+// Filter clauses below are kept identical to getAdminOrders' so the two
+// can't select different sets; only the projection (ids only), the
+// ordering (none needed) and the absence of .range() differ. Returning the
+// full id list to the client is fine at this store's volume (hundreds of
+// orders), and it means the existing bulk actions -- which take an id
+// array -- work unchanged, with no second "apply by filter" server path
+// that could diverge from what the admin actually saw selected.
+export async function getAdminOrderIdsForFilters(
+  filters: AdminOrderFilterState,
+): Promise<string[]> {
+  const supabase = await createClient();
+
+  let query = supabase.from("orders").select("id");
+
+  const statuses = ADMIN_ORDER_TAB_STATUSES[filters.tab];
+  if (statuses) query = query.in("order_status", statuses);
+
+  if (filters.search.trim()) {
+    const term = filters.search.trim().replace(/[%,]/g, "");
+    query = query.or(
+      `order_number.ilike.%${term}%,customer_name.ilike.%${term}%,customer_phone.ilike.%${term}%,tracking_number.ilike.%${term}%`,
+    );
+  }
+  if (filters.paymentMethod) query = query.eq("payment_method", filters.paymentMethod);
+  if (filters.paymentStatus) query = query.eq("payment_status", filters.paymentStatus);
+  if (filters.courier.trim()) query = query.ilike("courier", `%${filters.courier.trim()}%`);
+  if (filters.dateFrom) query = query.gte("created_at", `${filters.dateFrom}T00:00:00`);
+  if (filters.dateTo) query = query.lte("created_at", `${filters.dateTo}T23:59:59`);
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+  return data.map((row) => row.id);
+}
+
 export async function getAdminOrderStatusCounts(): Promise<Record<AdminOrderTab, number>> {
   const supabase = await createClient();
   const tabs = Object.keys(ADMIN_ORDER_TAB_STATUSES) as AdminOrderTab[];

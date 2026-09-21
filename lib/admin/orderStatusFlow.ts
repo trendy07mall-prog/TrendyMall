@@ -38,15 +38,21 @@ export function getNextOrderStatus(
 }
 
 // Admin order-management workflow tabs — a view/grouping layer on top of
-// order_status, not a new status. No dedicated statuses exist for
-// "Packaging" or "Ready to Ship": 'packing' already sits between
-// 'confirmed' and 'shipped' with no real sub-state today, so Packaging
-// groups confirmed+packing (the whole pre-ship pipeline) and Ready to Ship
-// is just packing filtered on its own. Likewise Out for Delivery groups
-// shipped+out_for_delivery (the spec never mentions "shipped" as its own
-// stage, but real orders do sit in that status) plus failed_delivery (an
-// exception branch off out_for_delivery, surfaced here rather than
-// orphaned with no tab at all).
+// order_status, not a new status.
+//
+// These sets MUST NOT OVERLAP. Packaging used to be ["confirmed",
+// "packing"] while Ready to Ship was ["packing"], so 'packing' belonged to
+// both: marking an order packed moved it confirmed -> packing, which put
+// it in Ready to Ship WITHOUT taking it out of Packaging. It looked like a
+// stale cache (a hard refresh didn't clear it) but the list was correct --
+// the order genuinely matched both tabs. Packaging is now 'confirmed'
+// alone, so each order sits in exactly one pipeline tab and "Mark Packed"
+// actually moves it.
+//
+// Out for Delivery still groups three statuses, and that is deliberate
+// rather than the same bug: 'shipped', 'out_for_delivery' and
+// 'failed_delivery' are stages of one physical step and appear in no other
+// tab, so nothing can be in two places at once.
 export type AdminOrderTab =
   | "all"
   | "new"
@@ -60,7 +66,7 @@ export type AdminOrderTab =
 export const ADMIN_ORDER_TAB_STATUSES: Record<AdminOrderTab, OrderFulfillmentStatus[] | null> = {
   all: null,
   new: ["pending"],
-  packaging: ["confirmed", "packing"],
+  packaging: ["confirmed"],
   ready_to_ship: ["packing"],
   out_for_delivery: ["shipped", "out_for_delivery", "failed_delivery"],
   delivered: ["delivered"],
