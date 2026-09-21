@@ -2007,6 +2007,34 @@ export interface Database {
       // sql/080. One quote per product for the Customer Favourites card:
       // the most recent approved, 4-or-better, non-empty review written by
       // a non-admin account. Exposes the reviewer's FIRST NAME only.
+      // sql/081. Approved reviews minus anything written from an admin
+      // account -- the list counterpart to product_rating_summary, which
+      // now applies the same exclusion to the average and the count.
+      product_customer_reviews: {
+        Row: {
+          id: string;
+          product_id: string;
+          user_id: string;
+          rating: number;
+          title: string | null;
+          comment: string | null;
+          verified_purchase: boolean;
+          // Always "approved" in practice -- the view filters on it -- but
+          // typed as the table's own union so a row from here is
+          // assignable to Review without a cast.
+          status: "pending" | "approved" | "rejected";
+          created_at: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       product_customer_review_snippets: {
         Row: {
           product_id: string;

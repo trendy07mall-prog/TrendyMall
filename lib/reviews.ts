@@ -9,11 +9,17 @@ export async function getProductReviews(
   productId: string,
 ): Promise<ReviewWithReviewerName[]> {
   const supabase = await createClient();
+  // product_customer_reviews (sql/081), not the reviews table: it is the
+  // same approved rows minus anything written from an admin account, which
+  // is the same rule product_rating_summary now applies to the NUMBER
+  // above this list. Reading the raw table here would put five review
+  // cards under a "(3)" count, two of them written by the store itself.
+  // The exclusion has to happen in the view because deciding who is staff
+  // needs profiles, which no storefront visitor can read under RLS.
   const { data: reviews, error } = await supabase
-    .from("reviews")
+    .from("product_customer_reviews")
     .select("*")
     .eq("product_id", productId)
-    .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -65,10 +71,14 @@ export interface FeaturedReview {
 // homepage teaser, not a full reviews listing.
 export async function getFeaturedReviews(limit = 6): Promise<FeaturedReview[]> {
   const supabase = await createClient();
+  // product_customer_reviews (sql/081), not the reviews table. This block
+  // is headed "What Our Customers Say" on the homepage, and reading the
+  // raw table put the store's OWN admin-authored reviews in it, presented
+  // as customer testimonials -- the same thing the rating number and the
+  // product page's review list were doing before sql/081.
   const { data: reviews, error } = await supabase
-    .from("reviews")
+    .from("product_customer_reviews")
     .select("id, rating, title, comment, created_at, user_id, product_id")
-    .eq("status", "approved")
     .order("rating", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
