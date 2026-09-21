@@ -5,7 +5,9 @@ import {
   WELLAMPITIYA_ZONE_KEY,
   calculateDeliveryFee,
   describeDeliveryFee,
+  isFastDeliveryZone,
   normalizePostalCode,
+  resolveDeliveryZone,
   resolveZoneSelection,
   zoneSelectionForStoredAddress,
 } from "./delivery-fee";
@@ -208,4 +210,56 @@ test("a saved Wellampitiya address round-trips to the Colombo rate", () => {
   const selection = zoneSelectionForStoredAddress("Colombo", WELLAMPITIYA_POSTAL_CODE);
   const resolved = resolveZoneSelection(selection);
   assert.equal(calculateDeliveryFee({ district: "Colombo", ...resolved, deliveryMethod: "standard" }, TEST_ZONES), 255);
+});
+
+// ── Delivery speed comes off the matched zone, not the fee's wording ──
+
+function zoneFor(district: string, postalCode: string | null, zoneKey: string | null) {
+  return resolveDeliveryZone({ district, postalCode, zoneKey, deliveryMethod: "standard" }, TEST_ZONES);
+}
+
+test("a named zone is a fast zone; the catch-all is not", () => {
+  assert.equal(isFastDeliveryZone(zoneFor("Colombo", "01200", null)), true);
+  assert.equal(isFastDeliveryZone(zoneFor("Colombo", WELLAMPITIYA_POSTAL_CODE, WELLAMPITIYA_ZONE_KEY)), true);
+  // "Other", and anywhere outside Colombo, land on the default zone.
+  assert.equal(isFastDeliveryZone(zoneFor("Colombo", null, null)), false);
+  assert.equal(isFastDeliveryZone(zoneFor("Kandy", "20000", null)), false);
+});
+
+test("Wellampitiya is quoted the fast window, the bug this replaced", () => {
+  // The old rule asked whether the postal code sat inside Colombo 1-15.
+  // Wellampitiya's 10600 does not, so the same address came out priced
+  // at the Colombo rate and quoted the slow window.
+  const zone = zoneFor("Colombo", WELLAMPITIYA_POSTAL_CODE, WELLAMPITIYA_ZONE_KEY);
+  assert.equal(zone?.rate, 255);
+  assert.equal(isFastDeliveryZone(zone), true);
+});
+
+test("describeDeliveryFee reports price and speed from ONE match", () => {
+  // Whatever the reason text says, isFastZone must agree with the rate:
+  // that pairing is what stops the estimate drifting from the charge.
+  const cases: [string, string | null, string | null, number, boolean][] = [
+    ["Colombo", "01200", null, 255, true],
+    ["Colombo", "01500", null, 255, true],
+    ["Colombo", WELLAMPITIYA_POSTAL_CODE, WELLAMPITIYA_ZONE_KEY, 255, true],
+    ["Colombo", null, null, 400, false],
+    ["Kandy", "20000", null, 400, false],
+  ];
+  for (const [district, postalCode, zoneKey, fee, fast] of cases) {
+    const got = describeDeliveryFee({ district, postalCode, zoneKey, deliveryMethod: "standard" }, TEST_ZONES);
+    assert.equal(got.fee, fee, `${district}/${postalCode}/${zoneKey} fee`);
+    assert.equal(got.isFastZone, fast, `${district}/${postalCode}/${zoneKey} isFastZone`);
+  }
+});
+
+test("Store Pickup is never a fast delivery zone (nothing is delivered)", () => {
+  assert.equal(resolveDeliveryZone({ district: "Colombo", postalCode: "01200", deliveryMethod: "pickup" }, TEST_ZONES), null);
+  assert.equal(
+    describeDeliveryFee({ district: "Colombo", postalCode: "01200", deliveryMethod: "pickup" }, TEST_ZONES).isFastZone,
+    false,
+  );
+});
+
+test("an empty zones table yields no fast zone rather than throwing", () => {
+  assert.equal(isFastDeliveryZone(resolveDeliveryZone({ district: "Colombo", postalCode: "01200", deliveryMethod: "standard" }, [])), false);
 });

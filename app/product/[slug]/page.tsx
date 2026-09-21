@@ -12,7 +12,6 @@ import {
   getCachedRelatedProducts,
 } from "@/lib/data/cached";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
 import { hasUserReviewed } from "@/lib/reviews";
 import { getAuthUser } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
@@ -121,12 +120,6 @@ export default async function ProductPage({
     data: { user },
   } = await authUser;
 
-  // No address is known on the PDP -- this is the same generic
-  // Colombo/outside-Colombo split app/cart/page.tsx shows before an
-  // address is picked, not a real per-order calculation.
-  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
-  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
-
   const reviewState = !user
     ? ("not_logged_in" as const)
     : alreadyReviewed
@@ -192,8 +185,7 @@ export default async function ProductPage({
         ratingSummary={ratingSummary}
         reviewState={reviewState}
         tags={tags}
-        inZoneRate={inZoneRate}
-        outsideZoneRate={outsideZoneRate}
+        zones={zones}
       />
 
       <RelatedProducts products={relatedProducts} />

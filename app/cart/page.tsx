@@ -8,10 +8,10 @@ import { cartLineKey, formatPrice } from "@/lib/utils";
 import {
   RATE_IN_ZONE,
   RATE_OUTSIDE_ZONE,
-  calculateDeliveryFee,
+  isFastDeliveryZone,
+  resolveDeliveryZone,
   resolveZoneSelection,
   zoneSelectionForStoredAddress,
-  isColomboZoneAddress,
   type DeliveryZone,
 } from "@/lib/delivery-fee";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
@@ -268,8 +268,11 @@ export default function CartPage() {
         zoneSelectionForStoredAddress(defaultAddress.district, defaultAddress.postal_code),
       )
     : null;
-  const defaultAddressFee = defaultAddress
-    ? calculateDeliveryFee(
+  // One match, read twice: the rate below and the delivery-time estimate
+  // further down both come from this zone, so they cannot disagree about
+  // the same saved address.
+  const defaultAddressMatch = defaultAddress
+    ? resolveDeliveryZone(
         {
           district: defaultAddress.district,
           postalCode: defaultAddressZone?.postalCode ?? null,
@@ -279,6 +282,7 @@ export default function CartPage() {
         zones,
       )
     : null;
+  const defaultAddressFee = defaultAddress ? (defaultAddressMatch?.rate ?? RATE_OUTSIDE_ZONE) : null;
   const deliveryFee = defaultAddress
     ? defaultAddressFee
     : deliveryArea === "outside"
@@ -458,7 +462,7 @@ export default function CartPage() {
             {getEstimatedDeliveryRange(
               undefined,
               defaultAddress
-                ? isColomboZoneAddress(defaultAddress.district, defaultAddress.postal_code)
+                ? isFastDeliveryZone(defaultAddressMatch)
                 : deliveryArea === "colombo",
             ).label.replace(/^Get it by /, "")}
           </p>

@@ -17,6 +17,7 @@ import { TrustBadges } from "@/components/marketing/TrustBadges";
 import { ProductTabs } from "@/components/product/ProductTabs";
 import { StarRating } from "@/components/product/StarRating";
 import { DeliveryInfoCard } from "@/components/product/DeliveryInfoCard";
+import type { DeliveryZone } from "@/lib/delivery-fee";
 import { ProductHighlights } from "@/components/product/ProductHighlights";
 import { ProductTitleClamp } from "@/components/product/ProductTitleClamp";
 import { FloatingPurchaseBar } from "@/components/product/FloatingPurchaseBar";
@@ -57,8 +58,7 @@ export function ProductPurchaseSection({
   ratingSummary,
   reviewState,
   tags,
-  inZoneRate,
-  outsideZoneRate,
+  zones,
 }: {
   product: Product;
   images: string[];
@@ -70,8 +70,7 @@ export function ProductPurchaseSection({
   ratingSummary: ProductRatingSummary | null;
   reviewState: "can_review" | "already_reviewed" | "not_logged_in";
   tags: { name: string; slug: string }[];
-  inZoneRate: number;
-  outsideZoneRate: number;
+  zones: DeliveryZone[];
 }) {
   // ?variant=<id> deep link -- set by campaign-context product cards
   // (ActiveCampaignSections.tsx, /campaign/[slug]'s ProductGrid) so the PDP
@@ -698,8 +697,7 @@ export function ProductPurchaseSection({
           <DeliveryInfoCard
             deliveryLabel={getEstimatedDeliveryRange().label}
             codAvailable={product.cod_available}
-            inZoneRate={inZoneRate}
-            outsideZoneRate={outsideZoneRate}
+            zones={zones}
           />
         )}
       </div>

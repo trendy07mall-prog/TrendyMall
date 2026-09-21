@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getBankTransferSettings } from "@/lib/bankTransferSettings";
 import { getCartRecommendations } from "@/lib/cart-recommendations";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
-import { isColomboZoneAddress } from "@/lib/delivery-fee";
+import { isFastDeliveryZone, resolveDeliveryZone } from "@/lib/delivery-fee";
 import { getWhatsAppUrl } from "@/lib/site";
 import { getGeneralSettings, getShippingSettings } from "@/lib/data/settings";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
@@ -136,9 +136,20 @@ export default async function OrderConfirmationPage({
     !isDelivered && order.deliveryMethod !== "pickup"
       ? getEstimatedDeliveryRange(
           new Date(order.createdAt),
-          isColomboZoneAddress(
-            order.shippingAddressDetail?.district ?? "",
-            order.shippingAddressDetail?.postalCode,
+          // From the order's own recorded zone, the one that priced it --
+          // not re-derived from its postal code, which for an explicitly
+          // selected zone (Wellampitiya, 10600) would land outside the
+          // Colombo range and quote the slow window for a fast-rate order.
+          isFastDeliveryZone(
+            resolveDeliveryZone(
+              {
+                district: order.shippingAddressDetail?.district ?? "",
+                postalCode: order.shippingAddressDetail?.postalCode,
+                zoneKey: order.shippingAddressDetail?.zoneKey,
+                deliveryMethod: "standard",
+              },
+              zones,
+            ),
           ),
         )
       : null;

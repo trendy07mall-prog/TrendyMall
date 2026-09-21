@@ -230,7 +230,7 @@ export function CheckoutForm({
   // preview and the submit below both price off the SAME derivation, so
   // they cannot disagree and log a DELIVERY_FEE_MISMATCH.
   const previewZone = resolveZoneSelection(addressFields.postalCode);
-  const { fee: shippingFee, reason: deliveryReason } = describeDeliveryFee(
+  const { fee: shippingFee, reason: deliveryReason, isFastZone } = describeDeliveryFee(
     {
       district: addressFields.district,
       postalCode: previewZone.postalCode,
@@ -1160,7 +1160,11 @@ export function CheckoutForm({
             {deliveryMethod !== "pickup" && (
               <div className="mt-1 rounded-[var(--radius-input)] bg-black/5 px-3 py-2 text-xs text-[var(--muted)]">
                 Estimated delivery:{" "}
-                {getEstimatedDeliveryRange(undefined, deliveryReason.startsWith("Colombo")).label.replace(
+                {/* Off the matched ZONE, not the reason text: the text
+                    reads "Wellampitiya" for a zone priced at the Colombo
+                    rate, so a startsWith("Colombo") test quoted it the
+                    slow window while charging it the fast one. */}
+                {getEstimatedDeliveryRange(undefined, isFastZone).label.replace(
                   /^Get it by /,
                   "",
                 )}

@@ -104,13 +104,17 @@ function isInColomboRange(normalized: string): boolean {
   return normalized >= "00100" && normalized <= "01500";
 }
 
-// Whether an address falls in the fast Colombo 1-15 zone -- a fixed
-// geographic fact (see the file-level comment), independent of the
-// `zones` rate table, so callers that only need "is this the fast zone"
-// (e.g. an estimated-delivery-time label) don't need to fetch/pass the
-// whole DeliveryZone[] array just to answer that. describeDeliveryFee
-// below uses this same check internally rather than a second copy of it.
-export function isColomboZoneAddress(district: string, postalCode: string | null | undefined): boolean {
+// Whether an address falls in the Colombo 1-15 postal range. This is now
+// a LABEL rule only -- it decides whether describeDeliveryFee can say
+// "Colombo 07" -- and deliberately NOT exported.
+//
+// It used to be exported and used to decide delivery SPEED too, on the
+// assumption that "fast zone" and "Colombo 1-15 postal range" were the
+// same set. Wellampitiya broke that: it is priced as a Colombo-rate zone
+// via its own zone key but its postal code (10600) is outside the range,
+// so the same address came out priced fast and quoted slow. Speed is now
+// decided by isFastDeliveryZone below, from the matched zone itself.
+function isColomboZoneAddress(district: string, postalCode: string | null | undefined): boolean {
   const normalized = normalizePostalCode(postalCode);
   return district === "Colombo" && normalized !== null && isInColomboRange(normalized);
 }
@@ -210,6 +214,44 @@ export function zoneSelectionForStoredAddress(
   return OTHER_COLOMBO_ZONE_VALUE;
 }
 
+// The zone that prices an address -- the SAME match calculateDeliveryFee
+// and describeDeliveryFee use, exposed so a caller that needs more than
+// the number (the delivery-time estimate) reads it off the zone instead
+// of re-deriving it from the fee's display text.
+export function resolveDeliveryZone(
+  input: {
+    district: string;
+    postalCode: string | null | undefined;
+    zoneKey?: string | null;
+    deliveryMethod: DeliveryMethod;
+  },
+  zones: DeliveryZone[],
+): DeliveryZone | null {
+  if (input.deliveryMethod === "pickup") return null;
+  return matchZone(input.district, normalizePostalCode(input.postalCode), zones, input.zoneKey);
+}
+
+// Which zones deliver in 1-2 days rather than 2-4.
+//
+// The rule is the catch-all: "Other Sri Lanka" is the zone that means
+// "anywhere we have no specific arrangement for", and that is the slow
+// one. Every zone the store has actually defined -- Colombo 1-15,
+// Wellampitiya, and whatever is added next -- is somewhere it delivers
+// locally.
+//
+// Keying off the zone rather than the fee's wording is the point: the
+// estimate and the price now come from ONE match, so they cannot
+// disagree about the same address the way they did for Wellampitiya
+// (priced Colombo, quoted outside-Colombo). A new zone gets a consistent
+// pair for free, with no string to remember to update.
+//
+// If a distant zone is ever added that should keep the slow window --
+// say a Jaffna rate -- this is where that becomes a real flag on
+// delivery_zones rather than a rule inferred from is_default.
+export function isFastDeliveryZone(zone: DeliveryZone | null | undefined): boolean {
+  return zone != null && !zone.isDefault;
+}
+
 export function calculateDeliveryFee(
   input: {
     district: string;
@@ -294,9 +336,9 @@ export function describeDeliveryFee(
     zoneKey?: string | null;
   },
   zones: DeliveryZone[],
-): { fee: number; reason: string } {
+): { fee: number; reason: string; isFastZone: boolean } {
   if (input.deliveryMethod === "pickup") {
-    return { fee: 0, reason: "Store Pickup" };
+    return { fee: 0, reason: "Store Pickup", isFastZone: false };
   }
 
   const normalized = normalizePostalCode(input.postalCode);
@@ -306,14 +348,16 @@ export function describeDeliveryFee(
   // "Colombo 06" (which its real postal code would otherwise read as) and
   // not "Outside Colombo zone", which is what the customer used to be
   // told while being charged Rs 400 for it.
+  const isFastZone = isFastDeliveryZone(matched);
+
   if (matched?.zoneKey) {
-    return { fee: matched.rate, reason: matched.name };
+    return { fee: matched.rate, reason: matched.name, isFastZone };
   }
   const isColomboZone = matched != null && !matched.isDefault && isColomboZoneAddress(input.district, input.postalCode);
 
   if (isColomboZone && normalized) {
     const zone = Number(normalized.slice(1, 3));
-    return { fee: matched.rate, reason: `Colombo ${String(zone).padStart(2, "0")}` };
+    return { fee: matched.rate, reason: `Colombo ${String(zone).padStart(2, "0")}`, isFastZone };
   }
-  return { fee: matched?.rate ?? RATE_OUTSIDE_ZONE, reason: "Outside Colombo zone" };
+  return { fee: matched?.rate ?? RATE_OUTSIDE_ZONE, reason: "Outside Colombo zone", isFastZone };
 }
