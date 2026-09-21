@@ -15,15 +15,15 @@ import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
 import { ScrollStateProvider } from "@/context/ScrollStateContext";
-import { getActiveBanner } from "@/lib/data/banner";
 import {
-  getAnnouncementSettings,
-  getContactSettings,
-  getSeoSettings,
-  getSocialSettings,
-} from "@/lib/data/settings";
-import { getCachedGeneralSettings } from "@/lib/data/cached";
-import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
+  getCachedGeneralSettings,
+  getCachedActiveBanner,
+  getCachedAnnouncementSettings,
+  getCachedContactSettings,
+  getCachedSocialSettings,
+  getCachedActiveDeliveryZones,
+  getCachedSeoSettings,
+} from "@/lib/data/cached";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -64,7 +64,7 @@ const inter = localFont({
 // automatically via Next's metadata merging -- this must never be wired
 // into those.
 export async function generateMetadata(): Promise<Metadata> {
-  const seo = await getSeoSettings();
+  const seo = await getCachedSeoSettings();
 
   // Deliberately no `alternates.canonical` here: Next.js metadata cascades
   // to every child page that doesn't set its own, and a root-level "/"
@@ -107,17 +107,27 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // ALL SIX are cached now, not just general settings. These run on every
+  // single request -- every storefront page and every admin page, which
+  // inherits this layout while using almost none of it -- and five of them
+  // were live queries, so each page load paid a database round trip for the
+  // announcement bar, promo banner, contact details, delivery zones and
+  // social links before anything rendered.
+  //
+  // They are near-static store configuration that only an admin edit
+  // changes, and every mutation that can change them now calls
+  // updateTag(CACHE_TAGS.settings) (lib/admin/settings.ts, banner.ts,
+  // delivery-zones.ts), so an edit still shows up on the very next request.
+  // That wiring is what makes caching these safe: those actions previously
+  // only called revalidatePath, which invalidates rendered routes but not
+  // unstable_cache entries.
   const [banner, announcement, contact, general, zones, social] = await Promise.all([
-    getActiveBanner(),
-    getAnnouncementSettings(),
-    getContactSettings(),
-    // Cached rather than live: Footer and the homepage already read this
-    // exact cached entry on every storefront page, so this shares their
-    // hit instead of adding a seventh live query per request -- including
-    // on /admin, which inherits this layout but uses none of it.
+    getCachedActiveBanner(),
+    getCachedAnnouncementSettings(),
+    getCachedContactSettings(),
     getCachedGeneralSettings(),
-    getActiveDeliveryZones(),
-    getSocialSettings(),
+    getCachedActiveDeliveryZones(),
+    getCachedSocialSettings(),
   ]);
 
   const organizationSchema = {

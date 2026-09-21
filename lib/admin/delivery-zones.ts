@@ -1,11 +1,17 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
 
 export type DeliveryZoneFormState = { error: string } | undefined;
 
 function revalidateZones() {
+  // revalidatePath invalidates rendered ROUTES; the root layout now
+  // reads these through unstable_cache (lib/data/cached.ts), which only
+  // a tag drops. Without this an admin edit would sit invisible behind
+  // the 1-hour TTL.
+  updateTag(CACHE_TAGS.settings);
   revalidatePath("/admin/settings/shipping");
   revalidatePath("/cart");
   revalidatePath("/checkout");

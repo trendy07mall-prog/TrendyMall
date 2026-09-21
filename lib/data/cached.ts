@@ -10,7 +10,16 @@ import {
   getChildCategories,
   getDescendantCategoryIds,
 } from "@/lib/data/categories";
-import { getGeneralSettings, getBrandingSettings } from "@/lib/data/settings";
+import {
+  getGeneralSettings,
+  getBrandingSettings,
+  getAnnouncementSettings,
+  getContactSettings,
+  getSocialSettings,
+  getSeoSettings,
+} from "@/lib/data/settings";
+import { getActiveBanner } from "@/lib/data/banner";
+import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import {
   getNewArrivals,
   getProductsByIds,
@@ -62,7 +71,16 @@ import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { CampaignSectionData, CampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import type { FacetCounts } from "@/lib/data/products";
 import type { ProductListFilters } from "@/lib/product-filters";
-import type { BrandingSettings, GeneralSettings } from "@/lib/data/settings";
+import type {
+  BrandingSettings,
+  GeneralSettings,
+  AnnouncementSettings,
+  ContactSettings,
+  SocialSettings,
+  SeoSettings,
+} from "@/lib/data/settings";
+import type { SiteBanner } from "@/types";
+import type { DeliveryZone } from "@/lib/delivery-fee";
 
 // Cached wrappers over the storefront's PUBLIC reads. Nothing personalised
 // belongs here: no session, cart, wishlist, order or admin data. The
@@ -566,3 +584,67 @@ export const getCachedProductsByIdSet = (
     ["products-by-id-set", [...ids].sort().join(","), JSON.stringify(filters)],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();
+
+
+// --- root layout (every request, storefront AND admin) ------------------
+//
+// app/layout.tsx reads six settings groups on every single request. Five of
+// them were live queries, so each page load -- including admin pages that
+// use none of this -- paid a round trip for the announcement bar, the promo
+// banner, contact details, delivery zones and social links before anything
+// rendered. They are near-static store configuration that only an admin
+// edit changes, which is exactly what CACHE_TAGS.settings already covers
+// for general/branding settings.
+//
+// The TTL is a backstop, not the mechanism: every admin mutation that can
+// change these now calls updateTag(CACHE_TAGS.settings) (lib/admin/
+// settings.ts, banner.ts and delivery-zones.ts), so an edit is visible on
+// the next request rather than up to an hour later. That wiring is the
+// reason these can safely be cached at all -- those actions previously only
+// called revalidatePath, which invalidates rendered routes but not
+// unstable_cache entries.
+
+export const getCachedActiveBanner = (): Promise<SiteBanner | null> =>
+  unstable_cache(() => runInPublicScope(() => getActiveBanner()), ["banner", "active"], {
+    revalidate: CACHE_TTL.settings,
+    tags: [CACHE_TAGS.settings],
+  })();
+
+export const getCachedAnnouncementSettings = (): Promise<AnnouncementSettings> =>
+  unstable_cache(
+    () => runInPublicScope(() => getAnnouncementSettings()),
+    ["settings", "announcement"],
+    { revalidate: CACHE_TTL.settings, tags: [CACHE_TAGS.settings] },
+  )();
+
+export const getCachedContactSettings = (): Promise<ContactSettings> =>
+  unstable_cache(() => runInPublicScope(() => getContactSettings()), ["settings", "contact"], {
+    revalidate: CACHE_TTL.settings,
+    tags: [CACHE_TAGS.settings],
+  })();
+
+export const getCachedSocialSettings = (): Promise<SocialSettings> =>
+  unstable_cache(() => runInPublicScope(() => getSocialSettings()), ["settings", "social"], {
+    revalidate: CACHE_TTL.settings,
+    tags: [CACHE_TAGS.settings],
+  })();
+
+// Delivery rates are money-adjacent, so the immediate tag invalidation
+// above matters more here than anywhere else in this block: an admin
+// changing a zone's rate must not keep quoting the old one. Cached under
+// the settings tag because that is what the shipping-settings admin page
+// edits, and lib/admin/delivery-zones.ts now drops it on every mutation.
+export const getCachedActiveDeliveryZones = (): Promise<DeliveryZone[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getActiveDeliveryZones()),
+    ["delivery-zones", "active"],
+    { revalidate: CACHE_TTL.settings, tags: [CACHE_TAGS.settings] },
+  )();
+
+// The sixth read in app/layout.tsx: generateMetadata runs per request too,
+// so this was a live query on every page as well.
+export const getCachedSeoSettings = (): Promise<SeoSettings> =>
+  unstable_cache(() => runInPublicScope(() => getSeoSettings()), ["settings", "seo"], {
+    revalidate: CACHE_TTL.settings,
+    tags: [CACHE_TAGS.settings],
+  })();

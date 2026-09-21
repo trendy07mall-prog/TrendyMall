@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import sanitizeHtml from "sanitize-html";
 import { requireAdminClient } from "@/lib/admin/guard";
 import type { PoliciesSettings } from "@/lib/data/settings";
@@ -48,6 +49,11 @@ export async function updateSettings(updates: SettingUpdate[]): Promise<UpdateSe
   // announcement bar, logos) plus the admin Settings UI itself -- layout
   // revalidation covers both without needing a per-page list that would
   // drift as new consumers are added in later phases.
+  // revalidatePath invalidates rendered ROUTES; the root layout now
+  // reads these through unstable_cache (lib/data/cached.ts), which only
+  // a tag drops. Without this an admin edit would sit invisible behind
+  // the 1-hour TTL.
+  updateTag(CACHE_TAGS.settings);
   revalidatePath("/", "layout");
   revalidatePath("/admin/settings", "layout");
 
