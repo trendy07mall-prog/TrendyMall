@@ -24,23 +24,32 @@ export async function signup(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
-  // Honeypot, same pattern as lib/contact.ts's field — a real visitor
-  // never sees or fills it (SignupForm.tsx). A bot that does gets routed
-  // to the same success redirect as a real signup, so detection is never
-  // revealed — no Supabase signUp() call happens, so no email is sent and
-  // no bounce risk from this path.
+  // Honeypot -- now FAILS OPEN. It logs and falls through to the real
+  // signUp() below; it no longer redirects anyone to a fake success.
   //
-  // Deliberately NOT named "company" (or any other field name a browser's
-  // autofill heuristics recognize, like "organization") -- a real visitor
-  // whose browser has ANY saved company/organization value can have it
-  // silently autofilled into a hidden field despite autocomplete="off",
-  // which Chrome and others ignore for fields matching a known category.
-  // That silently faked "success" for genuine signups (confirmed live: a
-  // real customer got "Account created, check your email" with no account
-  // ever created and no email ever sent) is worse than the bot traffic
-  // this exists to filter. hp_ref has no autofill category to match.
+  // This control has silently destroyed genuine signups twice. First with
+  // the field named "company", which browsers autofill from any saved
+  // organization value; renaming it to "hp_ref" was supposed to fix that,
+  // and did not -- a real customer signing up as lifetimeoffer07@gmail.com
+  // was shown "Account created. Check your email" with no account ever
+  // created and no email ever sent (confirmed against auth.users). The
+  // field's POSITION was the real attractor: it sat first in the form, and
+  // password managers fill the first text input with a saved username or
+  // e-mail regardless of autocomplete="off". It has been moved to the end
+  // of the form as well (SignupForm.tsx).
+  //
+  // A silently-faked success costs a real customer their account and
+  // leaves them believing they have one. That is far worse than the spam
+  // this was filtering, particularly since signup is already protected by
+  // the e-mail format check below, an IP rate limit, and Supabase's own
+  // limits. So a filled honeypot is now only a signal to review in the
+  // logs, never a reason to turn a genuine customer away.
   const honeypot = String(formData.get("hp_ref") ?? "").trim();
-  if (honeypot) redirect("/login?confirmEmail=1");
+  if (honeypot) {
+    console.warn("[signup] honeypot field was filled -- proceeding anyway", {
+      email: String(formData.get("email") ?? ""),
+    });
+  }
 
   const fullName = String(formData.get("fullName") ?? "");
   const email = String(formData.get("email") ?? "");
@@ -68,14 +77,51 @@ export async function signup(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: fullName } },
   });
 
+  // Supabase deliberately hides "this e-mail is already registered": it
+  // returns NO error and a user object that looks like a fresh signup, so
+  // an attacker can't probe this form to learn who has an account. The one
+  // tell is an EMPTY identities array (a genuine new signup always has
+  // one), and no confirmation e-mail is sent in that case.
+  //
+  // Without this check the customer was sent to "Account created. Check
+  // your email" and then waited for a message that was never coming --
+  // the same dead end the honeypot used to produce. Told plainly instead,
+  // at the cost of confirming an address has an account here; a deliberate
+  // trade, since the enumeration risk is small for a storefront and the
+  // alternative strands real customers.
+  if (!error && data.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      error: "That email already has an account. Try logging in instead, or reset your password.",
+    };
+  }
+
   if (error) {
-    return { error: error.message };
+    // Supabase does not always hand back a usable message. The auth
+    // mailer's 500 ("Error sending confirmation email") arrives through
+    // the SDK as the literal string "{}", and that is exactly what was
+    // being printed at the customer, under a red error style, as their
+    // entire explanation. Anything that is not a real sentence is
+    // replaced with a human one and the original logged for us.
+    const raw = (error.message ?? "").trim();
+    const usable = raw.length > 0 && !/^\{.*\}$/.test(raw);
+    if (!usable) {
+      console.error("[signup] signUp failed with an unusable message", {
+        status: error.status,
+        raw,
+        email,
+      });
+      return {
+        error:
+          "We couldn't create your account just now. Please try again in a few minutes, or contact us if it keeps happening.",
+      };
+    }
+    return { error: raw };
   }
 
   redirect("/login?confirmEmail=1");

@@ -135,18 +135,6 @@ export function SignupForm({
       </p>
 
       <form action={action} onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
-        {/* Honeypot, same pattern as ContactForm.tsx's field -- off-screen
-            (not display:none, which some bots skip), unreachable by
-            keyboard tab order, unlabeled. A real visitor never fills this;
-            signup() rejects silently (fake success) if it's set.
-            Deliberately named "hp_ref" (see actions.ts's signup() comment)
-            -- a name like "company" gets silently autofilled by browsers
-            that have any saved company/organization value, autocomplete
-            attribute or not, faking success for a genuine signup. */}
-        <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
-          <input type="text" name="hp_ref" tabIndex={-1} autoComplete="off" />
-        </div>
-
         {/* Server action still receives one combined "fullName" value,
             exactly as before — the two visual inputs below are a pure
             presentation change, never a change to what signup() reads. */}
@@ -210,6 +198,18 @@ export function SignupForm({
         />
 
         {state?.error && <FieldError message={state.error} />}
+
+        {/* Honeypot -- LAST in the form, immediately before submit, not
+            first. Position is what attracted autofill: password managers
+            fill the first text input in a form with a saved username or
+            e-mail whatever autocomplete says, which silently faked a
+            successful signup for real customers twice. Still off-screen
+            (not display:none, which some bots skip), out of the tab order
+            and unlabeled. signup() now only LOGS a hit -- see its comment
+            for why this no longer blocks anyone. */}
+        <div className="absolute h-0 w-0 overflow-hidden" aria-hidden="true">
+          <input type="text" name="hp_ref" tabIndex={-1} autoComplete="off" />
+        </div>
 
         <button
           type="submit"
