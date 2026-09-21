@@ -39,6 +39,7 @@ interface OrderEmailData {
   // server-computed value, never recomputed from these.
   shippingDistrict: string;
   shippingPostalCode: string | null;
+  shippingZoneKey?: string | null;
   deliveryMethod: "standard" | "pickup";
   paymentMethod: "cod" | "bank_transfer" | "payhere";
   // Both already computed/stored at order creation -- rendered as-is below,
@@ -72,6 +73,7 @@ function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean, zones: De
     {
       district: order.shippingDistrict,
       postalCode: order.shippingPostalCode,
+      zoneKey: order.shippingZoneKey,
       deliveryMethod: order.deliveryMethod,
     },
     zones,

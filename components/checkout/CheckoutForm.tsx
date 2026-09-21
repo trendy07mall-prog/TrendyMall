@@ -13,11 +13,11 @@ import { uploadPaymentSlip } from "@/lib/uploadPaymentSlip";
 import { cartLineKey, formatPrice, isValidEmail } from "@/lib/utils";
 import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { trackConversion } from "@/lib/analytics/track";
-import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
+import { describeDeliveryFee, resolveZoneSelection, type DeliveryZone } from "@/lib/delivery-fee";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
-import { CheckoutAddress, OTHER_COLOMBO_ZONE_VALUE } from "@/components/checkout/CheckoutAddress";
+import { CheckoutAddress } from "@/components/checkout/CheckoutAddress";
 import { PaymentMethodCard } from "@/components/checkout/PaymentMethodCard";
 import {
   CashIcon,
@@ -225,10 +225,16 @@ export function CheckoutForm({
   // district — see lib/delivery-fee.ts for why (the city text field is
   // typo/synonym-prone; the postal code is Sri Lanka's real, unambiguous
   // system).
+  // addressFields.postalCode is the raw <select> value, which may be a
+  // sentinel rather than a postal code — resolving it here means the
+  // preview and the submit below both price off the SAME derivation, so
+  // they cannot disagree and log a DELIVERY_FEE_MISMATCH.
+  const previewZone = resolveZoneSelection(addressFields.postalCode);
   const { fee: shippingFee, reason: deliveryReason } = describeDeliveryFee(
     {
       district: addressFields.district,
-      postalCode: addressFields.postalCode,
+      postalCode: previewZone.postalCode,
+      zoneKey: previewZone.zoneKey,
       deliveryMethod,
     },
     zones,
@@ -653,6 +659,9 @@ export function CheckoutForm({
     // unaffected either way: the delivery fee for pickup stays
     // server-hardcoded to 0 regardless of what's sent here.
     const isPickup = deliveryMethod === "pickup";
+    // Same resolution the fee preview above used, applied to the fields
+    // resolveForSubmit actually returned.
+    const submitZone = resolveZoneSelection(shipping.postalCode);
 
     const result = await createOrder({
       customerName: `${shipping.firstName.trim()} ${shipping.lastName.trim()}`.trim(),
@@ -663,8 +672,8 @@ export function CheckoutForm({
       shippingStreet: isPickup ? shippingSettings.pickupAddress : shipping.street.trim(),
       shippingCity: isPickup ? shippingSettings.pickupName : shipping.city.trim(),
       shippingDistrict: isPickup ? "Colombo" : shipping.district,
-      shippingPostalCode:
-        shipping.postalCode.trim() === OTHER_COLOMBO_ZONE_VALUE ? null : shipping.postalCode.trim() || null,
+      shippingPostalCode: submitZone.postalCode,
+      shippingZoneKey: submitZone.zoneKey,
       deliveryMethod,
       paymentMethod,
       paymentReference: form.paymentReference.trim() || null,

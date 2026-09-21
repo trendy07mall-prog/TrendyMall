@@ -149,6 +149,10 @@ export interface GuestOrderAddressDetail {
   city: string;
   district: string;
   postalCode: string | null;
+  // The delivery zone this order was actually priced by, when it was
+  // chosen by name rather than by postal code (sql/082). Display code
+  // must prefer it over re-deriving a zone from postalCode.
+  zoneKey: string | null;
 }
 
 export interface GuestOrderDetail {

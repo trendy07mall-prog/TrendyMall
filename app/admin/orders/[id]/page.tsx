@@ -49,6 +49,7 @@ export default async function AdminOrderDetailPage({
             {
               district: address.district,
               postalCode: address.postal_code,
+              zoneKey: address.zone_key,
               deliveryMethod: "standard",
             },
             zones,

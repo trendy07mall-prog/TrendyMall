@@ -9,6 +9,8 @@ import {
   RATE_IN_ZONE,
   RATE_OUTSIDE_ZONE,
   calculateDeliveryFee,
+  resolveZoneSelection,
+  zoneSelectionForStoredAddress,
   isColomboZoneAddress,
   type DeliveryZone,
 } from "@/lib/delivery-fee";
@@ -257,11 +259,21 @@ export default function CartPage() {
   const inZoneRate = colomboZone?.rate ?? RATE_IN_ZONE;
   const outsideZoneRate = defaultZone?.rate ?? RATE_OUTSIDE_ZONE;
 
+  // A saved address carries no zone key (only orders do), so the same
+  // resolution the checkout form uses to pre-select the dropdown decides
+  // this estimate too — otherwise a Wellampitiya customer would be quoted
+  // the outside-zone rate here and charged the Colombo rate at checkout.
+  const defaultAddressZone = defaultAddress
+    ? resolveZoneSelection(
+        zoneSelectionForStoredAddress(defaultAddress.district, defaultAddress.postal_code),
+      )
+    : null;
   const defaultAddressFee = defaultAddress
     ? calculateDeliveryFee(
         {
           district: defaultAddress.district,
-          postalCode: defaultAddress.postal_code,
+          postalCode: defaultAddressZone?.postalCode ?? null,
+          zoneKey: defaultAddressZone?.zoneKey ?? null,
           deliveryMethod: "standard",
         },
         zones,

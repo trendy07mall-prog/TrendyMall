@@ -1,10 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { calculateDeliveryFee, normalizePostalCode } from "./delivery-fee";
+import {
+  WELLAMPITIYA_POSTAL_CODE,
+  WELLAMPITIYA_ZONE_KEY,
+  calculateDeliveryFee,
+  describeDeliveryFee,
+  normalizePostalCode,
+  resolveZoneSelection,
+  zoneSelectionForStoredAddress,
+} from "./delivery-fee";
 import type { DeliveryZone } from "./delivery-fee";
 
-// Mirrors sql/068's exact seed data -- the same 2 zones that reproduce
-// today's real live rule (Colombo 1-15 => 255, everything else => 400).
+// Mirrors the live seed data: sql/068's two range zones (Colombo 1-15 =>
+// 255, everything else => 400) plus sql/082's key-based Wellampitiya zone.
 const TEST_ZONES: DeliveryZone[] = [
   {
     id: "zone-colombo",
@@ -14,6 +22,17 @@ const TEST_ZONES: DeliveryZone[] = [
     districtMatch: "Colombo",
     rate: 255,
     isDefault: false,
+    zoneKey: null,
+  },
+  {
+    id: "zone-wellampitiya",
+    name: "Wellampitiya",
+    postalCodeStart: null,
+    postalCodeEnd: null,
+    districtMatch: "Colombo",
+    rate: 255,
+    isDefault: false,
+    zoneKey: WELLAMPITIYA_ZONE_KEY,
   },
   {
     id: "zone-default",
@@ -23,11 +42,16 @@ const TEST_ZONES: DeliveryZone[] = [
     districtMatch: null,
     rate: 400,
     isDefault: true,
+    zoneKey: null,
   },
 ];
 
 function fee(district: string, postalCode: string | null | undefined) {
   return calculateDeliveryFee({ district, postalCode, deliveryMethod: "standard" }, TEST_ZONES);
+}
+
+function feeWithKey(district: string, postalCode: string | null, zoneKey: string | null) {
+  return calculateDeliveryFee({ district, postalCode, zoneKey, deliveryMethod: "standard" }, TEST_ZONES);
 }
 
 test("Colombo postal codes at the range boundaries price at 255", () => {
@@ -99,4 +123,89 @@ test("normalizePostalCode resolves every documented input shape", () => {
   assert.equal(normalizePostalCode(""), null);
   assert.equal(normalizePostalCode(null), null);
   assert.equal(normalizePostalCode(undefined), null);
+});
+
+// ── Wellampitiya: priced by explicit selection, never by postal code ──
+
+test("selecting Wellampitiya prices at the Colombo rate", () => {
+  assert.equal(feeWithKey("Colombo", WELLAMPITIYA_POSTAL_CODE, WELLAMPITIYA_ZONE_KEY), 255);
+});
+
+test("Wellampitiya's real postal code alone does NOT grant the rate", () => {
+  // 10600 is a real postal code well outside 00100-01500, and the
+  // key-based zone is deliberately unreachable by range matching -- the
+  // rate comes from the explicit choice or not at all. This is the whole
+  // separation the change rests on.
+  assert.equal(fee("Colombo", WELLAMPITIYA_POSTAL_CODE), 400);
+  assert.equal(feeWithKey("Colombo", WELLAMPITIYA_POSTAL_CODE, null), 400);
+});
+
+test("an explicit key overrides whatever the postal code would have matched", () => {
+  // Even a postal code that WOULD have matched Colombo 1-15 does not get
+  // consulted once a key is present -- one input decides, not two.
+  assert.equal(feeWithKey("Colombo", "01200", WELLAMPITIYA_ZONE_KEY), 255);
+});
+
+test("an unknown zone key falls to the default rate, never through to the postal code", () => {
+  // A retired or mistyped key must not silently re-price off the postal
+  // code: that would reintroduce the guessing this replaced, invisibly.
+  assert.equal(feeWithKey("Colombo", "01200", "NO_SUCH_ZONE"), 400);
+});
+
+test("the zone a customer picked names itself in the fee reason", () => {
+  assert.equal(
+    describeDeliveryFee(
+      { district: "Colombo", postalCode: WELLAMPITIYA_POSTAL_CODE, zoneKey: WELLAMPITIYA_ZONE_KEY, deliveryMethod: "standard" },
+      TEST_ZONES,
+    ).reason,
+    "Wellampitiya",
+  );
+  // Without the key it must NOT claim to be Wellampitiya, and must not
+  // read as "Colombo 06" either (10600 normalizes to a 5-digit code whose
+  // middle digits would otherwise be read as a zone number).
+  assert.equal(
+    describeDeliveryFee(
+      { district: "Colombo", postalCode: WELLAMPITIYA_POSTAL_CODE, deliveryMethod: "standard" },
+      TEST_ZONES,
+    ).reason,
+    "Outside Colombo zone",
+  );
+});
+
+// ── The dropdown value <-> stored address round trip ──
+
+test("resolveZoneSelection splits a dropdown value into key and postal code", () => {
+  assert.deepEqual(resolveZoneSelection(WELLAMPITIYA_ZONE_KEY), {
+    zoneKey: WELLAMPITIYA_ZONE_KEY,
+    postalCode: WELLAMPITIYA_POSTAL_CODE,
+  });
+  // "Other" is a deliberate "none of these" and carries no postal code --
+  // storing one would invent an address detail never given.
+  assert.deepEqual(resolveZoneSelection("OTHER"), { zoneKey: null, postalCode: null });
+  assert.deepEqual(resolveZoneSelection("01200"), { zoneKey: null, postalCode: "01200" });
+  assert.deepEqual(resolveZoneSelection(""), { zoneKey: null, postalCode: null });
+});
+
+test("a saved address resolves back to the dropdown value that represents it", () => {
+  assert.equal(zoneSelectionForStoredAddress("Colombo", WELLAMPITIYA_POSTAL_CODE), WELLAMPITIYA_ZONE_KEY);
+  assert.equal(zoneSelectionForStoredAddress("Colombo", "01200"), "01200");
+  assert.equal(zoneSelectionForStoredAddress("Colombo", "12"), "01200");
+  assert.equal(zoneSelectionForStoredAddress("Colombo", ""), "");
+  // Addresses saved before sql/082 can hold the literal sentinel.
+  assert.equal(zoneSelectionForStoredAddress("Colombo", "OTHER"), "OTHER");
+  assert.equal(zoneSelectionForStoredAddress("Colombo", WELLAMPITIYA_ZONE_KEY), WELLAMPITIYA_ZONE_KEY);
+  // A code with no matching <option> must collapse to "Other" rather than
+  // pass through and render the <select> blank.
+  assert.equal(zoneSelectionForStoredAddress("Colombo", "10350"), "OTHER");
+  // Outside Colombo the field is free text, so it passes through as-is.
+  assert.equal(zoneSelectionForStoredAddress("Kandy", "20000"), "20000");
+});
+
+test("a saved Wellampitiya address round-trips to the Colombo rate", () => {
+  // The cart estimate and the checkout form both go through this pair;
+  // if they disagreed, a customer would be quoted one rate and charged
+  // another.
+  const selection = zoneSelectionForStoredAddress("Colombo", WELLAMPITIYA_POSTAL_CODE);
+  const resolved = resolveZoneSelection(selection);
+  assert.equal(calculateDeliveryFee({ district: "Colombo", ...resolved, deliveryMethod: "standard" }, TEST_ZONES), 255);
 });

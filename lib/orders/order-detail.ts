@@ -60,6 +60,7 @@ export async function getMyOrderDetail(orderId: string): Promise<GuestOrderDetai
           city: address.city,
           district: address.district,
           postalCode: address.postal_code,
+          zoneKey: address.zone_key,
         }
       : null,
     items: (items ?? []).map((item) => ({

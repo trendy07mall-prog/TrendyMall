@@ -15,7 +15,7 @@ export async function getActiveDeliveryZones(): Promise<DeliveryZone[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("delivery_zones")
-    .select("id, name, postal_code_start, postal_code_end, district_match, rate, is_default")
+    .select("id, name, postal_code_start, postal_code_end, district_match, rate, is_default, zone_key")
     .eq("status", "active")
     .order("sort_order");
 
@@ -29,5 +29,6 @@ export async function getActiveDeliveryZones(): Promise<DeliveryZone[]> {
     districtMatch: row.district_match,
     rate: row.rate,
     isDefault: row.is_default,
+    zoneKey: row.zone_key,
   }));
 }

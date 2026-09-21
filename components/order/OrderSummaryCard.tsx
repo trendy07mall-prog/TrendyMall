@@ -13,6 +13,7 @@ export function OrderSummaryCard({ order, zones }: { order: GuestOrderDetail; zo
         {
           district: order.shippingAddressDetail.district,
           postalCode: order.shippingAddressDetail.postalCode,
+          zoneKey: order.shippingAddressDetail.zoneKey,
           deliveryMethod: order.deliveryMethod,
         },
         zones,

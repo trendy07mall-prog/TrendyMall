@@ -19,6 +19,10 @@ export interface CreateOrderInput {
   shippingCity: string;
   shippingDistrict: string;
   shippingPostalCode: string | null;
+  // Set only when the customer picked a zone by name (currently
+  // Wellampitiya). The RPC prices off THIS when present and ignores the
+  // postal code entirely -- see sql/082 and lib/delivery-fee.ts matchZone.
+  shippingZoneKey: string | null;
   deliveryMethod: DeliveryMethod;
   paymentMethod: PaymentGateway;
   paymentReference: string | null;
@@ -131,6 +135,7 @@ export async function createOrder(
     p_source_address_id: input.sourceAddressId,
     p_idempotency_key: input.idempotencyKey,
     p_client_shipping_fee: input.clientShippingFee,
+    p_shipping_zone_key: input.shippingZoneKey,
   });
 
   const row = data?.[0];
@@ -235,6 +240,7 @@ export async function createOrder(
             shippingFee: order.shipping_fee,
             shippingDistrict: input.shippingDistrict,
             shippingPostalCode: input.shippingPostalCode,
+            shippingZoneKey: input.shippingZoneKey,
             deliveryMethod: input.deliveryMethod,
             paymentMethod: input.paymentMethod,
             discount: order.discount,
@@ -272,6 +278,7 @@ export async function createOrder(
             shippingFee: guestOrder.shippingFee,
             shippingDistrict: input.shippingDistrict,
             shippingPostalCode: input.shippingPostalCode,
+            shippingZoneKey: input.shippingZoneKey,
             deliveryMethod: input.deliveryMethod,
             paymentMethod: input.paymentMethod,
             discount: guestOrder.discount,

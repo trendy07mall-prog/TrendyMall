@@ -66,7 +66,7 @@ function InvoicePage({ order, items, address, couponCode, zones }: InvoiceProps 
     order.delivery_method === "pickup"
       ? "Store Pickup"
       : address
-        ? `Delivery (${describeDeliveryFee({ district: address.district, postalCode: address.postal_code, deliveryMethod: "standard" }, zones).reason})`
+        ? `Delivery (${describeDeliveryFee({ district: address.district, postalCode: address.postal_code, zoneKey: address.zone_key, deliveryMethod: "standard" }, zones).reason})`
         : "Delivery";
 
   return (

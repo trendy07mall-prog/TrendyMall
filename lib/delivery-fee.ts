@@ -31,7 +31,29 @@ export interface DeliveryZone {
   districtMatch: string | null;
   rate: number;
   isDefault: boolean;
+  // Non-null = an "explicit selection" zone: the customer picks it BY NAME
+  // at checkout and it is matched on this key alone, never on a postal
+  // range (see matchZone). Null = an ordinary district+postal-range zone.
+  // The two kinds are mutually exclusive by construction, here and in
+  // create_order_atomic (sql/082).
+  zoneKey: string | null;
 }
+
+// The dropdown values that are NOT postal codes. Both live here rather
+// than in CheckoutAddress.tsx because the pricing rule and the choices
+// that feed it have to agree, and the checkout form, the fee preview and
+// the order submit all need the same constants -- a copy in a client
+// component is exactly how a preview and a charge drift apart.
+export const OTHER_COLOMBO_ZONE_VALUE = "OTHER";
+export const WELLAMPITIYA_ZONE_KEY = "WELLAMPITIYA";
+
+// Wellampitiya's real postal code: it is served by the Kolonnawa post
+// office (10600), nowhere near Colombo 1-15's 00100-01500. That gap is
+// the whole reason this town needs an explicit choice -- a customer could
+// only reach the Rs 255 rate by guessing their address "counts as"
+// Colombo 15. The code is still recorded on the address because the
+// courier needs it; it is simply not what decides the price.
+export const WELLAMPITIYA_POSTAL_CODE = "10600";
 
 function zoneToCode(zone: number): string | null {
   if (zone < 1 || zone > 15) return null;
@@ -93,18 +115,38 @@ export function isColomboZoneAddress(district: string, postalCode: string | null
   return district === "Colombo" && normalized !== null && isInColomboRange(normalized);
 }
 
-// Same matching algorithm as create_order_atomic's SQL: the first active,
-// non-default zone whose district (if any) and postal range (if any)
-// match wins; falls back to the default/catch-all zone; falls back to the
-// hardcoded RATE_OUTSIDE_ZONE constant only if the zones array is empty
-// (should never happen with a correctly seeded table).
+// Same matching algorithm as create_order_atomic's SQL (sql/082), in the
+// same order:
+//   1. an explicitly-selected zone, matched on zoneKey ALONE;
+//   2. otherwise the first active, non-default RANGE zone whose district
+//      (if any) and postal range match;
+//   3. otherwise the default/catch-all zone;
+//   4. otherwise null -- and only then does the caller fall back to the
+//      hardcoded RATE_OUTSIDE_ZONE constant, which should never happen
+//      with a correctly seeded table.
+//
+// Step 1 never consults a postal code and step 2 never considers a
+// key-based zone. Keeping them strictly separate is the point: a town
+// priced by explicit selection must not ALSO be reachable by whatever
+// numeric range its real postal code happens to fall into.
 function matchZone(
   district: string,
   normalized: string | null,
   zones: DeliveryZone[],
+  zoneKey: string | null | undefined,
 ): DeliveryZone | null {
+  if (zoneKey) {
+    const byKey = zones.find((zone) => zone.zoneKey === zoneKey);
+    if (byKey) return byKey;
+    // An unknown or retired key must NOT quietly fall through to whatever
+    // the postal code would have matched -- that would re-create the
+    // guessing problem this replaced, invisibly. Drop to the default.
+    return zones.find((zone) => zone.isDefault) ?? null;
+  }
+
   const specific = zones.find((zone) => {
     if (zone.isDefault) return false;
+    if (zone.zoneKey) return false;
     if (zone.districtMatch && zone.districtMatch !== district) return false;
     if (zone.postalCodeStart && zone.postalCodeEnd) {
       return normalized !== null && normalized >= zone.postalCodeStart && normalized <= zone.postalCodeEnd;
@@ -115,18 +157,74 @@ function matchZone(
   return zones.find((zone) => zone.isDefault) ?? null;
 }
 
+// Turns one checkout dropdown selection into the two separate things the
+// rest of the system needs: the key that prices the order, and the postal
+// code that goes on the address label. Single source of truth for that
+// split, used by the checkout fee preview AND the order submit -- if each
+// derived it itself, a DELIVERY_FEE_MISMATCH row is how you would find
+// out they had diverged.
+export function resolveZoneSelection(selection: string | null | undefined): {
+  zoneKey: string | null;
+  postalCode: string | null;
+} {
+  const value = (selection ?? "").trim();
+  if (value === WELLAMPITIYA_ZONE_KEY) {
+    return { zoneKey: WELLAMPITIYA_ZONE_KEY, postalCode: WELLAMPITIYA_POSTAL_CODE };
+  }
+  // "Other" is a deliberate "none of these", so it carries no postal code
+  // at all -- storing one would be inventing an address detail the
+  // customer never gave.
+  if (value === OTHER_COLOMBO_ZONE_VALUE) return { zoneKey: null, postalCode: null };
+  return { zoneKey: null, postalCode: value || null };
+}
+
+// The inverse: a STORED address's postal_code back to the dropdown value
+// that represents it. Needed wherever an existing address has to be
+// re-priced or re-displayed — the checkout form pre-selecting a saved
+// address, and the cart's delivery estimate — because neither has a zone
+// key to work from, only whatever was written on the address.
+//
+// This is the one place a postal code is allowed to imply a key-based
+// zone, and only by EXACT equality with that zone's own code (never a
+// range). Orders placed from here on carry their zone key explicitly
+// (sql/082), so this is for addresses, not for pricing decisions already
+// made.
+export function zoneSelectionForStoredAddress(
+  district: string,
+  rawPostalCode: string | null | undefined,
+): string {
+  const trimmed = (rawPostalCode ?? "").trim();
+  if (district !== "Colombo") return trimmed;
+  if (!trimmed) return "";
+  // A save from before sql/082 could have written the sentinel itself.
+  if (trimmed === WELLAMPITIYA_ZONE_KEY) return WELLAMPITIYA_ZONE_KEY;
+  const normalized = normalizePostalCode(trimmed);
+  if (normalized === WELLAMPITIYA_POSTAL_CODE) return WELLAMPITIYA_ZONE_KEY;
+  // normalizePostalCode happily returns codes that are NOT in the
+  // dropdown (a Kandy "20000", say), and a <select> handed a value with
+  // no matching <option> renders blank — so anything unrecognised has to
+  // collapse to the explicit "Other" choice rather than pass through.
+  if (normalized && COLOMBO_ZONE_POSTAL_CODES.some((zone) => zone.code === normalized)) {
+    return normalized;
+  }
+  return OTHER_COLOMBO_ZONE_VALUE;
+}
+
 export function calculateDeliveryFee(
   input: {
     district: string;
     postalCode: string | null | undefined;
     deliveryMethod: DeliveryMethod;
+    // An explicit zone selection, when the customer made one. Takes
+    // precedence over postalCode entirely (see matchZone).
+    zoneKey?: string | null;
   },
   zones: DeliveryZone[],
 ): number {
   if (input.deliveryMethod === "pickup") return 0;
 
   const normalized = normalizePostalCode(input.postalCode);
-  const matched = matchZone(input.district, normalized, zones);
+  const matched = matchZone(input.district, normalized, zones, input.zoneKey);
 
   // Log only -- the fallback behaviour below is unchanged.
   //
@@ -148,6 +246,7 @@ export function calculateDeliveryFee(
       {
         district: input.district,
         postalCode: normalized,
+        zoneKey: input.zoneKey ?? null,
         zonesReceived: zones.length,
         activeZoneNames: zones.map((zone) => zone.name),
         fallbackRate: RATE_OUTSIDE_ZONE,
@@ -192,6 +291,7 @@ export function describeDeliveryFee(
     district: string;
     postalCode: string | null | undefined;
     deliveryMethod: DeliveryMethod;
+    zoneKey?: string | null;
   },
   zones: DeliveryZone[],
 ): { fee: number; reason: string } {
@@ -200,7 +300,15 @@ export function describeDeliveryFee(
   }
 
   const normalized = normalizePostalCode(input.postalCode);
-  const matched = matchZone(input.district, normalized, zones);
+  const matched = matchZone(input.district, normalized, zones, input.zoneKey);
+
+  // An explicitly-selected zone names itself -- "Wellampitiya", not
+  // "Colombo 06" (which its real postal code would otherwise read as) and
+  // not "Outside Colombo zone", which is what the customer used to be
+  // told while being charged Rs 400 for it.
+  if (matched?.zoneKey) {
+    return { fee: matched.rate, reason: matched.name };
+  }
   const isColomboZone = matched != null && !matched.isDefault && isColomboZoneAddress(input.district, input.postalCode);
 
   if (isColomboZone && normalized) {

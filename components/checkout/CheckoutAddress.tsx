@@ -5,17 +5,23 @@ import { saveAddress } from "@/lib/addresses";
 import { isValidSriLankanPhone } from "@/lib/utils";
 import { SRI_LANKAN_CITIES } from "@/lib/cities";
 import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
-import { COLOMBO_ZONE_POSTAL_CODES, normalizePostalCode } from "@/lib/delivery-fee";
+import {
+  COLOMBO_ZONE_POSTAL_CODES,
+  OTHER_COLOMBO_ZONE_VALUE,
+  WELLAMPITIYA_ZONE_KEY,
+  resolveZoneSelection,
+  zoneSelectionForStoredAddress,
+} from "@/lib/delivery-fee";
 import { FieldError } from "@/components/ui/FieldError";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CustomerAddress } from "@/types";
 
-// Sentinel stored in fields.postalCode when the customer explicitly picks
-// "Other" from the Colombo-zone dropdown — distinguishes "deliberately not
-// a specific zone" (valid, prices at the outside-zone rate) from "hasn't
-// chosen yet" (empty string, invalid). Converted back to a real value
-// before it reaches the server (CheckoutForm.tsx's handleSubmit).
-export const OTHER_COLOMBO_ZONE_VALUE = "OTHER";
+// fields.postalCode doubles as the Colombo-zone <select>'s value, so it
+// holds either a real postal code or one of the two non-code sentinels
+// ("OTHER", "WELLAMPITIYA"). Both sentinels and the conversion back to a
+// real postal code live in lib/delivery-fee.ts, next to the pricing rule
+// they feed — a second copy here is how a preview and a charge drift
+// apart. resolveZoneSelection is the only thing that reads them.
 
 export interface CheckoutAddressFields {
   firstName: string;
@@ -38,16 +44,20 @@ const EMPTY_FIELDS: CheckoutAddressFields = {
 };
 
 function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
-  const rawPostalCode = address.postal_code ?? "";
-  // A saved address's postal_code may predate this normalization (a bare
-  // "12", a synonym, or genuinely nothing) — resolve it to the dropdown's
-  // canonical value so the right zone is preselected, falling back to the
-  // explicit "Other" choice (never a raw, unmatched value the <select>
-  // can't represent) when it doesn't resolve to a known 1-15 zone.
+  // Resolves whatever is stored on the saved address back to the value
+  // this dropdown can actually represent — shared with the cart's
+  // delivery estimate so both read a saved address the same way.
+  //
+  // The fallback is what stops a SAVED Colombo address with no postal
+  // code from coming back as "nothing selected", which validation would
+  // then reject at submit with "Please select your delivery zone" —
+  // blocking a customer who had already answered that question. An empty
+  // code on a saved address is not "unanswered", it IS "Other": that is
+  // the only choice that stores no code, and it prices the same Rs 400 it
+  // always did. A brand-new form never reaches here (EMPTY_FIELDS does).
   const postalCode =
-    address.district === "Colombo"
-      ? (normalizePostalCode(rawPostalCode) ?? (rawPostalCode ? OTHER_COLOMBO_ZONE_VALUE : ""))
-      : rawPostalCode;
+    zoneSelectionForStoredAddress(address.district, address.postal_code) ||
+    (address.district === "Colombo" ? OTHER_COLOMBO_ZONE_VALUE : "");
   return {
     firstName: address.first_name,
     lastName: address.last_name,
@@ -59,11 +69,12 @@ function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
   };
 }
 
-// "Other" and unresolved dropdown states never look right printed next to
-// an address (e.g. "...Colombo OTHER") — anything other than a genuine
-// value collapses to nothing.
+// A sentinel never looks right printed next to an address (e.g.
+// "...Colombo OTHER"), so what gets shown is whatever real postal code
+// the selection resolves to — 10600 for Wellampitiya, nothing at all for
+// "Other", which deliberately carries no code.
 function displayPostalCode(fields: CheckoutAddressFields): string {
-  return fields.postalCode === OTHER_COLOMBO_ZONE_VALUE ? "" : fields.postalCode;
+  return resolveZoneSelection(fields.postalCode).postalCode ?? "";
 }
 
 type Mode = "card" | "picker" | "form";
@@ -477,6 +488,13 @@ export const CheckoutAddress = forwardRef<
                         {z.label}
                       </option>
                     ))}
+                    {/* Listed by name, below Colombo 1-15 and above
+                        "Other", because that is exactly the choice its
+                        customers were getting wrong: Wellampitiya's real
+                        postal code (10600) is nowhere near the 00100-01500
+                        range, so the only way to reach the correct rate
+                        used to be to guess it "counted as" Colombo 15. */}
+                    <option value={WELLAMPITIYA_ZONE_KEY}>Wellampitiya</option>
                     <option value={OTHER_COLOMBO_ZONE_VALUE}>Other (outside Colombo city)</option>
                   </select>
                   {errors.postalCode && (
@@ -585,7 +603,12 @@ function buildFormData(fields: CheckoutAddressFields, id: string | null): FormDa
   formData.set("street", fields.street);
   formData.set("city", fields.city);
   formData.set("district", fields.district);
-  formData.set("postalCode", fields.postalCode);
+  // The dropdown sentinel must never reach the address book — it is a UI
+  // value, not an address. It used to: saved addresses exist whose
+  // postal_code is the literal string "OTHER", which then renders as
+  // "...Colombo OTHER" on the account page and loads into the account
+  // form's free-text postal field. Wellampitiya stores its real 10600.
+  formData.set("postalCode", resolveZoneSelection(fields.postalCode).postalCode ?? "");
   return formData;
 }
 

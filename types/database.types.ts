@@ -1022,6 +1022,7 @@ export interface Database {
           is_default: boolean;
           status: string;
           sort_order: number;
+          zone_key: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1035,12 +1036,14 @@ export interface Database {
           is_default?: boolean;
           status?: string;
           sort_order?: number;
+          zone_key?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           name?: string;
+          zone_key?: string | null;
           postal_code_start?: string | null;
           postal_code_end?: string | null;
           district_match?: string | null;
@@ -1333,6 +1336,7 @@ export interface Database {
           district: string;
           postal_code: string | null;
           source_address_id: string | null;
+          zone_key: string | null;
           created_at: string;
         };
         Insert: {
@@ -1347,6 +1351,7 @@ export interface Database {
           district: string;
           postal_code?: string | null;
           source_address_id?: string | null;
+          zone_key?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1361,6 +1366,7 @@ export interface Database {
           district?: string;
           postal_code?: string | null;
           source_address_id?: string | null;
+          zone_key?: string | null;
           created_at?: string;
         };
         Relationships: [
