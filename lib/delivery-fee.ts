@@ -252,6 +252,52 @@ export function isFastDeliveryZone(zone: DeliveryZone | null | undefined): boole
   return zone != null && !zone.isDefault;
 }
 
+// The delivery rate card, compressed to two lines for the announcement
+// bar. Same zones data DeliveryInfoCard reads, so renaming or re-rating a
+// zone in Settings moves both, and neither can drift from the other or
+// from what checkout charges.
+//
+// THE SHORTENING RULE, because the bar has one line and the product
+// card has a paragraph: the first line names every active non-default
+// zone that shares the LOWEST non-default rate. Today that is Colombo
+// 1-15 and Wellampitiya, both Rs 255, so it reads
+// "Colombo 1-15 & Wellampitiya: Rs 255".
+//
+// What happens when a fourth zone is added: if it comes in at that same
+// lowest rate it is named automatically and nothing else changes. If it
+// comes in HIGHER (a Negombo at Rs 300, say) it is deliberately NOT
+// named here -- the line stays true, because it only ever claims a rate
+// for the zones it lists, but it stops being the complete picture. That
+// is the point to either give the bar its own third message kind or
+// reword this to "from Rs 255"; the full per-zone list already lives on
+// the product page's At a Glance card and in the FAQ. It is a display
+// summary only -- nothing prices off it.
+export function describeLowestRateZones(zones: DeliveryZone[]): { label: string; rate: number } {
+  const named = zones.filter((zone) => !zone.isDefault);
+  if (named.length === 0) {
+    // Empty/misconfigured table: keep today's copy rather than blank out
+    // the bar, same fallback constants as everywhere else in this file.
+    return { label: "Colombo 1–15", rate: RATE_IN_ZONE };
+  }
+  const rate = Math.min(...named.map((zone) => zone.rate));
+  const labels = named.filter((zone) => zone.rate === rate).map((zone) => zone.name);
+  // "A", "A & B", "A, B & C" -- the serial join keeps three readable
+  // without a line break, which is as many as the bar can hold anyway.
+  const label =
+    labels.length <= 2
+      ? labels.join(" & ")
+      : `${labels.slice(0, -1).join(", ")} & ${labels[labels.length - 1]}`;
+  return { label, rate };
+}
+
+// The catch-all, named by the zone itself rather than a hardcoded
+// "Outside Colombo" -- which had quietly become ambiguous, since
+// Wellampitiya is outside Colombo city and yet is NOT on this rate.
+export function describeCatchAllZone(zones: DeliveryZone[]): { label: string; rate: number } {
+  const fallback = zones.find((zone) => zone.isDefault);
+  return { label: fallback?.name ?? "Outside Colombo", rate: fallback?.rate ?? RATE_OUTSIDE_ZONE };
+}
+
 export function calculateDeliveryFee(
   input: {
     district: string;

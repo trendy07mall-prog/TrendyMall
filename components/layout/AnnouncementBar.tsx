@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CloseIcon, TruckIcon, CashIcon, WhatsAppIcon } from "@/components/ui/Icon";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, type DeliveryZone } from "@/lib/delivery-fee";
+import { describeCatchAllZone, describeLowestRateZones, type DeliveryZone } from "@/lib/delivery-fee";
 import { formatPrice } from "@/lib/utils";
 import type { AnnouncementMessage } from "@/lib/data/settings";
 
@@ -34,21 +34,24 @@ function syncThemeColor(dismissed: boolean) {
   meta.setAttribute("content", content);
 }
 
-// Delivery-rate entries always render the REAL rate (Settings-driven
-// delivery_zones, Phase 3) and the WhatsApp entry always uses the real
-// settings number -- an admin can choose that a slot shows one of these,
-// but can never free-type the rate/number itself (Settings > Announcement).
-function resolveMessage(
-  message: AnnouncementMessage,
-  whatsappNumber: string,
-  inZoneRate: number,
-  outsideZoneRate: number,
-) {
+// Delivery-rate entries always render the REAL rate and the REAL zone
+// names (Settings-driven delivery_zones) and the WhatsApp entry always
+// uses the real settings number -- an admin can choose that a slot shows
+// one of these, but can never free-type the rate/name/number itself
+// (Settings > Announcement).
+//
+// Both delivery kinds go through lib/delivery-fee.ts's describe* helpers,
+// which the admin preview calls too, so what an admin sees while picking
+// a slot is the same string the storefront renders. See
+// describeLowestRateZones for the one-line shortening rule.
+function resolveMessage(message: AnnouncementMessage, whatsappNumber: string, zones: DeliveryZone[]) {
   if (message.kind === "delivery_in_zone") {
-    return { text: `Colombo 1–15: ${formatPrice(inZoneRate)}`, href: undefined };
+    const { label, rate } = describeLowestRateZones(zones);
+    return { text: `${label}: ${formatPrice(rate)}`, href: undefined };
   }
   if (message.kind === "delivery_outside_zone") {
-    return { text: `Outside Colombo: ${formatPrice(outsideZoneRate)}`, href: undefined };
+    const { label, rate } = describeCatchAllZone(zones);
+    return { text: `${label}: ${formatPrice(rate)}`, href: undefined };
   }
   if (message.kind === "whatsapp") {
     return { text: message.text ?? "Need Help? WhatsApp Us", href: `https://wa.me/${whatsappNumber}` };
@@ -94,11 +97,9 @@ export function AnnouncementBar({
   const [reducedMotion, setReducedMotion] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
-  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
   const resolved = messages.map((message) => ({
     icon: message.icon ?? "truck",
-    ...resolveMessage(message, whatsappNumber, inZoneRate, outsideZoneRate),
+    ...resolveMessage(message, whatsappNumber, zones),
   }));
 
   useEffect(() => {

@@ -7,16 +7,20 @@ import { SaveBar, type SaveStatus } from "@/components/admin/settings/SaveBar";
 import { StatusIndicator } from "@/components/admin/settings/StatusIndicator";
 import { PlusIcon, TrashIcon } from "@/components/ui/Icon";
 import { ActionButton } from "@/components/ui/ActionButton";
-import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE, type DeliveryZone } from "@/lib/delivery-fee";
+import { describeCatchAllZone, describeLowestRateZones, type DeliveryZone } from "@/lib/delivery-fee";
 import { formatPrice } from "@/lib/utils";
 import type { AnnouncementMessage, AnnouncementMessageKind, AnnouncementSettings } from "@/lib/data/settings";
 
 const inputClass =
   "rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
 
+// Deliberately not naming zones here: these label the KIND of slot, and
+// which zones each one covers is now read from delivery_zones at render
+// time (see previewText), so a zone rename must not leave a stale name
+// sitting in this picker.
 const KIND_LABELS: Record<AnnouncementMessageKind, string> = {
-  delivery_in_zone: "Delivery rate — Colombo 1-15",
-  delivery_outside_zone: "Delivery rate — Outside Colombo",
+  delivery_in_zone: "Delivery rate — local zones",
+  delivery_outside_zone: "Delivery rate — everywhere else",
   cod: "Cash on Delivery",
   whatsapp: "WhatsApp contact",
   custom: "Custom message",
@@ -24,19 +28,25 @@ const KIND_LABELS: Record<AnnouncementMessageKind, string> = {
 
 const MAX_MESSAGES = 4;
 
-// The two delivery kinds always render the REAL rate (Settings-driven
-// delivery_zones, Phase 3) -- an admin can pick that this slot shows the
-// delivery rate, but can never type the number itself, so this preview
-// can't drift from the real shipping calculation.
-function previewText(message: AnnouncementMessage, inZoneRate: number, outsideZoneRate: number): string {
-  if (message.kind === "delivery_in_zone") return `Colombo 1–15: ${formatPrice(inZoneRate)}`;
-  if (message.kind === "delivery_outside_zone") return `Outside Colombo: ${formatPrice(outsideZoneRate)}`;
+// The two delivery kinds always render the REAL rate and the REAL zone
+// names (Settings-driven delivery_zones) -- an admin can pick that this
+// slot shows the delivery rate, but can never type the number or the zone
+// name itself, so this preview can't drift from the real shipping
+// calculation. It calls the SAME helpers AnnouncementBar renders from, so
+// the preview is the storefront string, not a lookalike.
+function previewText(message: AnnouncementMessage, zones: DeliveryZone[]): string {
+  if (message.kind === "delivery_in_zone") {
+    const { label, rate } = describeLowestRateZones(zones);
+    return `${label}: ${formatPrice(rate)}`;
+  }
+  if (message.kind === "delivery_outside_zone") {
+    const { label, rate } = describeCatchAllZone(zones);
+    return `${label}: ${formatPrice(rate)}`;
+  }
   return message.text ?? "";
 }
 
 export function AnnouncementSettingsForm({ initial, zones }: { initial: AnnouncementSettings; zones: DeliveryZone[] }) {
-  const inZoneRate = zones.find((zone) => zone.districtMatch === "Colombo")?.rate ?? RATE_IN_ZONE;
-  const outsideZoneRate = zones.find((zone) => zone.isDefault)?.rate ?? RATE_OUTSIDE_ZONE;
   const [values, setValues] = useState(initial);
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -164,7 +174,7 @@ export function AnnouncementSettingsForm({ initial, zones }: { initial: Announce
                 <p className="text-xs text-[var(--muted)]">
                   Live preview:{" "}
                   <span className="font-medium text-[var(--foreground)]">
-                    {previewText(message, inZoneRate, outsideZoneRate)}
+                    {previewText(message, zones)}
                   </span>{" "}
                   — computed automatically, not editable here.
                 </p>

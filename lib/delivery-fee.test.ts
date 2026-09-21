@@ -4,7 +4,9 @@ import {
   WELLAMPITIYA_POSTAL_CODE,
   WELLAMPITIYA_ZONE_KEY,
   calculateDeliveryFee,
+  describeCatchAllZone,
   describeDeliveryFee,
+  describeLowestRateZones,
   isFastDeliveryZone,
   normalizePostalCode,
   resolveDeliveryZone,
@@ -262,4 +264,71 @@ test("Store Pickup is never a fast delivery zone (nothing is delivered)", () => 
 
 test("an empty zones table yields no fast zone rather than throwing", () => {
   assert.equal(isFastDeliveryZone(resolveDeliveryZone({ district: "Colombo", postalCode: "01200", deliveryMethod: "standard" }, [])), false);
+});
+
+// ── The announcement bar's one-line summary of the rate card ──
+
+test("the bar names every zone sharing the lowest rate", () => {
+  const { label, rate } = describeLowestRateZones(TEST_ZONES);
+  assert.equal(label, "Colombo 1-15 & Wellampitiya");
+  assert.equal(rate, 255);
+});
+
+test("a zone at a HIGHER rate is not named -- the line stays true, not complete", () => {
+  // The documented shortening rule. A Negombo at Rs 300 does not belong
+  // on a line that claims "Rs 255", so it is left off rather than
+  // making the bar say something false about it.
+  const withNegombo = [
+    ...TEST_ZONES,
+    {
+      id: "zone-negombo", name: "Negombo", postalCodeStart: "11500", postalCodeEnd: "11500",
+      districtMatch: "Gampaha", rate: 300, isDefault: false, zoneKey: null,
+    },
+  ];
+  const { label, rate } = describeLowestRateZones(withNegombo);
+  assert.equal(label, "Colombo 1-15 & Wellampitiya");
+  assert.equal(rate, 255);
+});
+
+test("a fourth zone at the SAME lowest rate is named automatically", () => {
+  const withKolonnawa = [
+    ...TEST_ZONES,
+    {
+      id: "zone-kolonnawa", name: "Kolonnawa", postalCodeStart: null, postalCodeEnd: null,
+      districtMatch: "Colombo", rate: 255, isDefault: false, zoneKey: "KOLONNAWA",
+    },
+  ];
+  // Three or more use a serial join so the line still reads as a list.
+  assert.equal(describeLowestRateZones(withKolonnawa).label, "Colombo 1-15, Wellampitiya & Kolonnawa");
+});
+
+test("one named zone needs no join", () => {
+  const colomboOnly = TEST_ZONES.filter((zone) => zone.zoneKey === null);
+  assert.equal(describeLowestRateZones(colomboOnly).label, "Colombo 1-15");
+});
+
+test("the catch-all names itself, and both fall back rather than blanking", () => {
+  assert.deepEqual(describeCatchAllZone(TEST_ZONES), { label: "Other Sri Lanka", rate: 400 });
+  // An empty/misconfigured table must not empty the bar.
+  assert.deepEqual(describeLowestRateZones([]), { label: "Colombo 1–15", rate: 255 });
+  assert.deepEqual(describeCatchAllZone([]), { label: "Outside Colombo", rate: 400 });
+});
+
+test("the bar's summary never contradicts what checkout charges", () => {
+  // Every zone named on the lowest-rate line must actually price at that
+  // rate through the real matcher -- the bar is a summary of the same
+  // table, so a claim it makes has to survive calculateDeliveryFee.
+  const { rate } = describeLowestRateZones(TEST_ZONES);
+  assert.equal(calculateDeliveryFee({ district: "Colombo", postalCode: "01200", deliveryMethod: "standard" }, TEST_ZONES), rate);
+  assert.equal(
+    calculateDeliveryFee(
+      { district: "Colombo", postalCode: WELLAMPITIYA_POSTAL_CODE, zoneKey: WELLAMPITIYA_ZONE_KEY, deliveryMethod: "standard" },
+      TEST_ZONES,
+    ),
+    rate,
+  );
+  assert.equal(
+    calculateDeliveryFee({ district: "Kandy", postalCode: "20000", deliveryMethod: "standard" }, TEST_ZONES),
+    describeCatchAllZone(TEST_ZONES).rate,
+  );
 });
