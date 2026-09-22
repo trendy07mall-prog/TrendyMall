@@ -15,10 +15,40 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "6mb",
     },
   },
-  // sharp is a native binary and must not be traced into the server bundle
-  // -- lib/admin/uploads.ts now imports it at request time to downscale
-  // inline description images before storing them.
+  // sharp is a native binary and must not be bundled by webpack -- it is
+  // require()d from node_modules at request time by lib/admin/uploads.ts,
+  // which downscales inline description images before storing them.
   serverExternalPackages: ["sharp"],
+  // ...but marking it external is exactly what stopped it working on
+  // Vercel. sharp picks its native binding at RUNTIME (it tries each
+  // @img/sharp-<platform> package in turn), so there is no static require
+  // for Next's file tracing to follow, and the .node/.so files never made
+  // it into the deployed function. A build that succeeded and an upload
+  // that silently stored the original 2400x2400 were the only symptoms;
+  // the real error was only in the function log:
+  //
+  //   ERR_DLOPEN_FAILED: libvips-cpp.so.8.18.3: cannot open shared object file
+  //
+  // outputFileTracingIncludes is Next's documented answer for "tracing
+  // cannot see this file". Keys are route globs matched against the route
+  // path; values are globs resolved from the project root.
+  //
+  // Scoped to /admin/** because a Server Action is traced under whichever
+  // route invoked it, and the description editor is reachable from three:
+  // /admin/products/new, /admin/products/[id]/edit and
+  // /admin/settings/policies. Nothing customer-facing pulls sharp in, so
+  // the storefront's functions stay unaffected.
+  //
+  // @img/** rather than a named platform package: npm only installs the
+  // optional @img packages matching the build machine, so this resolves to
+  // the linux-x64 binding plus its libvips on Vercel (and the win32 one
+  // locally) without hardcoding either. Both halves are needed -- on Linux
+  // the binding (@img/sharp-linux-x64) and libvips
+  // (@img/sharp-libvips-linux-x64) are separate packages, and it was the
+  // latter that was missing.
+  outputFileTracingIncludes: {
+    "/admin/**": ["./node_modules/@img/**/*", "./node_modules/sharp/**/*"],
+  },
   images: {
     // HeroSlider requests quality={88}; Next 16 rejects any quality not
     // explicitly listed here (75 is the implicit default used everywhere
