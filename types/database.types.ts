@@ -2165,6 +2165,10 @@ export interface Database {
         Args: { p_address_id: string };
         Returns: undefined;
       };
+      link_guest_orders_to_current_user: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

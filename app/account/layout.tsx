@@ -1,4 +1,5 @@
 import { AccountNav } from "@/components/account/AccountNav";
+import { GuestOrderLinker } from "@/components/account/GuestOrderLinker";
 import { getMyProfile } from "@/lib/profile";
 
 // /account/* is already auth-gated by proxy.ts (redirects to /login if
@@ -22,6 +23,10 @@ export default async function AccountLayout({ children }: { children: React.Reac
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-6 py-12 md:flex-row">
+      {/* Claims any guest orders placed under this account's own confirmed
+          e-mail. Renders nothing; see sql/084 for why it is here and not
+          at signup. */}
+      <GuestOrderLinker />
       <AccountNav fullName={profile?.full_name ?? null} phone={profile?.phone ?? null} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
