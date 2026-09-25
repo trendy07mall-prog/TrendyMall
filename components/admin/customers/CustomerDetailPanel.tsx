@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/utils";
 import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { getCustomerDetail, saveCustomerNote, type CustomerDetail } from "@/lib/admin/customers";
 import { initialsOf, type CustomerSummary } from "@/lib/admin/customer-segments";
+import { formatStoreDate } from "@/lib/datetime";
 
 // Mounted by the parent only while a customer is selected, so the loaded
 // detail naturally starts fresh on every open with no effect needed to
@@ -89,7 +90,7 @@ export function CustomerDetailPanel({
             </a>
             <p className="mt-0.5 text-xs text-[var(--ac-text-3)]">
               {detail?.firstOrderAt
-                ? `Customer since ${new Date(detail.firstOrderAt).toLocaleDateString()}`
+                ? `Customer since ${formatStoreDate(detail.firstOrderAt)}`
                 : "Customer since —"}
             </p>
           </div>
@@ -138,7 +139,7 @@ export function CustomerDetailPanel({
                         {order.orderNumber}
                       </Link>
                       <p className="text-xs text-[var(--ac-text-3)]">
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {formatStoreDate(order.createdAt)}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

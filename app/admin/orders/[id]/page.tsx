@@ -12,6 +12,7 @@ import { AddTrackingForm } from "@/components/admin/AddTrackingForm";
 import { WhatsAppOrderLink } from "@/components/admin/WhatsAppOrderLink";
 import { OrderTimeline } from "@/components/order/OrderTimeline";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
+import { formatStoreDateTime } from "@/lib/datetime";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -80,7 +81,7 @@ export default async function AdminOrderDetailPage({
         </div>
       </div>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Placed {new Date(order.created_at).toLocaleString()}
+        Placed {formatStoreDateTime(order.created_at)}
       </p>
 
       <div className="mt-6">

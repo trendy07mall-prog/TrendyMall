@@ -9,6 +9,7 @@ import {
   type CustomerSummary,
 } from "@/lib/admin/customer-segments";
 import { SORT_LABELS, SORT_KEYS, type SortKey, type SortState } from "./customer-sort";
+import { formatStoreDate } from "@/lib/datetime";
 
 function Avatar({ customer }: { customer: CustomerSummary }) {
   return (
@@ -156,7 +157,7 @@ export function CustomersTable({
               <td className="px-4 py-3">{customer.orderCount}</td>
               <td className="px-4 py-3">{formatPrice(customer.totalSpent)}</td>
               <td className="px-4 py-3">
-                <div>{new Date(customer.lastOrderAt).toLocaleDateString()}</div>
+                <div>{formatStoreDate(customer.lastOrderAt)}</div>
                 <div className="text-xs text-[var(--ac-text-3)]">
                   {relativeTime(customer.lastOrderAt)}
                 </div>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { StarRating } from "@/components/product/StarRating";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { MyReview, PendingReviewItem } from "@/lib/reviews";
+import { formatStoreDate } from "@/lib/datetime";
 
 type Tab = "my-reviews" | "pending";
 
@@ -133,7 +134,7 @@ function MyReviewsList({ reviews }: { reviews: MyReview[] }) {
               {review.title && <p className="mt-1 text-sm font-medium">{review.title}</p>}
               {review.comment && <p className="mt-1 text-sm text-[var(--muted)]">{review.comment}</p>}
               <p className="mt-2 text-xs text-[var(--muted)]">
-                {new Date(review.created_at).toLocaleDateString()}
+                {formatStoreDate(review.created_at)}
               </p>
             </div>
           </div>

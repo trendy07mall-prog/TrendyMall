@@ -2,6 +2,7 @@ import "server-only";
 
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { Order, OrderItem } from "@/types";
+import { formatStoreDate } from "@/lib/datetime";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#111111", fontFamily: "Helvetica" },
@@ -41,7 +42,7 @@ function PackingSlipDocument({ order, items }: PackingSlipProps) {
           <Text style={styles.brand}>TrendyMall — Packing Slip</Text>
           <View style={styles.metaBlock}>
             <Text style={styles.metaLine}>Order {order.order_number}</Text>
-            <Text style={styles.metaLine}>{new Date(order.created_at).toLocaleDateString()}</Text>
+            <Text style={styles.metaLine}>{formatStoreDate(order.created_at)}</Text>
           </View>
         </View>
 

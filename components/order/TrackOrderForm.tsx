@@ -10,6 +10,7 @@ import { FieldError } from "@/components/ui/FieldError";
 import { PackageIcon } from "@/components/ui/Icon";
 import { formatPrice } from "@/lib/utils";
 import type { GuestOrderDetail } from "@/types";
+import { formatStoreDate } from "@/lib/datetime";
 
 const inputClass =
   "min-h-11 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
@@ -118,7 +119,7 @@ export function TrackOrderForm({
           <div className="flex items-center justify-between">
             <p className="font-medium">{order.orderNumber}</p>
             <p className="text-[var(--muted)]">
-              Placed {new Date(order.createdAt).toLocaleDateString()}
+              Placed {formatStoreDate(order.createdAt)}
             </p>
           </div>
           <div className="mt-3">

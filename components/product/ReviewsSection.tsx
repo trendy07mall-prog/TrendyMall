@@ -6,8 +6,13 @@ import { StarRating } from "@/components/product/StarRating";
 import { ReviewForm } from "@/components/product/ReviewForm";
 import type { ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
+import { STORE_TIME_ZONE } from "@/lib/datetime";
 
+// Keeps this page's own "25 Sep 2026" shape -- only the zone was missing,
+// so a review posted late evening in Colombo no longer shows the previous
+// day to a server-rendered visitor. See lib/datetime.ts.
 const dateFormatter = new Intl.DateTimeFormat("en-LK", {
+  timeZone: STORE_TIME_ZONE,
   year: "numeric",
   month: "short",
   day: "numeric",

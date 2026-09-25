@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getMyNotifications } from "@/lib/account/notifications";
 import { BellIcon } from "@/components/ui/Icon";
+import { formatStoreDateTime } from "@/lib/datetime";
 
 export const metadata: Metadata = { title: "Notifications — TrendyMall" };
 
@@ -39,7 +40,7 @@ export default async function AccountNotificationsPage() {
                 </p>
                 {n.note && <p className="mt-0.5 text-xs text-[var(--muted)]">{n.note}</p>}
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  {new Date(n.createdAt).toLocaleString()}
+                  {formatStoreDateTime(n.createdAt)}
                 </p>
               </div>
             </li>

@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { GuestOrderDetail } from "@/types";
+import { formatStoreDate } from "@/lib/datetime";
 
 // The sticky right-column card on /order-confirmation — same shell as
 // the checkout/cart order-summary sidebar (rounded-[20px], --shadow-card,
@@ -93,7 +94,7 @@ export function OrderSummaryCard({ order, zones }: { order: GuestOrderDetail; zo
         </div>
         <div className="flex justify-between">
           <span>Order date</span>
-          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+          <span>{formatStoreDate(order.createdAt)}</span>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { formatPrice } from "@/lib/utils";
 import type { CustomerSummary } from "@/lib/admin/customer-segments";
+import { formatStoreDate } from "@/lib/datetime";
 
 // Any of these fields can legitimately contain a comma (a name, a formatted
 // price like "LKR 12,500"), which would otherwise shift every later column
@@ -24,7 +25,7 @@ export function ExportCustomersButton({ customers }: { customers: CustomerSummar
         [c.email, c.phone].filter(Boolean).join(" / "),
         String(c.orderCount),
         formatPrice(c.totalSpent),
-        new Date(c.lastOrderAt).toLocaleDateString(),
+        formatStoreDate(c.lastOrderAt),
       ].map(csvCell),
     );
 

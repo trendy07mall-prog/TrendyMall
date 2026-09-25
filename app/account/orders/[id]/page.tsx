@@ -15,6 +15,7 @@ import { ReorderButton } from "@/components/order/ReorderButton";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { WhatsAppIcon } from "@/components/ui/Icon";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
+import { formatStoreDateTime } from "@/lib/datetime";
 
 const actionClass =
   "transition-brand inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] px-5 text-sm font-medium hover:bg-black/5";
@@ -55,7 +56,7 @@ export default async function AccountOrderDetailPage({
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-heading text-2xl font-bold tracking-tight">Order {order.orderNumber}</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">Placed {new Date(order.createdAt).toLocaleString()}</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">Placed {formatStoreDateTime(order.createdAt)}</p>
       </div>
 
       {order.paymentMethod === "payhere" && order.paymentStatus === "pending" && <PendingPaymentPoller />}

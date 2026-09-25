@@ -30,12 +30,23 @@ export function trackConversion(
     // already knows the logical page (e.g. a route the browser hasn't
     // navigated to yet).
     pagePath?: string;
+    // Meta's deduplication key. It goes in fbq's FOURTH argument, not in
+    // pixelParams, which is why simply adding it to the params object
+    // would have looked right and done nothing. Meta collapses events
+    // that share an eventID and event name, so the same order counts once
+    // however many times this fires -- a second device, a shared link, or
+    // a future Conversions API sending the same order server-side.
+    eventId?: string;
   } = {},
 ): void {
   if (typeof window === "undefined") return;
 
   if (typeof window.fbq === "function") {
-    window.fbq("track", eventName, options.pixelParams);
+    if (options.eventId) {
+      window.fbq("track", eventName, options.pixelParams, { eventID: options.eventId });
+    } else {
+      window.fbq("track", eventName, options.pixelParams);
+    }
   }
 
   logEvent({

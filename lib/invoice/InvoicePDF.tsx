@@ -9,6 +9,7 @@ import { PAYMENT_STATUS_LABELS } from "@/components/order/PaymentStatusBadge";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { Order, OrderItem, ShippingAddress } from "@/types";
+import { formatStoreDate } from "@/lib/datetime";
 
 const LOGO_PATH = path.join(process.cwd(), "public/images/logo/trendymall-logo.png");
 
@@ -83,7 +84,7 @@ function InvoicePage({ order, items, address, couponCode, zones }: InvoiceProps 
           <View style={styles.metaBlock}>
             <Text style={styles.metaLine}>Invoice {invoiceNumberFor(order.order_number)}</Text>
             <Text style={styles.metaLine}>Order {order.order_number}</Text>
-            <Text style={styles.metaLine}>{new Date(order.created_at).toLocaleDateString()}</Text>
+            <Text style={styles.metaLine}>{formatStoreDate(order.created_at)}</Text>
           </View>
         </View>
 

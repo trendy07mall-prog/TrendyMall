@@ -2,6 +2,7 @@ import Link from "next/link";
 import { StarRating } from "@/components/product/StarRating";
 import { StarIcon, MailIcon } from "@/components/ui/Icon";
 import type { RecentReviewRow, NewSubscriberRow } from "@/lib/admin/dashboard-query";
+import { formatStoreDate } from "@/lib/datetime";
 
 export function RecentActivitySection({
   reviews,
@@ -65,7 +66,7 @@ export function RecentActivitySection({
               >
                 <span className="truncate">{subscriber.email}</span>
                 <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">
-                  {new Date(subscriber.createdAt).toLocaleDateString()}
+                  {formatStoreDate(subscriber.createdAt)}
                 </span>
               </li>
             ))}

@@ -2,6 +2,7 @@ import { CheckIcon, AlertTriangleIcon } from "@/components/ui/Icon";
 import { ORDER_STATUS_PROGRESSION, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { getWhatsAppUrl } from "@/lib/site";
 import type { OrderFulfillmentStatus } from "@/types";
+import { formatStoreStamp } from "@/lib/datetime";
 
 type StatusHistoryEntry = { status: OrderFulfillmentStatus; changedAt: string; note: string | null };
 type StepState = "done" | "current" | "future" | "failed";
@@ -10,12 +11,7 @@ type StepState = "done" | "current" | "future" | "failed";
 // single timestamp (e.g. "Delivered on ...") don't hand-roll a second
 // date formatter with different options.
 export function formatStepDate(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatStoreStamp(iso);
 }
 
 // Same visual language as components/checkout/CheckoutSteps.tsx's

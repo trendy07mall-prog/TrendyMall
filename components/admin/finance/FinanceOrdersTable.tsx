@@ -4,16 +4,10 @@ import { OrderStatusBadge } from "@/components/order/OrderStatusBadge";
 import { PaymentStatusBadge } from "@/components/order/PaymentStatusBadge";
 import { Pagination } from "@/components/product/Pagination";
 import type { FinanceOrderRow } from "@/lib/admin/finance-shared";
+import { formatStoreStampWithYear } from "@/lib/datetime";
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+// Asia/Colombo, not the viewer's zone -- see lib/datetime.ts.
+const formatDate = formatStoreStampWithYear;
 
 // A real table (not the card-list convention used by the workflow-action
 // OrdersTable.tsx on /admin/orders) -- Finance is read-only reporting with

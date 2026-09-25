@@ -35,6 +35,12 @@ export function PurchaseTracker({
     trackConversion("Purchase", {
       value: total,
       pagePath: `/order-confirmation/${orderNumber}`,
+      // The order number is the natural deduplication key: one per order,
+      // stable forever, and the same value our own records use. The
+      // localStorage guard above only covers this browser -- a customer
+      // opening the confirmation on their phone as well as their laptop
+      // would otherwise be two Purchases to Meta for one sale.
+      eventId: orderNumber,
       pixelParams: {
         content_ids: productIds,
         content_type: "product",

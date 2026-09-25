@@ -22,6 +22,7 @@ import {
   HeadsetIcon,
 } from "@/components/ui/Icon";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
+import { formatStoreDate } from "@/lib/datetime";
 
 export const metadata: Metadata = { title: "My Account — TrendyMall" };
 
@@ -119,7 +120,7 @@ async function RecentOrderCard() {
         <div>
           <p className="text-sm font-semibold">Order {detail.orderNumber}</p>
           <p className="text-xs text-[var(--muted)]">
-            {new Date(detail.createdAt).toLocaleDateString()} · {formatPrice(detail.total)}
+            {formatStoreDate(detail.createdAt)} · {formatPrice(detail.total)}
           </p>
         </div>
         <Link

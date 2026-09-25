@@ -10,6 +10,7 @@ import { ShoppingBagIcon, TruckIcon } from "@/components/ui/Icon";
 import type { AccountOrderRow } from "@/lib/account/orders-query";
 import type { AccountOrderFilterState } from "@/lib/account/order-filters";
 import type { OrderFulfillmentStatus } from "@/types";
+import { formatStoreDate } from "@/lib/datetime";
 
 const actionLinkClass =
   "transition-brand inline-flex min-h-11 items-center rounded-full border border-[var(--border)] px-3 text-xs font-medium hover:bg-black/5";
@@ -154,7 +155,7 @@ export function OrdersList({
                   </div>
                 </td>
                 <td className="py-3 pr-4 align-top text-[var(--muted)]">
-                  {new Date(order.created_at).toLocaleDateString()}
+                  {formatStoreDate(order.created_at)}
                 </td>
                 <td className="py-3 align-top">
                   <RowActions order={order} />
@@ -175,7 +176,7 @@ export function OrdersList({
                   {order.order_number}
                 </Link>
                 <p className="text-xs text-[var(--muted)]">
-                  {new Date(order.created_at).toLocaleDateString()} ·{" "}
+                  {formatStoreDate(order.created_at)} ·{" "}
                   {PAYMENT_METHOD_LABELS[order.payment_method] ?? order.payment_method}
                 </p>
               </div>

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ExportSubscribersButton } from "@/components/admin/ExportSubscribersButton";
+import { formatStoreDate } from "@/lib/datetime";
 
 export default async function AdminSubscribersPage() {
   const supabase = await createClient();
@@ -29,7 +30,7 @@ export default async function AdminSubscribersPage() {
           >
             <span>{subscriber.email}</span>
             <span className="text-[var(--muted)]">
-              {new Date(subscriber.created_at).toLocaleDateString()}
+              {formatStoreDate(subscriber.created_at)}
             </span>
           </li>
         ))}

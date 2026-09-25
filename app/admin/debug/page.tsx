@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { formatStoreDateTime } from "@/lib/datetime";
 
 // Read-only — the actual gate is order_error_log's own RLS
 // (order_error_log_select_admin, sql/036), same as every other admin
@@ -36,7 +37,7 @@ export default async function AdminDebugPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono font-medium">{row.reference_code}</span>
                 <span className="text-[var(--muted)]">
-                  {new Date(row.created_at).toLocaleString()}
+                  {formatStoreDateTime(row.created_at)}
                 </span>
               </div>
               <p className="mt-2">

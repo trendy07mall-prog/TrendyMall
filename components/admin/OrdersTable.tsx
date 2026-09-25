@@ -23,15 +23,10 @@ import { ActionButton, actionButtonClasses } from "@/components/ui/ActionButton"
 import type { AdminOrderItemRow, AdminOrderRow } from "@/lib/admin/orders-query";
 import { ADMIN_ORDER_TAB_LABELS } from "@/lib/admin/orderStatusFlow";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
+import { formatStoreStamp } from "@/lib/datetime";
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+// Asia/Colombo, not the viewer's zone -- see lib/datetime.ts.
+const formatDateTime = formatStoreStamp;
 
 function QuickActionButton({
   action,
