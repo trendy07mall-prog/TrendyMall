@@ -29,6 +29,7 @@ export function OrderTimeline({
   statusHistory,
   createdAt,
   orderNumber,
+  whatsappNumber,
 }: {
   status: OrderFulfillmentStatus;
   failureReason?: string | null;
@@ -36,6 +37,11 @@ export function OrderTimeline({
   statusHistory?: StatusHistoryEntry[];
   createdAt: string;
   orderNumber: string;
+  // Settings-backed (general.whatsapp_number). Required rather than
+  // defaulted: the delivery-failure link here is one a customer actually
+  // uses when something has gone wrong, so it must never quietly point at
+  // a stale number.
+  whatsappNumber: string;
 }) {
   if (status === "cancelled" || status === "returned") {
     return (
@@ -164,6 +170,7 @@ export function OrderTimeline({
               isAddressIssue
                 ? `Hi, delivery of my order ${orderNumber} failed because of an address issue — here's my correct address:`
                 : `Hi, delivery of my order ${orderNumber} failed — I'd like to sort this out.`,
+              whatsappNumber,
             )}
             target="_blank"
             rel="noopener noreferrer"

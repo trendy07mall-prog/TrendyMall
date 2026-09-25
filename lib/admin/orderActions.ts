@@ -10,6 +10,7 @@ import { getNotificationSettings } from "@/lib/data/settings";
 import { getNextOrderStatus, ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { getWhatsAppUrl } from "@/lib/site";
 import type { OrderFulfillmentStatus, PaymentStatus } from "@/types";
+import { getGeneralSettings } from "@/lib/data/settings";
 
 export type OrderActionResult = { success: true } | { error: string };
 
@@ -485,7 +486,13 @@ export async function markDeliveryFailed(orderId: string, reason: string): Promi
 
   if (order) {
     const isAddressIssue = trimmedReason.toLowerCase().includes("address");
-    const whatsappLink = getWhatsAppUrl(`Hi, delivery of my order ${order.order_number} failed — I'd like to sort this out.`);
+    // Read from Settings rather than a default: this link goes out in an
+    // e-mail, where a stale number is impossible to correct after the fact.
+    const general = await getGeneralSettings();
+    const whatsappLink = getWhatsAppUrl(
+      `Hi, delivery of my order ${order.order_number} failed — I'd like to sort this out.`,
+      general.whatsappNumber,
+    );
     await sendOrderStatusEmail({
       orderNumber: order.order_number,
       customerName: order.customer_name,

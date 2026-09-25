@@ -7,7 +7,13 @@ import type { GuestOrderDetail } from "@/types";
 // want this exact bundled card layout (/order-confirmation, /track-order).
 // /account/orders/[id] composes the two pieces directly instead — its
 // "status prominently at top" layout doesn't want the same card wrapper.
-export function OrderStatusSection({ order }: { order: GuestOrderDetail }) {
+export function OrderStatusSection({
+  order,
+  whatsappNumber,
+}: {
+  order: GuestOrderDetail;
+  whatsappNumber: string;
+}) {
   return (
     <div className="flex flex-col gap-6">
       {order.paymentMethod === "payhere" && order.paymentStatus === "pending" && <PendingPaymentPoller />}
@@ -23,6 +29,7 @@ export function OrderStatusSection({ order }: { order: GuestOrderDetail }) {
             statusHistory={order.statusHistory}
             createdAt={order.createdAt}
             orderNumber={order.orderNumber}
+            whatsappNumber={whatsappNumber}
           />
         </div>
       </section>

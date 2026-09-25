@@ -10,13 +10,19 @@ export const SITE_URL =
     ? "https://www.trendymall.online"
     : "http://localhost:3000");
 
-// Fallback only -- the real number now lives in Settings
-// (general.whatsapp_number, see lib/data/settings.ts). Server components
-// that already fetch settings should pass that value as `number` below;
-// this constant only matters for the few call sites that don't (yet).
-export const WHATSAPP_NUMBER = "94775312484";
-
-export function getWhatsAppUrl(message?: string, number: string = WHATSAPP_NUMBER): string {
+// `number` is required on purpose. It used to default to a hardcoded
+// constant here, described as a fallback "for the few call sites that
+// don't (yet)" pass the real value -- and that default is exactly how an
+// admin changing the WhatsApp number in Settings silently failed to reach
+// seven call sites, including the product page's "Order via WhatsApp"
+// button and the delivery-failure link emailed to customers. They all kept
+// quoting a number the store no longer answers, with nothing to indicate
+// it, because a default can be wrong without being noticed.
+//
+// The real number lives in Settings (general.whatsapp_number, see
+// lib/data/settings.ts). Making this required means a new call site cannot
+// compile without deciding where its number comes from.
+export function getWhatsAppUrl(message: string | undefined, number: string): string {
   return message
     ? `https://wa.me/${number}?text=${encodeURIComponent(message)}`
     : `https://wa.me/${number}`;

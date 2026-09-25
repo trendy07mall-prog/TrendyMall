@@ -21,6 +21,7 @@ import {
   MailIcon,
   HeadsetIcon,
 } from "@/components/ui/Icon";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 
 export const metadata: Metadata = { title: "My Account — TrendyMall" };
 
@@ -87,6 +88,7 @@ function RecentOrderSkeleton() {
 }
 
 async function RecentOrderCard() {
+  const general = await getCachedGeneralSettings();
   let detail: Awaited<ReturnType<typeof getMyOrderDetail>> | "empty";
   try {
     const { orders } = await getMyOrders(ALL_ORDERS_FILTER, 1, 1);
@@ -135,24 +137,36 @@ async function RecentOrderCard() {
           statusHistory={detail.statusHistory}
           createdAt={detail.createdAt}
           orderNumber={detail.orderNumber}
+          whatsappNumber={general.whatsappNumber}
         />
       </div>
     </div>
   );
 }
 
-const NEED_HELP_LINKS = [
-  { href: getWhatsAppUrl("Hi, I have a question about my account."), label: "WhatsApp Us", icon: WhatsAppIcon, external: true },
-  { href: "/contact", label: "Contact Us", icon: MailIcon, external: false },
-  { href: "/faq", label: "FAQ", icon: HeadsetIcon, external: false },
-];
+// Built per render rather than as a module constant: the WhatsApp link
+// depends on a Settings value, and a module-level constant would freeze
+// whatever number was current when the module first loaded.
+function needHelpLinks(whatsappNumber: string) {
+  return [
+    {
+      href: getWhatsAppUrl("Hi, I have a question about my account.", whatsappNumber),
+      label: "WhatsApp Us",
+      icon: WhatsAppIcon,
+      external: true,
+    },
+    { href: "/contact", label: "Contact Us", icon: MailIcon, external: false },
+    { href: "/faq", label: "FAQ", icon: HeadsetIcon, external: false },
+  ];
+}
 
-function NeedHelpSection() {
+async function NeedHelpSection() {
+  const general = await getCachedGeneralSettings();
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
       <h2 className="text-sm font-semibold">Need help?</h2>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {NEED_HELP_LINKS.map((link) => (
+        {needHelpLinks(general.whatsappNumber).map((link) => (
           <a
             key={link.label}
             href={link.href}

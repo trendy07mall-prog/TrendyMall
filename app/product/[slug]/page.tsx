@@ -23,6 +23,7 @@ import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSectio
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { SITE_URL as siteUrl } from "@/lib/site";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 
 export async function generateMetadata({
   params,
@@ -102,7 +103,7 @@ export default async function ProductPage({
   // detail payload; "have I reviewed this?" is the only per-visitor read
   // and stays live. The page shows exactly the same values as before --
   // these are the same functions, just cached and no longer chained.
-  const [categoryInfo, relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones] =
+  const [categoryInfo, relatedProducts, reviews, ratingSummary, alreadyReviewed, tags, specs, zones, general] =
     await Promise.all([
       getCachedCategoryWithAncestors(product.category_id),
       getCachedRelatedProducts(product.category_id, product.id),
@@ -114,6 +115,10 @@ export default async function ProductPage({
       getCachedProductTags(product.id),
       getCachedProductSpecs(product.id, product.category_id),
       getActiveDeliveryZones(),
+      // The store's WhatsApp number, for the "Order via WhatsApp" button.
+      // Cached, and the root layout already reads the same entry, so this
+      // adds no round trip.
+      getCachedGeneralSettings(),
     ]);
   const { category, ancestors: categoryAncestors } = categoryInfo;
 
@@ -187,6 +192,7 @@ export default async function ProductPage({
         reviewState={reviewState}
         tags={tags}
         zones={zones}
+        whatsappNumber={general.whatsappNumber}
         // Rewritten server-side, once per render, rather than in the
         // client component that renders it: see lib/rich-text.ts for why
         // stored description images need it at all.

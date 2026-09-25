@@ -40,7 +40,7 @@ export default async function TrackOrderPage({
       />
 
       <section className="mx-auto w-full max-w-[var(--container-width)] px-6 py-12">
-        <TrackOrderForm defaultOrderNumber={orderNumber} />
+        <TrackOrderForm defaultOrderNumber={orderNumber} whatsappNumber={general.whatsappNumber} />
       </section>
 
       <section className="px-6 py-12 text-center">

@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/supabase/server";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { getShippingSettings, getPaymentSettings } from "@/lib/data/settings";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 
 // Deliberately not auth-gated (proxy.ts) — guest checkout, v12 Phase 4.
 // getMyAddresses()/getMyProfile() already return empty/null for a guest.
@@ -20,6 +21,7 @@ export default async function CheckoutPage() {
     zones,
     shippingSettings,
     paymentSettings,
+    general,
   ] = await Promise.all([
     getAuthUser(),
     getBankTransferSettings(),
@@ -28,10 +30,12 @@ export default async function CheckoutPage() {
     getActiveDeliveryZones(),
     getShippingSettings(),
     getPaymentSettings(),
+    getCachedGeneralSettings(),
   ]);
 
   return (
     <CheckoutForm
+      whatsappNumber={general.whatsappNumber}
       bankDetails={bankDetails}
       // The admin's online-payment toggle only ever narrows availability —
       // ANDed with, never replacing, the real env-based isPayHereEnabled()

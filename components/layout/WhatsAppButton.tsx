@@ -5,14 +5,15 @@ import { WhatsAppIcon } from "@/components/ui/Icon";
 
 export function WhatsAppButton({
   enabled = true,
-  number = "94775312484",
+  number,
   defaultMessage,
 }: {
   // Settings-backed (contact.whatsapp_enabled / general.whatsapp_number /
-  // contact.whatsapp_default_message) — defaults match today's live values
-  // so this renders identically if Settings has nothing.
+  // contact.whatsapp_default_message). `number` is required: it used to
+  // default to a hardcoded value, which is the same trap that left the
+  // product page messaging a retired number.
   enabled?: boolean;
-  number?: string;
+  number: string;
   defaultMessage?: string;
 }) {
   // Nothing should compete with the primary CTA on checkout — every

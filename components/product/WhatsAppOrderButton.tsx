@@ -1,20 +1,26 @@
 "use client";
 
 import { WhatsAppIcon } from "@/components/ui/Icon";
+import { getWhatsAppUrl } from "@/lib/site";
 import { formatPrice } from "@/lib/utils";
-
-const WHATSAPP_NUMBER = "94775312484";
 
 export function WhatsAppOrderButton({
   productName,
   colorName,
   quantity,
   price,
+  whatsappNumber,
 }: {
   productName: string;
   colorName: string | null;
   quantity: number;
   price: number;
+  // The store's real number, from Settings (general.whatsapp_number),
+  // passed down from the page. This used to be a hardcoded constant in
+  // this file, which is why changing the number in admin updated the
+  // footer and the floating button but left this one messaging a number
+  // the store no longer answers.
+  whatsappNumber: string;
 }) {
   function handleClick() {
     const lines = [
@@ -28,7 +34,7 @@ export function WhatsAppOrderButton({
       typeof window !== "undefined" ? window.location.href : "",
     ].filter((line): line is string => line !== null);
 
-    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`;
+    const url = getWhatsAppUrl(lines.join("\n"), whatsappNumber);
     window.open(url, "_blank", "noopener,noreferrer");
   }
 

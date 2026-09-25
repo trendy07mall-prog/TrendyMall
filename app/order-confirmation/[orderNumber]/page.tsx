@@ -184,7 +184,7 @@ export default async function OrderConfirmationPage({
               <CopyOrderNumber orderNumber={order.orderNumber} />
             </div>
             <div className="mt-3">
-              <OrderStatusSection order={order} />
+              <OrderStatusSection order={order} whatsappNumber={general.whatsappNumber} />
             </div>
           </section>
 

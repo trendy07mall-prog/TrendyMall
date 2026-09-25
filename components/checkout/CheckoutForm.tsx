@@ -125,6 +125,7 @@ export function CheckoutForm({
   defaultEmail,
   zones,
   shippingSettings,
+  whatsappNumber,
 }: {
   bankDetails: BankTransferSettings | null;
   payHereEnabled: boolean;
@@ -144,6 +145,9 @@ export function CheckoutForm({
   defaultEmail?: string;
   zones: DeliveryZone[];
   shippingSettings: ShippingSettings;
+  // Settings-backed. Both uses below are "something went wrong, talk to a
+  // human" links, which are the worst possible place for a stale number.
+  whatsappNumber: string;
 }) {
   const {
     items,
@@ -768,7 +772,7 @@ export function CheckoutForm({
               {submitError}
             </p>
             <a
-              href={getWhatsAppUrl("Hi, I'm having trouble finishing my card payment on trendymall.online")}
+              href={getWhatsAppUrl("Hi, I'm having trouble finishing my card payment on trendymall.online", whatsappNumber)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center justify-center gap-1.5 text-sm underline"
@@ -1003,7 +1007,7 @@ export function CheckoutForm({
             <div role="alert" className="flex flex-col gap-1">
               <p className="text-sm text-[var(--color-discount)]">{submitError}</p>
               <a
-                href={getWhatsAppUrl("Hi, I'm having trouble placing an order on trendymall.online")}
+                href={getWhatsAppUrl("Hi, I'm having trouble placing an order on trendymall.online", whatsappNumber)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 w-fit items-center gap-1.5 text-sm underline"

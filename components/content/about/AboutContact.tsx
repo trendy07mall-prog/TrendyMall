@@ -5,8 +5,10 @@ import { getWhatsAppUrl } from "@/lib/site";
 import type { GeneralSettings, SocialSettings } from "@/lib/data/settings";
 
 // Same phone/WhatsApp display formatting Footer.tsx and app/contact/page.tsx
-// already use ("94775312484" -> "077 531 2484") -- one convention, not a
-// second one invented for this page.
+// already use ("94XXXXXXXXX" -> "0XX XXX XXXX") -- one convention, not a
+// second one invented for this page. Deliberately not a real number: the
+// example here used to be the store's own, and went stale the moment the
+// number changed in Settings.
 function formatLocalNumber(raw: string): string {
   return raw.replace(/^94/, "0").replace(/^\+94/, "0").replace(/(\d{3})(\d{3})(\d{4})/, "$1 $2 $3");
 }

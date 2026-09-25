@@ -20,7 +20,13 @@ const inputClass =
 // are all unchanged from before. Security-relevant behavior lives entirely
 // in lib/track-order.ts and the track_order Postgres function, neither of
 // which this file touches.
-export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: string }) {
+export function TrackOrderForm({
+  defaultOrderNumber,
+  whatsappNumber,
+}: {
+  defaultOrderNumber?: string;
+  whatsappNumber: string;
+}) {
   const [orderNumber, setOrderNumber] = useState(defaultOrderNumber ?? "");
   const [contact, setContact] = useState("");
   const [pending, setPending] = useState(false);
@@ -116,7 +122,7 @@ export function TrackOrderForm({ defaultOrderNumber }: { defaultOrderNumber?: st
             </p>
           </div>
           <div className="mt-3">
-            <OrderStatusSection order={order} />
+            <OrderStatusSection order={order} whatsappNumber={whatsappNumber} />
           </div>
 
           <ul className="mt-4 flex flex-col gap-3">

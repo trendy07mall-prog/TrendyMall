@@ -168,7 +168,7 @@ const GENERAL_FALLBACK: GeneralSettings = {
     "Shop premium mobile phone accessories in Sri Lanka including chargers, earphones, power banks, phone cases, and more. Fast islandwide delivery and Cash on Delivery available.",
   email: "trendy07mall@gmail.com",
   phone: "+94750187145",
-  whatsappNumber: "94775312484",
+  whatsappNumber: "94750187145",
   address: "Salawatta Road, Wellampitiya, Sri Lanka",
   currency: "LKR",
   timezone: "Asia/Colombo",

@@ -11,6 +11,7 @@ import { OrderActionPanel } from "@/components/admin/OrderActionPanel";
 import { AddTrackingForm } from "@/components/admin/AddTrackingForm";
 import { WhatsAppOrderLink } from "@/components/admin/WhatsAppOrderLink";
 import { OrderTimeline } from "@/components/order/OrderTimeline";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -28,7 +29,7 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
-  const [{ data: items }, { data: payment }, { data: address }, { data: history }, zones] = await Promise.all([
+  const [{ data: items }, { data: payment }, { data: address }, { data: history }, zones, general] = await Promise.all([
     supabase.from("order_items").select("*").eq("order_id", id),
     supabase.from("payments").select("*").eq("order_id", id).maybeSingle(),
     supabase.from("shipping_addresses").select("*").eq("order_id", id).maybeSingle(),
@@ -39,6 +40,7 @@ export default async function AdminOrderDetailPage({
       .eq("field", "order_status")
       .order("created_at", { ascending: true }),
     getActiveDeliveryZones(),
+    getCachedGeneralSettings(),
   ]);
 
   const deliveryLabel =
@@ -83,6 +85,7 @@ export default async function AdminOrderDetailPage({
 
       <div className="mt-6">
         <OrderTimeline
+          whatsappNumber={general.whatsappNumber}
           status={order.order_status}
           failureReason={order.delivery_failure_reason}
           deliveryAttemptCount={order.delivery_attempt_count}

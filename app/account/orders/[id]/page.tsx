@@ -14,6 +14,7 @@ import { PendingPaymentPoller } from "@/components/order/PendingPaymentPoller";
 import { ReorderButton } from "@/components/order/ReorderButton";
 import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { WhatsAppIcon } from "@/components/ui/Icon";
+import { getCachedGeneralSettings } from "@/lib/data/cached";
 
 const actionClass =
   "transition-brand inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] px-5 text-sm font-medium hover:bg-black/5";
@@ -30,7 +31,11 @@ export default async function AccountOrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, zones] = await Promise.all([getMyOrderDetail(id), getActiveDeliveryZones()]);
+  const [order, zones, general] = await Promise.all([
+    getMyOrderDetail(id),
+    getActiveDeliveryZones(),
+    getCachedGeneralSettings(),
+  ]);
   if (!order) notFound();
 
   // A product slug per item, for "link back to the product" — a small,
@@ -60,6 +65,7 @@ export default async function AccountOrderDetailPage({
         <h2 className="text-sm font-semibold">Order status</h2>
         <div className="mt-4">
           <OrderTimeline
+            whatsappNumber={general.whatsappNumber}
             status={order.orderStatus}
             failureReason={order.failureReason}
             deliveryAttemptCount={order.deliveryAttemptCount}
@@ -134,7 +140,7 @@ export default async function AccountOrderDetailPage({
         </a>
         <ReorderButton orderId={id} className={actionClass} />
         <a
-          href={getWhatsAppUrl(`Hi, I have a question about my order ${order.orderNumber}`)}
+          href={getWhatsAppUrl(`Hi, I have a question about my order ${order.orderNumber}`, general.whatsappNumber)}
           target="_blank"
           rel="noopener noreferrer"
           className={actionClass}

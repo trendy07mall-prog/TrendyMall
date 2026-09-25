@@ -131,7 +131,7 @@ export function GeneralSettingsForm({ initial }: { initial: GeneralSettings }) {
             inputMode="numeric"
             value={values.whatsappNumber}
             onChange={(e) => set("whatsappNumber", e.target.value.replace(/[^\d]/g, ""))}
-            placeholder="94775312484"
+            placeholder="94XXXXXXXXX"
             className={inputClass}
           />
           <span className="text-xs text-[var(--muted)]">

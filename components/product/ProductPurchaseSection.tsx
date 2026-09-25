@@ -60,6 +60,7 @@ export function ProductPurchaseSection({
   tags,
   zones,
   descriptionHtml,
+  whatsappNumber,
 }: {
   product: Product;
   images: string[];
@@ -73,6 +74,7 @@ export function ProductPurchaseSection({
   tags: { name: string; slug: string }[];
   zones: DeliveryZone[];
   descriptionHtml: string;
+  whatsappNumber: string;
 }) {
   // ?variant=<id> deep link -- set by campaign-context product cards
   // (ActiveCampaignSections.tsx, /campaign/[slug]'s ProductGrid) so the PDP
@@ -676,6 +678,7 @@ export function ProductPurchaseSection({
             />
             {!outOfStock && (
               <WhatsAppOrderButton
+                whatsappNumber={whatsappNumber}
                 productName={product.name}
                 colorName={resolvedVariant?.color_name ?? null}
                 quantity={quantity}
