@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import Script from "next/script";
 
 // No-op until NEXT_PUBLIC_META_PIXEL_ID is set (see SETUP.md). Only
@@ -21,9 +22,37 @@ import Script from "next/script";
 // stub in place, calls made before fbevents.js arrives land in fbq's own
 // queue (n.queue) and replay once it loads, so nothing is lost while the
 // heavy download still moves off the critical path.
-export function MetaPixel() {
+//
+// THE HOST ALLOW-LIST
+// -------------------
+// Every Vercel deployment answers on its own hostname as well as the real
+// domain -- trendy-mall-nine.vercel.app, plus a unique URL per preview
+// build. They all run this same code with the same
+// NEXT_PUBLIC_META_PIXEL_ID, so every preview visit and every internal
+// click-through was reporting into the live pixel alongside real customer
+// traffic.
+//
+// A literal list rather than NEXT_PUBLIC_SITE_URL on purpose. Which hosts
+// may report to the live pixel is a decision, not configuration, and
+// reading it from an env var means the answer depends on a value that is
+// set per-deployment and cannot be checked by reading this file. Both
+// spellings of the real domain are listed because the apex 308-redirects
+// to www and either can be the host that actually serves a request.
+//
+// Anything not on this list gets no pixel at all: preview deployments,
+// *.vercel.app, and localhost. The last one is deliberate too --
+// development traffic was reaching the live pixel the same way preview
+// traffic was.
+const PIXEL_ALLOWED_HOSTS = ["www.trendymall.online", "trendymall.online"];
+
+export async function MetaPixel() {
   const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
   if (!pixelId) return null;
+
+  // Lowercased and stripped of any :port before comparing, so a host that
+  // differs only in case or carries a port is judged on the name alone.
+  const requestHost = ((await headers()).get("host") ?? "").toLowerCase().split(":")[0];
+  if (!PIXEL_ALLOWED_HOSTS.includes(requestHost)) return null;
 
   return (
     <>
