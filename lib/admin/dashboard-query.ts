@@ -237,7 +237,11 @@ export async function getDashboardData(
     getAdminOrderStatusCounts(),
     supabase
       .from("orders")
-      .select("id, order_number, customer_name, total, payment_status, order_status, created_at, order_items(count)")
+      // order_items(bundle_id) rather than order_items(count): an
+      // embedded count cannot be filtered, and it would count a
+      // bundle's zero-priced contents rows (sql/085) as extra items.
+      // Five orders, so the rows themselves are cheap to count here.
+      .select("id, order_number, customer_name, total, payment_status, order_status, created_at, order_items(bundle_id)")
       .order("created_at", { ascending: false })
       .limit(5),
     supabase.from("orders").select("total").not("order_status", "in", NOT_CANCELLED_RETURNED),
@@ -245,7 +249,9 @@ export async function getDashboardData(
     supabase.from("orders").select("total").eq("payment_status", "refunded"),
     supabase.from("reviews").select("*").order("created_at", { ascending: false }).limit(3),
     supabase.from("subscribers").select("*").order("created_at", { ascending: false }).limit(5),
-    supabase.from("order_items").select("product_id, product_name, quantity"),
+    // .is("bundle_id", null): the zero-priced rows recording what was
+    // inside a bundle are not sales of those products (sql/085).
+    supabase.from("order_items").select("product_id, product_name, quantity").is("bundle_id", null),
     supabase.from("products").select("*", { count: "exact", head: true }).eq("is_deleted", false),
     supabase
       .from("products")
@@ -287,7 +293,9 @@ export async function getDashboardData(
     paymentStatus: row.payment_status,
     orderStatus: row.order_status,
     createdAt: row.created_at,
-    itemCount: row.order_items?.[0]?.count ?? 0,
+    itemCount: ((row.order_items ?? []) as { bundle_id: string | null }[]).filter(
+      (item) => item.bundle_id === null,
+    ).length,
   }));
 
   const revenue = (allRevenueOrders ?? []).reduce((sum, o) => sum + o.total, 0);

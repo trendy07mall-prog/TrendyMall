@@ -29,6 +29,7 @@ import type { ProductVariantWithImages } from "@/lib/data/products";
 import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
+import { BundleWhatsInside, type BundleInsideItem } from "@/components/product/BundleWhatsInside";
 
 function normalizeColor(name: string | null): string {
   return (name ?? "").trim().toLowerCase();
@@ -61,6 +62,7 @@ export function ProductPurchaseSection({
   zones,
   descriptionHtml,
   whatsappNumber,
+  bundle = null,
 }: {
   product: Product;
   images: string[];
@@ -75,6 +77,19 @@ export function ProductPurchaseSection({
   zones: DeliveryZone[];
   descriptionHtml: string;
   whatsappNumber: string;
+  // Set only when this product is a bundle. Null for every normal
+  // product, which is what keeps this whole component's existing
+  // behaviour byte-for-byte unchanged for them.
+  bundle?: {
+    items: BundleInsideItem[];
+    separateTotal: number;
+    saving: number;
+    // How many whole bundles can be sold right now, from the
+    // lowest-stocked item inside (lib/bundles.ts). This REPLACES the
+    // stock number for a bundle -- a bundle's own stock column is never
+    // maintained and would read as permanently sold out.
+    availableUnits: number;
+  } | null;
 }) {
   // ?variant=<id> deep link -- set by campaign-context product cards
   // (ActiveCampaignSections.tsx, /campaign/[slug]'s ProductGrid) so the PDP
@@ -292,8 +307,15 @@ export function ProductPurchaseSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const effectiveStock =
-    resolvedVariant?.stock != null ? resolvedVariant.stock : product.stock;
+  // A bundle carries no stock of its own: what can be sold is decided by
+  // the lowest-stocked item inside it, computed live. Everything
+  // downstream -- the Add to Cart gate, the quantity clamp, the stock
+  // dot -- reads this one value, so they cannot disagree.
+  const effectiveStock = bundle
+    ? bundle.availableUnits
+    : resolvedVariant?.stock != null
+      ? resolvedVariant.stock
+      : product.stock;
   const outOfStock = effectiveStock <= 0;
   const primaryImage = resolvedVariant?.images[0] ?? images[0] ?? null;
 
@@ -304,7 +326,11 @@ export function ProductPurchaseSection({
   // runs. Covers both a color change and an attribute change identically.
   function clampQuantityFor(nextDimensions: { color?: string; [attributeId: string]: string | undefined }) {
     const nextVariant = findMatchingVariants(nextDimensions)[0] ?? null;
-    const nextStock = nextVariant?.stock != null ? nextVariant.stock : product.stock;
+    const nextStock = bundle
+      ? bundle.availableUnits
+      : nextVariant?.stock != null
+        ? nextVariant.stock
+        : product.stock;
     setQuantity((q) => Math.max(1, Math.min(q, Math.max(1, nextStock))));
   }
 
@@ -598,6 +624,14 @@ export function ProductPurchaseSection({
             )}
           </div>
         </div>
+
+        {bundle && (
+          <BundleWhatsInside
+            items={bundle.items}
+            separateTotal={bundle.separateTotal}
+            saving={bundle.saving}
+          />
+        )}
 
         {/* All variant selectors grouped into one bordered card,
             immediately below price/stock -- Colour and Capacity (and any

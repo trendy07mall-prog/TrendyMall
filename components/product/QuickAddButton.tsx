@@ -31,7 +31,13 @@ export function QuickAddButton({
 }) {
   const { addItem } = useCart();
   const [status, setStatus] = useState<"idle" | "adding" | "added">("idle");
-  const outOfStock = product.stock <= 0;
+  // A bundle's own stock column is never maintained -- what decides
+  // whether one can be bought is the lowest-stocked item inside it,
+  // worked out live (lib/bundles.ts) and carried on the card as
+  // bundleAvailableUnits. Null on every normal product, which therefore
+  // falls through to exactly the check that was here before.
+  const outOfStock =
+    product.bundleAvailableUnits !== null ? product.bundleAvailableUnits <= 0 : product.stock <= 0;
   const unavailable = !outOfStock && unavailableLabel != null;
 
   function handleClick(event: React.MouseEvent) {

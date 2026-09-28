@@ -24,6 +24,8 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
 import { SITE_URL as siteUrl } from "@/lib/site";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
+import { getBundleDetail } from "@/lib/data/bundles";
+import { bundleSaving } from "@/lib/bundles";
 
 export async function generateMetadata({
   params,
@@ -122,6 +124,13 @@ export default async function ProductPage({
     ]);
   const { category, ancestors: categoryAncestors } = categoryInfo;
 
+  // Only for a bundle. Everything a bundle's page needs that a normal
+  // product's does not: what is inside, what those would cost separately,
+  // and how many whole bundles are really buyable right now. One query,
+  // and none at all for a normal product.
+  const bundleDetail =
+    product.product_kind === "bundle" ? await getBundleDetail(product.id) : null;
+
   const {
     data: { user },
   } = await authUser;
@@ -153,7 +162,9 @@ export default async function ProductPage({
       priceCurrency: "LKR",
       price: defaultVariantPrice,
       availability:
-        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        (bundleDetail ? bundleDetail.availableUnits : product.stock) > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
     },
     ...(ratingSummary && ratingSummary.review_count > 0
       ? {
@@ -197,6 +208,22 @@ export default async function ProductPage({
         // client component that renders it: see lib/rich-text.ts for why
         // stored description images need it at all.
         descriptionHtml={optimizeRichTextImages(product.description)}
+        bundle={
+          bundleDetail
+            ? {
+                items: bundleDetail.items.map((item) => ({
+                  name: item.name,
+                  slug: item.slug,
+                  image: item.image,
+                  colorName: item.colorName,
+                  quantity: item.quantity,
+                })),
+                separateTotal: bundleDetail.separateTotal,
+                saving: bundleSaving(bundleDetail.separateTotal, defaultVariantPrice),
+                availableUnits: bundleDetail.availableUnits,
+              }
+            : null
+        }
       />
 
       <RelatedProducts products={relatedProducts} />

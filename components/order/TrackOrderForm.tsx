@@ -11,6 +11,8 @@ import { PackageIcon } from "@/components/ui/Icon";
 import { formatPrice } from "@/lib/utils";
 import type { GuestOrderDetail } from "@/types";
 import { formatStoreDate } from "@/lib/datetime";
+import { groupBundleLines } from "@/lib/orders/bundle-lines";
+import { BundleContents } from "@/components/order/BundleContents";
 
 const inputClass =
   "min-h-11 rounded-[var(--radius-input)] border border-[var(--border)] bg-transparent px-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--foreground)]";
@@ -127,22 +129,29 @@ export function TrackOrderForm({
           </div>
 
           <ul className="mt-4 flex flex-col gap-3">
-            {order.items.map((item, index) => (
-              <li
-                key={index}
-                className="flex items-center gap-3 border-b border-[var(--border)] pb-3"
-              >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
-                  {item.imageUrl && (
-                    <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
-                  )}
+            {groupBundleLines(order.items).map(({ line: item, contents }, index) => (
+              <li key={index} className="border-b border-[var(--border)] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+                    {item.imageUrl && (
+                      <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
+                    )}
+                  </div>
+                  <div className="flex flex-1 items-center justify-between">
+                    <span>
+                      {item.productName} × {item.quantity}
+                    </span>
+                    <span>{formatPrice(item.subtotal)}</span>
+                  </div>
                 </div>
-                <div className="flex flex-1 items-center justify-between">
-                  <span>
-                    {item.productName} × {item.quantity}
-                  </span>
-                  <span>{formatPrice(item.subtotal)}</span>
-                </div>
+                <BundleContents
+                  className="ml-15"
+                  items={contents.map((c) => ({
+                    name: c.productName,
+                    quantity: c.quantity,
+                    variantName: c.variantName,
+                  }))}
+                />
               </li>
             ))}
           </ul>

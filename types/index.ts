@@ -100,6 +100,18 @@ export interface ProductWithPrimaryImage extends Product {
   // soldCount at once -- they're two different real metrics, not
   // alternates.
   totalUnitsSold: number | null;
+  // Bundles only (product_kind = 'bundle'); null on every normal product,
+  // which is what every existing card already renders as.
+  //
+  // What the things inside would cost bought separately -- the "before"
+  // figure the "Save Rs X" badge is measured against. Worked out from
+  // the items' own live prices, never stored, so it cannot go stale when
+  // one of them goes on sale.
+  bundleSeparateTotal: number | null;
+  // How many whole bundles can be sold right now, from the lowest-stocked
+  // item inside. The bundle's own stock column is meaningless and is
+  // never read (see lib/bundles.ts).
+  bundleAvailableUnits: number | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the
@@ -142,6 +154,12 @@ export interface GuestOrderItem {
   variantName?: string | null;
   variantColorHex?: string | null;
   attributeSelections?: AttributeSelection[] | null;
+  // Set only on the zero-priced lines that record what was inside a
+  // bundle (sql/085) -- it holds the bundle's own product id. Null on
+  // every ordinary line and on every order placed before bundles
+  // existed. Display code must never show these as Rs 0 purchases:
+  // group them with groupBundleLines() in lib/orders/bundle-lines.ts.
+  bundleId?: string | null;
 }
 
 export interface GuestOrderAddressDetail {

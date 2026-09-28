@@ -1,8 +1,10 @@
 import "server-only";
 
+import { Fragment } from "react";
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import type { Order, OrderItem } from "@/types";
 import { formatStoreDate } from "@/lib/datetime";
+import { groupBundleRows } from "@/lib/orders/bundle-lines";
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, color: "#111111", fontFamily: "Helvetica" },
@@ -19,6 +21,7 @@ const styles = StyleSheet.create({
   colName: { width: "75%" },
   colQty: { width: "25%", textAlign: "right" },
   headerCell: { fontSize: 9, color: "#6B7280", textTransform: "uppercase" },
+  bundleChildName: { fontSize: 9, color: "#6B7280", paddingLeft: 10 },
   totalRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 12, paddingTop: 6, borderTop: "1 solid #111111" },
   totalLabel: { fontWeight: 700 },
   totalValue: { fontWeight: 700 },
@@ -33,7 +36,19 @@ export interface PackingSlipProps {
 // A warehouse pick list, deliberately with no prices/totals — staff
 // packing the box don't need pricing information, just what and how many.
 function PackingSlipDocument({ order, items }: PackingSlipProps) {
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  // What actually goes in the parcel. A bundle's own line is the box,
+  // not a fourth object to pack, so it is counted only when it has no
+  // contents listed under it -- otherwise its items are counted instead
+  // and the bundle line would double the total.
+  const groups = groupBundleRows(items);
+  const totalItems = groups.reduce(
+    (sum, group) =>
+      sum +
+      (group.contents.length > 0
+        ? group.contents.reduce((inner, content) => inner + content.quantity, 0)
+        : group.line.quantity),
+    0,
+  );
 
   return (
     <Document>
@@ -57,20 +72,38 @@ function PackingSlipDocument({ order, items }: PackingSlipProps) {
             <Text style={[styles.headerCell, styles.colName]}>Item</Text>
             <Text style={[styles.headerCell, styles.colQty]}>Qty</Text>
           </View>
-          {items.map((item) => (
-            <View key={item.id} style={styles.tableRow}>
-              <Text style={styles.colName}>
-                {item.product_name}
-                {item.variant_name ? ` (${item.variant_name})` : ""}
-                {(item.attribute_selections as { attributeName: string; value: string }[] | null)
-                  ?.length
-                  ? ` (${(item.attribute_selections as { attributeName: string; value: string }[])
-                      .map((s) => `${s.attributeName}: ${s.value}`)
-                      .join(", ")})`
-                  : ""}
-              </Text>
-              <Text style={styles.colQty}>{item.quantity}</Text>
-            </View>
+          {/* A bundle prints as its own line with the items inside it
+              indented beneath. This is the ONE screen where those lines
+              matter most: they are what actually goes in the parcel. The
+              bundle line itself is the box; the indented rows are its
+              contents, so both are needed to pack it correctly. */}
+          {groups.map(({ line: item, contents }) => (
+            <Fragment key={item.id}>
+              <View style={styles.tableRow}>
+                <Text style={styles.colName}>
+                  {item.product_name}
+                  {item.variant_name ? ` (${item.variant_name})` : ""}
+                  {(item.attribute_selections as { attributeName: string; value: string }[] | null)
+                    ?.length
+                    ? ` (${(item.attribute_selections as { attributeName: string; value: string }[])
+                        .map((s) => `${s.attributeName}: ${s.value}`)
+                        .join(", ")})`
+                    : ""}
+                  {contents.length > 0 ? " — bundle, pack the items below" : ""}
+                </Text>
+                <Text style={styles.colQty}>{item.quantity}</Text>
+              </View>
+              {contents.map((content) => (
+                <View key={content.id} style={styles.tableRow}>
+                  <Text style={[styles.colName, styles.bundleChildName]}>
+                    {"• "}
+                    {content.product_name}
+                    {content.variant_name ? ` (${content.variant_name})` : ""}
+                  </Text>
+                  <Text style={[styles.colQty, styles.bundleChildName]}>{content.quantity}</Text>
+                </View>
+              ))}
+            </Fragment>
           ))}
         </View>
 

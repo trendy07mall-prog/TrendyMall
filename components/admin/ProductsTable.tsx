@@ -8,6 +8,7 @@ import { StockBadge } from "@/components/admin/StockBadge";
 import { ProductStatusBadge } from "@/components/admin/ProductStatusBadge";
 import { QuickEditPrice } from "@/components/admin/QuickEditPrice";
 import { QuickEditStock } from "@/components/admin/QuickEditStock";
+import { BundleStockCell } from "@/components/admin/BundleStockCell";
 import { QuickEditStatus } from "@/components/admin/QuickEditStatus";
 import { QuickEditFeatured } from "@/components/admin/QuickEditFeatured";
 import { VariantEditRow } from "@/components/admin/VariantEditRow";
@@ -208,8 +209,19 @@ export function ProductsTable({
                   </td>
                   <td className="py-2 pr-4 align-top">
                     <div className="flex flex-col gap-1">
-                      <QuickEditStock productId={product.id} stock={product.stock} />
-                      <StockBadge stock={product.stock} />
+                      {/* A bundle's own stock number is deliberately never
+                          maintained -- what can be sold comes from the
+                          lowest-stocked item inside it (see Bundles).
+                          Showing an editable 0 here would invite someone
+                          to "fix" a number that nothing reads. */}
+                      {product.product_kind === "bundle" ? (
+                        <BundleStockCell bundleId={product.id} />
+                      ) : (
+                        <>
+                          <QuickEditStock productId={product.id} stock={product.stock} />
+                          <StockBadge stock={product.stock} />
+                        </>
+                      )}
                     </div>
                   </td>
                   <td className="py-2 pr-4 align-top">
@@ -352,8 +364,14 @@ export function ProductsTable({
                       salePrice={product.special_price}
                     />
                   )}
-                  <QuickEditStock productId={product.id} stock={product.stock} />
-                  <StockBadge stock={product.stock} />
+                  {product.product_kind === "bundle" ? (
+                    <BundleStockCell bundleId={product.id} />
+                  ) : (
+                    <>
+                      <QuickEditStock productId={product.id} stock={product.stock} />
+                      <StockBadge stock={product.stock} />
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   {isDeletedView ? (

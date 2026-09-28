@@ -6,7 +6,8 @@ import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
 import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
 import { EyeIcon } from "@/components/ui/Icon";
-import { getDiscountPercent } from "@/lib/utils";
+import { formatPrice, getDiscountPercent } from "@/lib/utils";
+import { bundleSaving } from "@/lib/bundles";
 import type { ProductWithPrimaryImage } from "@/types";
 
 // Two INDEPENDENT fixed-height slots, not one shared box -- Slot A always
@@ -73,6 +74,17 @@ export function ProductCard({
   // the campaign name (that's moved onto the image; see the glass bar
   // below).
   const hasCampaign = Boolean(product.campaignId && product.campaignName);
+  // A bundle advertises the cash saved, not a percentage: "Save Rs 260"
+  // is what the brief asked for and is the figure that actually persuades
+  // -- a percentage off an invented "worth" reads like every other
+  // discount. The separate total is worked out live from the items'
+  // current prices (lib/data/bundles.ts), so if one of them goes on sale
+  // the badge quietly tells the truth instead of overstating the deal.
+  const bundleSavingAmount =
+    product.bundleSeparateTotal != null
+      ? bundleSaving(product.bundleSeparateTotal, product.special_price ?? product.actual_price)
+      : 0;
+  const showBundleSaving = bundleSavingAmount > 0;
   const hasRating = product.reviewCount > 0;
   // Never fabricated -- product_sales_summary has no row at all for a
   // product with no reliably-tracked sales, which is null here, not 0.
@@ -125,6 +137,11 @@ export function ProductCard({
             conditions as before, unaffected by the glass bar above (that
             sits at the image's bottom edge, this stays top-left). */}
         <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+          {showBundleSaving && (
+            <span className="rounded-full bg-[var(--color-discount)] px-2 py-[2px] text-[9px] font-semibold text-white">
+              Save {formatPrice(bundleSavingAmount)}
+            </span>
+          )}
           {product.badgeLabel && (
             <span className="rounded-full bg-[var(--color-warning)] px-2 py-[2px] text-[9px] font-semibold text-white">
               {product.badgeLabel}

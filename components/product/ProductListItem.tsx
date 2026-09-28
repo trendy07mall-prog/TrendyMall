@@ -34,11 +34,15 @@ export function ProductListItem({
   const productHref = linkVariantId
     ? `/product/${product.slug}?variant=${linkVariantId}`
     : `/product/${product.slug}`;
+  // Bundles are judged on the lowest-stocked item inside them, never on
+  // their own stock column, which is deliberately never maintained.
+  // Null for a normal product, so its three tiers are unchanged.
+  const stockLevel = product.bundleAvailableUnits ?? product.stock;
   const stock =
-    product.stock <= 0
+    stockLevel <= 0
       ? { color: STOCK_STATE.out, label: "Out of stock" }
-      : product.stock < 5
-        ? { color: STOCK_STATE.low, label: `Only ${product.stock} left` }
+      : stockLevel < 5
+        ? { color: STOCK_STATE.low, label: `Only ${stockLevel} left` }
         : { color: STOCK_STATE.in, label: "In Stock" };
 
   return (

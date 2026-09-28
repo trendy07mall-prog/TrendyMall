@@ -566,6 +566,7 @@ export interface Database {
           category_id: string;
           stock: number;
           status: ProductStatus;
+          product_kind: "single" | "bundle";
           is_featured: boolean;
           meta_title: string | null;
           meta_description: string | null;
@@ -594,6 +595,7 @@ export interface Database {
           category_id: string;
           stock?: number;
           status?: ProductStatus;
+          product_kind?: "single" | "bundle";
           is_featured?: boolean;
           meta_title?: string | null;
           meta_description?: string | null;
@@ -621,6 +623,7 @@ export interface Database {
           category_id?: string;
           stock?: number;
           status?: ProductStatus;
+          product_kind?: "single" | "bundle";
           is_featured?: boolean;
           meta_title?: string | null;
           meta_description?: string | null;
@@ -1205,6 +1208,7 @@ export interface Database {
           variant_color_hex: string | null;
           attribute_selections: unknown | null;
           campaign_id: string | null;
+          bundle_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -1221,6 +1225,7 @@ export interface Database {
           variant_color_hex?: string | null;
           attribute_selections?: unknown | null;
           campaign_id?: string | null;
+          bundle_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -1237,6 +1242,7 @@ export interface Database {
           variant_color_hex?: string | null;
           attribute_selections?: unknown | null;
           campaign_id?: string | null;
+          bundle_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -1970,6 +1976,57 @@ export interface Database {
           updated_by?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      bundle_items: {
+        Row: {
+          id: string;
+          bundle_product_id: string;
+          item_product_id: string;
+          item_variant_id: string;
+          quantity: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          bundle_product_id: string;
+          item_product_id: string;
+          item_variant_id: string;
+          quantity?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          bundle_product_id?: string;
+          item_product_id?: string;
+          item_variant_id?: string;
+          quantity?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      variant_costs: {
+        Row: {
+          variant_id: string;
+          cost: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          variant_id: string;
+          cost: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          variant_id?: string;
+          cost?: number;
+          updated_at?: string;
+          updated_by?: string | null;
         };
         Relationships: [];
       };

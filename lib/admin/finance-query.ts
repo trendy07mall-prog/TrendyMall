@@ -248,14 +248,24 @@ async function attachItemSummaries(
       "order_id",
       orders.map((o) => o.id),
     )
+    // Bundle contents are bookkeeping rows, not purchases -- see
+    // getProductPerformance below for why they exist at all.
+    .is("bundle_id", null)
     .order("created_at", { ascending: true });
 
   const firstItemByOrderId = new Map<string, { product_name: string; variant_name: string | null; quantity: number }>();
+  const realCountByOrderId = new Map<string, number>();
   for (const row of itemRows ?? []) {
     if (!firstItemByOrderId.has(row.order_id)) firstItemByOrderId.set(row.order_id, row);
+    realCountByOrderId.set(row.order_id, (realCountByOrderId.get(row.order_id) ?? 0) + 1);
   }
 
   for (const order of orders) {
+    // order_items(count) in the select above cannot be filtered -- it is
+    // an embedded aggregate -- so it counts the contents rows too. The
+    // rows just fetched are already filtered, so they give the real
+    // number: a bundle is one product in this column, not three.
+    order.itemCount = realCountByOrderId.get(order.id) ?? 0;
     if (order.itemCount > 1) {
       order.itemSummary = `${order.itemCount} products`;
       continue;
@@ -293,6 +303,12 @@ export async function getProductPerformance(
     .select("product_id, product_name, quantity, subtotal, orders!inner(created_at, order_status)")
     .gte("orders.created_at", window.from.toISOString())
     .lte("orders.created_at", window.to.toISOString())
+    // A bundle's contents are recorded as extra order_items rows at Rs 0
+    // so that stock moves per item (sql/085). Counting them here would
+    // add units at no revenue to each component product and quietly
+    // wreck its average selling price. The bundle itself still appears,
+    // with its full revenue, through its own priced line.
+    .is("bundle_id", null)
     .not("orders.order_status", "in", "(cancelled,returned)");
   if (error || !data) return [];
 

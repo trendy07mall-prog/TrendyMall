@@ -3,6 +3,7 @@ import { formatPrice, isValidEmail } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { SITE_URL } from "@/lib/site";
+import { contentsLineLabel, groupBundleLines } from "@/lib/orders/bundle-lines";
 
 const OWNER_EMAIL = "trendy07mall@gmail.com";
 
@@ -25,6 +26,14 @@ interface OrderEmailItem {
   name: string;
   quantity: number;
   subtotal: number;
+  // The bundle's own product id, on the lines that record what was
+  // INSIDE a bundle (sql/085). Those lines are stored at Rs 0 so stock
+  // moves per item; the e-mail lists them under the bundle with no
+  // price rather than as free purchases.
+  bundleId?: string | null;
+  // The line's own product id, so a contents line can find its bundle.
+  productId?: string | null;
+  variantName?: string | null;
 }
 
 interface OrderEmailData {
@@ -51,11 +60,20 @@ interface OrderEmailData {
 }
 
 function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean, zones: DeliveryZone[]): string {
-  const itemsHtml = order.items
-    .map(
-      (item) =>
-        `<tr><td style="padding:4px 0;">${item.name} &times; ${item.quantity}</td><td style="padding:4px 0; text-align:right;">${formatPrice(item.subtotal)}</td></tr>`,
-    )
+  const itemsHtml = groupBundleLines(order.items)
+    .map(({ line: item, contents }) => {
+      const priced = `<tr><td style="padding:4px 0;">${item.name} &times; ${item.quantity}</td><td style="padding:4px 0; text-align:right;">${formatPrice(item.subtotal)}</td></tr>`;
+      if (contents.length === 0) return priced;
+      // What was in the bundle, indented and with the price cell left
+      // empty -- never "Rs 0", which would read as a free gift.
+      const inside = contents
+        .map(
+          (content) =>
+            `<tr><td style="padding:0 0 0 16px; color:#6B7280; font-size:13px;">&bull; ${contentsLineLabel(content.name, content.quantity, content.variantName)}</td><td></td></tr>`,
+        )
+        .join("");
+      return priced + inside;
+    })
     .join("");
 
   const customerIntro =

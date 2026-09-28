@@ -72,6 +72,7 @@ export async function getMyOrderDetail(orderId: string): Promise<GuestOrderDetai
       variantName: item.variant_name,
       variantColorHex: item.variant_color_hex,
       attributeSelections: item.attribute_selections as AttributeSelection[] | null,
+      bundleId: item.bundle_id,
     })),
     statusHistory: (history ?? []).map((entry) => ({
       status: entry.new_value as GuestOrderDetail["orderStatus"],

@@ -43,7 +43,9 @@ export async function getMyOrders(
   const supabase = await createClient();
 
   let query = supabase.from("orders").select(
-    "id, order_number, total, payment_method, payment_status, order_status, created_at, order_items(product_image_url)",
+    // bundle_id comes back so the contents lines can be dropped below:
+    // a bundle is ONE purchase in this list, not one per item in it.
+    "id, order_number, total, payment_method, payment_status, order_status, created_at, order_items(product_image_url, bundle_id)",
     { count: "exact" },
   );
 
@@ -70,7 +72,10 @@ export async function getMyOrders(
 
   return {
     orders: rows.map((row) => {
-      const items = (row.order_items ?? []) as { product_image_url: string | null }[];
+      const items = ((row.order_items ?? []) as {
+        product_image_url: string | null;
+        bundle_id: string | null;
+      }[]).filter((item) => item.bundle_id === null);
       return {
         id: row.id,
         order_number: row.order_number,

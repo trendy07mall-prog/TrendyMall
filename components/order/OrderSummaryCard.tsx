@@ -3,6 +3,8 @@ import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { GuestOrderDetail } from "@/types";
+import { groupBundleLines } from "@/lib/orders/bundle-lines";
+import { BundleContents } from "@/components/order/BundleContents";
 import { formatStoreDate } from "@/lib/datetime";
 
 // The sticky right-column card on /order-confirmation — same shell as
@@ -26,29 +28,43 @@ export function OrderSummaryCard({ order, zones }: { order: GuestOrderDetail; zo
       <h2 className="text-lg font-medium">Order summary</h2>
 
       <ul className="mt-4 flex flex-col gap-3">
-        {order.items.map((item, index) => (
-          <li key={index} className="flex items-center gap-3 text-sm">
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
-              {item.imageUrl && (
-                <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
-              )}
-            </div>
-            <div className="flex flex-1 items-center justify-between">
-              <span>
-                {item.productName}
-                {item.variantName && (
-                  <span className="text-[var(--muted)]"> ({item.variantName})</span>
+        {/* A bundle is one priced line with its contents indented under
+            it and no price of their own -- see lib/orders/bundle-lines.ts.
+            A normal product is a group of one, so this renders exactly as
+            it always did for every order without a bundle in it. */}
+        {groupBundleLines(order.items).map(({ line: item, contents }, index) => (
+          <li key={index} className="text-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+                {item.imageUrl && (
+                  <Image src={item.imageUrl} alt="" fill sizes="48px" className="object-cover" />
                 )}
-                {item.attributeSelections && item.attributeSelections.length > 0 && (
-                  <span className="text-[var(--muted)]">
-                    {" "}
-                    ({item.attributeSelections.map((s) => `${s.attributeName}: ${s.value}`).join(", ")})
-                  </span>
-                )}{" "}
-                × {item.quantity}
-              </span>
-              <span>{formatPrice(item.subtotal)}</span>
+              </div>
+              <div className="flex flex-1 items-center justify-between">
+                <span>
+                  {item.productName}
+                  {item.variantName && (
+                    <span className="text-[var(--muted)]"> ({item.variantName})</span>
+                  )}
+                  {item.attributeSelections && item.attributeSelections.length > 0 && (
+                    <span className="text-[var(--muted)]">
+                      {" "}
+                      ({item.attributeSelections.map((s) => `${s.attributeName}: ${s.value}`).join(", ")})
+                    </span>
+                  )}{" "}
+                  × {item.quantity}
+                </span>
+                <span>{formatPrice(item.subtotal)}</span>
+              </div>
             </div>
+            <BundleContents
+              className="ml-15"
+              items={contents.map((c) => ({
+                name: c.productName,
+                quantity: c.quantity,
+                variantName: c.variantName,
+              }))}
+            />
           </li>
         ))}
       </ul>

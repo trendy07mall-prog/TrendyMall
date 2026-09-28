@@ -49,6 +49,12 @@ export default async function AdminProductsPage({
             Import CSV
           </Link>
           <Link
+            href="/admin/bundles/new"
+            className="transition-brand rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
+          >
+            + Add Bundle
+          </Link>
+          <Link
             href="/admin/products/new"
             className="transition-brand rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
           >

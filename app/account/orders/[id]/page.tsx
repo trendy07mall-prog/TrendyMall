@@ -16,6 +16,8 @@ import { CancelOrderButton } from "@/components/order/CancelOrderButton";
 import { WhatsAppIcon } from "@/components/ui/Icon";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
 import { formatStoreDateTime } from "@/lib/datetime";
+import { groupBundleLines } from "@/lib/orders/bundle-lines";
+import { BundleContents } from "@/components/order/BundleContents";
 
 const actionClass =
   "transition-brand inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--border)] px-5 text-sm font-medium hover:bg-black/5";
@@ -43,7 +45,9 @@ export default async function AccountOrderDetailPage({
   // page-specific lookup rather than widening GuestOrderItem (shared
   // across 4 RPCs/pages that have no other reason to carry a slug).
   const supabase = await createClient();
-  const productIds = order.items.map((item) => item.productId).filter((v): v is string => Boolean(v));
+  const productIds = groupBundleLines(order.items)
+    .map((group) => group.line.productId)
+    .filter((v): v is string => Boolean(v));
   const { data: products } =
     productIds.length > 0
       ? await supabase.from("products").select("id, slug").in("id", productIds)
@@ -86,7 +90,7 @@ export default async function AccountOrderDetailPage({
       <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4">
         <h2 className="text-sm font-semibold">Items</h2>
         <ul className="mt-3 flex flex-col gap-3">
-          {order.items.map((item, index) => {
+          {groupBundleLines(order.items).map(({ line: item, contents }, index) => {
             const slug = item.productId ? slugById.get(item.productId) : undefined;
             const row = (
               <div className="flex flex-1 items-center gap-3 text-sm">
@@ -112,6 +116,17 @@ export default async function AccountOrderDetailPage({
                 ) : (
                   row
                 )}
+                {/* What was in the bundle, with no price -- those lines
+                    are recorded at Rs 0 so stock moves per item, and a
+                    customer must never be shown that number. */}
+                <BundleContents
+                  className="ml-15"
+                  items={contents.map((c) => ({
+                    name: c.productName,
+                    quantity: c.quantity,
+                    variantName: c.variantName,
+                  }))}
+                />
               </li>
             );
           })}

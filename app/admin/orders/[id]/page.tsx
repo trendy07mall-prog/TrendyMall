@@ -13,6 +13,8 @@ import { WhatsAppOrderLink } from "@/components/admin/WhatsAppOrderLink";
 import { OrderTimeline } from "@/components/order/OrderTimeline";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
 import { formatStoreDateTime } from "@/lib/datetime";
+import { groupBundleRows } from "@/lib/orders/bundle-lines";
+import { BundleContents } from "@/components/order/BundleContents";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -162,37 +164,48 @@ export default async function AdminOrderDetailPage({
       )}
 
       <ul className="mt-8 flex flex-col gap-3">
-        {(items ?? []).map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center gap-3 border-b border-[var(--border)] pb-3 text-sm"
-          >
-            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
-              {item.product_image_url && (
-                <Image src={item.product_image_url} alt="" fill sizes="48px" className="object-cover" />
-              )}
-            </div>
-            <div className="flex flex-1 items-center justify-between">
-              <span>
-                {item.product_name}
-                {item.variant_name && (
-                  <span className="text-[var(--muted)]"> ({item.variant_name})</span>
+        {/* Bundle contents are indented under their bundle with no price.
+            They are real order_items rows at Rs 0 -- that is how stock
+            leaves per item and comes back on cancel -- but showing the
+            zero here would read as "we gave this away". */}
+        {groupBundleRows(items ?? []).map(({ line: item, contents }) => (
+          <li key={item.id} className="border-b border-[var(--border)] pb-3 text-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-black/5">
+                {item.product_image_url && (
+                  <Image src={item.product_image_url} alt="" fill sizes="48px" className="object-cover" />
                 )}
-                {(item.attribute_selections as { attributeName: string; value: string }[] | null)
-                  ?.length ? (
-                  <span className="text-[var(--muted)]">
-                    {" "}
-                    (
-                    {(item.attribute_selections as { attributeName: string; value: string }[])
-                      .map((s) => `${s.attributeName}: ${s.value}`)
-                      .join(", ")}
-                    )
-                  </span>
-                ) : null}{" "}
-                × {item.quantity}
-              </span>
-              <span>{formatPrice(item.subtotal)}</span>
+              </div>
+              <div className="flex flex-1 items-center justify-between">
+                <span>
+                  {item.product_name}
+                  {item.variant_name && (
+                    <span className="text-[var(--muted)]"> ({item.variant_name})</span>
+                  )}
+                  {(item.attribute_selections as { attributeName: string; value: string }[] | null)
+                    ?.length ? (
+                    <span className="text-[var(--muted)]">
+                      {" "}
+                      (
+                      {(item.attribute_selections as { attributeName: string; value: string }[])
+                        .map((s) => `${s.attributeName}: ${s.value}`)
+                        .join(", ")}
+                      )
+                    </span>
+                  ) : null}{" "}
+                  × {item.quantity}
+                </span>
+                <span>{formatPrice(item.subtotal)}</span>
+              </div>
             </div>
+            <BundleContents
+              className="ml-15"
+              items={contents.map((c) => ({
+                name: c.product_name,
+                quantity: c.quantity,
+                variantName: c.variant_name,
+              }))}
+            />
           </li>
         ))}
       </ul>

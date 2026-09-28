@@ -23,6 +23,10 @@ export interface AdminOrderItemRow {
   // exception to the "never live-join order history" rule; if the
   // product/variant was since deleted this is simply null.
   sku: string | null;
+  // The bundle's product id, on the zero-priced lines that record what
+  // was inside a bundle (sql/085). Null on every ordinary line. The
+  // table groups these under their bundle and shows no price for them.
+  bundleId: string | null;
 }
 
 export interface AdminOrderRow {
@@ -56,6 +60,9 @@ export interface AdminOrdersPage {
 const ORDER_ROW_SELECT =
   "id, order_number, customer_name, customer_phone, total, payment_method, payment_status, " +
   "order_status, created_at, courier, tracking_number, tracking_url, delivery_failure_reason, " +
+  // The embedded count is filtered to the real purchases below --
+  // a bundle's contents are extra order_items rows at Rs 0 (sql/085)
+  // and would otherwise make one bundle read as "4 items".
   "delivery_attempt_count, order_items(count)";
 
 // Mirrors lib/admin/products-query.ts's getAdminProducts: real server-side
@@ -201,7 +208,7 @@ async function attachOrderItems(
     .from("order_items")
     .select(
       "id, order_id, product_id, product_name, unit_price, quantity, subtotal, product_image_url, " +
-        "variant_id, variant_name, variant_color_hex, attribute_selections",
+        "variant_id, variant_name, variant_color_hex, attribute_selections, bundle_id",
     )
     .in(
       "order_id",
@@ -249,6 +256,7 @@ async function attachOrderItems(
       variantColorHex: row.variant_color_hex,
       attributeSelections: row.attribute_selections as AttributeSelection[] | null,
       sku,
+      bundleId: row.bundle_id ?? null,
     };
 
     const existing = itemsByOrderId.get(row.order_id);
@@ -258,6 +266,10 @@ async function attachOrderItems(
 
   for (const order of orders) {
     order.items = itemsByOrderId.get(order.id) ?? [];
+    // ORDER_ROW_SELECT's embedded order_items(count) counts every row,
+    // including a bundle's contents. Correct it from the rows in hand:
+    // a bundle is one item in "3 items", not one per thing inside it.
+    order.itemCount = order.items.filter((item) => item.bundleId === null).length;
   }
 }
 

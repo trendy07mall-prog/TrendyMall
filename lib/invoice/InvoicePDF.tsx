@@ -1,6 +1,7 @@
 import "server-only";
 
 import path from "node:path";
+import { Fragment } from "react";
 import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
@@ -10,6 +11,7 @@ import { ORDER_STATUS_LABELS } from "@/lib/admin/orderStatusFlow";
 import { PAYMENT_METHOD_LABELS } from "@/lib/payment-methods";
 import type { Order, OrderItem, ShippingAddress } from "@/types";
 import { formatStoreDate } from "@/lib/datetime";
+import { groupBundleRows } from "@/lib/orders/bundle-lines";
 
 const LOGO_PATH = path.join(process.cwd(), "public/images/logo/trendymall-logo.png");
 
@@ -39,6 +41,9 @@ const styles = StyleSheet.create({
   colPrice: { width: "17.5%", textAlign: "right" },
   colSubtotal: { width: "17.5%", textAlign: "right" },
   headerCell: { fontSize: 9, color: "#6B7280", textTransform: "uppercase" },
+  // The rows that say what was inside a bundle: smaller, greyer and
+  // indented, so they read as a contents list and not as purchases.
+  bundleChildName: { fontSize: 9, color: "#6B7280", paddingLeft: 10 },
   totalsBlock: { marginTop: 16, alignItems: "flex-end" },
   totalsRow: { flexDirection: "row", justifyContent: "space-between", width: 200, marginBottom: 4 },
   totalsLabel: { color: "#6B7280" },
@@ -132,22 +137,41 @@ function InvoicePage({ order, items, address, couponCode, zones }: InvoiceProps 
             <Text style={[styles.headerCell, styles.colPrice]}>Price</Text>
             <Text style={[styles.headerCell, styles.colSubtotal]}>Subtotal</Text>
           </View>
-          {items.map((item) => (
-            <View key={item.id} style={styles.tableRow}>
-              <Text style={styles.colName}>
-                {item.product_name}
-                {item.variant_name ? ` (${item.variant_name})` : ""}
-                {(item.attribute_selections as { attributeName: string; value: string }[] | null)
-                  ?.length
-                  ? ` (${(item.attribute_selections as { attributeName: string; value: string }[])
-                      .map((s) => `${s.attributeName}: ${s.value}`)
-                      .join(", ")})`
-                  : ""}
-              </Text>
-              <Text style={styles.colQty}>{item.quantity}</Text>
-              <Text style={styles.colPrice}>{formatPrice(item.unit_price)}</Text>
-              <Text style={styles.colSubtotal}>{formatPrice(item.subtotal)}</Text>
-            </View>
+          {/* A bundle is one priced row; what was inside it follows as
+              indented rows with the price and subtotal columns left
+              blank. Those lines really are stored at Rs 0 -- that is how
+              stock moves per item -- but an invoice showing "Rs 0.00"
+              against the earbuds would be a bill saying they were free. */}
+          {groupBundleRows(items).map(({ line: item, contents }) => (
+            <Fragment key={item.id}>
+              <View style={styles.tableRow}>
+                <Text style={styles.colName}>
+                  {item.product_name}
+                  {item.variant_name ? ` (${item.variant_name})` : ""}
+                  {(item.attribute_selections as { attributeName: string; value: string }[] | null)
+                    ?.length
+                    ? ` (${(item.attribute_selections as { attributeName: string; value: string }[])
+                        .map((s) => `${s.attributeName}: ${s.value}`)
+                        .join(", ")})`
+                    : ""}
+                </Text>
+                <Text style={styles.colQty}>{item.quantity}</Text>
+                <Text style={styles.colPrice}>{formatPrice(item.unit_price)}</Text>
+                <Text style={styles.colSubtotal}>{formatPrice(item.subtotal)}</Text>
+              </View>
+              {contents.map((content) => (
+                <View key={content.id} style={styles.tableRow}>
+                  <Text style={[styles.colName, styles.bundleChildName]}>
+                    {"• "}
+                    {content.product_name}
+                    {content.variant_name ? ` (${content.variant_name})` : ""}
+                  </Text>
+                  <Text style={[styles.colQty, styles.bundleChildName]}>{content.quantity}</Text>
+                  <Text style={styles.colPrice}> </Text>
+                  <Text style={styles.colSubtotal}> </Text>
+                </View>
+              ))}
+            </Fragment>
           ))}
         </View>
 

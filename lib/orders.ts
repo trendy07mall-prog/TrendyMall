@@ -216,7 +216,7 @@ export async function createOrder(
     if (user) {
       const { data: items } = await supabase
         .from("order_items")
-        .select("product_name, quantity, subtotal")
+        .select("product_id, product_name, quantity, subtotal, variant_name, bundle_id")
         .eq("order_id", row.order_id);
 
       const { data: order } = await supabase
@@ -235,6 +235,9 @@ export async function createOrder(
               name: item.product_name,
               quantity: item.quantity,
               subtotal: item.subtotal,
+              productId: item.product_id,
+              bundleId: item.bundle_id,
+              variantName: item.variant_name,
             })),
             subtotal: order.subtotal,
             shippingFee: order.shipping_fee,
@@ -273,6 +276,9 @@ export async function createOrder(
               name: item.productName,
               quantity: item.quantity,
               subtotal: item.subtotal,
+              productId: item.productId,
+              bundleId: item.bundleId,
+              variantName: item.variantName,
             })),
             subtotal: guestOrder.subtotal,
             shippingFee: guestOrder.shippingFee,
@@ -359,8 +365,11 @@ export async function getPayHereCheckoutParams(orderId: string): Promise<PayHere
     if (order.paymentMethod !== "payhere") return { error: "This order isn't a card payment." };
 
     const itemsSummary =
-      order.items.map((item) => `${item.productName} x${item.quantity}`).join(", ").slice(0, 255) ||
-      order.orderNumber;
+      order.items
+        .filter((item) => !item.bundleId)
+        .map((item) => `${item.productName} x${item.quantity}`)
+        .join(", ")
+        .slice(0, 255) || order.orderNumber;
     const [fallbackFirstName, ...fallbackRest] = (order.customerName ?? "").trim().split(" ");
 
     return {
@@ -397,7 +406,11 @@ export async function getPayHereCheckoutParams(orderId: string): Promise<PayHere
 
   const [{ data: address }, { data: items }] = await Promise.all([
     supabase.from("shipping_addresses").select("*").eq("order_id", orderId).maybeSingle(),
-    supabase.from("order_items").select("product_name, quantity").eq("order_id", orderId),
+    supabase
+      .from("order_items")
+      .select("product_name, quantity")
+      .eq("order_id", orderId)
+      .is("bundle_id", null),
   ]);
 
   const itemsSummary =

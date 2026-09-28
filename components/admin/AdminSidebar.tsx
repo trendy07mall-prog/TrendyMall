@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   DashboardIcon,
   GridIcon,
+  PackageIcon,
   FolderIcon,
   AwardIcon,
   PriceTagIcon,
@@ -62,6 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Catalog",
     items: [
       { href: "/admin/products", label: "Products", icon: GridIcon },
+      { href: "/admin/bundles", label: "Bundles", icon: PackageIcon },
       { href: "/admin/categories", label: "Categories", icon: FolderIcon },
       { href: "/admin/brands", label: "Brands", icon: AwardIcon },
       { href: "/admin/tags", label: "Tags", icon: PriceTagIcon },

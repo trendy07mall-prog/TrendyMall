@@ -24,6 +24,8 @@ import type { AdminOrderItemRow, AdminOrderRow } from "@/lib/admin/orders-query"
 import { ADMIN_ORDER_TAB_LABELS } from "@/lib/admin/orderStatusFlow";
 import type { AdminOrderTab } from "@/lib/admin/orderStatusFlow";
 import { formatStoreStamp } from "@/lib/datetime";
+import { groupBundleLines } from "@/lib/orders/bundle-lines";
+import { BundleContents } from "@/components/order/BundleContents";
 
 // Asia/Colombo, not the viewer's zone -- see lib/datetime.ts.
 const formatDateTime = formatStoreStamp;
@@ -230,8 +232,14 @@ function OrderRow({
   onToggle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hiddenCount = order.items.length - 1;
-  const visibleItems = order.items.length <= 1 || expanded ? order.items : order.items.slice(0, 1);
+  // A bundle and the things inside it are one entry here, not four --
+  // the contents are zero-priced bookkeeping rows (sql/085), so they are
+  // shown indented under the bundle with no price of their own.
+  const groups = groupBundleLines(
+    order.items.map((item) => ({ item, productId: item.productId, bundleId: item.bundleId })),
+  );
+  const hiddenCount = groups.length - 1;
+  const visibleGroups = groups.length <= 1 || expanded ? groups : groups.slice(0, 1);
 
   return (
     <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] p-4 shadow-[var(--shadow-card)]">
@@ -267,8 +275,18 @@ function OrderRow({
 
       {order.items.length > 0 && (
         <div className="mt-3 flex flex-col gap-2 border-t border-[var(--border)] pt-3">
-          {visibleItems.map((item) => (
-            <OrderItemLine key={item.id} item={item} />
+          {visibleGroups.map(({ line, contents }) => (
+            <div key={line.item.id}>
+              <OrderItemLine item={line.item} />
+              <BundleContents
+                className="ml-14"
+                items={contents.map((c) => ({
+                  name: c.item.productName,
+                  quantity: c.item.quantity,
+                  variantName: c.item.variantName,
+                }))}
+              />
+            </div>
           ))}
           {hiddenCount > 0 && (
             <ActionButton
