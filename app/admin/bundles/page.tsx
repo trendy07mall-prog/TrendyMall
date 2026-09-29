@@ -73,6 +73,40 @@ export default async function AdminBundlesPage() {
                 </div>
               </div>
 
+              {/* One unsellable item makes the whole bundle unavailable
+                  (sql/091), and its stock silently reads 0. Without this
+                  the owner would see a zero with no explanation, so it
+                  names the item and what to fix. Loudest when the bundle
+                  is still live, because that is the case that is losing
+                  orders right now. */}
+              {bundle.blockedBy.length > 0 && (
+                <div
+                  className={`mt-3 rounded-[var(--radius-sm)] border px-3 py-2 text-sm ${
+                    bundle.status === "published"
+                      ? "border-[var(--color-discount)] text-[var(--color-discount)]"
+                      : "border-[var(--color-warning)] text-[var(--color-warning)]"
+                  }`}
+                >
+                  <p className="font-semibold">
+                    {bundle.status === "published"
+                      ? "This bundle is LIVE but cannot be sold"
+                      : "This bundle cannot be sold yet"}
+                  </p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {bundle.blockedBy.map((blocker, index) => (
+                      <li key={index}>
+                        <strong>{blocker.productName}</strong> — {blocker.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1">
+                    {bundle.status === "published"
+                      ? "Customers see it as out of stock. Republish that product, or unpublish this bundle."
+                      : "Republish that product, or swap it for something else in the bundle."}
+                  </p>
+                </div>
+              )}
+
               <dl className="mt-3 grid gap-3 border-t border-[var(--border)] pt-3 text-sm sm:grid-cols-5">
                 <div>
                   <dt className="text-xs text-[var(--muted)]">Bundle price</dt>

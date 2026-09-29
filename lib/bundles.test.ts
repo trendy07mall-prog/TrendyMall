@@ -190,3 +190,51 @@ test("parity with sql/087: A(10) and B(7 at 2 per bundle) allow 3, then 1, then 
 test("parity with sql/090: an empty bundle can sell nothing", () => {
   assert.equal(bundleAvailability([]), 0);
 });
+
+// ── an item that cannot be sold at all ─────────────────────────────────
+// Not a stock question: the product has been unpublished, soft-deleted,
+// or the exact option the bundle pins has been switched off since the
+// bundle was built. The bundle's own status says nothing about that, so
+// this is the rule that stops a bundle being sold when it could not be
+// honoured. sql/091 enforces the identical rule in the database.
+
+const PLENTY = { productStock: 100, variantStock: 100, quantity: 1 };
+
+test("one unsellable item makes the whole bundle unavailable", () => {
+  assert.equal(
+    bundleAvailability([PLENTY, { ...PLENTY, isSellable: false }]),
+    0,
+    "an unpublished item must empty the bundle however much stock the others have",
+  );
+});
+
+test("an unsellable item wins even when it has stock of its own", () => {
+  // The trap this guards: the item is fully stocked, so a stock-only
+  // rule would happily sell a bundle containing a product nobody can buy.
+  assert.equal(bundleAvailability([{ productStock: 999, variantStock: 999, quantity: 1, isSellable: false }]), 0);
+});
+
+test("isSellable true behaves exactly as leaving it out", () => {
+  assert.equal(bundleAvailability([{ ...PLENTY, isSellable: true }]), bundleAvailability([PLENTY]));
+});
+
+test("a healthy bundle is unaffected by the new rule", () => {
+  assert.equal(
+    bundleAvailability([
+      { productStock: 50, variantStock: 10, quantity: 1, isSellable: true },
+      { productStock: 7, variantStock: 7, quantity: 2, isSellable: true },
+    ]),
+    3,
+  );
+});
+
+test("republishing the item brings the bundle straight back", () => {
+  const items = (sellable: boolean) => [PLENTY, { ...PLENTY, variantStock: 9, isSellable: sellable }];
+  assert.equal(bundleAvailability(items(false)), 0);
+  assert.equal(bundleAvailability(items(true)), 9);
+});
+
+test("isBundleInStock agrees with availability about unsellable items", () => {
+  assert.equal(isBundleInStock([PLENTY, { ...PLENTY, isSellable: false }]), false);
+  assert.equal(isBundleInStock([PLENTY, { ...PLENTY, isSellable: true }]), true);
+});

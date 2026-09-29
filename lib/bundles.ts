@@ -32,10 +32,24 @@ export interface BundleItemStock {
   variantStock: number | null;
   // How many of this item go into ONE bundle.
   quantity: number;
+  // False when this item cannot be sold at all right now: its product has
+  // been unpublished or soft-deleted, or the exact option the bundle
+  // pins has been deactivated. One such item makes the WHOLE bundle
+  // unavailable, however much stock the others have -- a bundle you
+  // cannot honour must not be sellable.
+  //
+  // Optional, defaulting to sellable, so the many places that only care
+  // about the stock arithmetic can leave it out. The two callers that
+  // read real rows (lib/data/bundles.ts and lib/admin/bundles-query.ts)
+  // both pass it, and the database enforces the same rule regardless
+  // (bundle_available_units in sql/091).
+  isSellable?: boolean;
 }
 
-// How many of this item are really available, given both stock numbers.
+// How many of this item are really available, given both stock numbers
+// and whether it can be sold at all.
 function availableUnits(item: BundleItemStock): number {
+  if (item.isSellable === false) return 0;
   if (item.variantStock === null) return Math.max(0, item.productStock);
   return Math.max(0, Math.min(item.productStock, item.variantStock));
 }

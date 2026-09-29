@@ -136,6 +136,11 @@ export interface AdminBundleItem {
   variantStock: number | null;
   cost: number | null;
   image: string | null;
+  // Why this item is currently unsellable, or null when it is fine. One
+  // unsellable item makes the whole bundle unavailable (sql/091), so the
+  // admin has to be told which one and why -- otherwise a bundle just
+  // silently reads "0" with no explanation.
+  unavailableReason: string | null;
 }
 
 export interface AdminBundleRow {
@@ -155,6 +160,10 @@ export interface AdminBundleRow {
   // Null when any item inside is missing a cost price -- never a guess.
   profit: number | null;
   availableUnits: number;
+  // Every item that is stopping this bundle from being sold. Empty when
+  // the bundle is healthy. A published bundle with entries here is the
+  // case worth shouting about: it is live and cannot be fulfilled.
+  blockedBy: { productName: string; reason: string }[];
 }
 
 async function hydrate(
@@ -169,8 +178,8 @@ async function hydrate(
       .from("bundle_items")
       .select(
         "bundle_product_id, item_product_id, item_variant_id, quantity, sort_order, " +
-          "products!bundle_items_item_product_id_fkey ( id, name, stock ), " +
-          "product_variants!bundle_items_item_variant_id_fkey ( id, color_name, regular_price, sale_price, stock, variant_image_url )",
+          "products!bundle_items_item_product_id_fkey ( id, name, stock, status, is_deleted ), " +
+          "product_variants!bundle_items_item_variant_id_fkey ( id, color_name, regular_price, sale_price, stock, variant_image_url, is_active )",
       )
       .in("bundle_product_id", bundleIds)
       .order("sort_order"),
@@ -183,7 +192,13 @@ async function hydrate(
     item_product_id: string;
     item_variant_id: string;
     quantity: number;
-    products: { id: string; name: string; stock: number } | null;
+    products: {
+      id: string;
+      name: string;
+      stock: number;
+      status: string;
+      is_deleted: boolean;
+    } | null;
     product_variants: {
       id: string;
       color_name: string | null;
@@ -191,6 +206,7 @@ async function hydrate(
       sale_price: number | null;
       stock: number | null;
       variant_image_url: string | null;
+      is_active: boolean;
     } | null;
   };
   const rows = (itemRows ?? []) as unknown as Row[];
@@ -222,6 +238,15 @@ async function hydrate(
       variantStock: row.product_variants.stock,
       cost: costByVariant.get(row.product_variants.id) ?? null,
       image: row.product_variants.variant_image_url ?? itemImages.get(row.products.id) ?? null,
+      // Worded for the shop owner, who needs to know what to go and fix,
+      // not which column is false.
+      unavailableReason: row.products.is_deleted
+        ? "this product has been deleted"
+        : row.products.status !== "published"
+          ? `this product is ${row.products.status}, not published`
+          : !row.product_variants.is_active
+            ? "the exact option chosen for the bundle has been switched off"
+            : null,
     });
     itemsByBundle.set(row.bundle_product_id, list);
   }
@@ -250,7 +275,12 @@ async function hydrate(
       separateTotal,
       saving: bundleSaving(separateTotal, price),
       profit: bundleProfit(price, items),
-      availableUnits: bundleAvailability(items),
+      availableUnits: bundleAvailability(
+        items.map((item) => ({ ...item, isSellable: item.unavailableReason === null })),
+      ),
+      blockedBy: items
+        .filter((item) => item.unavailableReason !== null)
+        .map((item) => ({ productName: item.productName, reason: item.unavailableReason! })),
     };
   });
 }
@@ -295,7 +325,7 @@ export async function quoteBundleTotals(
   const [{ data: variants }, { data: costs }] = await Promise.all([
     supabase
       .from("product_variants")
-      .select("id, product_id, regular_price, sale_price, stock, products(stock)")
+      .select("id, product_id, regular_price, sale_price, stock, is_active, products(stock, status, is_deleted)")
       .in("id", variantIds),
     supabase.from("variant_costs").select("variant_id, cost").in("variant_id", variantIds),
   ]);
@@ -305,7 +335,8 @@ export async function quoteBundleTotals(
     regular_price: number;
     sale_price: number | null;
     stock: number | null;
-    products: { stock: number } | null;
+    is_active: boolean;
+    products: { stock: number; status: string; is_deleted: boolean } | null;
   };
   const byId = new Map(((variants ?? []) as unknown as V[]).map((v) => [v.id, v] as const));
   const costById = new Map((costs ?? []).map((c) => [c.variant_id, c.cost] as const));
@@ -318,6 +349,15 @@ export async function quoteBundleTotals(
       quantity: item.quantity,
       productStock: v?.products?.stock ?? 0,
       variantStock: v?.stock ?? null,
+      // Same rule the database enforces (sql/091): one item that cannot
+      // be sold makes the whole bundle unavailable, so the form's "can
+      // sell now" figure has to say 0 rather than a cheerful number.
+      isSellable:
+        v != null &&
+        v.products != null &&
+        !v.products.is_deleted &&
+        v.products.status === "published" &&
+        v.is_active,
       cost: costById.get(item.variantId) ?? null,
     };
   });

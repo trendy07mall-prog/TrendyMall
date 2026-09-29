@@ -26,6 +26,10 @@ export interface BundleContentItem {
   salePrice: number | null;
   productStock: number;
   variantStock: number | null;
+  // False when this item has been unpublished, deleted, or its pinned
+  // option deactivated since the bundle was built. One of these makes
+  // the whole bundle unavailable -- see lib/bundles.ts.
+  isSellable: boolean;
 }
 
 export interface BundleDetail {
@@ -52,8 +56,8 @@ const ITEM_SELECT = `
   sort_order,
   item_product_id,
   item_variant_id,
-  products!bundle_items_item_product_id_fkey ( id, name, slug, stock ),
-  product_variants!bundle_items_item_variant_id_fkey ( id, color_name, regular_price, sale_price, stock, variant_image_url )
+  products!bundle_items_item_product_id_fkey ( id, name, slug, stock, status, is_deleted ),
+  product_variants!bundle_items_item_variant_id_fkey ( id, color_name, regular_price, sale_price, stock, variant_image_url, is_active )
 `;
 
 type RawRow = {
@@ -61,7 +65,14 @@ type RawRow = {
   sort_order: number;
   item_product_id: string;
   item_variant_id: string;
-  products: { id: string; name: string; slug: string; stock: number } | null;
+  products: {
+    id: string;
+    name: string;
+    slug: string;
+    stock: number;
+    status: string;
+    is_deleted: boolean;
+  } | null;
   product_variants: {
     id: string;
     color_name: string | null;
@@ -69,6 +80,7 @@ type RawRow = {
     sale_price: number | null;
     stock: number | null;
     variant_image_url: string | null;
+    is_active: boolean;
   } | null;
 };
 
@@ -91,6 +103,10 @@ function toItems(rows: RawRow[], imageByProduct: Map<string, string>): BundleCon
       salePrice: row.product_variants.sale_price,
       productStock: row.products.stock,
       variantStock: row.product_variants.stock,
+      isSellable:
+        !row.products.is_deleted &&
+        row.products.status === "published" &&
+        row.product_variants.is_active,
     });
   }
   return items;
@@ -101,6 +117,7 @@ function summarise(bundleProductId: string, items: BundleContentItem[]): BundleD
     productStock: item.productStock,
     variantStock: item.variantStock,
     quantity: item.quantity,
+    isSellable: item.isSellable,
   }));
   return {
     bundleProductId,
