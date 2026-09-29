@@ -609,6 +609,53 @@ grant execute on function public.get_guest_order_by_id to authenticated, anon;
 grant execute on function public.track_order to authenticated, anon;
 grant execute on function public.get_recent_top_sellers to authenticated, anon;
 
+-- ── 3b. cancel_order_atomic, back to its pre-088 text ─────────────
+-- sql/088 taught this function to skip a bundle's own line. With
+-- product_kind about to be dropped below, that condition would refer
+-- to a column that no longer exists, so it goes back to the version
+-- that was live before 088 -- byte-for-byte, from the same verified
+-- backup.
+
+CREATE OR REPLACE FUNCTION public.cancel_order_atomic(p_order_id uuid, p_new_order_status text, p_new_payment_status text DEFAULT NULL::text, p_note text DEFAULT NULL::text) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_current_status text;
+  v_item record;
+begin
+  if not public.is_admin() then
+    raise exception 'Unauthorized';
+  end if;
+
+  select order_status into v_current_status from public.orders where id = p_order_id for update;
+  if v_current_status is null or v_current_status in ('cancelled', 'returned') then
+    return false;
+  end if;
+
+  for v_item in
+    select product_id, variant_id, quantity from public.order_items
+    where order_id = p_order_id and product_id is not null
+  loop
+    perform public.restore_stock(v_item.product_id, v_item.quantity);
+    if v_item.variant_id is not null then
+      perform public.restore_variant_stock(v_item.variant_id, v_item.quantity);
+    end if;
+  end loop;
+
+  perform set_config('app.status_change_note', p_note, true);
+
+  update public.orders
+  set order_status = p_new_order_status,
+      payment_status = coalesce(p_new_payment_status, payment_status)
+  where id = p_order_id;
+
+  return true;
+end;
+$$;
+
+grant execute on function public.cancel_order_atomic to authenticated, anon;
+
 -- ── 4. drop what sql/085 added ────────────────────────────────────────
 drop index if exists public.order_items_bundle_idx;
 alter table public.order_items drop column if exists bundle_id;
