@@ -6,6 +6,7 @@ import { getProductIdsForTags } from "@/lib/data/tags";
 import { getProductAttributesForDetail, getProductIdsForAttributeValues } from "@/lib/data/attributes";
 import { buildCategoryTree, flattenCategoryTree } from "@/lib/category-tree";
 import { getBundleDetailsForProducts } from "@/lib/data/bundles";
+import { selectComboDeals } from "@/lib/bundles";
 import {
   pickWinningVariant,
   getVariantPrice,
@@ -805,6 +806,45 @@ export async function getNewArrivals(limit = 8): Promise<ProductWithPrimaryImage
 
   if (error) throw error;
   return attachPrimaryImages(supabase, data);
+}
+
+// The homepage "Combo Deals" strip: published bundles a customer can
+// actually buy right now.
+//
+// The "can actually buy" part is one condition, stock > 0, and it is
+// enough because of how the rest of the feature is built: sql/089 keeps
+// a bundle's stock equal to how many its contents allow, and sql/091
+// drops that to 0 the moment anything inside is unpublished, deleted or
+// has its option switched off. So a bundle that cannot be honoured
+// cannot reach this strip either.
+//
+// Over-fetches a little (limit * 3) because the final order is by
+// biggest saving, which is only known after attachPrimaryImages has
+// worked out what each bundle's contents cost separately -- so the cut
+// to `limit` happens in selectComboDeals, not in SQL.
+export async function getComboDeals(limit = 8): Promise<ProductWithPrimaryImage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("product_kind", "bundle")
+    .eq("status", "published")
+    .eq("is_deleted", false)
+    .gt("stock", 0)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3);
+
+  if (error) throw error;
+  if (!data || data.length === 0) return [];
+
+  const withDisplay = await attachPrimaryImages(supabase, data);
+  return selectComboDeals(
+    withDisplay.map((product) => ({
+      ...product,
+      price: product.special_price ?? product.actual_price,
+    })),
+    limit,
+  );
 }
 
 // Real ceiling for the homepage's "Up to X% Off" promotion — never a

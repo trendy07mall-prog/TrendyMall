@@ -136,3 +136,51 @@ export function bundleSavingPercent(separateTotal: number, bundlePrice: number):
   if (separateTotal <= 0) return 0;
   return Math.round((bundleSaving(separateTotal, bundlePrice) / separateTotal) * 100);
 }
+
+// ── the homepage "Combo Deals" strip ───────────────────────────────────
+
+// The smallest shape selectComboDeals needs. Deliberately not
+// ProductWithPrimaryImage: this is pure arithmetic over plain objects
+// like the rest of this file, so it can be tested without a database or
+// a React tree, and so the homepage's rule lives somewhere a test can
+// reach it rather than inside a page component.
+export interface ComboCandidate {
+  // How many can be sold right now. Since sql/089 this is a bundle's
+  // products.stock, which the database keeps equal to what the contents
+  // allow -- including 0 when anything inside cannot be sold (sql/091).
+  stock: number;
+  // What the contents would cost bought separately, or null when it
+  // could not be worked out.
+  bundleSeparateTotal: number | null;
+  // What the bundle itself sells for -- the sale price when there is
+  // one, otherwise the regular price, the same figure the card shows.
+  price: number;
+}
+
+// Which bundles the Combo Deals strip shows, and in what order.
+//
+// Two rules, both of which matter more than they look:
+//
+//   * out of stock is left out entirely, rather than shown greyed. A
+//     section called "Combo Deals" whose first card says "Out of stock"
+//     is worse than no section, and since sql/091 a bundle reads 0 when
+//     anything inside it has been unpublished too, so this one check
+//     covers both kinds of unavailable.
+//
+//   * biggest saving first, because the strip has room for about five
+//     and the ones worth clicking should be the ones on screen.
+//
+// Returns an empty array when nothing qualifies, which is what lets the
+// homepage hide the whole section rather than render an empty heading.
+export function selectComboDeals<T extends ComboCandidate>(bundles: T[], limit: number): T[] {
+  return bundles
+    .filter((bundle) => bundle.stock > 0)
+    .map((bundle) => ({
+      bundle,
+      saving: bundleSaving(bundle.bundleSeparateTotal ?? 0, bundle.price),
+    }))
+    .sort((a, b) => b.saving - a.saving)
+    .slice(0, Math.max(0, limit))
+    .map((entry) => entry.bundle);
+}
+

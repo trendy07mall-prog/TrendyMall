@@ -22,6 +22,7 @@ import { getActiveBanner } from "@/lib/data/banner";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import {
   getNewArrivals,
+  getComboDeals,
   getProductsByIds,
   getAllProducts,
   getProductDetailBySlug,
@@ -122,6 +123,17 @@ export const getCachedNewArrivals = (limit = 8): Promise<ProductWithPrimaryImage
   unstable_cache(
     () => runInPublicScope(() => getNewArrivals(limit)),
     ["new-arrivals", String(limit)],
+    { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
+  )();
+
+// The homepage "Combo Deals" strip. Same products cache tag as every
+// other product list, so publishing, unpublishing or restocking anything
+// refreshes it -- including the items INSIDE a bundle, since their stock
+// change is what moves the bundle's own number (sql/089).
+export const getCachedComboDeals = (limit = 8): Promise<ProductWithPrimaryImage[]> =>
+  unstable_cache(
+    () => runInPublicScope(() => getComboDeals(limit)),
+    ["combo-deals", String(limit)],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();
 

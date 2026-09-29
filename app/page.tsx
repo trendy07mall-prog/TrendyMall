@@ -7,6 +7,7 @@ import { applyCampaignFeaturedDisplay } from "@/lib/data/campaigns";
 import {
   getCachedCategories,
   getCachedNewArrivals,
+  getCachedComboDeals,
   getCachedProductsByIds,
   getCachedHomepageCampaigns,
   getCachedCampaignSections,
@@ -72,9 +73,12 @@ function SectionHeader({ title, viewAllHref }: { title: string; viewAllHref: str
 }
 
 export default async function HomePage() {
-  const [categories, newArrivals, homepageCampaigns, general, { data: { user } }] = await Promise.all([
+  const [categories, newArrivals, comboDeals, homepageCampaigns, general, { data: { user } }] = await Promise.all([
     getCachedCategories(0),
     getCachedNewArrivals(10),
+    // Joins the same wave rather than being awaited after it -- it is one
+    // more cached read, and the homepage should not wait on it in series.
+    getCachedComboDeals(8),
     getCachedHomepageCampaigns(),
     getCachedGeneralSettings(),
     getAuthUser(),
@@ -188,6 +192,40 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+        {/* Bundles: two or more products sold together for one price.
+            Sits straight after New Arrivals so it is high on the page
+            without pushing the newest stock down.
+
+            The whole section disappears when there is nothing to show --
+            not an empty heading, not a row of "out of stock" cards. That
+            is one condition here because getComboDeals has already done
+            the deciding: it returns only published bundles with stock
+            above zero, and since sql/089 and sql/091 a bundle's stock is
+            0 whenever its contents cannot supply one, including when
+            something inside has been unpublished. So an empty list means
+            "nothing a customer could buy", and the answer is to show
+            nothing at all. */}
+        {comboDeals.length > 0 && (
+          <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
+            <SectionHeader title="Combo Deals" viewAllHref="/shop" />
+            <div className="mt-6">
+              <Carousel
+                ariaLabel="Combo deals"
+                itemClassName="w-1/2 sm:w-1/3 lg:w-1/5"
+                autoAdvanceMs={5000}
+                showArrows={comboDeals.length > 5}
+              >
+                {/* The same ProductCard as everywhere else -- it already
+                    draws a bundle's photo, price and "Save Rs X" badge,
+                    so a bundle needs no special card of its own. */}
+                {comboDeals.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </Carousel>
+            </div>
+          </section>
+        )}
 
       {/* Directly above Shop by Brand. Fetches its own data (it is the
           only consumer of it, and it decides its own mode server-side), so

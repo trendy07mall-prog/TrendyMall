@@ -8,6 +8,7 @@ import {
   bundleSeparateTotal,
   effectiveUnitPrice,
   isBundleInStock,
+  selectComboDeals,
 } from "./bundles";
 
 // The worked example from the brief: Earbuds + Cable + Case, Rs 1,950
@@ -237,4 +238,70 @@ test("republishing the item brings the bundle straight back", () => {
 test("isBundleInStock agrees with availability about unsellable items", () => {
   assert.equal(isBundleInStock([PLENTY, { ...PLENTY, isSellable: false }]), false);
   assert.equal(isBundleInStock([PLENTY, { ...PLENTY, isSellable: true }]), true);
+});
+
+// ── the homepage "Combo Deals" strip ───────────────────────────────────
+
+const deal = (stock: number, separate: number | null, price: number, tag = "") => ({
+  stock,
+  bundleSeparateTotal: separate,
+  price,
+  tag,
+});
+
+test("an out-of-stock bundle is left out of Combo Deals entirely", () => {
+  // Not greyed out: a section called "Combo Deals" whose first card says
+  // "Out of stock" is worse than no section at all.
+  const picked = selectComboDeals([deal(0, 2400, 2300, "gone"), deal(5, 2400, 2300, "here")], 5);
+  assert.deepEqual(
+    picked.map((d) => d.tag),
+    ["here"],
+  );
+});
+
+test("a bundle blocked by an unpublished item is left out too", () => {
+  // sql/091 makes such a bundle read 0, so the same one check covers it.
+  assert.deepEqual(selectComboDeals([deal(0, 2400, 2300)], 5), []);
+});
+
+test("the biggest saving comes first", () => {
+  const picked = selectComboDeals(
+    [deal(5, 2400, 2300, "saves100"), deal(5, 3000, 2000, "saves1000"), deal(5, 2600, 2300, "saves300")],
+    5,
+  );
+  assert.deepEqual(
+    picked.map((d) => d.tag),
+    ["saves1000", "saves300", "saves100"],
+  );
+});
+
+test("the strip never shows more than it has room for", () => {
+  const many = Array.from({ length: 12 }, (_, i) => deal(5, 3000, 3000 - i * 10, `d${i}`));
+  assert.equal(selectComboDeals(many, 8).length, 8);
+  assert.equal(selectComboDeals(many, 0).length, 0);
+});
+
+test("nothing available means an empty list, so the section can hide", () => {
+  // This is the whole mechanism behind "never show an empty section".
+  assert.deepEqual(selectComboDeals([], 8), []);
+  assert.deepEqual(selectComboDeals([deal(0, 2400, 2300), deal(0, 900, 800)], 8), []);
+});
+
+test("a bundle with no saving still appears, it just sorts last", () => {
+  // Published and in stock, so it is a real thing a customer can buy;
+  // hiding it would be a silent catalogue gap. The card simply shows no
+  // badge (bundleSaving is never negative).
+  const picked = selectComboDeals([deal(5, 2000, 2500, "nosaving"), deal(5, 3000, 2000, "real")], 5);
+  assert.deepEqual(
+    picked.map((d) => d.tag),
+    ["real", "nosaving"],
+  );
+});
+
+test("a bundle whose separate total is unknown does not crash the sort", () => {
+  const picked = selectComboDeals([deal(5, null, 2300, "unknown"), deal(5, 3000, 2000, "real")], 5);
+  assert.deepEqual(
+    picked.map((d) => d.tag),
+    ["real", "unknown"],
+  );
 });
