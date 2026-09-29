@@ -30,17 +30,24 @@ export function BundlePublishToggle({
     });
   }
 
+  // The admin's own two button styles, unchanged from every other
+  // screen: solid #111111 for the action that does something, a plain
+  // bordered button for the one that steps back. Behaviour above is
+  // untouched -- this is the same button it always was.
+  const className = published
+    ? "transition-brand inline-flex w-full items-center justify-center rounded-full border border-[var(--border)] px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-50 sm:w-auto"
+    : "transition-brand inline-flex w-full items-center justify-center rounded-full bg-[var(--foreground)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:opacity-50 sm:w-auto";
+
   return (
-    <div className="flex flex-col items-end gap-1">
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={pending}
-        className="transition-brand rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium hover:bg-black/5 disabled:opacity-50"
-      >
+    <div className="flex flex-col gap-1 sm:items-end">
+      <button type="button" onClick={toggle} disabled={pending} className={className}>
         {pending ? "…" : published ? "Unpublish" : "Publish"}
       </button>
-      {error && <p className="max-w-64 text-right text-xs text-[var(--color-discount)]">{error}</p>}
+      {error && (
+        <p className="max-w-64 text-xs sm:text-right" style={{ color: "#DC2626" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
