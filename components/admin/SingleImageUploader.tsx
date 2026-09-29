@@ -127,7 +127,7 @@ export function SingleImageUploader({
         // A warning, not a block: an odd-shaped photo is still better
         // than no photo, and the owner may have a good reason.
         <span className="mt-1 text-xs text-[var(--color-warning)]">
-          This image isn&apos;t square — edges may be cut off.
+          This image isn&apos;t square — edges may look empty or cut off.
         </span>
       )}
       <input type="hidden" name={name} value={value ?? ""} />

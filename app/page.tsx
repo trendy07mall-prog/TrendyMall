@@ -24,6 +24,7 @@ import { CategoryCard } from "@/components/marketing/CategoryCard";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
 import { CustomerFavouritesSection, CustomerFavouritesSkeleton } from "@/components/marketing/CustomerFavouritesSection";
+import { ComboDealsSection } from "@/components/marketing/ComboDealsSection";
 import { ShopByBrandSection } from "@/components/marketing/ShopByBrandSection";
 import { WhyShopWithUs } from "@/components/marketing/WhyShopWithUs";
 import { CustomerReviews } from "@/components/marketing/CustomerReviews";
@@ -31,6 +32,7 @@ import { HomeNewsletter } from "@/components/marketing/HomeNewsletter";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { FadeIn } from "@/components/motion/FadeIn";
 import type { ProductWithPrimaryImage } from "@/types";
+import { getBundleDetailsForProducts } from "@/lib/data/bundles";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -94,6 +96,17 @@ export default async function HomePage() {
   const campaignProducts =
     allCampaignProductIds.length > 0 ? await getCachedProductsByIds(allCampaignProductIds) : [];
   const campaignProductsById = new Map(campaignProducts.map((p) => [p.id, p]));
+
+  // "N items" on the featured Combo Deals card. One batched call to the
+  // same function that already supplies a bundle's separate total, so
+  // this adds no new query shape and changes no shared type.
+  const comboDetails =
+    comboDeals.length > 0
+      ? await getBundleDetailsForProducts(comboDeals.map((product) => product.id))
+      : new Map();
+  const comboItemCounts = new Map(
+    [...comboDetails.entries()].map(([id, detail]) => [id, detail.items.length] as const),
+  );
 
   // Campaign-context display fix: a product's card in THIS carousel must
   // feature its own campaign-joined variant's price (plus badge/countdown/
@@ -192,39 +205,24 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
         {/* Bundles: two or more products sold together for one price.
             Sits straight after New Arrivals so it is high on the page
             without pushing the newest stock down.
 
-            The whole section disappears when there is nothing to show --
-            not an empty heading, not a row of "out of stock" cards. That
-            is one condition here because getComboDeals has already done
-            the deciding: it returns only published bundles with stock
-            above zero, and since sql/089 and sql/091 a bundle's stock is
-            0 whenever its contents cannot supply one, including when
-            something inside has been unpublished. So an empty list means
-            "nothing a customer could buy", and the answer is to show
-            nothing at all. */}
+            The section renders nothing at all when there is nothing to
+            show. getComboDeals has already done the deciding: published
+            bundles with stock above zero, and since sql/089 and sql/091
+            a bundle's stock is 0 whenever its contents cannot supply
+            one. So an empty list means "nothing a customer could buy",
+            and the answer is to show nothing rather than an empty
+            heading or a row of sold-out cards. */}
         {comboDeals.length > 0 && (
-          <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
-            <SectionHeader title="Combo Deals" viewAllHref="/combo-deals" />
-            <div className="mt-6">
-              <Carousel
-                ariaLabel="Combo deals"
-                itemClassName="w-1/2 sm:w-1/3 lg:w-1/5"
-                autoAdvanceMs={5000}
-                showArrows={comboDeals.length > 5}
-              >
-                {/* The same ProductCard as everywhere else -- it already
-                    draws a bundle's photo, price and "Save Rs X" badge,
-                    so a bundle needs no special card of its own. */}
-                {comboDeals.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </Carousel>
-            </div>
-          </section>
+          <ComboDealsSection
+            deals={comboDeals.map((product) => ({
+              product,
+              itemCount: comboItemCounts.get(product.id) ?? 0,
+            }))}
+          />
         )}
 
       {/* Directly above Shop by Brand. Fetches its own data (it is the

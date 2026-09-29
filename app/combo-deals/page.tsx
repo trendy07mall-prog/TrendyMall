@@ -1,39 +1,37 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getCachedComboDeals } from "@/lib/data/cached";
-import { ProductCard } from "@/components/product/ProductCard";
+import { getBundleDetailsForProducts } from "@/lib/data/bundles";
+import { ComboCard } from "@/components/marketing/ComboCard";
+import { ComboDealsEmpty } from "@/components/marketing/ComboDealsEmpty";
 import { SITE_URL } from "@/lib/site";
 
-// The "View All" destination for the homepage's Combo Deals strip.
+// The "View all Combo Deals" destination.
 //
 // A dedicated page rather than the shop filtered to a category, because
 // there is no bundle category to filter by: a bundle is filed under
-// whatever category its contents belong to, and today's three sit in
-// three different ones (Portable Speakers, Health & Beauty, Mobile
-// Accessories). Forcing them into one would mean re-filing real
-// products, and teaching /shop about product_kind would mean changing
-// the shop's own query -- both far more invasive than this page, which
-// reuses the homepage's existing data function and the same card.
+// whatever its contents belong to, and today's sit in three different
+// ones. Grouping them would mean re-filing real products, and teaching
+// /shop about product_kind would mean changing the shop's own query --
+// both far more invasive than this page, which reuses the homepage's
+// data function and the same card.
 //
-// Shows exactly what the homepage strip shows, just without the cap:
-// published bundles with stock above zero. That one condition is enough
-// because sql/089 keeps a bundle's stock equal to what its contents
-// allow and sql/091 drops it to 0 the moment anything inside cannot be
-// sold, so nothing unbuyable can reach this page either.
+// Shows what the homepage strip shows, without the cap: published
+// bundles with stock above zero. That one condition is enough because
+// sql/089 keeps a bundle's stock equal to what its contents allow and
+// sql/091 drops it to 0 the moment anything inside cannot be sold.
 
-// A ceiling rather than a page size: it exists so a runaway query can
-// never try to render thousands of cards. A shop this size will not
-// come close, and if it ever does, that is the moment to add paging.
+// A ceiling, not a page size: it stops a runaway query ever trying to
+// render thousands of cards. A shop this size will not come close.
 const MAX = 60;
 
 export const metadata: Metadata = {
   title: "Combo Deals",
   description:
-    "Save more when you buy together. Product bundles from TrendyMall — two or more items sold as one, for less than buying them separately. Cash on Delivery and islandwide delivery in Sri Lanka.",
+    "Handpicked bundles at a lower price than buying separately. Product combos from TrendyMall — two or more items sold together for less. Cash on Delivery and islandwide delivery in Sri Lanka.",
   alternates: { canonical: `${SITE_URL}/combo-deals` },
   openGraph: {
     title: "Combo Deals | TrendyMall",
-    description: "Save more when you buy together — bundles for less than buying separately.",
+    description: "Handpicked bundles at a lower price than buying separately.",
     url: `${SITE_URL}/combo-deals`,
     type: "website",
   },
@@ -41,49 +39,57 @@ export const metadata: Metadata = {
 
 export default async function ComboDealsPage() {
   const bundles = await getCachedComboDeals(MAX);
+  const details =
+    bundles.length > 0
+      ? await getBundleDetailsForProducts(bundles.map((product) => product.id))
+      : new Map();
 
   return (
-    <div className="mx-auto w-full max-w-[var(--container-width)] flex-1 px-6 py-10">
-      <header>
-        <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-[32px]">Combo Deals</h1>
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)] sm:text-base">
-          Save more when you buy together.
-        </p>
-      </header>
-
-      {bundles.length === 0 ? (
-        // Friendly rather than a bare "0 results": someone who clicked
-        // through from the homepage arrived expecting bundles, so this
-        // says plainly that there are none right now and gives them
-        // somewhere to go instead of a dead end.
-        <div className="mt-10 rounded-[var(--radius-card)] border border-dashed border-[var(--border)] px-6 py-14 text-center">
-          <p className="text-lg font-medium">No combo deals right now</p>
-          <p className="mx-auto mt-2 max-w-md text-sm text-[var(--color-text-secondary)]">
-            We&apos;re putting new bundles together. In the meantime, everything in the shop is
-            available on its own.
-          </p>
-          <Link
-            href="/shop"
-            className="transition-brand mt-6 inline-flex items-center justify-center rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
+    <div
+      className="w-full flex-1 font-[family-name:var(--font-jakarta)]"
+      style={{ backgroundColor: "#FAFAFA" }}
+    >
+      <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-10 sm:py-14">
+        <header className="md:text-center">
+          <p
+            className="text-[11px] font-bold md:text-[13px]"
+            style={{ color: "#F97316", letterSpacing: "3px" }}
           >
-            Shop all products
-          </Link>
-        </div>
-      ) : (
-        <>
-          <p className="mt-6 text-sm text-[var(--muted)]">
-            {bundles.length} bundle{bundles.length === 1 ? "" : "s"} available
+            BUY TOGETHER · SAVE MORE
           </p>
-          {/* The same grid and the same card as the shop and the
-              homepage strip, so a bundle looks identical wherever it is
-              seen -- including its square photo and "Save Rs X" badge. */}
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {bundles.map((product) => (
-              <ProductCard key={product.id} product={product} variant="shop" />
-            ))}
-          </div>
-        </>
-      )}
+          <h1
+            className="mt-2 text-[28px] leading-tight font-extrabold md:text-[44px]"
+            style={{ color: "#0F2D52" }}
+          >
+            Combo Deals
+          </h1>
+          <p className="mt-2 text-[15px] md:text-[16px]" style={{ color: "#6B7280" }}>
+            Handpicked bundles at a lower price than buying separately
+          </p>
+        </header>
+
+        {bundles.length === 0 ? (
+          <ComboDealsEmpty />
+        ) : (
+          <>
+            <p className="mt-6 text-[14px] md:text-center" style={{ color: "#6B7280" }}>
+              {bundles.length} bundle{bundles.length === 1 ? "" : "s"} available
+            </p>
+            {/* Medium cards, 4 per row on desktop, 2 on tablet, 1 on a
+                phone. justify-items-center keeps the fixed-width cards
+                centred in their columns rather than left-hugging. */}
+            <div className="mt-8 grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {bundles.map((product) => (
+                <ComboCard
+                  key={product.id}
+                  data={{ product, itemCount: details.get(product.id)?.items.length ?? 0 }}
+                  size="medium"
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

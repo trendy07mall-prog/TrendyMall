@@ -46,6 +46,24 @@ const manrope = localFont({
   display: "swap",
 });
 
+// Only the Combo Deals surfaces use this -- the homepage strip and
+// /combo-deals. Registered here because next/font has to run at the
+// module top level, but nothing else opts into the variable, so every
+// other page's typography is untouched. Vendored the same way as the
+// two above rather than via next/font/google, for the same reason: no
+// build-time fetch from fonts.gstatic.com.
+const jakarta = localFont({
+  src: [
+    { path: "./fonts/plus-jakarta-sans-400.woff2", weight: "400" },
+    { path: "./fonts/plus-jakarta-sans-500.woff2", weight: "500" },
+    { path: "./fonts/plus-jakarta-sans-600.woff2", weight: "600" },
+    { path: "./fonts/plus-jakarta-sans-700.woff2", weight: "700" },
+    { path: "./fonts/plus-jakarta-sans-800.woff2", weight: "800" },
+  ],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
 const inter = localFont({
   src: [
     { path: "./fonts/inter-400.woff2", weight: "400" },
@@ -150,7 +168,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${inter.variable} h-full antialiased`}
+      className={`${manrope.variable} ${inter.variable} ${jakarta.variable} h-full antialiased`}
     >
       <body
         className="min-h-full flex flex-col"
