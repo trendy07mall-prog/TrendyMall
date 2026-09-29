@@ -46,7 +46,7 @@ export default async function ComboDealsPage() {
 
   return (
     <div
-      className="w-full flex-1 font-[family-name:var(--font-jakarta)]"
+      className="combo-fonts w-full flex-1"
       style={{ backgroundColor: "#FAFAFA" }}
     >
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 py-10 sm:py-14">

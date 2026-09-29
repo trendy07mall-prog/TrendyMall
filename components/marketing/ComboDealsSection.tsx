@@ -75,7 +75,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
 
   return (
     <section
-      className="w-full py-[var(--home-section-padding-y)] font-[family-name:var(--font-jakarta)]"
+      className="combo-fonts w-full py-[var(--home-section-padding-y)]"
       style={{ backgroundColor: "#FAFAFA" }}
       aria-labelledby="combo-deals-heading"
     >
