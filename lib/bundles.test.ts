@@ -147,13 +147,27 @@ test("parity with sql/090: 7 in stock at 2 per bundle is 3 bundles", () => {
   assert.equal(bundleAvailability([{ productStock: 7, variantStock: 7, quantity: 2 }]), 3);
 });
 
-test("parity with sql/090: a negative item stock gives 0, never a negative", () => {
+test("parity with sql/090: one item at zero empties the whole bundle", () => {
+  // Zero, not a negative: products_stock_check and
+  // product_variants_stock_check both require >= 0, so negative stock
+  // cannot exist in this database. The guard for it above is belt and
+  // braces, and sql/090 deliberately does not test it, because it cannot.
   assert.equal(
     bundleAvailability([
       { productStock: 50, variantStock: 10, quantity: 1 },
-      { productStock: -5, variantStock: 7, quantity: 1 },
+      { productStock: 7, variantStock: 0, quantity: 1 },
     ]),
     0,
+  );
+});
+
+test("parity with sql/090: restocking that item brings the bundle back", () => {
+  assert.equal(
+    bundleAvailability([
+      { productStock: 50, variantStock: 10, quantity: 1 },
+      { productStock: 7, variantStock: 7, quantity: 1 },
+    ]),
+    7,
   );
 });
 

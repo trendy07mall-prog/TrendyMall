@@ -20,7 +20,8 @@
 --   I  the option's own stock is the limit, not the product's
 --   J  an option that tracks no stock falls back to the product's number
 --   K  the floor rule: 5 in stock, 2 per bundle, is 2 bundles not 2.5
---   L  a negative stock counts as none, never as a negative bundle count
+--   L  an item hitting exactly zero empties the bundle, and restocking
+--      it brings the bundle back
 --   M  THE SAFETY NET: something writes a wrong number directly and the
 --      recalculation wins
 --   N  a normal product's stock is never touched by any of this
@@ -124,12 +125,21 @@ begin
 
   update public.bundle_items set quantity = 1 where bundle_product_id = v_bundle and item_variant_id = v_vb;
 
-  -- ── L. negative stock ────────────────────────────────────────────────
-  update public.products set stock = -5 where id = v_b;
+  -- ── L. an item runs out completely, then comes back ──────────────────
+  -- Not a negative stock: this database forbids one outright
+  -- (products_stock_check and product_variants_stock_check both require
+  -- >= 0), which is why bundle_available_units' greatest(0, ...) guard is
+  -- belt and braces rather than a case that can occur. Zero is the real
+  -- "run out", and one empty item must empty the whole bundle.
+  update public.product_variants set stock = 0 where id = v_vb;
   select stock into v_stock from public.products where id = v_bundle;
-  if v_stock <> 0 then raise exception 'FAIL L: a negative item stock gave %, expected 0', v_stock; end if;
-  raise notice 'ok L  a negative item stock counts as none: bundle 0, never negative';
-  update public.products set stock = 7 where id = v_b;
+  if v_stock <> 0 then raise exception 'FAIL L: one item at zero gave %, expected 0', v_stock; end if;
+  raise notice 'ok L  one item ran out: the whole bundle went to 0';
+
+  update public.product_variants set stock = 7 where id = v_vb;
+  select stock into v_stock from public.products where id = v_bundle;
+  if v_stock <> 7 then raise exception 'FAIL L2: after restocking that item the bundle is %, expected 7', v_stock; end if;
+  raise notice 'ok L2 that item restocked: the bundle came back to 7';
 
   -- ── G. removing an item ──────────────────────────────────────────────
   delete from public.bundle_items where id = v_item_c_row;      -- C had 9
