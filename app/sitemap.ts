@@ -12,7 +12,7 @@ import { SITE_URL as siteUrl } from "@/lib/site";
 // or a fabricated date. Same "omit rather than fake it" call this app
 // already makes for a policy page with no store_settings row yet -- see
 // LegalPageLayout's lastUpdated handling.
-const STATIC_ROUTES = ["", "/shop", "/new-arrivals", "/about", "/contact", "/faq", "/track-order"];
+const STATIC_ROUTES = ["", "/shop", "/new-arrivals", "/combo-deals", "/about", "/contact", "/faq", "/track-order"];
 
 // These five DO have a real per-page timestamp: each is a distinct
 // store_settings row (policies.*_body) with its own updated_at, already

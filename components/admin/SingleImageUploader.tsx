@@ -15,6 +15,8 @@ export function SingleImageUploader({
   onChange,
   hint,
   prefix = "campaigns",
+  previewShape = "banner",
+  warnIfNotSquare = false,
 }: {
   label: string;
   name: string;
@@ -25,9 +27,22 @@ export function SingleImageUploader({
   // "campaigns" so the 3 existing CampaignForm.tsx call sites (which never
   // passed this) keep uploading to the same place as before.
   prefix?: "categories" | "brands" | "products" | "variants" | "editor" | "campaigns" | "settings" | "hero";
+  // "banner" is the original preview -- a short, wide, cropped strip,
+  // right for a campaign banner or a hero slide. "square" previews the
+  // image the way a shop card actually shows it: 1:1, object-contain on
+  // white, nothing cropped. Defaults to "banner", so the five existing
+  // callers render exactly as they did before.
+  previewShape?: "banner" | "square";
+  // Warns -- but still allows -- when the image is far from 1:1. Only
+  // meaningful alongside previewShape="square".
+  warnIfNotSquare?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Measured from the image once the browser has decoded it, so the
+  // warning reflects the real file. Next's optimizer may resize the
+  // image but preserves its aspect ratio, which is all that is read.
+  const [aspectOff, setAspectOff] = useState(false);
 
   async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -72,8 +87,33 @@ export function SingleImageUploader({
       {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
       {value && (
-        <span className="relative mt-1 block h-20 w-full max-w-xs overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]">
-          <Image src={value} alt="" fill sizes="320px" className="object-cover" />
+        <span
+          className={
+            previewShape === "square"
+              ? // Deliberately the SAME box the shop card uses --
+                // aspect-square, object-contain, white behind -- so what
+                // is previewed here is what a customer will see, right
+                // down to the letterboxing on a non-square photo.
+                "relative mt-1 block aspect-square w-40 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-white"
+              : "relative mt-1 block h-20 w-full max-w-xs overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]"
+          }
+        >
+          <Image
+            src={value}
+            alt=""
+            fill
+            sizes={previewShape === "square" ? "160px" : "320px"}
+            className={previewShape === "square" ? "object-contain" : "object-cover"}
+            onLoad={(event) => {
+              if (!warnIfNotSquare) return;
+              const img = event.currentTarget;
+              if (!img.naturalWidth || !img.naturalHeight) return;
+              const ratio = img.naturalWidth / img.naturalHeight;
+              // Generous on purpose: a 1000x1080 photo is fine, a
+              // 1920x1080 banner is not.
+              setAspectOff(ratio < 0.9 || ratio > 1.1);
+            }}
+          />
           <button
             type="button"
             onClick={() => onChange(null)}
@@ -81,6 +121,13 @@ export function SingleImageUploader({
           >
             Remove
           </button>
+        </span>
+      )}
+      {value && warnIfNotSquare && aspectOff && (
+        // A warning, not a block: an odd-shaped photo is still better
+        // than no photo, and the owner may have a good reason.
+        <span className="mt-1 text-xs text-[var(--color-warning)]">
+          This image isn&apos;t square — edges may be cut off.
         </span>
       )}
       <input type="hidden" name={name} value={value ?? ""} />

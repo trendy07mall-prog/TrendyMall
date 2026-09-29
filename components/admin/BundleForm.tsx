@@ -230,7 +230,12 @@ export function BundleForm({
             value={imageUrl}
             onChange={setImageUrl}
             prefix="products"
-            hint="One photo showing everything in the bundle together."
+            hint={`One photo showing everything in the bundle together.
+Square image, 1080 × 1080 px recommended (1:1). Keep products in the centre.`}
+            // Previews in the same square box the shop card uses, so
+            // what is seen here is what the customer will see.
+            previewShape="square"
+            warnIfNotSquare
           />
         </div>
       </section>

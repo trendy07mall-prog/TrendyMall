@@ -208,7 +208,7 @@ export default async function HomePage() {
             nothing at all. */}
         {comboDeals.length > 0 && (
           <section className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
-            <SectionHeader title="Combo Deals" viewAllHref="/shop" />
+            <SectionHeader title="Combo Deals" viewAllHref="/combo-deals" />
             <div className="mt-6">
               <Carousel
                 ariaLabel="Combo deals"
