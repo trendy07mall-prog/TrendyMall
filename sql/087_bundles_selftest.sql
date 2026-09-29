@@ -65,8 +65,9 @@ begin
 
   -- The bundle: a product with product_kind = 'bundle', one option
   -- carrying the price, and rows saying what is inside. Its own stock is
-  -- set to 999 ON PURPOSE -- if anything ever reads it, the assertions
-  -- below will notice, because nothing should change it or depend on it.
+  -- set to 999 ON PURPOSE -- a deliberately wrong number, so the
+  -- assertions below can show sql/089's triggers correcting it rather
+  -- than merely agreeing with it.
   insert into public.products (slug, name, description, category_id, status, stock, product_kind)
   values ('zz-selftest-bundle', 'Selftest Bundle', '', v_category, 'published', 999, 'bundle')
   returning id into v_bundle;
@@ -143,10 +144,13 @@ begin
 
   raise notice 'ok 3  stock left the items, not the bundle: A 10 -> 8, B 7 -> 3 (2 per bundle x 2)';
 
+  -- Since sql/089 the bundle's own stock is maintained by the database:
+  -- it equals how many whole bundles the contents allow. A has 8 left
+  -- (10 - 1x2) and B has 3 (7 - 2x2), so min(8, floor(3/2)) = 1.
   select stock into v_stock from public.products where id = v_bundle;
-  if v_stock <> 999 then raise exception 'FAIL 4: the bundle''s own stock changed to %, expected it untouched at 999', v_stock; end if;
+  if v_stock <> 1 then raise exception 'FAIL 4: the bundle''s stock is %, expected 1 (A 8, B 3 at 2 per bundle)', v_stock; end if;
 
-  raise notice 'ok 4  the bundle''s own stock column was never touched';
+  raise notice 'ok 4  the bundle''s own stock was recalculated by the database: 999 -> 1';
 
   -- ── 7. the contents are not sales of their own ───────────────────────
   select coalesce(sum(units_sold), 0) into v_n
@@ -172,10 +176,13 @@ begin
   if v_stock <> 10 then raise exception 'FAIL 5d: after cancel item A variant stock is %, expected 10', v_stock; end if;
   select stock into v_stock from public.product_variants where id = v_var_b;
   if v_stock <> 7 then raise exception 'FAIL 5e: after cancel item B variant stock is %, expected 7', v_stock; end if;
+  -- A back to 10 and B back to 7 means the contents allow
+  -- min(10, floor(7/2)) = 3 again. This is the check that caught the
+  -- original bug, when a generic restore left 1001 here.
   select stock into v_stock from public.products where id = v_bundle;
-  if v_stock <> 999 then raise exception 'FAIL 5f: cancel changed the bundle''s own stock to %', v_stock; end if;
+  if v_stock <> 3 then raise exception 'FAIL 5f: after cancel the bundle''s stock is %, expected 3', v_stock; end if;
 
-  raise notice 'ok 5  cancel restored every item: A back to 10, B back to 7, bundle still untouched';
+  raise notice 'ok 5  cancel restored every item: A back to 10, B back to 7, bundle recalculated to 3';
 
   -- ── 6. one empty item blocks the whole bundle ────────────────────────
   update public.products set stock = 0 where id = v_item_b;

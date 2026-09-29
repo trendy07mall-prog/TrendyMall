@@ -120,3 +120,59 @@ test("a missing cost gives no profit figure at all, rather than a wrong one", ()
 test("a bundle sold below cost reports the loss rather than hiding it", () => {
   assert.equal(bundleProfit(500, [{ cost: 700, quantity: 1 }]), -200);
 });
+
+// ── the SQL/TS parity contract ─────────────────────────────────────────
+// bundle_available_units() in sql/089 must return exactly what
+// bundleAvailability() returns here -- the database writes its answer
+// into products.stock, and the cart, checkout, reorder and every stock
+// filter then trust that number. If the two ever disagree, the shop
+// would show one thing and sell another.
+//
+// These are the exact scenarios sql/090 asserts against the real
+// database. Changing an expected number here without changing it there
+// (or the other way round) is the drift this test exists to catch.
+
+test("parity with sql/090: the option's stock is the limit, not the product's", () => {
+  // Item A in sql/090: product 50, option 10, 1 per bundle -> 10
+  assert.equal(bundleAvailability([{ productStock: 50, variantStock: 10, quantity: 1 }]), 10);
+});
+
+test("parity with sql/090: an option tracking no stock follows its product", () => {
+  // Item C in sql/090: product 9, option null -> 9, then product 3 -> 3
+  assert.equal(bundleAvailability([{ productStock: 9, variantStock: null, quantity: 1 }]), 9);
+  assert.equal(bundleAvailability([{ productStock: 3, variantStock: null, quantity: 1 }]), 3);
+});
+
+test("parity with sql/090: 7 in stock at 2 per bundle is 3 bundles", () => {
+  assert.equal(bundleAvailability([{ productStock: 7, variantStock: 7, quantity: 2 }]), 3);
+});
+
+test("parity with sql/090: a negative item stock gives 0, never a negative", () => {
+  assert.equal(
+    bundleAvailability([
+      { productStock: 50, variantStock: 10, quantity: 1 },
+      { productStock: -5, variantStock: 7, quantity: 1 },
+    ]),
+    0,
+  );
+});
+
+test("parity with sql/090: after an order of 3, the bundle reports 7", () => {
+  // sql/090 orders 3 bundles of a 1-item bundle whose option had 10 left.
+  assert.equal(bundleAvailability([{ productStock: 50, variantStock: 7, quantity: 1 }]), 7);
+});
+
+test("parity with sql/087: A(10) and B(7 at 2 per bundle) allow 3, then 1, then 3", () => {
+  const at = (a: number, b: number) =>
+    bundleAvailability([
+      { productStock: a, variantStock: a, quantity: 1 },
+      { productStock: b, variantStock: b, quantity: 2 },
+    ]);
+  assert.equal(at(10, 7), 3); // before any order
+  assert.equal(at(8, 3), 1); // after 2 bundles are sold
+  assert.equal(at(10, 7), 3); // after the order is cancelled
+});
+
+test("parity with sql/090: an empty bundle can sell nothing", () => {
+  assert.equal(bundleAvailability([]), 0);
+});

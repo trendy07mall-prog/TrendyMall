@@ -310,8 +310,8 @@ async function attachPrimaryImages(
   const soldCounts = await getCampaignSoldCounts(supabase, distinctCampaignIds);
 
   // Bundles on this page, in ONE query for all of them -- a bundle card
-  // needs what its contents cost separately (for the saving badge) and
-  // how many are really buyable (from the lowest-stocked item inside).
+  // needs what its contents would cost separately, for the saving badge.
+  // Availability is NOT fetched here: products.stock already holds it.
   // A page with no bundles on it does no extra work at all.
   const bundleIds = products.filter((p) => p.product_kind === "bundle").map((p) => p.id);
   const bundleDetails = await getBundleDetailsForProducts(bundleIds, supabase);
@@ -333,7 +333,6 @@ async function attachPrimaryImages(
     reviewCount: rating?.review_count ?? 0,
     tags: tagsByProductId.get(product.id) ?? [],
     bundleSeparateTotal: bundleDetails.get(product.id)?.separateTotal ?? null,
-    bundleAvailableUnits: bundleDetails.get(product.id)?.availableUnits ?? null,
   }));
 }
 
@@ -371,14 +370,12 @@ function applyDbFilters(
   if (filters.freeDelivery) q = q.eq("free_delivery", true);
   if (filters.warranty) q = q.eq("warranty_available", true);
 
-  // A bundle's own stock column is never maintained -- whether one can be
-  // bought depends on the lowest-stocked item inside it, which only
-  // becomes known after attachPrimaryImages runs. So bundles are let
-  // through this SQL filter and judged in applyPostFilters instead.
-  // For a normal product both branches are exactly what they were: a
-  // single product can never match product_kind.eq.bundle.
-  if (filters.inStock && !filters.outOfStock) q = q.or("product_kind.eq.bundle,stock.gt.0");
-  else if (filters.outOfStock && !filters.inStock) q = q.or("product_kind.eq.bundle,stock.lte.0");
+  // Bundles need no exception here: sql/089 keeps a bundle's stock equal
+  // to how many whole bundles its contents allow, so this one predicate
+  // is correct for every kind of product -- and so is the facet count
+  // built from the same column.
+  if (filters.inStock && !filters.outOfStock) q = q.gt("stock", 0);
+  else if (filters.outOfStock && !filters.inStock) q = q.lte("stock", 0);
 
   // onSale used to be a plain column check (special_price.not.is.null) --
   // now resolved to an id list (see resolveOnSaleProductIds) and folded
@@ -406,18 +403,6 @@ async function applyPostFilters(
       ? products.filter((p) => p.avgRating >= filters.minRating!)
       : products;
 
-  // The other half of the stock filter (see applyDbFilters): bundles were
-  // let through the SQL predicate because their own stock number is
-  // meaningless, so they are judged here on what is really available --
-  // the lowest-stocked item inside. Normal products were already decided
-  // in SQL and are untouched by this.
-  if (filters.inStock !== filters.outOfStock) {
-    const wantInStock = filters.inStock;
-    filtered = filtered.filter((p) => {
-      if (p.bundleAvailableUnits === null) return true;
-      return wantInStock ? p.bundleAvailableUnits > 0 : p.bundleAvailableUnits === 0;
-    });
-  }
 
   // Campaign-context price/badge correction, scoped to exactly the "on
   // campaign" filtered view (filters.campaign) -- every product here is

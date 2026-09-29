@@ -39,6 +39,10 @@ export async function getCartRecommendations(
     .in("category_id", categoryIds)
     .eq("status", "published")
     .eq("is_deleted", false)
+    // v1 does not cross-sell bundles from the cart. Said explicitly
+    // rather than relying on a bundle's stock being 0 -- since sql/089
+    // it is a real number, so the old assumption no longer holds.
+    .eq("product_kind", "single")
     .gt("stock", 0)
     .order("created_at", { ascending: false })
     .limit(limit + productIds.length);
@@ -139,13 +143,12 @@ export async function getCartRecommendations(
       // Not fetched here -- this recommendations widget doesn't need tag
       // badges the way primary product-browsing surfaces do.
       tags: [],
-      // A bundle can never reach this list: the candidate query above
-      // requires stock > 0, and a bundle's own stock column is
-      // deliberately never maintained (sql/085). v1 does not cross-sell
-      // bundles from the cart, so that is the wanted behaviour, not an
-      // accident waiting to be fixed.
+      // Not fetched here either, so a bundle that did surface in this
+      // widget would simply show no saving badge. v1 does not cross-sell
+      // bundles from the cart; see the candidate query above, which now
+      // excludes them explicitly rather than relying on their stock
+      // number, since sql/089 gives a bundle a real one.
       bundleSeparateTotal: null,
-      bundleAvailableUnits: null,
     };
   });
 }

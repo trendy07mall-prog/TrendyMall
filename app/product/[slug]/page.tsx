@@ -162,9 +162,7 @@ export default async function ProductPage({
       priceCurrency: "LKR",
       price: defaultVariantPrice,
       availability:
-        (bundleDetail ? bundleDetail.availableUnits : product.stock) > 0
-          ? "https://schema.org/InStock"
-          : "https://schema.org/OutOfStock",
+        product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
     ...(ratingSummary && ratingSummary.review_count > 0
       ? {
@@ -220,7 +218,6 @@ export default async function ProductPage({
                 })),
                 separateTotal: bundleDetail.separateTotal,
                 saving: bundleSaving(bundleDetail.separateTotal, defaultVariantPrice),
-                availableUnits: bundleDetail.availableUnits,
               }
             : null
         }

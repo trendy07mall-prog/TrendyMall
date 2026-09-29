@@ -107,11 +107,13 @@ export interface ProductWithPrimaryImage extends Product {
   // figure the "Save Rs X" badge is measured against. Worked out from
   // the items' own live prices, never stored, so it cannot go stale when
   // one of them goes on sale.
+  //
+  // There is deliberately no "how many can I sell" field here. For a
+  // bundle, products.stock already holds that number and the database
+  // keeps it there (sql/089), which is what makes the cart, checkout,
+  // reorder and every stock filter correct without knowing bundles
+  // exist at all.
   bundleSeparateTotal: number | null;
-  // How many whole bundles can be sold right now, from the lowest-stocked
-  // item inside. The bundle's own stock column is meaningless and is
-  // never read (see lib/bundles.ts).
-  bundleAvailableUnits: number | null;
 }
 
 // A non-color attribute choice (e.g. "Mah": "5000mah") recorded on the

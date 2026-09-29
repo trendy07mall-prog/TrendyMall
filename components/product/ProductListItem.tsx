@@ -34,10 +34,9 @@ export function ProductListItem({
   const productHref = linkVariantId
     ? `/product/${product.slug}?variant=${linkVariantId}`
     : `/product/${product.slug}`;
-  // Bundles are judged on the lowest-stocked item inside them, never on
-  // their own stock column, which is deliberately never maintained.
-  // Null for a normal product, so its three tiers are unchanged.
-  const stockLevel = product.bundleAvailableUnits ?? product.stock;
+  // Correct for a bundle too: sql/089 keeps its stock equal to how many
+  // whole bundles the contents allow, so the same three tiers apply.
+  const stockLevel = product.stock;
   const stock =
     stockLevel <= 0
       ? { color: STOCK_STATE.out, label: "Out of stock" }

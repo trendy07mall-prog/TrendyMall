@@ -656,6 +656,19 @@ $$;
 
 grant execute on function public.cancel_order_atomic to authenticated, anon;
 
+-- ── 3c. the stock-sync triggers from sql/089 ───────────────────
+-- These must go BEFORE product_kind is dropped: every one of them
+-- reads it. Dropping the triggers first also means the column drops
+-- below cannot fire them.
+drop trigger if exists trg_bundle_items_sync_stock on public.bundle_items;
+drop trigger if exists trg_variants_sync_bundle_stock on public.product_variants;
+drop trigger if exists trg_products_sync_bundle_stock on public.products;
+drop function if exists public.trg_sync_bundle_on_items_change();
+drop function if exists public.trg_sync_bundles_for_variant();
+drop function if exists public.trg_sync_bundles_for_product();
+drop function if exists public.sync_bundle_stock(uuid);
+drop function if exists public.bundle_available_units(uuid);
+
 -- ── 4. drop what sql/085 added ────────────────────────────────────────
 drop index if exists public.order_items_bundle_idx;
 alter table public.order_items drop column if exists bundle_id;

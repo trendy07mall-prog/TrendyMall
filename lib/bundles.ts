@@ -42,10 +42,16 @@ function availableUnits(item: BundleItemStock): number {
 
 // How many whole bundles can be sold right now.
 //
-// Calculated live from the items every time rather than stored as a
-// number on the bundle, because a stored copy is a second source of truth
-// that drifts the moment any item is sold, restocked or edited on its own
-// product page. The bundle's own stock field is deliberately never read.
+// This is the definition; the database holds the answer. sql/089 keeps a
+// bundle's products.stock equal to exactly what this function returns,
+// recalculating it whenever an item's stock moves or the contents
+// change. That is not a second source of truth to drift -- nobody ever
+// types it, it is derived -- and it is what makes the cart, checkout,
+// reorder and every stock filter correct for bundles without any of them
+// knowing bundles exist.
+//
+// bundle_available_units() in sql/089 must stay arithmetically identical
+// to this function. If you change one, change the other.
 //
 // An item needed 2-per-bundle with 5 in stock supports 2 bundles, not 5 --
 // hence the floor division.

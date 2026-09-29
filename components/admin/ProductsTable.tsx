@@ -209,13 +209,12 @@ export function ProductsTable({
                   </td>
                   <td className="py-2 pr-4 align-top">
                     <div className="flex flex-col gap-1">
-                      {/* A bundle's own stock number is deliberately never
-                          maintained -- what can be sold comes from the
-                          lowest-stocked item inside it (see Bundles).
-                          Showing an editable 0 here would invite someone
-                          to "fix" a number that nothing reads. */}
+                      {/* A bundle's stock is real but not editable: the
+                          database recalculates it from the items inside
+                          (sql/089), so a typed value would be overwritten
+                          in the same statement. */}
                       {product.product_kind === "bundle" ? (
-                        <BundleStockCell bundleId={product.id} />
+                        <BundleStockCell bundleId={product.id} stock={product.stock} />
                       ) : (
                         <>
                           <QuickEditStock productId={product.id} stock={product.stock} />
@@ -365,7 +364,7 @@ export function ProductsTable({
                     />
                   )}
                   {product.product_kind === "bundle" ? (
-                    <BundleStockCell bundleId={product.id} />
+                    <BundleStockCell bundleId={product.id} stock={product.stock} />
                   ) : (
                     <>
                       <QuickEditStock productId={product.id} stock={product.stock} />
