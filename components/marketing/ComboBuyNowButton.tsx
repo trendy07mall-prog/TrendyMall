@@ -25,6 +25,7 @@ export function ComboBuyNowButton({
   product,
   available,
   className,
+  style,
 }: {
   product: ProductWithPrimaryImage;
   // Already decided by the caller from product.stock, which for a bundle
@@ -32,6 +33,10 @@ export function ComboBuyNowButton({
   // anything inside cannot be sold (sql/091).
   available: boolean;
   className?: string;
+  // Size and shape only. The colours stay owned by this component so
+  // "orange means buy" and "grey means you cannot" can never be
+  // overridden by a caller.
+  style?: React.CSSProperties;
 }) {
   const { addItem } = useCart();
   const router = useRouter();
@@ -45,8 +50,8 @@ export function ComboBuyNowButton({
         type="button"
         disabled
         aria-label={`${product.name} is out of stock`}
-        className={`${className ?? ""} cursor-not-allowed`}
-        style={{ backgroundColor: "#E5E7EB", color: "#6B7280" }}
+        className={`${className ?? ""} inline-flex items-center justify-center cursor-not-allowed`}
+        style={{ ...style, backgroundColor: "#E5E7EB", color: "#6B7280" }}
       >
         Out of stock
       </button>
@@ -89,8 +94,8 @@ export function ComboBuyNowButton({
         });
         router.push("/checkout");
       }}
-      className={`${className ?? ""} text-white transition-opacity hover:opacity-90 disabled:opacity-70 focus-visible:ring-2 focus-visible:ring-[#0F2D52] focus-visible:ring-offset-2 focus-visible:outline-none`}
-      style={{ backgroundColor: "#F97316" }}
+      className={`${className ?? ""} inline-flex items-center justify-center text-white transition-opacity hover:opacity-90 disabled:opacity-70 focus-visible:ring-2 focus-visible:ring-[#0F2D52] focus-visible:ring-offset-2 focus-visible:outline-none`}
+      style={{ ...style, backgroundColor: "#F97316" }}
     >
       {busy ? "Adding…" : "Buy Now"}
     </button>

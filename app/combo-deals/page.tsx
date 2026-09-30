@@ -78,12 +78,14 @@ export default async function ComboDealsPage() {
             {/* Medium cards, 4 per row on desktop, 2 on tablet, 1 on a
                 phone. justify-items-center keeps the fixed-width cards
                 centred in their columns rather than left-hugging. */}
-            <div className="mt-8 grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Two across even on a phone -- the compact card is narrow
+                enough, and one-per-row made the page a long scroll. */}
+            <div className="mt-8 grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
               {bundles.map((product) => (
                 <ComboCard
                   key={product.id}
                   data={{ product, itemCount: details.get(product.id)?.items.length ?? 0 }}
-                  size="medium"
+                  variant="grid"
                 />
               ))}
             </div>

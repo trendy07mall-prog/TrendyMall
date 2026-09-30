@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ComboCard, type ComboCardData, type ComboSize } from "@/components/marketing/ComboCard";
+import { ComboCard, type ComboCardData, type ComboVariant } from "@/components/marketing/ComboCard";
 
 // The homepage "Combo Deals" strip.
 //
@@ -23,7 +23,7 @@ const DOT_INACTIVE = "#E5C9B3";
 
 // How the five desktop slots relate to the centre: two out on each side.
 const OFFSETS = [-2, -1, 0, 1, 2] as const;
-const SIZE_BY_DISTANCE: Record<number, ComboSize> = { 0: "centre", 1: "medium", 2: "small" };
+const SIZE_BY_DISTANCE: Record<number, ComboVariant> = { 0: "centre", 1: "side", 2: "outer" };
 
 function Chevron({ direction }: { direction: "left" | "right" }) {
   return (
@@ -54,28 +54,28 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
   // the design says show what exists, centred, first one featured -- so
   // the row is just the bundles themselves, no wrapping and no repeats,
   // which would otherwise show the same card twice.
-  const desktopSlots: { data: ComboCardData; size: ComboSize; featured: boolean; key: string }[] =
+  const desktopSlots: { data: ComboCardData; variant: ComboVariant; featured: boolean; key: string }[] =
     count >= 5
       ? OFFSETS.map((offset) => {
           const index = wrap(active + offset);
           const distance = Math.abs(offset);
           return {
             data: deals[index],
-            size: SIZE_BY_DISTANCE[distance],
+            variant: SIZE_BY_DISTANCE[distance],
             featured: distance === 0,
             key: `${deals[index].product.id}-${offset}`,
           };
         })
       : deals.map((data, index) => ({
           data,
-          size: index === active ? "centre" : ("medium" as ComboSize),
+          variant: index === active ? "centre" : ("side" as ComboVariant),
           featured: index === active,
           key: data.product.id,
         }));
 
   return (
     <section
-      className="combo-fonts w-full py-[var(--home-section-padding-y)]"
+      className="combo-fonts w-full py-10 md:py-14"
       style={{ backgroundColor: "#FAFAFA" }}
       aria-labelledby="combo-deals-heading"
     >
@@ -86,7 +86,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
               "View all" link it ran out of room and wrapped onto two
               lines, which pushed the title down and looked untidy. */}
           <p
-            className="text-[11px] font-bold md:text-[13px]"
+            className="text-[11px] font-bold md:text-[12px]"
             style={{ color: ORANGE, letterSpacing: "3px" }}
           >
             BUY TOGETHER · SAVE MORE
@@ -94,7 +94,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
           <div className="mt-2 flex items-baseline justify-between gap-4 md:block">
             <h2
               id="combo-deals-heading"
-              className="min-w-0 text-[28px] leading-tight font-extrabold md:text-[44px]"
+              className="min-w-0 text-[24px] leading-tight font-extrabold md:text-[36px]"
               style={{ color: NAVY }}
             >
               Combo Deals
@@ -115,7 +115,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
         </div>
 
         {/* ── desktop carousel ──────────────────────────────────────── */}
-        <div className="mt-10 hidden lg:block">
+        <div className="mt-7 hidden lg:block">
           <div className="flex items-center justify-center gap-4">
             {count >= 5 && (
               <button
@@ -134,7 +134,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
                 top. */}
             <div className="flex items-center justify-center gap-5">
               {desktopSlots.map((slot) => (
-                <ComboCard key={slot.key} data={slot.data} size={slot.size} featured={slot.featured} />
+                <ComboCard key={slot.key} data={slot.data} variant={slot.variant} featured={slot.featured} />
               ))}
             </div>
 
@@ -151,7 +151,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
             )}
           </div>
 
-          <div className="mt-8 flex flex-col items-center gap-5">
+          <div className="mt-6 flex flex-col items-center gap-4">
             <Dots count={count} active={active} onSelect={setActive} />
             <Link
               href="/combo-deals"
@@ -166,20 +166,23 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
         {/* ── phone / tablet: a swipe strip that snaps ──────────────── */}
         <div className="mt-6 lg:hidden">
           <div
-            className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="-mx-6 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             onScroll={(event) => {
               // Keeps the dots honest while the finger is moving.
               const el = event.currentTarget;
               const card = el.firstElementChild as HTMLElement | null;
               if (!card) return;
-              const step = card.offsetWidth + 16;
+              const step = card.offsetWidth + 12;
               const index = Math.round(el.scrollLeft / step);
               setActive((current) => (current === index ? current : Math.min(count - 1, Math.max(0, index))));
             }}
           >
+            {/* 250px on a phone, 220 on a tablet -- both narrow enough
+                that the next card peeks and it is obvious the strip
+                scrolls. */}
             {deals.map((data, index) => (
-              <div key={data.product.id} className="w-[318px] shrink-0 snap-start">
-                <ComboCard data={data} size="centre" featured={index === 0} fluid />
+              <div key={data.product.id} className="w-[250px] shrink-0 snap-start sm:w-[220px]">
+                <ComboCard data={data} variant="mobile" featured={index === 0} />
               </div>
             ))}
           </div>
