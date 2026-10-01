@@ -50,6 +50,7 @@ export function SlideCarousel({
   slideDuration = DEFAULT_SLIDE_DURATION,
   transitionDuration = DEFAULT_TRANSITION_DURATION,
   autoplay = true,
+  eagerFirstSlide = false,
   showArrows = true,
   showDots = true,
 }: {
@@ -58,6 +59,10 @@ export function SlideCarousel({
   ariaLabel: string;
   imageSizes: string;
   slideDuration?: number;
+  // Loads the FIRST slide's image eagerly instead of lazily. Set by
+  // HeroSlider on the mobile carousel only -- see the comment there for
+  // why only one of the two.
+  eagerFirstSlide?: boolean;
   transitionDuration?: number;
   // autoplay/showDots are settings-backed for the homepage hero
   // (homepage.hero_autoplay/hero_show_dots), which always passes
@@ -267,7 +272,15 @@ export function SlideCarousel({
               // element -- out of the lazy queue without that waste, and
               // pairs with the media-gated <link rel=preload> HeroSlider
               // already emits for the correct breakpoint.
-              loading="lazy"
+              // The preload this used to rely on never reached <head>
+              // on Vercel: this component is rendered by an async
+              // server component, and the shell is flushed before it
+              // resolves, so the hint only arrived in the RSC payload.
+              // ReactDOM.preload did not change that in production
+              // either. For the one carousel that owns the mobile LCP,
+              // the image is therefore loaded eagerly -- which the HTML
+              // parser sees immediately, with no preload needed.
+              loading={eagerFirstSlide && index === 0 ? "eager" : "lazy"}
               fetchPriority={index === 0 ? "high" : "auto"}
               quality={88}
               placeholder={slide.blurDataURL ? "blur" : undefined}

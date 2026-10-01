@@ -207,6 +207,18 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
         slides={mobileSlides}
         wrapperClassName="aspect-[1200/675] -mx-6 w-auto! rounded-none! md:hidden"
         ariaLabel="Promotions"
+        // Mobile only, deliberately. This is the measured LCP element on
+        // a phone, which is what the ad traffic arrives on, and the
+        // preload meant to cover it never reaches <head> in production
+        // (the async parent streams after the shell is flushed).
+        //
+        // The cost, stated plainly: a DESKTOP visitor now also downloads
+        // this mobile hero, because it is display:none rather than
+        // absent and browsers still fetch eager images in hidden
+        // subtrees. That is roughly one extra hero-sized image on
+        // desktop, in exchange for ~2s of LCP on mobile. Not set on the
+        // desktop carousel, so a phone never downloads the desktop art.
+        eagerFirstSlide
         imageSizes={MOBILE_SIZES}
         slideDuration={homepage.heroSlideDurationMs}
         autoplay={homepage.heroAutoplay}
