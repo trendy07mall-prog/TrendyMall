@@ -20,6 +20,7 @@ import { CreateAccountPrompt } from "@/components/checkout/CreateAccountPrompt";
 import { RelatedProducts } from "@/components/product/RelatedProducts";
 import { TruckIcon, ShoppingBagIcon, WhatsAppIcon } from "@/components/ui/Icon";
 import type { GuestOrderDetail, OrderFulfillmentStatus } from "@/types";
+import { GoogleAdsPurchase } from "@/components/analytics/GoogleAdsPurchase";
 
 // This page is reached at every stage of an order's life, not just right
 // after checkout — a delivered or cancelled order must never still say
@@ -166,11 +167,19 @@ export default async function OrderConfirmationPage({
           cancelled by the time this page is reached (an unusual path, but
           firing Purchase for it would misreport real revenue). */}
       {order.orderStatus !== "cancelled" && (
-        <PurchaseTracker
-          orderNumber={order.orderNumber}
-          total={order.total}
-          productIds={order.items.map((item) => item.productId).filter((id): id is string => Boolean(id))}
-        />
+        <>
+          <PurchaseTracker
+            orderNumber={order.orderNumber}
+            total={order.total}
+            productIds={order.items.map((item) => item.productId).filter((id): id is string => Boolean(id))}
+          />
+          {/* Google Ads, entirely separate from the Meta tracker above:
+              no shared state, no eventID, nothing of Meta's touched.
+              Inside the same not-cancelled guard for the same reason --
+              reporting revenue for a cancelled order would be wrong in
+              either system. Inert until both env vars are set. */}
+          <GoogleAdsPurchase orderNumber={order.orderNumber} value={order.total} currency="LKR" />
+        </>
       )}
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
         <div className="flex flex-col gap-6">

@@ -28,6 +28,7 @@ import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { MetaPixel } from "@/components/analytics/MetaPixel";
+import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { StorefrontOnly } from "@/components/analytics/StorefrontOnly";
 import { SITE_URL } from "@/lib/site";
@@ -215,6 +216,7 @@ export default async function RootLayout({
         <StorefrontOnly>
           <GoogleAnalytics />
           <MetaPixel />
+          <GoogleAdsTag />
           <PageViewTracker />
         </StorefrontOnly>
         <ToastProvider>
