@@ -8,7 +8,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import {
   clearServerCart,
   mergeCartOnLogin,
@@ -136,11 +135,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, [items, couponCode, notes, hydrated, isLoggedIn]);
 
+  // The Supabase browser client is 244 KB and was in the first-load
+  // bundle of EVERY page, because this provider lives in the root
+  // layout. Imported dynamically it becomes its own chunk, fetched in
+  // parallel instead of blocking first paint.
+  //
+  // Deliberately still started at mount rather than on idle: this
+  // listener is what flips `ready`, and checkout waits on `ready`.
+  // Delaying it would delay checkout. The import resolves in
+  // milliseconds, and nothing about the ordering below changes.
   useEffect(() => {
-    const supabase = createBrowserClient();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    let subscription: { unsubscribe: () => void } | null = null;
+    let cancelled = false;
+
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      if (cancelled) return;
+      const supabase = createClient();
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         setIsLoggedIn(false);
         setItems([]);
@@ -176,13 +187,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // INITIAL_SESSION with no session (a guest) or any other event with
-      // no session: nothing to merge, the localStorage-hydrated guest cart
-      // above is already the authoritative one.
-      setReady(true);
+        // INITIAL_SESSION with no session (a guest) or any other event
+        // with no session: nothing to merge, the localStorage-hydrated
+        // guest cart above is already the authoritative one.
+        setReady(true);
+      });
+      subscription = data.subscription;
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const addItem = useCallback(

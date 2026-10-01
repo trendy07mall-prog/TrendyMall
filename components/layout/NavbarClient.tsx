@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { clientSignOut } from "@/lib/supabase/client-auth";
 import { useScrollState } from "@/context/ScrollStateContext";
 import { CartCount } from "@/components/cart/CartCount";
 import { WishlistCount } from "@/components/cart/WishlistCount";
@@ -703,7 +702,7 @@ export function NavbarClient({
                     )}
                     <button
                       type="button"
-                      onClick={() => clientSignOut()}
+                      onClick={() => void import("@/lib/supabase/client-auth").then((m) => m.clientSignOut())}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-black/5"
                     >
                       Log out
@@ -876,7 +875,7 @@ export function NavbarClient({
                     )}
                     <button
                       type="button"
-                      onClick={() => clientSignOut()}
+                      onClick={() => void import("@/lib/supabase/client-auth").then((m) => m.clientSignOut())}
                       className="transition-brand flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-black/5"
                     >
                       <LogoutIcon className="h-[18px] w-[18px]" />

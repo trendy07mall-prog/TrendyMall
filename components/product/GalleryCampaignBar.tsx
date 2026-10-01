@@ -41,9 +41,16 @@ export function GalleryCampaignBar({
           src={imageUrl}
           alt=""
           fill
-          // Same breakpoint/coverage as the main product image directly
-          // beneath this -- both are sized against the same container.
-          sizes="(max-width: 1024px) 100vw, 50vw"
+          // Measured as the product page's LCP element, and it was lazy:
+          // Load Delay 2,539 ms, 65% of a 3.9 s LCP. It sits at the very
+          // top of the gallery, always in the first viewport, so it is
+          // eager and high priority rather than lazy.
+          priority
+          fetchPriority="high"
+          // Capped at 800px on phones: this bar is 44-56px tall and full
+          // width, so a 1080/1920 candidate is bytes spent on detail
+          // object-cover crops away.
+          sizes="(max-width: 768px) 800px, (max-width: 1024px) 100vw, 50vw"
           className="object-cover"
         />
         {/* Semi-transparent dark tint + white text, not a color picked

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useCountdownRemaining } from "@/lib/countdown-ticker";
 
 function splitRemaining(ms: number) {
   const clamped = Math.max(0, ms);
@@ -55,23 +56,23 @@ export function CampaignCountdown({
   // client's own Date.now() (a moment later) produces a different second.
   // The real value is only ever computed client-side, inside the effect
   // below, after mount.
-  const [remaining, setRemaining] = useState<number | null>(null);
+  // One shared clock for every countdown on the page, and only while
+  // this one is actually on screen -- see lib/countdown-ticker.ts. The
+  // displayed value, the end date and the look are all unchanged; only
+  // the mechanism that drives the tick is different.
+  const { remaining, ref } = useCountdownRemaining(targetMs);
   const router = useRouter();
   const refreshedRef = useRef(false);
 
+  // Unchanged behaviour: when the countdown reaches zero the campaign's
+  // real server-side state may have just changed, so refresh once rather
+  // than letting the client trust a stale timer.
   useEffect(() => {
-    function tick() {
-      const next = targetMs - Date.now();
-      setRemaining(next);
-      if (next <= 0 && !refreshedRef.current) {
-        refreshedRef.current = true;
-        router.refresh();
-      }
+    if (remaining != null && remaining <= 0 && !refreshedRef.current) {
+      refreshedRef.current = true;
+      router.refresh();
     }
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [targetMs, router]);
+  }, [remaining, router]);
 
   if (remaining == null || remaining <= 0) return null;
 
@@ -86,6 +87,7 @@ export function CampaignCountdown({
 
   return (
     <div
+      ref={ref}
       className={`flex shrink-0 items-center font-medium ${
         // Must stay on one line and never wrap the label away from its own
         // value. Sized up again from the previous round (9px/11px) after

@@ -140,7 +140,11 @@ export function ProductGallery({
                   alt={name}
                   fill
                   priority
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  fetchPriority="high"
+                  // 800px cap on phones -- the frame is the device width,
+                  // so this stops a 1080 candidate being picked on a
+                  // high-DPR phone for no visible gain.
+                  sizes="(max-width: 768px) 800px, (max-width: 1024px) 100vw, 50vw"
                   // object-contain (not cover): a gallery image's own real
                   // aspect ratio varies per photo, and cover crops each one
                   // differently to fill this square frame -- unpredictably

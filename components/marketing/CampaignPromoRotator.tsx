@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
 import { BoltIcon } from "@/components/ui/Icon";
+import { useActiveWhenVisible } from "@/lib/use-active-when-visible";
 
 // The hero's campaign tile. More than one campaign can be genuinely active
 // at the same time (getHomepageCampaigns has always returned a list), but
@@ -100,6 +101,7 @@ export function CampaignPromoRotator({
 }) {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const { ref: visibilityRef, active: visibleAndIdle } = useActiveWhenVisible();
   const [reducedMotion, setReducedMotion] = useState(false);
   // One campaign is not a carousel: no interval, no dots, no stacking --
   // exactly the static tile this slot rendered before rotation existed.
@@ -128,13 +130,15 @@ export function CampaignPromoRotator({
   // Re-created whenever `active` changes, for a tick or a dot click alike,
   // which is what resets the countdown on manual interaction -- the same
   // shape as SlideCarousel's autoplay effect.
+  // Also gated on being on screen and the page being idle, same as the
+  // other two rotating components.
   useEffect(() => {
-    if (!rotating || paused) return;
+    if (!rotating || paused || !visibleAndIdle) return;
     const id = setInterval(() => {
       setActive((current) => (current + 1) % campaigns.length);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, [rotating, paused, campaigns.length, active]);
+  }, [rotating, paused, campaigns.length, active, visibleAndIdle]);
 
   // If a campaign ends while the page is open, router.refresh() (fired by
   // CampaignCountdown) re-renders this with a shorter list; clamp so the
@@ -162,6 +166,7 @@ export function CampaignPromoRotator({
 
   return (
     <div
+      ref={visibilityRef}
       className={`${promoTileClass} ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

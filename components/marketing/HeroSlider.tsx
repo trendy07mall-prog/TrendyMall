@@ -1,4 +1,5 @@
 import Image, { getImageProps } from "next/image";
+import ReactDOM from "react-dom";
 import Link from "next/link";
 import { SlideCarousel } from "@/components/marketing/SlideCarousel";
 import type { Slide } from "@/components/marketing/SlideCarousel";
@@ -161,26 +162,39 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
     sizes: desktopSizes,
   });
 
+  // ReactDOM.preload, NOT a rendered <link>.
+  //
+  // This component is async, so its output is streamed after the shell
+  // has already been flushed. A <link rel=preload> rendered here looked
+  // right in the markup but never reached <head>: it arrived inside the
+  // __next_f RSC payload and was only inserted into the DOM once React
+  // hydrated -- long after the moment a preload is useful. Measured on
+  // the live site: "hero-mobile" appeared 0 times in <head> and twice
+  // inside __next_f scripts, and the hero image's Load Delay was
+  // 2,170 ms (52% of LCP).
+  //
+  // ReactDOM.preload is React's own Float API for exactly this: it emits
+  // the hint as early as the renderer can, including from a streamed
+  // boundary. Same URLs as before (getImageProps resolves what <Image>
+  // will really request), still media-gated so only the matching
+  // breakpoint fetches, so there is no duplicate download.
+  ReactDOM.preload(mobilePreload.src, {
+    as: "image",
+    imageSrcSet: mobilePreload.srcSet,
+    imageSizes: MOBILE_SIZES,
+    media: "(max-width: 767px)",
+    fetchPriority: "high",
+  });
+  ReactDOM.preload(desktopPreload.src, {
+    as: "image",
+    imageSrcSet: desktopPreload.srcSet,
+    imageSizes: desktopSizes,
+    media: "(min-width: 768px)",
+    fetchPriority: "high",
+  });
+
   return (
     <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-8">
-      {/* Resource hints, not rendered images — React hoists <link> elements
-          rendered anywhere in the tree up into <head> automatically. */}
-      <link
-        rel="preload"
-        as="image"
-        href={mobilePreload.src}
-        imageSrcSet={mobilePreload.srcSet}
-        imageSizes={MOBILE_SIZES}
-        media="(max-width: 767px)"
-      />
-      <link
-        rel="preload"
-        as="image"
-        href={desktopPreload.src}
-        imageSrcSet={desktopPreload.srcSet}
-        imageSizes={desktopSizes}
-        media="(min-width: 768px)"
-      />
 
       {/* Mobile: dedicated 16:9 art-directed images, <768px only. -mx-6 with
           w-auto (not w-full, which resolves to a fixed pixel width before the

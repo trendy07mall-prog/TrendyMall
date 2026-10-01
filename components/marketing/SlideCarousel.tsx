@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
+import { useActiveWhenVisible } from "@/lib/use-active-when-visible";
 
 export interface Slide {
   src: string;
@@ -77,6 +78,7 @@ export function SlideCarousel({
   const paused = hovering || focused || tabHidden;
   const touchStartX = useRef<number | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const { ref: visibilityRef, active: visibleAndIdle } = useActiveWhenVisible();
   // Nav/dots/autoplay are meaningless chrome around a single image --
   // skipped entirely rather than rendered-but-inert, so a lone slide reads
   // as a plain static banner, not a 1-slide carousel with dead controls.
@@ -146,13 +148,17 @@ export function SlideCarousel({
   // changes for ANY reason — automatic tick or a manual arrow/dot click —
   // which is exactly "reset the countdown on manual interaction" with no
   // separate tracking needed.
+  // Also requires being ON SCREEN and the page having gone idle -- see
+  // lib/use-active-when-visible.ts. Autoplaying during hydration puts
+  // work straight into the blocking window, and autoplaying off-screen
+  // animates something nobody can see.
   useEffect(() => {
-    if (!isCarousel || !autoplay || paused || reducedMotion) return;
+    if (!isCarousel || !autoplay || paused || reducedMotion || !visibleAndIdle) return;
     const id = setInterval(() => {
       goTo(active + 1);
     }, slideDuration);
     return () => clearInterval(id);
-  }, [active, paused, reducedMotion, goTo, isCarousel, slideDuration, autoplay]);
+  }, [active, paused, reducedMotion, goTo, isCarousel, slideDuration, autoplay, visibleAndIdle]);
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -190,7 +196,13 @@ export function SlideCarousel({
 
   return (
     <section
-      ref={sectionRef}
+      // Two refs on one element: the existing sectionRef that the
+      // keyboard/scroll code already uses, plus the visibility observer
+      // that decides whether autoplay should be running at all.
+      ref={(node) => {
+        sectionRef.current = node;
+        visibilityRef(node);
+      }}
       role="region"
       aria-roledescription="carousel"
       aria-label={ariaLabel}

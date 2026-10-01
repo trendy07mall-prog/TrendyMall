@@ -120,6 +120,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// The origin every product image is served from. Derived from the public
+// env var rather than hard-coded, so a project change needs no edit here.
+const supabaseOrigin = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return null;
+  }
+})();
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -170,6 +180,24 @@ export default async function RootLayout({
       lang="en"
       className={`${manrope.variable} ${inter.variable} ${jakarta.variable} h-full antialiased`}
     >
+      <head>
+        {/* The Meta pixel stays exactly where it is -- afterInteractive,
+            async, after hydration -- because its own script is the single
+            largest blocking item on the page (measured: a 5.6 s task on
+            the homepage under mobile throttling), and moving it earlier
+            would put that straight into the critical path.
+            
+            These two hints cost no main-thread time at all: they let the
+            browser finish DNS and the TLS handshake with Facebook while
+            it is still busy elsewhere, so when the pixel script finally
+            runs, its request goes out on an already-open connection and
+            PageView fires sooner. Timing improves; blocking does not. */}
+        <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="" />
+        <link rel="preconnect" href="https://www.facebook.com" crossOrigin="" />
+        {/* Supabase is where every product image is served from, so the
+            connection is needed for the LCP image on every page. */}
+        {supabaseOrigin && <link rel="preconnect" href={supabaseOrigin} crossOrigin="" />}
+      </head>
       <body
         className="min-h-full flex flex-col"
         // Trailing space AFTER Footer, not before it -- padding on <main>

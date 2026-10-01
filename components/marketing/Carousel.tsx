@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useActiveWhenVisible } from "@/lib/use-active-when-visible";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/Icon";
 
 // A generic horizontal carousel used by ServiceCards and the New Arrivals
@@ -54,6 +55,8 @@ export function Carousel({
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
+  const { ref: visibilityRef, active } = useActiveWhenVisible();
+
   function scrollByPage(direction: 1 | -1) {
     const track = trackRef.current;
     if (!track) return;
@@ -71,12 +74,18 @@ export function Carousel({
     }
   }
 
+  // `active` adds two conditions to the three that were already here:
+  // the carousel must be ON SCREEN, and the page must have gone idle.
+  // A carousel scrolled past was advancing something nobody could see --
+  // each advance a scroll, a repaint and a fresh round of lazy image
+  // requests -- and starting the timer during hydration put work
+  // straight into the window the blocking-time score measures.
   useEffect(() => {
-    if (!autoAdvanceMs || paused || reducedMotion) return;
+    if (!autoAdvanceMs || paused || reducedMotion || !active) return;
     const id = setInterval(() => scrollByPage(1), autoAdvanceMs);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAdvanceMs, paused, reducedMotion]);
+  }, [autoAdvanceMs, paused, reducedMotion, active]);
 
   // An empty snap-x/overflow-x-auto track (no callers currently hit this,
   // but nothing stops a future one) reliably crashes WebKit's renderer --
@@ -87,6 +96,7 @@ export function Carousel({
 
   return (
     <div
+      ref={visibilityRef}
       role="region"
       aria-label={ariaLabel}
       className="group/carousel relative"
