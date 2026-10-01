@@ -1,4 +1,4 @@
-import Image, { getImageProps } from "next/image";
+import Image from "next/image";
 
 // Adapts HeroSlider.tsx's device-specific art-direction technique (two
 // <Image>s gated by md:hidden/hidden md:block, not one CSS-resized image) --
@@ -25,36 +25,15 @@ export function CampaignBanner({
   const mobile = mobileUrl ?? desktopUrl;
   if (!desktop && !mobile) return null;
 
-  const { props: mobilePreload } = mobile
-    ? getImageProps({ src: mobile, alt: "", fill: true, quality: 88, sizes: MOBILE_SIZES })
-    : { props: null };
-  const { props: desktopPreload } = desktop
-    ? getImageProps({ src: desktop, alt: "", fill: true, quality: 88, sizes: DESKTOP_SIZES })
-    : { props: null };
-
   return (
     <div className="mx-auto w-full max-w-[1920px] px-6 pt-6">
-      {mobilePreload && (
-        <link
-          rel="preload"
-          as="image"
-          href={mobilePreload.src}
-          imageSrcSet={mobilePreload.srcSet}
-          imageSizes={MOBILE_SIZES}
-          media="(max-width: 767px)"
-        />
-      )}
-      {desktopPreload && (
-        <link
-          rel="preload"
-          as="image"
-          href={desktopPreload.src}
-          imageSrcSet={desktopPreload.srcSet}
-          imageSizes={DESKTOP_SIZES}
-          media="(min-width: 768px)"
-        />
-      )}
-
+      {/* No <link rel=preload> here any more. This component is
+          rendered by an async page, so the shell is flushed before it
+          resolves and the hint only ever landed in the RSC payload --
+          verified on the live campaign page, whose <head> carried just
+          the logo while THIS banner was the measured LCP, still lazy.
+          The mobile image below is loaded eagerly instead, which the
+          HTML parser acts on with no hint needed. */}
       {mobile && (
         // 800/600 (4:3) matches the "Recommended 800×600" hint on the
         // mobile banner upload field exactly -- this used to be 1200/675
@@ -68,7 +47,11 @@ export function CampaignBanner({
             src={mobile}
             alt={alt}
             fill
-            loading="lazy"
+            // The campaign page's LCP on a phone, which is where the
+            // carousel ad sends people. Eager, not lazy. The desktop
+            // image below stays lazy, so a phone never downloads it.
+            loading="eager"
+            fetchPriority="high"
             quality={88}
             sizes={MOBILE_SIZES}
             className="object-cover"

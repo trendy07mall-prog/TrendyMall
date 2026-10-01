@@ -1,4 +1,3 @@
-import { getImageProps } from "next/image";
 import { SlideCarousel } from "@/components/marketing/SlideCarousel";
 import type { Slide } from "@/components/marketing/SlideCarousel";
 import type { Campaign } from "@/types";
@@ -31,36 +30,21 @@ export function CampaignBannerCarousel({ campaigns }: { campaigns: Campaign[] })
   // Same media-gated preload technique as HeroSlider.tsx -- primes the
   // exact optimizer URL/srcSet the first slide's own <Image> will request,
   // gated so only the browser's actually-matching breakpoint fetches it.
-  const { props: mobilePreload } = mobileSlides[0]
-    ? getImageProps({ src: mobileSlides[0].src, alt: "", fill: true, quality: 88, sizes: MOBILE_SIZES })
-    : { props: null };
-  const { props: desktopPreload } = desktopSlides[0]
-    ? getImageProps({ src: desktopSlides[0].src, alt: "", fill: true, quality: 88, sizes: DESKTOP_SIZES })
-    : { props: null };
 
   return (
     <div className="mx-auto w-full max-w-[1920px] px-6 pt-6">
-      {mobilePreload && (
-        <link
-          rel="preload"
-          as="image"
-          href={mobilePreload.src}
-          imageSrcSet={mobilePreload.srcSet}
-          imageSizes={MOBILE_SIZES}
-          media="(max-width: 767px)"
-        />
-      )}
-      {desktopPreload && (
-        <link
-          rel="preload"
-          as="image"
-          href={desktopPreload.src}
-          imageSrcSet={desktopPreload.srcSet}
-          imageSizes={DESKTOP_SIZES}
-          media="(min-width: 768px)"
-        />
-      )}
-
+      {/* No preload here, deliberately.
+          
+          This carousel is NEVER the largest-contentful element: on the
+          homepage it sits below the hero, and on /shop below the header
+          and filters. Preloading it put two high-priority image requests
+          ahead of the image that IS the LCP, and on a throttled mobile
+          connection they take bandwidth the hero needs. Measured on the
+          live homepage: these appeared in <head> while the hero's Load
+          Delay was 2,850 ms -- 66% of LCP.
+          
+          The slides below stay lazy, which is correct for something
+          below the fold. */}
       {mobileSlides.length > 0 && (
         // 800/600 (4:3) matches the "Recommended 800×600" hint on the
         // mobile banner upload field exactly -- see CampaignBanner.tsx's
