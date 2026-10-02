@@ -599,3 +599,105 @@ input:-webkit-autofill:focus {
   --ac-text-2: #6b7280;
   --ac-text-3: #9ca3af;
 }
+
+/* ---------------------------------------------------------------------
+   Homepage "About TrendyMall" block (components/marketing/
+   AboutTrendyMall.tsx).
+
+   A no-JavaScript "Read more": a visually hidden checkbox whose :checked
+   state unclamps the paragraph next to it.
+
+   The paragraph is CLAMPED, never hidden, so the full text is rendered in
+   every state and a crawler reads all of it. From sm: up there is room
+   for the whole thing, so the clamp and the toggle both disappear and no
+   interaction is needed at all.
+
+   This was written with <details>/<summary> first, which does not work:
+   current Chromium hides a closed <details>' content via
+   ::details-content and content-visibility, not a `display: none` on the
+   child, so forcing it visible on desktop with ordinary CSS failed and
+   the paragraph never rendered there.
+   --------------------------------------------------------------------- */
+.about-trendymall__more {
+  display: flex;
+  flex-direction: column;
+}
+
+.about-trendymall__checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.about-trendymall__text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+/* Expanded. A large value rather than `none`, which not every
+   -webkit-line-clamp implementation honours. */
+.about-trendymall__checkbox:checked ~ .about-trendymall__text {
+  -webkit-line-clamp: 999;
+}
+
+.about-trendymall__toggle {
+  margin-top: 0.5rem;
+  cursor: pointer;
+  align-self: flex-start;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f2d52;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Once everything is shown the label would be lying, and CSS cannot
+   change its text -- so it goes. Collapsing a short paragraph again is
+   not something anyone needs. */
+.about-trendymall__checkbox:checked ~ .about-trendymall__toggle {
+  display: none;
+}
+
+/* Keyboard focus has to be visible on the label, since the control it
+   operates is off-screen. */
+.about-trendymall__checkbox:focus-visible ~ .about-trendymall__toggle {
+  outline: 2px solid #0f2d52;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (min-width: 640px) {
+  .about-trendymall__text,
+  .about-trendymall__checkbox:checked ~ .about-trendymall__text {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+  }
+
+  .about-trendymall__toggle {
+    display: none;
+  }
+}
+
+/* Inline links inside the prose: underlined so they read as links in a
+   paragraph, in the brand navy rather than the orange used for the
+   section label above them. */
+.footer-prose-link {
+  font-weight: 600;
+  color: #0f2d52;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 150ms ease;
+}
+
+.footer-prose-link:hover {
+  color: #f97316;
+}

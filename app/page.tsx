@@ -29,6 +29,7 @@ import { ShopByBrandSection } from "@/components/marketing/ShopByBrandSection";
 import { WhyShopWithUs } from "@/components/marketing/WhyShopWithUs";
 import { CustomerReviews } from "@/components/marketing/CustomerReviews";
 import { HomeNewsletter } from "@/components/marketing/HomeNewsletter";
+import { AboutTrendyMall } from "@/components/marketing/AboutTrendyMall";
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { FadeIn } from "@/components/motion/FadeIn";
 import type { ProductWithPrimaryImage } from "@/types";
@@ -262,6 +263,11 @@ export default async function HomePage() {
       <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6 pb-[var(--home-section-padding-y)]">
         <RecentlyViewedSection />
       </div>
+
+      {/* Last thing before the footer, and homepage-only -- see the note
+          in AboutTrendyMall.tsx for why the prose does not go site-wide
+          the way the footer's link row does. */}
+      <AboutTrendyMall />
     </div>
   );
 }

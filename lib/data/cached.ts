@@ -7,6 +7,7 @@ import {
   getCategoryAncestors,
   getCategoryById,
   getCategoryBySlug,
+  getCategorySlugsWithProducts,
   getChildCategories,
   getDescendantCategoryIds,
 } from "@/lib/data/categories";
@@ -49,6 +50,7 @@ import { getProductReviews, getProductRatingSummary } from "@/lib/reviews";
 import { getTags, getProductTags } from "@/lib/data/tags";
 import { getAllAttributeValues } from "@/lib/data/attributes";
 import {
+  getActiveCampaigns,
   getHomepageCampaigns,
   getShopCampaigns,
   getCampaignSections,
@@ -189,6 +191,31 @@ export const getCachedProductsByIds = (ids: string[]): Promise<ProductWithPrimar
     ["products-by-ids", [...ids].sort().join(",")],
     { revalidate: CACHE_TTL.products, tags: [CACHE_TAGS.products] },
   )();
+
+// Both read by the site-wide footer, which renders on every page, so
+// both have to be cached reads rather than live queries. getCategories
+// and getCategorySlugsWithProducts are also used by the Navbar and the
+// sitemap respectively, so in practice the footer shares their result
+// instead of adding a query of its own.
+export const getCachedCategorySlugsWithProducts = (): Promise<string[]> =>
+  // The key carries a shape version. unstable_cache persists across
+  // deploys, so changing WHAT a cached function returns while reusing its
+  // key hands the next deploy an entry of the old shape -- which is
+  // exactly how this one briefly 500'd the whole site when it still
+  // returned a Set (serialised to `{}`, so `.has` was gone). Bump the
+  // suffix whenever this return type changes.
+  unstable_cache(() => runInPublicScope(() => getCategorySlugsWithProducts()), ["categories", "with-products", "v2-array"], {
+    revalidate: CACHE_TTL.categories,
+    // products too: a category becomes non-empty when a product is
+    // published into it, not when the category itself is edited.
+    tags: [CACHE_TAGS.categories, CACHE_TAGS.products],
+  })();
+
+export const getCachedActiveCampaigns = (): Promise<Campaign[]> =>
+  unstable_cache(() => runInPublicScope(() => getActiveCampaigns()), ["campaigns", "active-all"], {
+    revalidate: CACHE_TTL.campaigns,
+    tags: [CACHE_TAGS.campaigns],
+  })();
 
 export const getCachedHomepageCampaigns = (): Promise<Campaign[]> =>
   unstable_cache(() => runInPublicScope(() => getHomepageCampaigns()), ["homepage-campaigns"], {

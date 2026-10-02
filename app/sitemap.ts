@@ -47,6 +47,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     Promise.all(POLICY_ROUTES.map((r) => getPolicyLastUpdated(r.settingsKey))),
   ]);
 
+  const stockedCategorySlugs = new Set(categorySlugsWithProducts);
+
   const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((path) => ({
     url: `${siteUrl}${path}`,
   }));
@@ -70,7 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // to Google, and they return automatically once stocked, because this
   // is derived from real product counts rather than a hardcoded list.
   const categoryEntries: MetadataRoute.Sitemap = categories
-    .filter((category) => categorySlugsWithProducts.has(category.slug))
+    .filter((category) => stockedCategorySlugs.has(category.slug))
     .map((category) => ({
       url: `${siteUrl}/category/${category.slug}`,
       lastModified: new Date(category.created_at),

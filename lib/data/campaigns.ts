@@ -371,6 +371,36 @@ async function getActiveCampaignsForPlacement(
   });
 }
 
+// Every campaign that is live RIGHT NOW, regardless of where an admin
+// chose to place it.
+//
+// getActiveCampaignsForPlacement above answers "what should the homepage
+// show"; the footer is on every page, so placement is the wrong gate for
+// it -- a campaign running but not flagged show_on_homepage is still a
+// campaign a shopper should be able to reach. Same status/archive/date
+// conditions as the placement version, minus the placement filter.
+export async function getActiveCampaigns(): Promise<Campaign[]> {
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .eq("status", "published")
+    .eq("is_archived", false)
+    .lte("start_at", nowIso);
+  if (error) throw error;
+
+  const now = Date.now();
+  return (data ?? [])
+    .filter((c) => c.end_at == null || new Date(c.end_at).getTime() > now)
+    .sort((a, b) => {
+      if (a.end_at == null && b.end_at == null) return 0;
+      if (a.end_at == null) return 1;
+      if (b.end_at == null) return -1;
+      return new Date(a.end_at).getTime() - new Date(b.end_at).getTime();
+    });
+}
+
 export async function getHomepageCampaigns(): Promise<Campaign[]> {
   return getActiveCampaignsForPlacement("show_on_homepage");
 }

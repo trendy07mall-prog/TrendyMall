@@ -122,7 +122,7 @@ export async function getCategoriesWithProducts(): Promise<Category[]> {
 // today (digital-goods, mobiles-tablets, watches-sunglasses-jewellery,
 // watches) and listing them would mean the sitemap kept excluding one
 // after its first product arrived.
-export async function getCategorySlugsWithProducts(): Promise<Set<string>> {
+export async function getCategorySlugsWithProducts(): Promise<string[]> {
   const supabase = await createClient();
 
   const [
@@ -155,7 +155,13 @@ export async function getCategorySlugsWithProducts(): Promise<Set<string>> {
     }
   }
 
-  return withProducts;
+  // An array, not the Set it is built from. This result is wrapped in
+  // unstable_cache (getCachedCategorySlugsWithProducts), and that caches
+  // by JSON-serialising -- a Set survives the round trip as `{}`, so the
+  // first cached read would hand callers an object with no .has(). Found
+  // the hard way: every page 500'd with "k.has is not a function".
+  // Callers that want set semantics build their own Set from this.
+  return [...withProducts];
 }
 
 // Direct children only (not the whole subtree) -- used by the category page

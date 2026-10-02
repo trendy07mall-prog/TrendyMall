@@ -3,7 +3,14 @@ import Image from "next/image";
 import { getAuthUser } from "@/lib/supabase/server";
 import { NewsletterSignup } from "@/components/marketing/NewsletterSignup";
 import { getPaymentSettings, getSocialSettings } from "@/lib/data/settings";
-import { getCachedBrandingSettings, getCachedGeneralSettings } from "@/lib/data/cached";
+import {
+  getCachedActiveCampaigns,
+  getCachedBrandingSettings,
+  getCachedCategories,
+  getCachedCategorySlugsWithProducts,
+  getCachedGeneralSettings,
+} from "@/lib/data/cached";
+import { resolveFooterCategories, resolveFooterShopLinks, type FooterLink } from "@/lib/footer-links";
 import { isPayHereEnabled } from "@/lib/payhere";
 import { getWhatsAppUrl } from "@/lib/site";
 import { formatBusinessHoursSummary } from "@/lib/campaign-datetime";
@@ -68,16 +75,72 @@ function ContactRow({
   );
 }
 
+// One line of the SEO link row: a small bold caps label, then the links.
+//
+// Pill chips below sm: on a phone these wrap to two or three rows, and
+// bare inline links that close together are hard to hit accurately --
+// the chip gives each one a real touch target. From sm: up they are plain
+// inline links separated by a thin divider, which keeps the row slim on
+// desktop where it is read rather than tapped.
+function FooterLinkLine({ label, links }: { label: string; links: FooterLink[] }) {
+  if (links.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:gap-3">
+      <span className="text-[11px] font-bold tracking-wider text-white/50 uppercase sm:shrink-0">
+        {label}
+      </span>
+      <ul className="flex flex-wrap gap-2 sm:gap-x-1 sm:gap-y-1.5">
+        {links.map((link, index) => (
+          <li key={link.href} className="flex items-center">
+            {/* Divider between desktop links only -- the chips carry
+                their own borders on mobile, so a separator there would
+                read as a stray mark. */}
+            {index > 0 && (
+              <span aria-hidden="true" className="mr-1 hidden text-white/25 sm:inline">
+                /
+              </span>
+            )}
+            <Link
+              href={link.href}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs text-white/70 transition-colors hover:border-white/30 hover:text-white sm:rounded-none sm:border-0 sm:px-0 sm:py-0 sm:text-[13px] sm:hover:border-0"
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export async function Footer() {
   // Auth stays out of the cached reads (it's per-visitor) but still runs
   // alongside them rather than before them.
-  const [{ data: { user } }, branding, general, social, payment] = await Promise.all([
+  const [
+    { data: { user } },
+    branding,
+    general,
+    social,
+    payment,
+    categories,
+    categorySlugsWithProducts,
+    activeCampaigns,
+  ] = await Promise.all([
     getAuthUser(),
     getCachedBrandingSettings(),
     getCachedGeneralSettings(),
     getSocialSettings(),
     getPaymentSettings(),
+    // The last three feed the SEO link row below. All cached, and the
+    // first two are already read by the Navbar and the sitemap in the
+    // same render, so the footer adds no query of its own in practice.
+    getCachedCategories(),
+    getCachedCategorySlugsWithProducts(),
+    getCachedActiveCampaigns(),
   ]);
+  const footerCategories = resolveFooterCategories(categories, new Set(categorySlugsWithProducts));
+  const footerShopLinks = resolveFooterShopLinks(activeCampaigns);
   const socialLinks = (Object.keys(SOCIAL_ICONS) as (keyof typeof SOCIAL_ICONS)[])
     .map((key) => ({ url: social[key], ...SOCIAL_ICONS[key] }))
     .filter((entry) => entry.url);
@@ -213,7 +276,21 @@ export async function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-4 border-t border-white/15 pt-8 sm:flex-row sm:items-center sm:justify-between">
+        {/* SEO link row. This is the only crawlable path to the category
+            pages on most of the site: the header's category menu is a
+            client component whose links do not exist until it is opened,
+            so before this row /shop, /new-arrivals, every product page
+            and every policy page contained no category links at all.
+            Deliberately repeats nothing already in the footer above --
+            no COD, delivery, returns, address or Company links. */}
+        {(footerCategories.length > 0 || footerShopLinks.length > 0) && (
+          <div className="mt-14 flex flex-col gap-4 border-t border-b border-white/15 py-6">
+            <FooterLinkLine label="Shop by Category" links={footerCategories} />
+            <FooterLinkLine label="Shop" links={footerShopLinks} />
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-col gap-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-white/60">
             © {new Date().getFullYear()} {general.storeName}. All rights reserved.
           </p>
