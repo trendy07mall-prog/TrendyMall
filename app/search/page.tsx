@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NOINDEX_FOLLOW } from "@/lib/seo";
 import { getCategories } from "@/lib/data/categories";
 import { getBrands } from "@/lib/data/brands";
 import { getTags } from "@/lib/data/tags";
@@ -19,6 +20,11 @@ import { SortBar } from "@/components/product/SortBar";
 export const metadata: Metadata = {
   title: "Search Results",
   alternates: { canonical: "/search" },
+  // Search results are generated per query, so indexing them would offer
+  // Google an unbounded set of near-identical thin pages. The canonical
+  // already collapses every ?q= to /search; this is the explicit signal.
+  // `follow` so the product links on the page are still crawled.
+  robots: NOINDEX_FOLLOW,
 };
 
 export default async function SearchPage({

@@ -22,6 +22,7 @@ import { FilterChips } from "@/components/product/FilterChips";
 import { SortBar } from "@/components/product/SortBar";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
+import { categoryDescriptionFallback, categoryTitleSegment } from "@/lib/seo";
 
 // The URL can carry the full ancestor path (/category/electronics/audio/
 // wireless-earbuds) or just the leaf slug (/category/wireless-earbuds) --
@@ -41,10 +42,13 @@ export async function generateMetadata({
   const category = await getCachedCategoryBySlug(leafSlug(slug));
   if (!category || !category.is_active) return { title: "Category not found" };
 
-  const title = `${category.name} Accessories`;
-  const description =
-    category.description ??
-    `Shop ${category.name.toLowerCase()} accessories at TrendyMall.`;
+  // Was `${category.name} Accessories`, which produced "Power Bank
+  // Accessories", "Mouse Accessories" and -- live on the site -- "Mobile
+  // Accessories Accessories". The pattern and the per-slug overrides both
+  // live in lib/seo.ts so they can be unit-tested against the 60-character
+  // budget rather than checked by eye.
+  const title = categoryTitleSegment(category.slug, category.name);
+  const description = category.description ?? categoryDescriptionFallback(category.name);
   const image = category.image_path;
 
   return {

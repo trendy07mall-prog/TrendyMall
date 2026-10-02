@@ -44,9 +44,9 @@ export async function generateMetadata({
   const collection = parseCollection(typeof sp.collection === "string" ? sp.collection : undefined);
   if (!collection) {
     return {
-      title: "Shop All Accessories",
+      title: "Shop All Mobile Accessories",
       description:
-        "Browse the full TrendyMall catalogue of mobile phone accessories — earbuds, speakers, power banks, and headphones.",
+        "Browse all TrendyMall products – earbuds, headphones, power banks, speakers, trimmers and more. Cash on delivery across Sri Lanka.",
       alternates: { canonical: "/shop" },
     };
   }
@@ -152,10 +152,21 @@ export default async function ShopPage({
         }
       />
 
-      {/* Only rendered for a collection. The plain /shop page deliberately
-          has no heading (removed in an earlier pass), so this adds one for
-          the named-collection case rather than reinstating one everywhere. */}
+      {/* Only rendered for a collection. CollectionHeader owns the <h1>
+          in that case, which is why the plain-/shop heading below is
+          mutually exclusive with it -- the page must have exactly one. */}
       {state.collection && <CollectionHeader mode={state.collection} state={state} />}
+
+      {/* The big hero header (eyebrow, "Shop All", subtitle, 4-stat strip)
+          was removed from this page on request and is NOT coming back.
+          This is only the <h1> the page was missing entirely: /shop had no
+          h1 at all, so Google had nothing naming the page. Sized to sit
+          with the breadcrumb rather than reintroduce a header block. */}
+      {!state.collection && (
+        <h1 className="font-heading mt-3 text-lg font-bold tracking-tight text-[#0F2D52] sm:text-xl">
+          All Products
+        </h1>
+      )}
 
       <div className="mt-6">
         <CampaignBannerCarousel campaigns={shopCampaigns} />

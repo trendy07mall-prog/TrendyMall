@@ -5,6 +5,7 @@ import { FaqSearch, type FaqCategory } from "@/components/content/faq/FaqSearch"
 import { WhatsAppIcon, MailIcon } from "@/components/ui/Icon";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { getGeneralSettings } from "@/lib/data/settings";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
 import { RATE_IN_ZONE, RATE_OUTSIDE_ZONE } from "@/lib/delivery-fee";
 import { getWhatsAppUrl } from "@/lib/site";
@@ -70,8 +71,27 @@ export default async function FaqPage() {
     },
   ];
 
+  // Built from `categories` above -- the very array FaqSearch renders --
+  // so the structured data and the visible text cannot drift apart. That
+  // matters: Google requires the answer in the markup to match the answer
+  // on the page, and one of these answers interpolates live delivery
+  // rates from the database, so a hand-copied duplicate would go stale
+  // the first time a rate changed.
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: categories.flatMap((category) =>
+      category.items.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: { "@type": "Answer", text: item.answer },
+      })),
+    ),
+  };
+
   return (
     <div className="flex flex-1 flex-col">
+      <JsonLd data={faqSchema} />
       <div className="mx-auto w-full max-w-[var(--container-width)] px-6 pt-6">
         <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "FAQ" }]} />
       </div>

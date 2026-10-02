@@ -17,7 +17,8 @@ import { AboutContact } from "@/components/content/about/AboutContact";
 import { AboutFinalCta } from "@/components/content/about/AboutFinalCta";
 
 export const metadata: Metadata = {
-  title: "About TrendyMall | Fair Pricing & Trusted Online Shopping in Sri Lanka",
+  // Was 87 characters rendered -- Google cut it off mid-phrase.
+  title: "About Us | Online Shopping in Sri Lanka",
   description:
     "TrendyMall is Sri Lanka's online store for electronics, built on fair pricing and honest service. Read our story and shop the current catalog.",
   alternates: { canonical: "/about" },

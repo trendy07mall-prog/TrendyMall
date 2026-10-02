@@ -158,6 +158,17 @@ export default async function HomePage() {
           active campaign rather than silently dropping the rest. */}
       <HeroSlider campaigns={homepageCampaigns} />
 
+      {/* The homepage had NO <h1> at all -- nothing on it told Google what
+          the page is. Placed below the hero on purpose: above it would
+          push the hero image down and move the LCP element, and the hero
+          is a rotating campaign slider whose text is not a page title.
+          Kept small, since the hero above it is still the visual headline.
+          "Explore by Category" below stays an <h2>, so the document now
+          runs h1 -> h2 in order. */}
+      <h1 className="font-heading mx-auto w-full max-w-[var(--home-container-width)] px-6 pt-6 text-base font-bold tracking-tight text-[#0F2D52] sm:text-lg">
+        Mobile Accessories in Sri Lanka
+      </h1>
+
       {categories.length > 0 && (
         <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
           <SectionHeader title="Explore by Category" viewAllHref="/shop" />

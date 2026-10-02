@@ -22,6 +22,7 @@ import { RecordRecentlyViewed } from "@/components/product/RecordRecentlyViewed"
 import { RecentlyViewedSection } from "@/components/product/RecentlyViewedSection";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getVariantPrice, pickWinningVariant } from "@/lib/utils";
+import { trimTitleSegment } from "@/lib/seo";
 import { SITE_URL as siteUrl } from "@/lib/site";
 import { getCachedGeneralSettings } from "@/lib/data/cached";
 import { getBundleDetail } from "@/lib/data/bundles";
@@ -82,7 +83,12 @@ export async function generateMetadata({
   const image = images[0]?.image_url;
 
   return {
-    title: product.meta_title ?? product.name,
+    // trimTitleSegment, not the raw value: 12 of 20 products have
+    // "| TrendyMall" typed into meta_title in admin, and the title
+    // template appends a second one, so these rendered as
+    // "... | TrendyMall | TrendyMall". It also keeps the finished title
+    // inside the 60 characters Google shows. See lib/seo.ts.
+    title: trimTitleSegment(product.meta_title ?? product.name),
     description,
     alternates: {
       canonical: `/product/${product.slug}`,
