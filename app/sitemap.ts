@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { getCategories } from "@/lib/data/categories";
+import { getCategories, getCategorySlugsWithProducts } from "@/lib/data/categories";
 import { getAllProductSlugs } from "@/lib/data/products";
 import { getAllCampaignSlugs } from "@/lib/data/campaigns";
 import { getPolicyLastUpdated } from "@/lib/data/settings";
@@ -12,7 +12,18 @@ import { SITE_URL as siteUrl } from "@/lib/site";
 // or a fabricated date. Same "omit rather than fake it" call this app
 // already makes for a policy page with no store_settings row yet -- see
 // LegalPageLayout's lastUpdated handling.
-const STATIC_ROUTES = ["", "/shop", "/new-arrivals", "/combo-deals", "/about", "/contact", "/faq", "/track-order"];
+const STATIC_ROUTES = [
+  "",
+  "/shop",
+  "/new-arrivals",
+  "/combo-deals",
+  "/brands",
+  "/coupons",
+  "/about",
+  "/contact",
+  "/faq",
+  "/track-order",
+];
 
 // These five DO have a real per-page timestamp: each is a distinct
 // store_settings row (policies.*_body) with its own updated_at, already
@@ -28,8 +39,9 @@ const POLICY_ROUTES: { path: string; settingsKey: string }[] = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [categories, products, campaigns, policyDates] = await Promise.all([
+  const [categories, categorySlugsWithProducts, products, campaigns, policyDates] = await Promise.all([
     getCategories(),
+    getCategorySlugsWithProducts(),
     getAllProductSlugs(),
     getAllCampaignSlugs(),
     Promise.all(POLICY_ROUTES.map((r) => getPolicyLastUpdated(r.settingsKey))),
@@ -51,10 +63,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // schema) -- created_at is the closest real signal available, still far
   // more accurate than a shared build timestamp for a table that's edited
   // rarely after creation.
-  const categoryEntries: MetadataRoute.Sitemap = categories.map((category) => ({
-    url: `${siteUrl}/category/${category.slug}`,
-    lastModified: new Date(category.created_at),
-  }));
+  // Categories with no products anywhere in their subtree are left out.
+  // A sitemap is a list of pages worth indexing, and an empty category
+  // page is the definition of thin content -- four of the 23 are empty
+  // today. They stay live and browsable; they are simply not advertised
+  // to Google, and they return automatically once stocked, because this
+  // is derived from real product counts rather than a hardcoded list.
+  const categoryEntries: MetadataRoute.Sitemap = categories
+    .filter((category) => categorySlugsWithProducts.has(category.slug))
+    .map((category) => ({
+      url: `${siteUrl}/category/${category.slug}`,
+      lastModified: new Date(category.created_at),
+    }));
 
   const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${siteUrl}/product/${product.slug}`,

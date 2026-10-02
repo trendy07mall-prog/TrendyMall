@@ -131,6 +131,61 @@ export function categoryDescriptionFallback(name: string): string {
 }
 
 /**
+ * Category slugs that should stay live for shoppers but out of Google's
+ * index. 23 category pages exist for 20 products, so most of them are
+ * duplicates or near-empty, and indexing them competes with the seven
+ * that can actually rank.
+ *
+ * Three reasons appear here, all verified against published, non-deleted
+ * product counts:
+ *
+ *   DUPLICATE  -- a parent whose only products come from one child, so
+ *                 the two URLs list exactly the same items. The whole
+ *                 health-beauty > men-s-care > shaving-grooming chain
+ *                 shows the same three trimmers as its leaf.
+ *   TOO THIN   -- one product. Not enough to rank, fine to browse.
+ *   EMPTY      -- no products at all. Also dropped from the sitemap,
+ *                 which is derived rather than listed here (see
+ *                 app/sitemap.ts) so a category stops being excluded the
+ *                 moment it gets its first product.
+ *
+ * `follow`, never `nofollow`: these sit in the middle of the tree and
+ * link down to the pages that SHOULD rank.
+ *
+ * Deliberately a hand-maintained list, not derived from counts. "This
+ * page duplicates its child" is an editorial judgement about which of two
+ * near-identical pages deserves the ranking, and deriving it would mean
+ * the chosen page could silently flip when stock moved.
+ */
+export const NOINDEX_CATEGORY_SLUGS = new Set([
+  // DUPLICATE of power-bank (same 3 products). Also keeps this page off
+  // "mobile accessories Sri Lanka", which the homepage owns.
+  "mobile-accessories",
+  // DUPLICATE of portable-speakers (same 4 products)
+  "speakers",
+  // DUPLICATE chain, all showing the same 3 trimmers as
+  // trimmers-groomers-clippers
+  "health-beauty",
+  "men-s-care",
+  "shaving-grooming",
+  // DUPLICATE chain, all showing the same 1 product as mouse
+  "computers-laptops",
+  "computer-accessories",
+  // DUPLICATE chain, all showing the same 1 product as tools-set
+  "tools-diy-outdoor",
+  "hand-tools",
+  // TOO THIN -- 1 product each
+  "mouse",
+  "tools-set",
+  "neck-band-in-ear-earbuds",
+  // EMPTY -- 0 products
+  "digital-goods",
+  "mobiles-tablets",
+  "watches-sunglasses-jewellery",
+  "watches",
+]);
+
+/**
  * For pages that must not be indexed but whose links should still be
  * followed.
  *

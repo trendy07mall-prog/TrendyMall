@@ -22,7 +22,12 @@ import { FilterChips } from "@/components/product/FilterChips";
 import { SortBar } from "@/components/product/SortBar";
 import { Breadcrumbs } from "@/components/product/Breadcrumbs";
 import { CategoryCard } from "@/components/marketing/CategoryCard";
-import { categoryDescriptionFallback, categoryTitleSegment } from "@/lib/seo";
+import {
+  NOINDEX_CATEGORY_SLUGS,
+  NOINDEX_FOLLOW,
+  categoryDescriptionFallback,
+  categoryTitleSegment,
+} from "@/lib/seo";
 
 // The URL can carry the full ancestor path (/category/electronics/audio/
 // wireless-earbuds) or just the leaf slug (/category/wireless-earbuds) --
@@ -54,6 +59,10 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // Live for shoppers, out of the index: see NOINDEX_CATEGORY_SLUGS for
+    // why each one is listed. `follow` matters -- several of these are
+    // parents that link down to the categories that should rank.
+    ...(NOINDEX_CATEGORY_SLUGS.has(category.slug) ? { robots: NOINDEX_FOLLOW } : {}),
     alternates: {
       canonical: `/category/${category.slug}`,
     },

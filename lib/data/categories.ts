@@ -108,6 +108,56 @@ export async function getCategoriesWithProducts(): Promise<Category[]> {
   return (topLevel ?? []).filter((c) => (countByTopLevelId.get(c.id) ?? 0) > 0);
 }
 
+// Slugs of every category -- at ANY depth -- with at least one published
+// product somewhere in its subtree.
+//
+// getCategoriesWithProducts above answers a narrower question (which
+// depth-0 categories have stock, for the About page grid). The sitemap
+// needs the same answer for all 23 categories, including leaves, so this
+// walks the whole materialized `path` rather than only its first segment:
+// a product in a depth-3 leaf marks that leaf AND all three of its
+// ancestors as non-empty.
+//
+// Derived rather than hardcoded on purpose. Four categories are empty
+// today (digital-goods, mobiles-tablets, watches-sunglasses-jewellery,
+// watches) and listing them would mean the sitemap kept excluding one
+// after its first product arrived.
+export async function getCategorySlugsWithProducts(): Promise<Set<string>> {
+  const supabase = await createClient();
+
+  const [
+    { data: categories, error: categoriesError },
+    { data: productRows, error: productsError },
+  ] = await Promise.all([
+    supabase.from("categories").select("id, slug, path"),
+    supabase.from("products").select("category_id").eq("status", "published").eq("is_deleted", false),
+  ]);
+
+  if (categoriesError) throw categoriesError;
+  if (productsError) throw productsError;
+
+  const slugById = new Map<string, string>();
+  const pathById = new Map<string, string>();
+  for (const category of categories ?? []) {
+    slugById.set(category.id, category.slug);
+    pathById.set(category.id, category.path);
+  }
+
+  const withProducts = new Set<string>();
+  for (const row of productRows ?? []) {
+    const path = pathById.get(row.category_id);
+    if (!path) continue;
+    // Own id is the last segment, so this marks the leaf and every
+    // ancestor in one pass.
+    for (const id of path.split(".")) {
+      const slug = slugById.get(id);
+      if (slug) withProducts.add(slug);
+    }
+  }
+
+  return withProducts;
+}
+
 // Direct children only (not the whole subtree) -- used by the category page
 // to show a "browse sub-categories" row above the product grid.
 export async function getChildCategories(
