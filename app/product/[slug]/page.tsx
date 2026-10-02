@@ -64,14 +64,31 @@ export async function generateMetadata({
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  // Read ONLY so a redirect can carry the query string across. Nothing
+  // on this page branches on it; ?variant= is still read client-side by
+  // ProductPurchaseSection exactly as before.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
   const detail = await getCachedProductDetailBySlug(slug);
   if (!detail) {
     const redirectSlug = await getProductSlugRedirect(slug);
-    if (redirectSlug) permanentRedirect(`/product/${redirectSlug}`);
+    if (redirectSlug) {
+      // Carry the query string over. Without this, a renamed product
+      // dropped ?variant= on the redirect -- and live Meta ads link to
+      // the old URLs WITH that parameter, so the ad would have landed
+      // on the product's default option instead of the one advertised.
+      const sp = new URLSearchParams();
+      for (const [key, value] of Object.entries(await searchParams)) {
+        if (Array.isArray(value)) for (const v of value) sp.append(key, v);
+        else if (value !== undefined) sp.set(key, value);
+      }
+      const query = sp.toString();
+      permanentRedirect(`/product/${redirectSlug}${query ? `?${query}` : ""}`);
+    }
     notFound();
   }
 
