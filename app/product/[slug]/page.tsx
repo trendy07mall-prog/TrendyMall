@@ -27,14 +27,54 @@ import { getCachedGeneralSettings } from "@/lib/data/cached";
 import { getBundleDetail } from "@/lib/data/bundles";
 import { bundleSaving } from "@/lib/bundles";
 
+// Where a renamed product's old URL should go, query string and all, or
+// null if this slug is simply unknown.
+//
+// Query string carried over deliberately: live Meta ads link to the old
+// URLs WITH ?variant=, and dropping it would land the ad on the
+// product's default option instead of the one advertised.
+async function resolveSlugRedirect(
+  slug: string,
+  searchParams: Promise<Record<string, string | string[] | undefined>>,
+): Promise<string | null> {
+  const redirectSlug = await getProductSlugRedirect(slug);
+  if (!redirectSlug) return null;
+
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    if (Array.isArray(value)) for (const v of value) sp.append(key, v);
+    else if (value !== undefined) sp.set(key, value);
+  }
+  const query = sp.toString();
+  return `/product/${redirectSlug}${query ? `?${query}` : ""}`;
+}
+
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const { slug } = await params;
   const detail = await getCachedProductDetailBySlug(slug);
-  if (!detail) return { title: "Product not found" };
+  if (!detail) {
+    // A renamed slug normally never reaches this file at all: the router
+    // redirects it with a real 308 first, from the list next.config.ts
+    // builds out of this same table. See the long note there for why the
+    // status code cannot be set from inside this route.
+    //
+    // This path is the gap-filler for a rename made in admin SINCE the
+    // last deploy, which that build-time list cannot know about. It is
+    // still worth having -- the visitor lands on the right product -- but
+    // be clear about what it is: this route streams (loading.tsx puts a
+    // Suspense boundary around it), so permanentRedirect here emits the
+    // documented streaming fallback, a <meta http-equiv="refresh"> inside
+    // a 200, not a 308. Good enough for a human, invisible to a crawler.
+    const target = await resolveSlugRedirect(slug, searchParams);
+    if (target) permanentRedirect(target);
+    return { title: "Product not found" };
+  }
 
   const { product, images } = detail;
   const description =
@@ -75,20 +115,11 @@ export default async function ProductPage({
   const { slug } = await params;
   const detail = await getCachedProductDetailBySlug(slug);
   if (!detail) {
-    const redirectSlug = await getProductSlugRedirect(slug);
-    if (redirectSlug) {
-      // Carry the query string over. Without this, a renamed product
-      // dropped ?variant= on the redirect -- and live Meta ads link to
-      // the old URLs WITH that parameter, so the ad would have landed
-      // on the product's default option instead of the one advertised.
-      const sp = new URLSearchParams();
-      for (const [key, value] of Object.entries(await searchParams)) {
-        if (Array.isArray(value)) for (const v of value) sp.append(key, v);
-        else if (value !== undefined) sp.set(key, value);
-      }
-      const query = sp.toString();
-      permanentRedirect(`/product/${redirectSlug}${query ? `?${query}` : ""}`);
-    }
+    // Same gap-filler as in generateMetadata above, repeated because
+    // either one can be the first to resolve. Whichever gets here first
+    // redirects; the other never runs.
+    const target = await resolveSlugRedirect(slug, searchParams);
+    if (target) permanentRedirect(target);
     notFound();
   }
 

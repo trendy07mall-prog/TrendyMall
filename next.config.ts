@@ -3,7 +3,93 @@ import type { NextConfig } from "next";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : undefined;
 
+// Renamed-product redirects, resolved from the database at BUILD time and
+// served by the router as real 308s.
+//
+// Why this is here and not in the page: /product/[slug] has a
+// loading.tsx, so the segment is wrapped in a Suspense boundary and Next
+// flushes the 200 shell before the page component has decided anything.
+// By then the status line is already sent, so permanentRedirect() from
+// the page degrades to the documented streaming fallback -- a
+// <meta http-equiv="refresh"> inside a 200 response -- and notFound()
+// cannot send a 404 either. Visitors still arrive at the right product,
+// but a crawler sees HTTP 200 on the old URL, so no ranking signal or
+// ad-link equity ever moves to the new one. These rewrites run before
+// rendering, which is the only place a status code is still ours to set.
+//
+// The query string survives automatically: Next passes request query
+// values through to the destination, so an ad link carrying ?variant=
+// keeps it (see redirects.md, "any query values provided in the request
+// will be passed through").
+//
+// product_slug_redirects stays the single source of truth -- nothing is
+// hardcoded here. A rename made in admin after this build still works
+// through the page's own lookup (as a client-side meta refresh) and is
+// promoted to a true 308 on the next deploy.
+//
+// A failure here must never fail the build: no env vars, an unreachable
+// REST endpoint or an unexpected payload all return an empty list, which
+// leaves exactly the behaviour that shipped before this existed.
+type RedirectRow = {
+  old_slug: string;
+  products: { slug: string; status: string; is_deleted: boolean } | null;
+};
+
+async function productSlugRedirects() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return [];
+
+  try {
+    const res = await fetch(
+      `${url}/rest/v1/product_slug_redirects?select=old_slug,products(slug,status,is_deleted)`,
+      { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+    );
+    if (!res.ok) return [];
+    const rows: RedirectRow[] = await res.json();
+    if (!Array.isArray(rows)) return [];
+
+    // Guard against sending a live URL away from itself. An old_slug that
+    // some currently published product owns must be left alone -- slugs
+    // are reusable, so this is not hypothetical, and a redirect here
+    // outranks the route, meaning the mistake would be unreachable to
+    // debug from the page.
+    const oldSlugs = rows.map((r) => r.old_slug).filter(Boolean);
+    const taken = new Set<string>();
+    if (oldSlugs.length > 0) {
+      const inList = oldSlugs.map((s) => `"${s.replace(/"/g, '\\"')}"`).join(",");
+      const live = await fetch(
+        `${url}/rest/v1/products?select=slug&is_deleted=eq.false&slug=in.(${encodeURIComponent(inList)})`,
+        { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+      );
+      if (!live.ok) return [];
+      const liveRows: { slug: string }[] = await live.json();
+      if (!Array.isArray(liveRows)) return [];
+      for (const r of liveRows) taken.add(r.slug);
+    }
+
+    return rows
+      .filter(
+        (r) =>
+          r.old_slug &&
+          r.products &&
+          r.products.status === "published" &&
+          !r.products.is_deleted &&
+          r.old_slug !== r.products.slug &&
+          !taken.has(r.old_slug),
+      )
+      .map((r) => ({
+        source: `/product/${r.old_slug}`,
+        destination: `/product/${r.products!.slug}`,
+        permanent: true,
+      }));
+  } catch {
+    return [];
+  }
+}
+
 const nextConfig: NextConfig = {
+  redirects: productSlugRedirects,
   experimental: {
     viewTransition: true,
     // Default is 1MB, well under the 5MB image uploads this app allows
