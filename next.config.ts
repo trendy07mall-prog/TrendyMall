@@ -109,6 +109,37 @@ async function slugRedirects(spec: {
   }
 }
 
+// The three image folders that still carried a third-party brand name in
+// their path, long after the products themselves were renamed. The path
+// is not cosmetic: it shipped inside og:image, twitter:image and the
+// Product JSON-LD, so a crawler -- or an ads reviewer -- read
+// "headset-marshall-major-iv" on a product called Retro Foldable
+// Wireless Bluetooth Headphones.
+//
+// The folders are renamed; these keep every URL already shared, indexed
+// or cached working, rather than turning them into 404s. A permanent
+// redirect rather than a duplicate copy of the files: half the bytes, and
+// it tells crawlers the old path is gone for good.
+//
+// :file matches one path segment, which is all these folders contain
+// (1.jpg .. 4.jpg).
+const IMAGE_FOLDER_RENAMES: { from: string; to: string }[] = [
+  { from: "headset-marshall-major-iv", to: "retro-foldable-wireless-bluetooth-headphones" },
+  { from: "powerbank-magsafe-10000mah", to: "magnetic-wireless-power-bank" },
+  // Nothing in product_images referenced this one -- the product's images
+  // are served from Supabase storage -- but the files were still publicly
+  // fetchable at a path naming a brand, so it is renamed with the others.
+  { from: "earbuds-airpods-pro-2", to: "tws-pro-wireless-earbuds-charging-case" },
+];
+
+function imageFolderRedirects() {
+  return IMAGE_FOLDER_RENAMES.map(({ from, to }) => ({
+    source: `/images/${from}/:file`,
+    destination: `/images/${to}/:file`,
+    permanent: true,
+  }));
+}
+
 async function buildSlugRedirects() {
   const [products, categories] = await Promise.all([
     slugRedirects({
@@ -131,7 +162,7 @@ async function buildSlugRedirects() {
       isLive: (target) => target.is_active === true,
     }),
   ]);
-  return [...products, ...categories];
+  return [...products, ...categories, ...imageFolderRedirects()];
 }
 
 const nextConfig: NextConfig = {
