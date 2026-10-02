@@ -18,8 +18,14 @@
 -- slug. Wrapped in a transaction -- if any statement fails, nothing is
 -- applied. Nothing here touches prices, stock, images or checkout.
 --
--- store_settings.value is a plain text column holding the string itself
--- (not JSON), matching how every other seo.* row is already stored.
+-- store_settings.value is a JSON column, so a string value has to be
+-- written as a JSON string -- note the inner double quotes. Reading it
+-- through supabase-js hides this, because the client parses the JSON and
+-- hands back a plain JS string; the raw REST body shows the truth:
+--   {"key":"seo.site_title_default","value":"Premium Mobile Phone ..."}
+-- The literals below are left untyped rather than cast to ::jsonb, so
+-- Postgres coerces them to whichever of json/jsonb the column actually
+-- is. products.meta_title, by contrast, is ordinary text.
 
 begin;
 
@@ -32,7 +38,7 @@ begin;
 -- Note this is also the fallback title for any page that sets none of its
 -- own, which today is only /cart and /wishlist -- both now noindex.
 update public.store_settings
-set value = 'Mobile Accessories in Sri Lanka | TrendyMall',
+set value = '"Mobile Accessories in Sri Lanka | TrendyMall"',
     updated_at = now()
 where key = 'seo.site_title_default';
 
@@ -41,7 +47,7 @@ where key = 'seo.site_title_default';
 -- Lanka (delivery_zones has a default "Other Sri Lanka" zone). No free
 -- delivery claim -- shipping.free_shipping_enabled is false.
 update public.store_settings
-set value = 'Shop mobile accessories in Sri Lanka at TrendyMall – earbuds, headphones, power banks, speakers & trimmers. Cash on delivery, delivery across Sri Lanka.',
+set value = '"Shop mobile accessories in Sri Lanka at TrendyMall – earbuds, headphones, power banks, speakers & trimmers. Cash on delivery, delivery across Sri Lanka."',
     updated_at = now()
 where key = 'seo.meta_description';
 
@@ -72,7 +78,8 @@ commit;
 -- Expect the two seo rows to show the new text, and both meta_titles to
 -- be well under 60 characters.
 --
--- select key, length(value) as len, value from public.store_settings
+-- select key, length(value #>> '{}') as len, value #>> '{}' as text_value
+-- from public.store_settings
 -- where key in ('seo.site_title_default', 'seo.meta_description');
 --
 -- select slug, length(meta_title) as len, meta_title from public.products
