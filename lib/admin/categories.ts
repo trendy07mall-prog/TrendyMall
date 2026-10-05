@@ -1,12 +1,22 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache-tags";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify } from "@/lib/utils";
 
 export type CategoryFormState = { error: string } | { success: true } | undefined;
 
 function revalidateCategoryPaths() {
+  // updateTag FIRST, and it is the one that actually matters.
+  // revalidatePath invalidates rendered ROUTES; every storefront read of
+  // a category goes through unstable_cache instead (see
+  // getCachedCategoryBySlug, getCachedCategories and
+  // getCachedCategorySlugsWithProducts in lib/data/cached.ts), and only a
+  // tag drops those. Without this line an admin edit sat invisible on the
+  // storefront behind the 1-hour TTL -- saving a category looked like it
+  // had done nothing. Same mistake, same fix, as lib/admin/settings.ts.
+  updateTag(CACHE_TAGS.categories);
   revalidatePath("/admin/categories");
   revalidatePath("/", "layout");
 }
