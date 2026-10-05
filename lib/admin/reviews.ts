@@ -49,6 +49,38 @@ export async function replyToReview(reviewId: string, raw: string): Promise<Repl
   if (!result.ok) return { error: result.error };
 
   const supabase = await requireAdminClient();
+
+  // The two rules, enforced HERE and not only by hiding a button. The
+  // page can be stale, a form can be replayed, and "the button was not
+  // shown" protects nobody.
+  //
+  //   * APPROVED ONLY -- a reply must never be published under a review
+  //     the shop is not showing. Decide whether the review belongs on the
+  //     site first, then reply to it.
+  //   * NOT STAFF-WRITTEN -- those are excluded from the storefront
+  //     entirely (product_customer_reviews, sql/081), so a reply under one
+  //     is written for nobody.
+  const { data: existing } = await supabase
+    .from("reviews")
+    .select("status, user_id")
+    .eq("id", reviewId)
+    .maybeSingle();
+
+  if (!existing) return { error: "That review no longer exists." };
+  if (existing.status !== "approved") {
+    return { error: "Approve this review before replying to it." };
+  }
+
+  const { data: author } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", existing.user_id)
+    .maybeSingle();
+
+  if (author?.is_admin) {
+    return { error: "Staff reviews are not shown in the shop, so they cannot be replied to." };
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
