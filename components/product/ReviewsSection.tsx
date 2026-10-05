@@ -156,7 +156,7 @@ export function ReviewsSection({
             {review.reply_text?.trim() && (
               <div className="mt-3 rounded-[var(--radius-md)] border-l-2 border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-3 py-2.5">
                 <p className="text-xs font-semibold text-[#0F2D52]">
-                  Store reply
+                  TrendyMall
                   {review.replied_at && (
                     <span className="ml-1.5 font-normal text-[var(--muted)]">
                       · {dateFormatter.format(new Date(review.replied_at))}
