@@ -217,6 +217,26 @@ export default async function CategoryPage({
           </div>
         </div>
       </div>
+
+      {/* Long-form category copy, BELOW the products on purpose. Putting
+          200 words between the heading and the grid would push the
+          products down the page, and shoppers came for products. Google
+          reads the whole document, so the position costs nothing in
+          ranking terms -- it is also what large retailers do with
+          category text.
+
+          Rendered only when there is something to render, so a category
+          with no body_copy looks exactly as it did before this field
+          existed. whitespace-pre-line keeps paragraph breaks typed into
+          the admin textarea, without accepting HTML: React escapes the
+          string, so nothing stored in this column can inject markup. */}
+      {category.body_copy?.trim() && (
+        <section className="mt-12 border-t border-[var(--border)] pt-8">
+          <div className="max-w-3xl text-sm leading-relaxed whitespace-pre-line text-[var(--muted)]">
+            {category.body_copy.trim()}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

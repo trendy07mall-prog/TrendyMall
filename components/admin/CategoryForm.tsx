@@ -131,6 +131,27 @@ export function CategoryForm({
       </div>
 
       <div className="flex flex-col gap-1">
+        <label htmlFor="bodyCopy" className="text-sm font-medium">
+          Page content (optional)
+        </label>
+        {/* Deliberately separate from Description above. Description is
+            short because it doubles as the page's meta description and
+            the line under the heading; this is the long text that renders
+            below the product grid, where length does no harm. */}
+        <p className="text-xs text-[var(--muted)]">
+          Long text shown at the bottom of the category page, under the products. Leave empty to
+          hide it. Unlike Description, there is no length limit here.
+        </p>
+        <textarea
+          id="bodyCopy"
+          name="bodyCopy"
+          rows={8}
+          defaultValue={category?.body_copy ?? ""}
+          className={inputClass}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
         <label htmlFor="image" className="text-sm font-medium">
           Image
         </label>

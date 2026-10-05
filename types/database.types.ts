@@ -177,6 +177,7 @@ export interface Database {
           slug: string;
           name: string;
           description: string | null;
+          body_copy: string | null;
           image_path: string | null;
           sort_order: number;
           created_at: string;
@@ -191,6 +192,7 @@ export interface Database {
           slug: string;
           name: string;
           description?: string | null;
+          body_copy?: string | null;
           image_path?: string | null;
           sort_order?: number;
           created_at?: string;
@@ -205,6 +207,7 @@ export interface Database {
           slug?: string;
           name?: string;
           description?: string | null;
+          body_copy?: string | null;
           image_path?: string | null;
           sort_order?: number;
           created_at?: string;

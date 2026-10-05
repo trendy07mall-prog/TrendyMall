@@ -16,6 +16,11 @@ function readCategoryFields(formData: FormData) {
   const slugInput = String(formData.get("slug") ?? "").trim();
   const slug = slugify(slugInput || name);
   const description = String(formData.get("description") ?? "").trim() || null;
+  // Long-form page copy, a separate field from description on purpose:
+  // description is the meta description AND the one-line intro under the
+  // h1, so it has to stay short. This is the body text rendered below the
+  // product grid. Blank is stored as null, which hides the block.
+  const bodyCopy = String(formData.get("bodyCopy") ?? "").trim() || null;
   const imagePath = String(formData.get("imagePath") ?? "").trim() || null;
   const parentIdRaw = String(formData.get("parentId") ?? "").trim();
   const parentId = parentIdRaw || null;
@@ -23,7 +28,7 @@ function readCategoryFields(formData: FormData) {
   const specTemplateId = specTemplateIdRaw || null;
   const isActive = formData.get("isActive") === "on";
 
-  return { name, slug, description, imagePath, parentId, specTemplateId, isActive };
+  return { name, slug, description, bodyCopy, imagePath, parentId, specTemplateId, isActive };
 }
 
 export async function createCategory(
@@ -38,6 +43,7 @@ export async function createCategory(
     name: fields.name,
     slug: fields.slug,
     description: fields.description,
+    body_copy: fields.bodyCopy,
     image_path: fields.imagePath,
     parent_id: fields.parentId,
     spec_template_id: fields.specTemplateId,
@@ -102,6 +108,7 @@ export async function updateCategory(
       name: fields.name,
       slug: fields.slug,
       description: fields.description,
+      body_copy: fields.bodyCopy,
       image_path: fields.imagePath,
       parent_id: fields.parentId,
       spec_template_id: fields.specTemplateId,
