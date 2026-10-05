@@ -3,6 +3,9 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { requireAdminClient } from "@/lib/admin/guard";
 import { CACHE_TAGS } from "@/lib/cache-tags";
+import { validateReply } from "@/lib/review-reply";
+
+export type ReplyResult = { error: string } | { success: true } | undefined;
 
 export async function updateReviewStatus(
   reviewId: string,
@@ -23,4 +26,65 @@ export async function deleteReview(reviewId: string) {
   await supabase.from("reviews").delete().eq("id", reviewId);
   updateTag(CACHE_TAGS.reviews);
   revalidatePath("/admin/reviews");
+}
+
+// --- shop replies -----------------------------------------------------
+//
+// Deliberately separate from updateReviewStatus: replying must never
+// publish a review. A pending review that gets a reply stays pending, and
+// the reply stays invisible until somebody approves it on purpose. That
+// separation is the whole point -- a review was once approved by accident
+// simply because it reappeared in the moderation queue.
+//
+// Every one of these goes through requireAdminClient(), the same guard
+// the approve/reject actions use: it checks admin status against the
+// database, not the UI, so hiding a button is not what is keeping a
+// customer out.
+
+export async function replyToReview(reviewId: string, raw: string): Promise<ReplyResult> {
+  // Sanitised and measured before anything touches the database. The
+  // length is checked on the CLEANED text because that is what gets
+  // stored and what the CHECK constraint measures -- see validateReply.
+  const result = validateReply(raw);
+  if (!result.ok) return { error: result.error };
+
+  const supabase = await requireAdminClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("reviews")
+    .update({
+      reply_text: result.text,
+      replied_at: new Date().toISOString(),
+      replied_by: user?.id ?? null,
+    })
+    .eq("id", reviewId);
+
+  if (error) return { error: error.message };
+
+  // The product page reads replies through the cached review list, so the
+  // same tag the approve/reject actions drop has to be dropped here too --
+  // otherwise a posted reply would not appear until the TTL lapsed.
+  updateTag(CACHE_TAGS.reviews);
+  revalidatePath("/admin/reviews");
+  return { success: true };
+}
+
+export async function removeReviewReply(reviewId: string): Promise<ReplyResult> {
+  const supabase = await requireAdminClient();
+
+  // All three fields cleared together. Leaving replied_at or replied_by
+  // behind would leave the row claiming a reply that is not there.
+  const { error } = await supabase
+    .from("reviews")
+    .update({ reply_text: null, replied_at: null, replied_by: null })
+    .eq("id", reviewId);
+
+  if (error) return { error: error.message };
+
+  updateTag(CACHE_TAGS.reviews);
+  revalidatePath("/admin/reviews");
+  return { success: true };
 }

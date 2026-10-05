@@ -1073,6 +1073,9 @@ export interface Database {
           verified_purchase: boolean;
           status: "pending" | "approved" | "rejected";
           created_at: string;
+          reply_text: string | null;
+          replied_at: string | null;
+          replied_by: string | null;
         };
         Insert: {
           id?: string;
@@ -1084,6 +1087,9 @@ export interface Database {
           verified_purchase?: boolean;
           status?: "pending" | "approved" | "rejected";
           created_at?: string;
+          reply_text?: string | null;
+          replied_at?: string | null;
+          replied_by?: string | null;
         };
         Update: {
           id?: string;
@@ -1095,6 +1101,9 @@ export interface Database {
           verified_purchase?: boolean;
           status?: "pending" | "approved" | "rejected";
           created_at?: string;
+          reply_text?: string | null;
+          replied_at?: string | null;
+          replied_by?: string | null;
         };
         Relationships: [
           {
@@ -2090,6 +2099,11 @@ export interface Database {
           // assignable to Review without a cast.
           status: "pending" | "approved" | "rejected";
           created_at: string;
+          // The two public reply columns (sql/103). replied_by is
+          // deliberately absent -- it is a staff user id and this
+          // view is granted to anon.
+          reply_text: string | null;
+          replied_at: string | null;
         };
         Relationships: [
           {

@@ -1,7 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ProductRatingSummary, Review } from "@/types";
 
-export interface ReviewWithReviewerName extends Review {
+// Omit<..., "replied_by"> is not a detail: the storefront reads
+// product_customer_reviews, and that view deliberately leaves replied_by
+// out because it is a staff user id and the view is granted to anon. The
+// type says the same thing the SQL does, so a component cannot reach for
+// a field the query never returns.
+export interface ReviewWithReviewerName extends Omit<Review, "replied_by"> {
   reviewerName: string;
 }
 

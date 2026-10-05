@@ -143,6 +143,31 @@ export function ReviewsSection({
             <p className="mt-2 text-xs text-[var(--muted)]">
               {review.reviewerName} · {dateFormatter.format(new Date(review.created_at))}
             </p>
+
+            {/* The shop's reply. Indented and tinted so it reads as a
+                response to the review above rather than another review.
+
+                Plain text, guaranteed twice over: URLs are stripped when
+                the reply is saved, and React escapes this string on
+                render -- so anything that looks like markup appears as
+                literal characters instead of becoming an element. Nothing
+                stored in this column can put a link or a tag on a product
+                page. */}
+            {review.reply_text?.trim() && (
+              <div className="mt-3 rounded-[var(--radius-md)] border-l-2 border-[var(--color-warning)] bg-[var(--color-warning)]/5 px-3 py-2.5">
+                <p className="text-xs font-semibold text-[#0F2D52]">
+                  Store reply
+                  {review.replied_at && (
+                    <span className="ml-1.5 font-normal text-[var(--muted)]">
+                      · {dateFormatter.format(new Date(review.replied_at))}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-sm whitespace-pre-line text-[var(--muted)]">
+                  {review.reply_text.trim()}
+                </p>
+              </div>
+            )}
           </div>
         ))}
       </div>
