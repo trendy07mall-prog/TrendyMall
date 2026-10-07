@@ -2,40 +2,50 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { uploadAdminImage } from "@/lib/admin/uploads";
 import { FileInputButton } from "@/components/admin/FileInputButton";
+import { compressAndUploadMany } from "@/lib/images/upload-with-compression";
+import { uploadHint } from "@/lib/images/targets";
 
 export function GalleryUploader({
   value,
   onChange,
+  onBusyChange,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  /** Lets ProductForm keep Save disabled until every file is done. */
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // One entry per rejected file. This used to be a single string that each
+  // loop iteration overwrote, so picking five files and having three fail
+  // showed only the last reason -- and said nothing about which file it
+  // belonged to.
+  const [errors, setErrors] = useState<string[]>([]);
+  const [notes, setNotes] = useState<string[]>([]);
 
   async function handleFilesChange(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
 
     setUploading(true);
-    setError(null);
+    onBusyChange?.(true);
+    setErrors([]);
+    setNotes([]);
 
-    const uploaded: string[] = [];
-    for (const file of files) {
-      const formData = new FormData();
-      formData.set("file", file);
-      const result = await uploadAdminImage("products", formData);
-      if (result.error) {
-        setError(result.error);
-        continue;
-      }
-      if (result.url) uploaded.push(result.url);
-    }
+    // Valid files still go through; a bad one beside them is reported
+    // rather than taking the batch down with it.
+    const { urls, notes: newNotes, errors: newErrors } = await compressAndUploadMany(
+      files,
+      "product",
+      "products",
+    );
 
     setUploading(false);
-    if (uploaded.length > 0) onChange([...value, ...uploaded]);
+    onBusyChange?.(false);
+    setErrors(newErrors);
+    setNotes(newNotes);
+    if (urls.length > 0) onChange([...value, ...urls]);
     event.target.value = "";
   }
 
@@ -98,9 +108,26 @@ export function GalleryUploader({
         </ul>
       )}
 
-      <FileInputButton label="Add Images" accept="image/*" multiple onChange={handleFilesChange} />
-      {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      <span className="text-xs text-[var(--muted)]">{uploadHint("product")}</span>
+      <FileInputButton
+        label="Add Images"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        onChange={handleFilesChange}
+        disabled={uploading}
+      />
+      {uploading && <span className="text-xs text-[var(--muted)]">Compressing and uploading…</span>}
+      {notes.map((note) => (
+        <span key={note} className="text-xs text-[var(--muted)]">
+          {note}
+        </span>
+      ))}
+      {/* Every rejected file, each with its own reason -- not just the last. */}
+      {errors.map((message) => (
+        <span key={message} className="text-xs text-red-600">
+          {message}
+        </span>
+      ))}
     </div>
   );
 }

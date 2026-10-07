@@ -177,23 +177,25 @@ export function HomepageSettingsForm({ initial }: { initial: HomepageSettings })
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SingleImageUploader
             label="Wide banner image (10:3)"
+            kind="heroDesktop"
             name="promoBannerImageUploader"
             value={values.promoBannerImageUrl}
             onChange={(url) => set("promoBannerImageUrl", url)}
             prefix="hero"
             hint={
-              "Ratio about 10:3 · Recommended 1200 × 360px · JPG or PNG, under ~300KB.\n" +
+              "Ratio about 10:3.\n" +
               "Desktop: under the campaign banner. Phones: full width when no campaign is active."
             }
           />
           <SingleImageUploader
             label="Compact banner image (8:5)"
+            kind="heroMobile"
             name="promoBannerAloneImageUploader"
             value={values.promoBannerAloneImageUrl}
             onChange={(url) => set("promoBannerAloneImageUrl", url)}
             prefix="hero"
             hint={
-              "Ratio 8:5 · Recommended 960 × 600px · JPG or PNG, under ~300KB.\n" +
+              "Ratio 8:5.\n" +
               "Desktop: fills the column when no campaign is active. Phones: beside the campaign tile.\n" +
               "Optional — if left empty, the wide image is used here instead, cropped to fit."
             }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { uploadAdminImage } from "@/lib/admin/uploads";
+import { compressAndUpload } from "@/lib/images/upload-with-compression";
+import { uploadHint } from "@/lib/images/targets";
 import { FileInputButton } from "@/components/admin/FileInputButton";
 import type { BrandFormState } from "@/lib/admin/brands";
 import type { Brand } from "@/types";
@@ -34,16 +35,18 @@ export function BrandForm({
     setUploading(true);
     setUploadError(null);
 
-    const formData = new FormData();
-    formData.set("file", file);
-    const result = await uploadAdminImage("brands", formData);
+    // Compresses in the browser first; never falls back to the original.
+    const outcome = await compressAndUpload(file, "logo", "brands");
 
     setUploading(false);
-    if (result.error) {
-      setUploadError(result.error);
+    event.target.value = "";
+    if (outcome.error) {
+      // The rest of the form is untouched -- a rejected image must not
+      // clear the name, slug or anything else already typed.
+      setUploadError(outcome.error);
       return;
     }
-    setImageUrl(result.url ?? null);
+    setImageUrl(outcome.url ?? null);
   }
 
   return (
@@ -86,8 +89,15 @@ export function BrandForm({
         <label htmlFor="image" className="text-sm font-medium">
           Logo (optional)
         </label>
-        <FileInputButton id="image" label="Choose Image" accept="image/*" onChange={handleImageChange} />
-        {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
+        <span className="text-xs text-[var(--muted)]">{uploadHint("logo")}</span>
+        <FileInputButton
+          id="image"
+          label="Choose Image"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleImageChange}
+          disabled={uploading}
+        />
+        {uploading && <span className="text-xs text-[var(--muted)]">Compressing and uploading…</span>}
         {uploadError && <span className="text-xs text-red-600">{uploadError}</span>}
         {imageUrl && (
           <span className="relative mt-1 block h-16 w-16 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]">

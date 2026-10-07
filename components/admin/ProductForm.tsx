@@ -15,6 +15,7 @@ import type {
   Tag,
 } from "@/types";
 import type { ProductFormState } from "@/lib/admin/products";
+import { useUploadBusy } from "@/lib/images/use-upload-busy";
 import { CategoryField } from "./product-form/CategoryField";
 import { BrandField } from "./product-form/BrandField";
 import { TagsField } from "./product-form/TagsField";
@@ -76,6 +77,8 @@ export function ProductForm({
   ) => Promise<ProductFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  // Save stays disabled until every image field is finished.
+  const { uploadBusy, onBusyChange } = useUploadBusy();
 
   const [categoryId, setCategoryId] = useState(product?.category_id ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
@@ -250,7 +253,12 @@ export function ProductForm({
           title="Category details"
           description="Where this product lives in the catalog, and how it is identified."
         >
-          <CategoryField categories={categories} value={categoryId} onChange={setCategoryId} />
+          <CategoryField
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+            onBusyChange={onBusyChange}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
@@ -370,11 +378,11 @@ export function ProductForm({
 
           <TagsField tags={tags} defaultTagIds={defaultTagIds} />
 
-          <RichTextEditor value={description} onChange={setDescription} />
+          <RichTextEditor value={description} onChange={setDescription} onBusyChange={onBusyChange} />
 
           <WhatsInBoxEditor value={whatsInBox} onChange={setWhatsInBox} />
 
-          <GalleryUploader value={galleryUrls} onChange={setGalleryUrls} />
+          <GalleryUploader value={galleryUrls} onChange={setGalleryUrls} onBusyChange={onBusyChange} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
@@ -448,6 +456,7 @@ export function ProductForm({
 
         <FormSection id="variants-pricing" title="Variants &amp; pricing" last>
           <VariantsEditor
+            onBusyChange={onBusyChange}
             value={variantDrafts}
             onChange={setVariantDrafts}
             variantAttributes={checkedNonColorAttributes}
@@ -494,10 +503,16 @@ export function ProductForm({
         </p>
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || uploadBusy}
           className="rounded-[var(--radius-btn)] bg-[var(--pf-navy)] px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Saving…" : product ? "Save changes" : "Create product"}
+          {pending
+            ? "Saving…"
+            : uploadBusy
+              ? "Waiting for images…"
+              : product
+                ? "Save changes"
+                : "Create product"}
         </button>
       </div>
     </form>

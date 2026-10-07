@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
-import { uploadAdminImage } from "@/lib/admin/uploads";
+import { compressAndUpload } from "@/lib/images/upload-with-compression";
+import { uploadHint } from "@/lib/images/targets";
 
 function ToolbarButton({
   onClick,
@@ -36,11 +38,17 @@ export function RichTextEditor({
   value,
   onChange,
   label = "Description",
+  onBusyChange,
 }: {
   value: string;
   onChange: (html: string) => void;
   label?: string;
+  /** Lets ProductForm keep Save disabled while an inline image uploads. */
+  onBusyChange?: (busy: boolean) => void;
 }) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -67,11 +75,21 @@ export function RichTextEditor({
     event.target.value = "";
     if (!file || !editor) return;
 
-    const formData = new FormData();
-    formData.set("file", file);
-    const result = await uploadAdminImage("editor", formData);
-    if (result.url) {
-      editor.chain().focus().setImage({ src: result.url }).run();
+    setImageError(null);
+    setUploadingImage(true);
+    onBusyChange?.(true);
+    const outcome = await compressAndUpload(file, "product", "editor");
+    setUploadingImage(false);
+    onBusyChange?.(false);
+
+    if (outcome.error) {
+      // Shown in the toolbar rather than swallowed: this used to do
+      // nothing at all when an upload failed.
+      setImageError(outcome.error);
+      return;
+    }
+    if (outcome.url) {
+      editor.chain().focus().setImage({ src: outcome.url }).run();
     }
   }
 
@@ -130,17 +148,22 @@ export function RichTextEditor({
             Link
           </ToolbarButton>
           <label className="cursor-pointer rounded-[var(--radius-sm)] px-2.5 py-1.5 text-sm font-medium hover:bg-black/5">
-            Image
+            {uploadingImage ? "Compressing…" : "Image"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleImageUpload}
+              disabled={uploadingImage}
               className="hidden"
             />
           </label>
         </div>
         <EditorContent editor={editor} />
       </div>
+      <span className="text-xs text-[var(--muted)]">
+        Images inside the description: {uploadHint("product")}
+      </span>
+      {imageError && <span className="text-xs text-red-600">{imageError}</span>}
     </div>
   );
 }

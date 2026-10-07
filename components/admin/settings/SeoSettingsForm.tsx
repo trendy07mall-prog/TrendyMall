@@ -97,6 +97,7 @@ export function SeoSettingsForm({ initial }: { initial: SeoSettings }) {
 
       <SingleImageUploader
         label="Social preview image"
+        kind="heroMobile"
         name="ogImageUrl"
         value={values.ogImageUrl || null}
         onChange={(url) => set("ogImageUrl", url ?? "")}

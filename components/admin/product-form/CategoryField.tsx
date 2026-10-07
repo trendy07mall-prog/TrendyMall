@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { uploadAdminImage } from "@/lib/admin/uploads";
+import { compressAndUpload } from "@/lib/images/upload-with-compression";
+import { uploadHint } from "@/lib/images/targets";
 import { FileInputButton } from "@/components/admin/FileInputButton";
 import { CategoryCombobox } from "./CategoryCombobox";
 import type { Category } from "@/types";
@@ -16,6 +17,7 @@ export function CategoryField({
   categories,
   value,
   onChange,
+  onBusyChange,
 }: {
   categories: Category[];
   // Controlled (lifted to ProductForm) rather than owning its own state --
@@ -24,6 +26,8 @@ export function CategoryField({
   // not just on initial load.
   value: string;
   onChange: (categoryId: string) => void;
+  /** Lets ProductForm keep Save disabled while a category image uploads. */
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -35,18 +39,22 @@ export function CategoryField({
     if (!file) return;
 
     setUploading(true);
+    onBusyChange?.(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.set("file", file);
-    const result = await uploadAdminImage("categories", formData);
+    // Compresses in the browser first; never falls back to the original.
+    const outcome = await compressAndUpload(file, "category", "categories");
 
     setUploading(false);
-    if (result.error) {
-      setError(result.error);
+    onBusyChange?.(false);
+    event.target.value = "";
+    if (outcome.error) {
+      // Everything else on the product form stays exactly as it was -- a
+      // rejected image must not clear the fields around it.
+      setError(outcome.error);
       return;
     }
-    setImageUrl(result.url ?? null);
+    setImageUrl(outcome.url ?? null);
   }
 
   return (
@@ -81,15 +89,17 @@ export function CategoryField({
             <label htmlFor="newCategoryImage" className="text-sm font-medium">
               Category image (required)
             </label>
+            <span className="text-xs text-[var(--muted)]">{uploadHint("category")}</span>
             <FileInputButton
               id="newCategoryImage"
               label="Choose Image"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               required={!imageUrl}
               onChange={handleImageChange}
+              disabled={uploading}
             />
             {uploading && (
-              <span className="text-xs text-[var(--muted)]">Uploading…</span>
+              <span className="text-xs text-[var(--muted)]">Compressing and uploading…</span>
             )}
             {error && <span className="text-xs text-red-600">{error}</span>}
             {imageUrl && (

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { uploadAdminImage } from "@/lib/admin/uploads";
 import { FileInputButton } from "@/components/admin/FileInputButton";
+import { compressAndUpload, type UploadPrefix } from "@/lib/images/upload-with-compression";
+import { uploadHint, type ImageKind } from "@/lib/images/targets";
 
 // Extracted from product-form/CategoryField.tsx's inline single-image
 // upload block so it isn't copy-pasted per banner field (campaigns need
@@ -14,19 +15,38 @@ export function SingleImageUploader({
   value,
   onChange,
   hint,
+  kind,
   prefix = "campaigns",
   previewShape = "banner",
   warnIfNotSquare = false,
+  onBusyChange,
 }: {
   label: string;
   name: string;
   value: string | null;
   onChange: (url: string | null) => void;
+  /**
+   * Extra guidance specific to this field (ratio, where it appears). The
+   * size/format line is NOT written here -- it is generated from the
+   * target below and rendered underneath, so it cannot go stale.
+   */
   hint?: string;
+  /**
+   * Which target this field compresses to. Drives the generated hint, the
+   * browser compressor and the server's re-check, so all three agree by
+   * construction.
+   */
+  kind: ImageKind;
+  /**
+   * Lets the parent form disable Save while a file is being processed, so
+   * a half-finished image can never be saved. Forms that do not pass it
+   * behave exactly as before.
+   */
+  onBusyChange?: (busy: boolean) => void;
   // Storage prefix passed straight to uploadAdminImage — defaults to
   // "campaigns" so the 3 existing CampaignForm.tsx call sites (which never
   // passed this) keep uploading to the same place as before.
-  prefix?: "categories" | "brands" | "products" | "variants" | "editor" | "campaigns" | "settings" | "hero";
+  prefix?: UploadPrefix;
   // "banner" is the original preview -- a short, wide, cropped strip,
   // right for a campaign banner or a hero slide. "square" previews the
   // image the way a shop card actually shows it: 1:1, object-contain on
@@ -37,43 +57,44 @@ export function SingleImageUploader({
   // meaningful alongside previewShape="square".
   warnIfNotSquare?: boolean;
 }) {
-  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState<"compressing" | "uploading" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   // Measured from the image once the browser has decoded it, so the
   // warning reflects the real file. Next's optimizer may resize the
   // image but preserves its aspect ratio, which is all that is read.
   const [aspectOff, setAspectOff] = useState(false);
 
+  function setBusyState(next: "compressing" | "uploading" | null) {
+    setBusy(next);
+    onBusyChange?.(next !== null);
+  }
+
   async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
+    setBusyState("compressing");
     setError(null);
+    setNote(null);
 
-    const formData = new FormData();
-    formData.set("file", file);
+    // compressAndUpload resolves with {error} for every failure, including
+    // the ones that used to throw, so there is no path here that leaves
+    // the field stuck busy with nothing shown.
+    const outcome = await compressAndUpload(file, kind, prefix, setBusyState);
 
-    // A request that fails before uploadAdminImage's own code runs (e.g.
-    // exceeding the platform's request body limit) throws rather than
-    // returning {error} -- without this catch, `uploading` would stay
-    // true forever with no message shown.
-    let result;
-    try {
-      result = await uploadAdminImage(prefix, formData);
-    } catch {
-      setUploading(false);
-      setError("Upload failed — please try a smaller file or try again.");
-      return;
-    }
+    setBusyState(null);
 
-    setUploading(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    onChange(result.url ?? null);
+    // The input is cleared either way, so picking the SAME file again
+    // after a rejection still fires a change event and retries it.
     event.target.value = "";
+
+    if (outcome.error) {
+      setError(outcome.error);
+      return;
+    }
+    setNote(outcome.note ?? null);
+    onChange(outcome.url ?? null);
   }
 
   return (
@@ -83,8 +104,20 @@ export function SingleImageUploader({
           with "\n". No visual change for any existing single-line hint --
           none of them contain a newline. */}
       {hint && <span className="text-xs whitespace-pre-line text-[var(--muted)]">{hint}</span>}
-      <FileInputButton label="Choose Image" accept="image/*" onChange={handleChange} />
-      {uploading && <span className="text-xs text-[var(--muted)]">Uploading…</span>}
+      {/* Generated from IMAGE_TARGETS, never hand-written -- see targets.ts. */}
+      <span className="text-xs text-[var(--muted)]">{uploadHint(kind)}</span>
+      <FileInputButton
+        label="Choose Image"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleChange}
+        disabled={busy !== null}
+      />
+      {busy && (
+        <span className="text-xs text-[var(--muted)]">
+          {busy === "compressing" ? "Compressing…" : "Uploading…"}
+        </span>
+      )}
+      {note && <span className="text-xs text-[var(--muted)]">{note}</span>}
       {error && <span className="text-xs text-red-600">{error}</span>}
       {value && (
         <span

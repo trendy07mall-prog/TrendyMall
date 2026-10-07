@@ -226,6 +226,7 @@ export function BundleForm({
         <div className="mt-4">
           <SingleImageUploader
             label="Bundle photo"
+            kind="product"
             name="bundleImage"
             value={imageUrl}
             onChange={setImageUrl}

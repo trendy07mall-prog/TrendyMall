@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { uploadAdminImage } from "@/lib/admin/uploads";
+import { compressAndUploadMany } from "@/lib/images/upload-with-compression";
+import { uploadHint } from "@/lib/images/targets";
 import { FileInputButton } from "@/components/admin/FileInputButton";
 import { VariantCountPreview } from "./VariantCountPreview";
 import { VariantSkuField } from "./VariantSkuField";
@@ -83,9 +84,12 @@ export function VariantsEditor({
   onChange,
   variantAttributes,
   onSkuChecked,
+  onBusyChange,
 }: {
   value: VariantDraft[];
   onChange: (next: VariantDraft[]) => void;
+  /** Lets ProductForm keep Save disabled while variant images process. */
+  onBusyChange?: (busy: boolean) => void;
   // Non-color attributes currently checked in AttributesField, grouped --
   // one optional single-select picker is rendered per group, per variant.
   variantAttributes: { attribute: Attribute; values: AttributeValue[] }[];
@@ -94,6 +98,8 @@ export function VariantsEditor({
   onSkuChecked?: (sku: string, taken: boolean) => void;
 }) {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  // Per row, so a rejection names the variant it belongs to.
+  const [rowErrors, setRowErrors] = useState<Record<number, string[]>>({});
   // Rows whose hex the admin has manually set (via either the color picker
   // or the text field) -- once touched, typing a color name no longer
   // auto-fills over it. Transient UI state only, never saved.
@@ -165,16 +171,19 @@ export function VariantsEditor({
     if (files.length === 0) return;
 
     setUploadingIndex(index);
-    const uploaded: string[] = [];
-    for (const file of files) {
-      const formData = new FormData();
-      formData.set("file", file);
-      const result = await uploadAdminImage("variants", formData);
-      if (result.url) uploaded.push(result.url);
-    }
+    onBusyChange?.(true);
+    setRowErrors((prev) => ({ ...prev, [index]: [] }));
+
+    // Rejections used to be dropped on the floor here -- the old loop was
+    // `if (result.url) uploaded.push(...)` with no error branch at all, so
+    // a variant image that failed simply never appeared and said nothing.
+    const { urls, errors } = await compressAndUploadMany(files, "product", "variants");
+
     setUploadingIndex(null);
-    if (uploaded.length > 0) {
-      updateRow(index, { imageUrls: [...value[index].imageUrls, ...uploaded] });
+    onBusyChange?.(false);
+    setRowErrors((prev) => ({ ...prev, [index]: errors }));
+    if (urls.length > 0) {
+      updateRow(index, { imageUrls: [...value[index].imageUrls, ...urls] });
     }
     event.target.value = "";
   }
@@ -359,14 +368,24 @@ export function VariantsEditor({
               {row.imageUrls.length < MAX_VARIANT_IMAGES && (
                 <FileInputButton
                   label="Add Images"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   multiple
                   onChange={(e) => handleImagesChange(index, e)}
+                  disabled={uploadingIndex !== null}
                 />
               )}
               {uploadingIndex === index && (
-                <span className="text-xs text-[var(--muted)]">Uploading…</span>
+                <span className="text-xs text-[var(--muted)]">Compressing and uploading…</span>
               )}
+              {row.imageUrls.length < MAX_VARIANT_IMAGES && (
+                <span className="w-full text-xs text-[var(--muted)]">{uploadHint("product")}</span>
+              )}
+              {/* Was silently discarded before -- see handleImagesChange. */}
+              {(rowErrors[index] ?? []).map((message) => (
+                <span key={message} className="w-full text-xs text-red-600">
+                  {message}
+                </span>
+              ))}
             </div>
           </div>
         </div>

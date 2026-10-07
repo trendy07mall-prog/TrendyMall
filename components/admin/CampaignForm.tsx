@@ -5,6 +5,7 @@ import { saveCampaign } from "@/lib/admin/campaigns";
 import { slugify } from "@/lib/utils";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
 import { DateTimePicker } from "@/components/admin/DateTimePicker";
+import { useUploadBusy } from "@/lib/images/use-upload-busy";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import { SectionsEditor } from "@/components/admin/campaign-form/SectionsEditor";
 import { ProductPickerModal } from "@/components/admin/campaign-form/ProductPickerModal";
@@ -97,6 +98,8 @@ export function CampaignForm({
   onCancel?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveCampaign, undefined);
+  // Save stays disabled until every image field is finished.
+  const { uploadBusy, onBusyChange } = useUploadBusy();
 
   // A plain `await formAction(fd); onSaved?.();` wrapper would call
   // onSaved unconditionally, closing the form and hiding a validation
@@ -256,19 +259,19 @@ export function CampaignForm({
               type="submit"
               name="status"
               value="draft"
-              disabled={pending}
+              disabled={pending || uploadBusy}
               className="rounded-full border border-[var(--border)] px-5 py-2.5 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
             >
-              {pending ? "Saving…" : "Save as Draft"}
+              {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Save as Draft"}
             </button>
             <button
               type="submit"
               name="status"
               value="published"
-              disabled={pending}
+              disabled={pending || uploadBusy}
               className="rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
             >
-              {pending ? "Saving…" : "Save Campaign"}
+              {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Save Campaign"}
             </button>
           </div>
         </div>
@@ -413,28 +416,34 @@ export function CampaignForm({
             <div className="rounded-xl border border-[var(--border)] p-4">
               <SingleImageUploader
                 label="Desktop banner"
+                kind="heroDesktop"
+                onBusyChange={onBusyChange}
                 name="desktopBannerUrl"
                 value={desktopBannerUrl}
                 onChange={setDesktopBannerUrl}
-                hint="Recommended 1600×500"
+                hint="Wide banner, about 3:1."
               />
             </div>
             <div className="rounded-xl border border-[var(--border)] p-4">
               <SingleImageUploader
                 label="Mobile banner"
+                kind="heroMobile"
+                onBusyChange={onBusyChange}
                 name="mobileBannerUrl"
                 value={mobileBannerUrl}
                 onChange={setMobileBannerUrl}
-                hint="Recommended 800×600"
+                hint="Taller crop, about 4:3."
               />
             </div>
             <div className="rounded-xl border border-[var(--border)] p-4">
               <SingleImageUploader
                 label="Thumbnail"
+                kind="category"
+                onBusyChange={onBusyChange}
                 name="thumbnailUrl"
                 value={thumbnailUrl}
                 onChange={setThumbnailUrl}
-                hint="Square, for homepage cards"
+                hint="Square, for homepage cards."
               />
             </div>
           </div>
@@ -453,6 +462,8 @@ export function CampaignForm({
               <div className="rounded-xl border border-[var(--border)] p-4">
                 <SingleImageUploader
                   label="Product page banner"
+                  kind="heroMobile"
+                  onBusyChange={onBusyChange}
                   name="productBannerUrl"
                   value={productBannerUrl}
                   onChange={setProductBannerUrl}
@@ -462,7 +473,7 @@ export function CampaignForm({
                   // still "no image at all" (saveCampaign).
                   hint={
                     "Shown across the top of every product's photo in this campaign. Required to publish.\n" +
-                    "Ratio 6:1 · Recommended 1200 × 200px · JPG or PNG, under ~300KB.\n" +
+                    "Ratio 6:1.\n" +
                     "The countdown and sold count sit on top of the image over a dark tint — keep important text and detail in the middle of the image, away from the left and right ends."
                   }
                 />
@@ -623,19 +634,19 @@ export function CampaignForm({
             type="submit"
             name="status"
             value="draft"
-            disabled={pending}
+            disabled={pending || uploadBusy}
             className="rounded-full border border-[var(--border)] px-6 py-3 text-sm font-medium transition-colors hover:bg-black/5 disabled:opacity-50"
           >
-            {pending ? "Saving…" : "Save as Draft"}
+            {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Save as Draft"}
           </button>
           <button
             type="submit"
             name="status"
             value="published"
-            disabled={pending}
+            disabled={pending || uploadBusy}
             className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
           >
-            {pending ? "Saving…" : "Save Campaign"}
+            {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Save Campaign"}
           </button>
         </div>
       </form>

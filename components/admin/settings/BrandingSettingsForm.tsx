@@ -75,6 +75,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettings })
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <SingleImageUploader
           label="Desktop logo"
+          kind="logo"
           name="logoDesktopUrl"
           value={values.logoDesktopUrl}
           onChange={(url) => set("logoDesktopUrl", url ?? "")}
@@ -82,6 +83,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettings })
         />
         <SingleImageUploader
           label="Mobile logo"
+          kind="logo"
           name="logoMobileUrl"
           value={values.logoMobileUrl}
           onChange={(url) => set("logoMobileUrl", url ?? "")}
@@ -89,6 +91,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettings })
         />
         <SingleImageUploader
           label="Favicon"
+          kind="icon"
           name="faviconUrl"
           value={values.faviconUrl}
           onChange={(url) => set("faviconUrl", url ?? "")}
@@ -97,6 +100,7 @@ export function BrandingSettingsForm({ initial }: { initial: BrandingSettings })
         />
         <SingleImageUploader
           label="Admin sidebar logo"
+          kind="logo"
           name="adminLogoUrl"
           value={values.adminLogoUrl}
           onChange={(url) => set("adminLogoUrl", url ?? "")}

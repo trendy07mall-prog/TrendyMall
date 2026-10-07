@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { saveHeroSlide } from "@/lib/admin/hero-slides";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
 import { DateTimePicker } from "@/components/admin/DateTimePicker";
+import { useUploadBusy } from "@/lib/images/use-upload-busy";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import type { AdminHeroSlide } from "@/lib/admin/hero-slides-query";
 
@@ -18,6 +19,8 @@ export function HeroSlideForm({
   onSaved?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveHeroSlide, undefined);
+  // Save stays disabled until every image field is finished.
+  const { uploadBusy, onBusyChange } = useUploadBusy();
 
   // Same stale-closure fix as CampaignForm.tsx: a plain post-submit
   // callback can't distinguish success from failure in the same tick, so
@@ -69,22 +72,26 @@ export function HeroSlideForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SingleImageUploader
           label="Desktop image"
+          kind="heroDesktop"
+          onBusyChange={onBusyChange}
           name="desktopImageUploader"
           value={desktopImageUrl}
           onChange={setDesktopImageUrl}
           prefix="hero"
           hint={
-            "Ratio about 3:1 · Recommended 1920 × 650px.\n" +
+            "Ratio about 3:1.\n" +
             "Shown at 768px and up; from 1024px it sits in the left column beside the promo banners at this same ratio. Tablets (768–1023px) crop about 10% off each side — keep text away from the left and right edges."
           }
         />
         <SingleImageUploader
           label="Mobile image"
+          kind="heroMobile"
+          onBusyChange={onBusyChange}
           name="mobileImageUploader"
           value={mobileImageUrl}
           onChange={setMobileImageUrl}
           prefix="hero"
-          hint="Ratio 16:9 · Recommended 1200 × 675px. Shown below 768px."
+          hint="Ratio 16:9. Shown below 768px."
         />
       </div>
 
@@ -160,19 +167,19 @@ export function HeroSlideForm({
           type="submit"
           name="status"
           value="draft"
-          disabled={pending}
+          disabled={pending || uploadBusy}
           className="transition-brand rounded-full border border-[var(--border)] px-6 py-3 text-sm font-medium hover:bg-black/5 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save as Draft"}
+          {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Save as Draft"}
         </button>
         <button
           type="submit"
           name="status"
           value="published"
-          disabled={pending}
+          disabled={pending || uploadBusy}
           className="transition-brand rounded-full bg-[var(--foreground)] px-6 py-3 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)] disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Publish"}
+          {pending ? "Saving…" : uploadBusy ? "Waiting for images…" : "Publish"}
         </button>
       </div>
     </form>

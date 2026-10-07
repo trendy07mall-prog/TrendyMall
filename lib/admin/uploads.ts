@@ -1,6 +1,8 @@
 "use server";
 
 import { requireAdminClient } from "@/lib/admin/guard";
+import { detectFormatFromBuffer, isAccepted, rejectionMessageForFormat } from "@/lib/images/sniff";
+import { IMAGE_TARGETS, formatBytes, type ImageKind } from "@/lib/images/targets";
 
 const ALLOWED_PREFIXES = [
   "categories",
@@ -44,13 +46,13 @@ const MAX_DIMENSION_BY_PREFIX: Partial<Record<UploadPrefix, number>> = {
 // meaning "upload the original untouched".
 async function capDimensions(
   file: File,
+  input: Buffer,
   maxDimension: number,
 ): Promise<{ data: Buffer; contentType: string } | null> {
   try {
     // Imported lazily so the native binary is only pulled in on the one
     // upload path that needs it.
     const sharp = (await import("sharp")).default;
-    const input = Buffer.from(await file.arrayBuffer());
 
     const { width, height } = await sharp(input).metadata();
     if (!width || !height) return null;
@@ -85,6 +87,94 @@ async function capDimensions(
   }
 }
 
+/**
+ * Server-side enforcement of what the browser compressor is supposed to
+ * have already done.
+ *
+ * The browser compresses before uploading (lib/images/compress.ts), which
+ * is where the friendly messages and the quality ladder live. None of that
+ * is a constraint -- a request can be replayed, a client can be patched,
+ * and `file.type` is whatever the sender says it is. So the same rules are
+ * re-checked here against the actual bytes.
+ *
+ * `kind` arrives in the FormData rather than as a parameter so the six
+ * existing call sites keep their signature. When it is absent or unknown
+ * the type and size checks still run; only the per-target dimension and
+ * byte checks are skipped, which is what keeps any caller that has not been
+ * updated working exactly as before.
+ */
+async function validateUpload(
+  file: File,
+  kind: ImageKind | null,
+): Promise<{ error: string } | { bytes: Buffer; contentType: string }> {
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  // What it actually is, not what the request claims.
+  const format = detectFormatFromBuffer(bytes);
+  if (!isAccepted(format)) {
+    return { error: rejectionMessageForFormat(file.name || "The file", format) };
+  }
+  // Derived from the signature rather than from file.type, so a request
+  // claiming the wrong type cannot get an object stored under it.
+  const contentType = `image/${format}`;
+
+  if (bytes.byteLength > MAX_SIZE_BYTES) {
+    return { error: `File must be under ${formatBytes(MAX_SIZE_BYTES)}.` };
+  }
+
+  if (!kind) return { bytes, contentType };
+
+  const target = IMAGE_TARGETS[kind];
+  if (bytes.byteLength > target.maxBytes) {
+    return {
+      error:
+        `${file.name || "The image"} is ${formatBytes(bytes.byteLength)}, over the ` +
+        `${formatBytes(target.maxBytes)} limit for a ${target.label}. ` +
+        `It should have been compressed before upload — try choosing the file again.`,
+    };
+  }
+
+  // Dimensions are read from the bytes with sharp, which is already a
+  // dependency and already loaded lazily on this path.
+  try {
+    const sharp = (await import("sharp")).default;
+    const { width, height } = await sharp(bytes).metadata();
+    if (!width || !height) {
+      return { error: `${file.name || "The image"} has no readable image data.` };
+    }
+    if (width > target.maxWidth || height > target.maxHeight) {
+      return {
+        error:
+          `${file.name || "The image"} is ${width} × ${height} px, larger than the ` +
+          `${target.maxWidth} × ${target.maxHeight} px limit for a ${target.label}. ` +
+          `It should have been resized before upload — try choosing the file again.`,
+      };
+    }
+    if (width < target.minWidth || height < target.minHeight) {
+      return {
+        error:
+          `${file.name || "The image"} is ${width} × ${height} px, too small for a ${target.label}. ` +
+          `It needs to be at least ${target.minWidth} × ${target.minHeight} px.`,
+      };
+    }
+  } catch (error) {
+    // A metadata read that fails on bytes that already passed the signature
+    // check means something is wrong with the file, not with the rules.
+    console.warn("[uploads] could not read image metadata", {
+      name: file.name,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { error: `${file.name || "The image"} could not be read as an image.` };
+  }
+
+  return { bytes, contentType };
+}
+
+function parseKind(value: FormDataEntryValue | null): ImageKind | null {
+  if (typeof value !== "string") return null;
+  return value in IMAGE_TARGETS ? (value as ImageKind) : null;
+}
+
 export interface UploadImageResult {
   url?: string;
   error?: string;
@@ -108,24 +198,30 @@ export async function uploadAdminImage(
   if (!(file instanceof File) || file.size === 0) {
     return { error: "No file provided." };
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return { error: "Upload a JPG, PNG, or WEBP image." };
+
+  // Checked against the bytes, not file.type -- see validateUpload.
+  const validated = await validateUpload(file, parseKind(formData.get("kind")));
+  if ("error" in validated) {
+    return { error: validated.error };
   }
-  if (file.size > MAX_SIZE_BYTES) {
-    return { error: "File must be under 5MB." };
-  }
+  const bytes = validated.bytes;
 
   const maxDimension = MAX_DIMENSION_BY_PREFIX[prefix];
-  const resized = maxDimension ? await capDimensions(file, maxDimension) : null;
+  const resized = maxDimension ? await capDimensions(file, bytes, maxDimension) : null;
 
+  // The uuid is what makes a replaced image a genuinely new URL, so a
+  // browser or CDN can never serve the previous file from cache in its
+  // place. The name is only there to keep the object readable in the
+  // Supabase dashboard.
   const path = `${prefix}/${crypto.randomUUID()}-${file.name}`;
   const { error } = await supabase.storage
     .from("product-images")
-    .upload(path, resized ? resized.data : file, {
+    .upload(path, resized ? resized.data : bytes, {
       upsert: false,
-      // Required when the body is a Buffer rather than a File, which
-      // carries its own type.
-      ...(resized ? { contentType: resized.contentType } : {}),
+      // Always set explicitly now that the body is always a Buffer: a
+      // Buffer carries no type of its own, and the bucket's
+      // allowed_mime_types check (sql/065) runs against whatever is sent.
+      contentType: resized ? resized.contentType : validated.contentType,
     });
 
   if (error) {
