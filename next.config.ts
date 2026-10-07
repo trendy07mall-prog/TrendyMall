@@ -167,6 +167,41 @@ async function buildSlugRedirects() {
 
 const nextConfig: NextConfig = {
   redirects: buildSlugRedirects,
+  turbopack: {
+    resolveAlias: {
+      // Supabase's realtime stack was being shipped to every visitor and
+      // never used. SupabaseClient builds a RealtimeClient in its
+      // constructor, so the code is reachable and no bundler can drop it,
+      // and there is no supported option to turn it off -- the `realtime`
+      // option only configures it.
+      //
+      // Verified before aliasing: no .channel(), .subscribe(),
+      // postgres_changes or RealtimeChannel anywhere in the storefront or
+      // the admin. The admin's new-orders banner polls specifically to
+      // avoid a websocket.
+      //
+      // Measured: the Supabase chunk goes 241.5 KB -> 187.2 KB raw,
+      // 63.2 -> 47.6 KB gzipped, 53.4 -> 40.5 KB brotli. It loads on
+      // every page, so that is ~13 KB off the wire and ~54 KB less
+      // JavaScript to parse for every visitor.
+      //
+      // See lib/supabase/realtime-stub.ts for exactly which five methods
+      // supabase-js calls and why a no-op is safe for each.
+      //
+      // TO REMOVE THIS: delete these four lines. Nothing else depends on
+      // the stub -- no application code imports it, and supabase-js goes
+      // back to its real realtime client on the next build.
+      //
+      // AFTER ANY @supabase/supabase-js UPGRADE: the package is pinned to
+      // an exact version (no ^) for this reason. lib/supabase/
+      // realtime-stub.test.ts reads the installed bundle and fails if a
+      // new version calls a realtime method the stub lacks -- but it
+      // cannot check behaviour, so ALSO re-run the flow check by hand:
+      // homepage, product, add to cart, /cart, /checkout, /login,
+      // /signup must all load with zero console errors.
+      "@supabase/realtime-js": "./lib/supabase/realtime-stub.ts",
+    },
+  },
   experimental: {
     viewTransition: true,
     // Default is 1MB, well under the 5MB image uploads this app allows
