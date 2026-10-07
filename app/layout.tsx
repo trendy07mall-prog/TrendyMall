@@ -53,16 +53,28 @@ const manrope = localFont({
 // other page's typography is untouched. Vendored the same way as the
 // two above rather than via next/font/google, for the same reason: no
 // build-time fetch from fonts.gstatic.com.
+// Only 400/700/800 are declared: 500 and 600 were registered but rendered
+// by nothing. Checked against the live site rather than assumed -- walking
+// every laid-out text node on the homepage AND /combo-deals (the only two
+// surfaces carrying .combo-fonts) turned up zero elements computing to
+// Jakarta at 500 or 600, while the browser still downloaded both, 24 KB
+// for nothing. Re-check the same way before adding a weight back.
 const jakarta = localFont({
   src: [
     { path: "./fonts/plus-jakarta-sans-400.woff2", weight: "400" },
-    { path: "./fonts/plus-jakarta-sans-500.woff2", weight: "500" },
-    { path: "./fonts/plus-jakarta-sans-600.woff2", weight: "600" },
     { path: "./fonts/plus-jakarta-sans-700.woff2", weight: "700" },
     { path: "./fonts/plus-jakarta-sans-800.woff2", weight: "800" },
   ],
   variable: "--font-jakarta",
   display: "swap",
+  // The one font here that is NOT needed to paint the first screen. The
+  // Combo Deals strip sits well below the fold, yet next/font preloads by
+  // default, so all five weights used to be fetched at preload priority in
+  // <head> -- ahead of the LCP hero image. Dropping the preload keeps the
+  // bytes (the strip still gets its typeface, and display:swap means no
+  // invisible text) while taking them out of the critical path. Manrope,
+  // Inter and Poppins all paint above the fold, so they keep preloading.
+  preload: false,
 });
 
 const inter = localFont({
