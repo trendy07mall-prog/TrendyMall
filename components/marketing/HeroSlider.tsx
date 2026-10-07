@@ -125,20 +125,58 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
   // 6 hardcoded placeholders can't be generated without new image-
   // processing tooling) -- a known, disclosed, cosmetic trade-off: new/
   // edited slides just skip the blur-up effect on first paint.
-  const desktopSlides: Slide[] = heroSlides.map((slide) => ({
-    src: slide.desktopImageUrl,
-    alt: slide.title,
-    href: slide.buttonLink,
-    subtitle: slide.subtitle ?? undefined,
-    buttonText: slide.buttonText ?? undefined,
-  }));
-  const mobileSlides: Slide[] = heroSlides.map((slide) => ({
-    src: slide.mobileImageUrl,
-    alt: slide.title,
-    href: slide.buttonLink,
-    subtitle: slide.subtitle ?? undefined,
-    buttonText: slide.buttonText ?? undefined,
-  }));
+  // The breakpoint that decides which hero art a browser fetches. Used in
+  // three places that MUST agree: the <source media> on each slide, the
+  // two preload hints below, and the wrapper's md: aspect-ratio switch.
+  // If they disagree, a device downloads one image and displays another.
+  const WIDE_MEDIA = "(min-width: 768px)";
+
+  // ONE slide list, each slide carrying both breakpoints' art.
+  //
+  // This used to be two arrays feeding two SlideCarousels, with CSS
+  // hiding whichever did not apply. That leaked: display:none stops a
+  // LAZY image downloading but not an EAGER one, and the first slide is
+  // eager because it is the LCP element. Measured before this change, a
+  // desktop visitor fetched the mobile hero as well as its own -- 180 KB
+  // of hero at 1440px instead of ~138 KB.
+  //
+  // getImageProps gives the exact URLs and srcSets next/image would have
+  // requested, so the <picture> below and the preload hints resolve to
+  // the same cache entry rather than racing for two.
+  const slides: Slide[] = heroSlides.map((slide) => {
+    const { props: narrow } = getImageProps({
+      src: slide.mobileImageUrl,
+      alt: slide.title,
+      fill: true,
+      quality: 88,
+      sizes: MOBILE_SIZES,
+    });
+    const { props: wide } = getImageProps({
+      src: slide.desktopImageUrl,
+      alt: slide.title,
+      fill: true,
+      quality: 88,
+      sizes: desktopSizes,
+    });
+
+    return {
+      // Kept for the Slide type and as the ultimate fallback; the
+      // <picture> below is what actually renders.
+      src: slide.mobileImageUrl,
+      alt: slide.title,
+      href: slide.buttonLink,
+      subtitle: slide.subtitle ?? undefined,
+      buttonText: slide.buttonText ?? undefined,
+      artDirected: {
+        src: narrow.src,
+        srcSet: narrow.srcSet ?? "",
+        sizes: MOBILE_SIZES,
+        wideSrcSet: wide.srcSet ?? "",
+        wideSizes: desktopSizes,
+        media: WIDE_MEDIA,
+      },
+    };
+  });
 
   // getImageProps resolves the exact same optimizer URL/srcSet next/image's
   // <Image> below will request for each breakpoint's first slide — so these
@@ -148,14 +186,14 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
   // art-directed preload with next/image: the `priority` prop has no media
   // awareness and would preload both device's first slide unconditionally.
   const { props: mobilePreload } = getImageProps({
-    src: mobileSlides[0].src,
+    src: heroSlides[0].mobileImageUrl,
     alt: "",
     fill: true,
     quality: 88,
     sizes: MOBILE_SIZES,
   });
   const { props: desktopPreload } = getImageProps({
-    src: desktopSlides[0].src,
+    src: heroSlides[0].desktopImageUrl,
     alt: "",
     fill: true,
     quality: 88,
@@ -189,67 +227,12 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
     as: "image",
     imageSrcSet: desktopPreload.srcSet,
     imageSizes: desktopSizes,
-    media: "(min-width: 768px)",
+    media: WIDE_MEDIA,
     fetchPriority: "high",
   });
 
   return (
     <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-8">
-
-      {/* Mobile: dedicated 16:9 art-directed images, <768px only. -mx-6 with
-          w-auto (not w-full, which resolves to a fixed pixel width before the
-          negative margin is applied, and so only shifts the box) cancels this
-          container's px-6, making the 16:9 box the full device width -- the
-          size the mobile slide-image hint documents. rounded-none! beats
-          SlideCarousel's own rounded-[24px] regardless of stylesheet order: a
-          radius at the screen edge would show page background in the corners. */}
-      <SlideCarousel
-        slides={mobileSlides}
-        wrapperClassName="aspect-[1200/675] -mx-6 w-auto! rounded-none! md:hidden"
-        ariaLabel="Promotions"
-        // Mobile only, deliberately. This is the measured LCP element on
-        // a phone, which is what the ad traffic arrives on, and the
-        // preload meant to cover it never reaches <head> in production
-        // (the async parent streams after the shell is flushed).
-        //
-        // The cost, stated plainly: a DESKTOP visitor now also downloads
-        // this mobile hero, because it is display:none rather than
-        // absent and browsers still fetch eager images in hidden
-        // subtrees. That is roughly one extra hero-sized image on
-        // desktop, in exchange for ~2s of LCP on mobile. Not set on the
-        // desktop carousel, so a phone never downloads the desktop art.
-        eagerFirstSlide
-        imageSizes={MOBILE_SIZES}
-        slideDuration={homepage.heroSlideDurationMs}
-        autoplay={homepage.heroAutoplay}
-        showArrows={false}
-        showDots={homepage.heroShowDots}
-      />
-
-      {hasPromo && (
-        <div className={`mt-3 md:hidden ${both ? "grid grid-cols-2 gap-3" : ""}`}>
-          {hasCampaign && (
-            <CampaignPromoRotator
-              campaigns={promoItems(promo.mobile.campaignImages)}
-              sizes={both ? "50vw" : "100vw"}
-              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
-              // Pinned to the top in the half-width tile so the 4:3 banner's
-              // text (upper part of the image) is what survives the crop.
-              imageClassName={both ? "object-cover object-top" : "object-cover"}
-              twoLineCaption={both}
-            />
-          )}
-          {promo.mobile.staticImage && (
-            <StaticPromo
-              imageUrl={promo.mobile.staticImage}
-              sizes={both ? "50vw" : "100vw"}
-              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
-              compact={both}
-              {...staticText}
-            />
-          )}
-        </div>
-      )}
 
       {/* The carousel keeps the desktop art's own 1920:650 shape at lg, so
           the shorter hero comes from the narrower column rather than from
@@ -257,9 +240,23 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
           column has no intrinsic height and stretches to that row height. */}
       <div className={hasPromo ? "lg:grid lg:grid-cols-[65fr_35fr] lg:gap-4" : undefined}>
         <SlideCarousel
-          slides={desktopSlides}
-          wrapperClassName="hidden md:block md:aspect-[1400/600] lg:aspect-[1920/650]"
+          slides={slides}
+          // Both breakpoints' wrappers, merged. Below md it is the 16:9
+          // mobile box, full-bleed: -mx-6 with w-auto cancels the
+          // container's px-6 (w-full would resolve to a pixel width
+          // BEFORE the negative margin is applied, and so only shift the
+          // box), and rounded-none! beats SlideCarousel's own
+          // rounded-[24px], because a radius at the screen edge shows
+          // page background in the corners. From md up it returns to a
+          // contained, rounded box at the desktop art's aspect ratios.
+          wrapperClassName="aspect-[1200/675] -mx-6 w-auto! rounded-none! md:mx-0 md:w-full! md:rounded-[24px] md:aspect-[1400/600] lg:aspect-[1920/650]"
           ariaLabel="Promotions"
+          // The LCP element at EVERY width now, not only on a phone: one
+          // <picture> serves both, so marking it eager no longer drags
+          // the other breakpoint's art down with it. The media-gated
+          // preloads above still prime whichever candidate the browser
+          // actually picks.
+          eagerFirstSlide
           imageSizes={desktopSizes}
           slideDuration={homepage.heroSlideDurationMs}
           autoplay={homepage.heroAutoplay}
@@ -288,12 +285,41 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
         )}
       </div>
 
+      {/* Mobile promo row. Sits AFTER the hero in source order rather
+          than before it, which is what puts it UNDER the hero on a
+          phone: the hero is now a single carousel inside the lg grid,
+          and below lg that grid is a plain block. md:hidden, so it never
+          appears alongside the desktop promo column. */}
+      {hasPromo && (
+        <div className={`mt-3 md:hidden ${both ? "grid grid-cols-2 gap-3" : ""}`}>
+          {hasCampaign && (
+            <CampaignPromoRotator
+              campaigns={promoItems(promo.mobile.campaignImages)}
+              sizes={both ? "50vw" : "100vw"}
+              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
+              // Pinned to the top in the half-width tile so the 4:3 banner's
+              // text (upper part of the image) is what survives the crop.
+              imageClassName={both ? "object-cover object-top" : "object-cover"}
+              twoLineCaption={both}
+            />
+          )}
+          {promo.mobile.staticImage && (
+            <StaticPromo
+              imageUrl={promo.mobile.staticImage}
+              sizes={both ? "50vw" : "100vw"}
+              className={both ? "aspect-[8/5]" : "aspect-[10/3]"}
+              compact={both}
+              {...staticText}
+            />
+          )}
+        </div>
+      )}
+
       {/* Watched by the homepage's sticky search bar (see
           components/layout/HomeSearchBar.tsx) to know when the user has
           scrolled past the hero — not visible, not part of the carousel.
-          Only one of the two carousels above is ever actually laid out
-          (the other is display:none), so this single sentinel correctly
-          reflects "after whichever hero variant is currently shown." */}
+          There is one carousel now rather than a CSS-hidden pair, so this
+          sentinel simply follows the hero at every width. */}
       <div id="hero-sentinel" aria-hidden="true" />
     </div>
   );

@@ -24,6 +24,31 @@ export interface Slide {
   // `href` as its destination, avoiding invalid nested-anchor markup.
   subtitle?: string;
   buttonText?: string;
+  // Art direction: when present, this slide renders as a <picture> with a
+  // media-gated <source> instead of a plain <Image>, so the browser
+  // downloads ONE image -- the one for its own breakpoint -- rather than
+  // the consumer rendering two carousels and hiding one with CSS.
+  //
+  // That older pattern leaks: `display:none` stops a LAZY image loading,
+  // but not an eager one, so the hidden set's first slide still
+  // downloaded. Measured on the homepage: a desktop visitor fetched the
+  // mobile hero as well as its own.
+  //
+  // The srcSets are built by the CONSUMER with next/image's getImageProps,
+  // not here, because this is a client component and the URLs must match
+  // the <link rel="preload"> the consumer already emits for the same
+  // breakpoint -- byte for byte, or the preload buys a second download
+  // instead of the first one.
+  artDirected?: {
+    /** Fallback <img>: the narrow/mobile art. */
+    src: string;
+    srcSet: string;
+    sizes: string;
+    /** <source>: the wide/desktop art, used when `media` matches. */
+    wideSrcSet: string;
+    wideSizes: string;
+    media: string;
+  };
 }
 
 // Fade-only per this project's hero spec — no zoom, scale, parallax, or
@@ -252,7 +277,41 @@ export function SlideCarousel({
             {/* Not rendered at all until this slide is warmed -- see
                 readySlides above. The wrapper still mounts, so the
                 crossfade and the text overlay are unaffected. */}
-            {shouldRenderSlide(index) && (
+            {shouldRenderSlide(index) && slide.artDirected && (
+              // One <picture>, two breakpoints, one download. The browser
+              // evaluates `media` before fetching anything, so a phone
+              // never requests the wide art and a desktop never requests
+              // the narrow one -- which a second CSS-hidden carousel
+              // could not achieve, because display:none does not stop an
+              // eager image.
+              //
+              // Hand-rolled rather than <Image>, because next/image
+              // renders a single <img> and has no media-gated <source>.
+              // The classes below reproduce exactly what `fill` does:
+              // absolutely positioned, filling the slide, object-cover
+              // centred.
+              <picture>
+                <source
+                  media={slide.artDirected.media}
+                  srcSet={slide.artDirected.wideSrcSet}
+                  sizes={slide.artDirected.wideSizes}
+                />
+                <img
+                  src={slide.artDirected.src}
+                  srcSet={slide.artDirected.srcSet}
+                  sizes={slide.artDirected.sizes}
+                  alt={slide.alt}
+                  // Same rules as the <Image> branch below: the first
+                  // slide is the LCP element and must not be lazy; the
+                  // rest stay lazy so they do not compete with it.
+                  loading={eagerFirstSlide && index === 0 ? "eager" : "lazy"}
+                  fetchPriority={index === 0 ? "high" : "auto"}
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover object-center"
+                />
+              </picture>
+            )}
+            {shouldRenderSlide(index) && !slide.artDirected && (
             <Image
               src={slide.src}
               alt={slide.alt}
