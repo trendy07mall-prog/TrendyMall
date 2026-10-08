@@ -819,8 +819,16 @@ export function CheckoutForm({
           noValidate
           className="flex min-w-0 flex-col gap-6"
         >
-          <section>
-            <h2 className="text-sm font-semibold">Contact</h2>
+          <section className="co-card flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pf-navy)] text-sm font-extrabold text-white"
+                >
+                  1
+                </span>
+                <h2 className="m-0 text-lg font-extrabold">Contact</h2>
+              </div>
             <div className="mt-3">
               <Field
                 id="email"
@@ -870,8 +878,16 @@ export function CheckoutForm({
             </div>
           </section>
 
-          <section>
-            <h2 className="text-sm font-semibold">Delivery</h2>
+          <section className="co-card flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pf-navy)] text-sm font-extrabold text-white"
+                >
+                  2
+                </span>
+                <h2 className="m-0 text-lg font-extrabold">Delivery</h2>
+              </div>
             <div className="mt-3 flex flex-col gap-2">
               <button
                 type="button"
@@ -879,7 +895,7 @@ export function CheckoutForm({
                 aria-pressed={deliveryMethod === "standard"}
                 className={`transition-brand flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-input)] border p-3 text-left text-sm ${
                   deliveryMethod === "standard"
-                    ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
+                    ? "border-2 border-[var(--pf-navy)] bg-[#F1F5FB]"
                     : "border-[var(--border)] hover:border-[var(--border-hover)]"
                 }`}
               >
@@ -899,7 +915,7 @@ export function CheckoutForm({
                   aria-pressed={deliveryMethod === "pickup"}
                   className={`transition-brand flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-input)] border p-3 text-left text-sm ${
                     deliveryMethod === "pickup"
-                      ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
+                      ? "border-2 border-[var(--pf-navy)] bg-[#F1F5FB]"
                       : "border-[var(--border)] hover:border-[var(--border-hover)]"
                   }`}
                 >
@@ -936,8 +952,16 @@ export function CheckoutForm({
             </div>
           </section>
 
-          <section>
-            <h2 className="text-sm font-semibold">Payment method</h2>
+          <section className="co-card flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--pf-navy)] text-sm font-extrabold text-white"
+                >
+                  3
+                </span>
+                <h2 className="m-0 text-lg font-extrabold">Payment method</h2>
+              </div>
             <div className="mt-3 flex flex-col gap-3">
               <PaymentMethodCard
                 icon={CashIcon}
@@ -1015,8 +1039,8 @@ export function CheckoutForm({
             )}
           </section>
 
-          <section>
-            <h2 className="text-sm font-semibold">Order notes</h2>
+          <section className="co-card flex flex-col gap-4">
+            <h2 className="m-0 text-base font-extrabold">Order notes</h2>
             <textarea
               id="notes"
               rows={2}
@@ -1054,7 +1078,7 @@ export function CheckoutForm({
           <button
             type="submit"
             disabled={pending || slipUploading || items.length === 0 || !hydrated || couponSettling}
-            className="transition-brand hidden w-full items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 py-4 text-[15px] font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
+            className="transition-brand hidden w-full items-center justify-center rounded-[12px] bg-[var(--co-orange)] px-6 py-4 text-[17px] font-extrabold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 lg:flex"
           >
             {pending
               ? "Placing order…"
@@ -1248,7 +1272,7 @@ export function CheckoutForm({
           type="submit"
           form="checkout-form"
           disabled={pending || slipUploading || items.length === 0 || !hydrated || couponSettling}
-          className="transition-brand flex h-[52px] items-center justify-center rounded-[12px] bg-[var(--foreground)] px-6 text-sm font-semibold text-white hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="transition-brand flex h-[52px] items-center justify-center rounded-[12px] bg-[var(--co-orange)] px-6 text-sm font-extrabold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? "Placing…" : couponSettling ? "Applying coupon…" : "Place Order"}
         </button>

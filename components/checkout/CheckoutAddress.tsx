@@ -398,6 +398,29 @@ export const CheckoutAddress = forwardRef<
         </div>
         {requireFullAddress && (
           <>
+            <div className="mt-4">
+              <CheckoutAreaField
+                zones={zones}
+                value={{
+                  city: fields.city,
+                  district: fields.district,
+                  province: fields.province,
+                  postalCode: fields.postalCode,
+                }}
+                errors={{ city: errors.city, district: errors.district, postalCode: errors.postalCode }}
+                onChange={(next) => {
+                  const nextFields = { ...fields, ...next };
+                  setFields(nextFields);
+                  // Clear any area errors the moment a real area is chosen.
+                  setErrors((prev) => ({
+                    ...prev,
+                    city: next.city ? undefined : prev.city,
+                    district: next.district ? undefined : prev.district,
+                    postalCode: next.postalCode ? undefined : prev.postalCode,
+                  }));
+                }}
+              />
+            </div>
             {/* "House / street details" in the approved design, and a
                 textarea rather than an input: this is where a landmark
                 goes, and a landmark does not fit on one line. Still the
@@ -433,29 +456,6 @@ export const CheckoutAddress = forwardRef<
               {errors.street && <FieldError id="checkout-street-error" message={errors.street} />}
             </div>
 
-            <div className="mt-4">
-              <CheckoutAreaField
-                zones={zones}
-                value={{
-                  city: fields.city,
-                  district: fields.district,
-                  province: fields.province,
-                  postalCode: fields.postalCode,
-                }}
-                errors={{ city: errors.city, district: errors.district, postalCode: errors.postalCode }}
-                onChange={(next) => {
-                  const nextFields = { ...fields, ...next };
-                  setFields(nextFields);
-                  // Clear any area errors the moment a real area is chosen.
-                  setErrors((prev) => ({
-                    ...prev,
-                    city: next.city ? undefined : prev.city,
-                    district: next.district ? undefined : prev.district,
-                    postalCode: next.postalCode ? undefined : prev.postalCode,
-                  }));
-                }}
-              />
-            </div>
           </>
         )}
 
@@ -463,9 +463,9 @@ export const CheckoutAddress = forwardRef<
           <button
             type="button"
             onClick={handleUseThisAddress}
-            className="transition-brand inline-flex min-h-11 items-center rounded-full bg-[var(--foreground)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--color-btn-hover)]"
+              className="inline-flex min-h-[44px] items-center rounded-[10px] bg-[var(--pf-navy)] px-[18px] text-sm font-bold text-white"
           >
-            Use This Address
+              Save address
           </button>
           {addresses.length > 0 && (
             <button
@@ -480,7 +480,7 @@ export const CheckoutAddress = forwardRef<
                   setMode("picker");
                 }
               }}
-              className="inline-flex min-h-11 items-center text-sm text-[var(--muted)] underline"
+                className="inline-flex min-h-[44px] items-center rounded-[10px] border border-[#9CA3AF] bg-white px-[18px] text-sm font-bold text-[#374151]"
             >
               Cancel
             </button>

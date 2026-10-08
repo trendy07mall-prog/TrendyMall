@@ -25,13 +25,19 @@ export function TrustSection({
     },
     {
       icon: HeadsetIcon,
-      title: "Fast Support",
-      description: businessHoursSummary,
+        // Changed: this promised a support window stated nowhere on the
+        // site -- those are the SHOP's opening hours, not a support
+        // commitment. The WhatsApp number is the part that IS true.
+        title: "Questions?",
+        description: "Message us on WhatsApp",
     },
     {
       icon: CheckBadgeIcon,
-      title: "Quality Guarantee",
-      description: "Genuine Products Only",
+        // Changed: "Genuine Products Only" is a guarantee made nowhere
+        // else on this site. /warranty says availability and duration
+        // depend on the product, so that is what this now says.
+        title: "Warranty",
+        description: "As stated on each product",
     },
   ];
 

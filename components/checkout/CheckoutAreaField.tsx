@@ -5,7 +5,7 @@ import { AreaBrowser, AreaSearch } from "@/components/address/AreaPicker";
 import { AreaSheet } from "@/components/address/AreaSheet";
 import { FieldError } from "@/components/ui/FieldError";
 import { RequiredMark } from "@/components/ui/RequiredMark";
-import type { DeliveryZone } from "@/lib/delivery-fee";
+import { resolveZoneSelection, type DeliveryZone } from "@/lib/delivery-fee";
 import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
 import { areaToAddressFields, type Area } from "@/lib/sri-lanka/areas";
 
@@ -35,6 +35,16 @@ export interface AreaValue {
   province: string;
   /** Real postal code OR a zone sentinel — the resolver's input, unchanged. */
   postalCode: string;
+}
+
+/**
+ * value.postalCode holds the SELECTION value, which for Wellampitiya is its
+ * zone key, not a number -- so a bare digit test showed a dash where 10600
+ * belongs. resolveZoneSelection already maps a selection to the real code
+ * it should be labelled with; this is display only and changes no pricing.
+ */
+function displayPostalCode(selection: string): string {
+  return resolveZoneSelection(selection).postalCode ?? "";
 }
 
 const readOnlyBox =
@@ -113,7 +123,7 @@ export function CheckoutAreaField({
               <div className="truncate text-[13px] text-[#374151]">
                 {value.district}
                 {value.province ? ` · ${value.province} Province` : ""}
-                {value.postalCode && /^\d{3,5}$/.test(value.postalCode) ? ` · ${value.postalCode}` : ""}
+                {displayPostalCode(value.postalCode) ? ` · ${displayPostalCode(value.postalCode)}` : ""}
               </div>
             </div>
           </div>
@@ -131,10 +141,7 @@ export function CheckoutAreaField({
           <ReadOnlyField label="PROVINCE" value={value.province} />
           <ReadOnlyField label="DISTRICT" value={value.district} />
           <ReadOnlyField label="CITY" value={value.city} />
-          <ReadOnlyField
-            label="POSTAL CODE"
-            value={/^\d{3,5}$/.test(value.postalCode) ? value.postalCode : ""}
-          />
+          <ReadOnlyField label="POSTAL CODE" value={displayPostalCode(value.postalCode)} />
         </div>
       </div>
     );

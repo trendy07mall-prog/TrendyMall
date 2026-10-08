@@ -28,8 +28,8 @@ export function PaymentMethodCard({
       aria-pressed={selected}
       className={`transition-brand flex w-full items-center gap-3 rounded-[var(--radius-card)] border p-4 text-left ${
         selected
-          ? "border-[1.5px] border-[var(--color-accent)] bg-[var(--color-accent)]/[0.06]"
-          : "border-[var(--border)] hover:border-[var(--border-hover)]"
+          ? "border-2 border-[var(--pf-navy)] bg-[#F1F5FB]"
+          : "border-[#D1D5DB] bg-white hover:border-[var(--border-hover)]"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <Icon className="h-6 w-6 shrink-0" />

@@ -399,6 +399,54 @@ input:-webkit-autofill:focus {
   font-family: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
 }
 
+/* The approved checkout palette.
+   --pf-navy exists already but is scoped to .product-form, so every
+   var(--pf-navy) on this page resolved to NOTHING: the email icon had no
+   stroke and the "what happens next" circles had no background, which is
+   why both looked like blank gaps. Re-declaring the token on the checkout
+   wrapper is the same scoping convention .product-form uses, and keeps it
+   out of :root where it would compete site-wide. */
+.checkout-fonts {
+  --pf-navy: #0f2d52;
+  --co-orange: #c2410c;
+  --co-page: #f6f7f9;
+  --co-card-border: #e5e7eb;
+  --co-tint: #f1f5fb;
+  --co-tint-border: #d6e0ef;
+  --co-green: #166534;
+  --co-green-bg: #dcfce7;
+  --co-muted: #4b5563;
+  --co-input-border: #9ca3af;
+
+  background: var(--co-page);
+}
+
+/* The mockup's section cards: white, 16px radius, 1px #E5E7EB, 28px pad
+   (20px on a phone). */
+.checkout-fonts .co-card {
+  background: #fff;
+  border: 1px solid var(--co-card-border);
+  border-radius: 16px;
+  padding: 20px;
+}
+@media (min-width: 640px) {
+  .checkout-fonts .co-card {
+    padding: 28px;
+  }
+}
+
+/* A selected delivery / payment option: navy on a navy tint, never the
+   storefront's red accent. */
+.checkout-fonts .co-option {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 12px;
+}
+.checkout-fonts .co-option[data-selected="true"] {
+  border: 2px solid var(--pf-navy);
+  background: var(--co-tint);
+}
+
 /* Rich-text product descriptions (Tiptap output, both the live editor and
    the read-only render on the product page share this class). Tailwind's
    preflight strips default list/heading styling, so raw HTML needs it back. */
