@@ -284,6 +284,13 @@ export function AddressForm({
         </div>
       </div>
 
+      {/* Carries the province through an account edit. Without it this form
+          would submit no province at all and saveAddress would null out the
+          value the checkout area picker had stored (sql/104). Hidden rather
+          than editable because province is derived from the chosen area, not
+          typed -- this form still uses the city/district inputs below. */}
+      <input type="hidden" name="province" value={address?.province ?? ""} />
+
       <div className="flex flex-col gap-1">
         <label htmlFor="addr-postalCode" className="text-sm font-medium">
           Postal code (optional)

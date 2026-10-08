@@ -30,7 +30,18 @@ export type Coupon = Database["public"]["Tables"]["coupons"]["Row"];
 export type CouponRedemption = Database["public"]["Tables"]["coupon_redemptions"]["Row"];
 export type OrderStatusHistoryEntry = Database["public"]["Tables"]["order_status_history"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-export type CustomerAddress = Database["public"]["Tables"]["customer_addresses"]["Row"];
+// `province` is added here rather than in database.types.ts because that
+// file is generated from the live schema and regenerating it is a separate
+// step. sql/104 added the column, nullable: rows created before the area
+// picker have none, which is why it is `string | null` and why every reader
+// has to tolerate null.
+// Optional, not just nullable: database.types.ts has not been regenerated
+// since sql/104, so a row read through the generated types carries no
+// province key at all. Every reader already has to handle "no province"
+// for pre-picker rows, so there is one case to handle, not two.
+export type CustomerAddress = Database["public"]["Tables"]["customer_addresses"]["Row"] & {
+  province?: string | null;
+};
 export type OrderErrorLog = Database["public"]["Tables"]["order_error_log"]["Row"];
 export type Review = Database["public"]["Tables"]["reviews"]["Row"];
 export type SiteBanner = Database["public"]["Tables"]["site_banner"]["Row"];

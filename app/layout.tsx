@@ -53,15 +53,20 @@ const manrope = localFont({
 // other page's typography is untouched. Vendored the same way as the
 // two above rather than via next/font/google, for the same reason: no
 // build-time fetch from fonts.gstatic.com.
-// Only 400/700/800 are declared: 500 and 600 were registered but rendered
-// by nothing. Checked against the live site rather than assumed -- walking
-// every laid-out text node on the homepage AND /combo-deals (the only two
-// surfaces carrying .combo-fonts) turned up zero elements computing to
-// Jakarta at 500 or 600, while the browser still downloaded both, 24 KB
-// for nothing. Re-check the same way before adding a weight back.
+// 500 and 600 WERE dropped, and are back on purpose. They were removed when
+// walking every laid-out text node on the homepage and /combo-deals -- the
+// only two surfaces carrying .combo-fonts at the time -- found zero elements
+// computing to Jakarta at either weight, so the browser was downloading
+// 24 KB for nothing. Checkout now carries .checkout-fonts and uses both
+// (600 in 17 places, 500 in 2), so that reasoning no longer holds and the
+// weights would otherwise be synthesised into faux bold. The 24 KB is paid
+// on checkout alone: Jakarta is not preloaded, and next/font only fetches a
+// weight a page actually renders.
 const jakarta = localFont({
   src: [
     { path: "./fonts/plus-jakarta-sans-400.woff2", weight: "400" },
+    { path: "./fonts/plus-jakarta-sans-500.woff2", weight: "500" },
+    { path: "./fonts/plus-jakarta-sans-600.woff2", weight: "600" },
     { path: "./fonts/plus-jakarta-sans-700.woff2", weight: "700" },
     { path: "./fonts/plus-jakarta-sans-800.woff2", weight: "800" },
   ],

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Address Picker Phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#6B7280;color:#111827}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; background: #6B7280; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end">
+<div style="position: absolute; top: 0; left: 0; right: 0; height: 60px; background: #9CA3AF"></div>
+<div style="background: #FFFFFF; border-radius: 24px 24px 0 0; height: 720px; display: flex; flex-direction: column; box-sizing: border-box; padding: 12px 16px 0">
+<div style="width: 44px; height: 5px; border-radius: 99px; background: #D1D5DB; align-self: center; margin-bottom: 14px"></div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px"><h2 style="margin: 0; font-size: 18px; font-weight: 800">Choose your area</h2><button aria-label="Close" style="width: 44px; height: 44px; border-radius: 99px; border: 0; background: #F3F4F6; font-size: 18px; color: #374151">✕</button></div>
+<div style="position: relative; display: flex; align-items: center"><svg style="position: absolute; left: 14px" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><label for="q" style="position: absolute; left: -9999px">Search area</label><input id="q" value="colombo" style="width: 100%; min-height: 52px; box-sizing: border-box; border: 2px solid #0F2D52; border-radius: 12px; padding: 0 14px 0 44px; font-size: 16px"></div>
+<div style="display: flex; gap: 8px; margin: 12px 0"><button style="min-height: 44px; padding: 0 16px; border-radius: 99px; border: 0; background: #0F2D52; color: #fff; font-size: 13px; font-weight: 700">Search</button><button style="min-height: 44px; padding: 0 16px; border-radius: 99px; border: 1px solid #CBD5E1; background: #fff; color: #374151; font-size: 13px; font-weight: 600">Browse by Province</button></div>
+<div style="flex: 1; overflow: hidden; display: flex; flex-direction: column">
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 01 - Fort</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 03 - Kollupitiya</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 04 - Bambalapitiya</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 8px; border: 0; border-bottom: 1px solid #F3F4F6; background: #F1F5FB; text-align: left; border-radius: 8px"><span><span style="display: block; font-size: 15px; font-weight: 800; color: #0F2D52">Colombo 08 - Borella</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 09 - Dematagoda</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; border-bottom: 1px solid #F3F4F6; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 10 - Maradana</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+<button style="display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 60px; padding: 8px 4px; border: 0; background: #fff; text-align: left"><span><span style="display: block; font-size: 15px; font-weight: 700">Colombo 11 - Pettah</span><span style="display: block; font-size: 12px; color: #4B5563">Colombo (1-15) · Western</span></span><span style="font-size: 12px; font-weight: 700; color: #166534; background: #DCFCE7; border-radius: 99px; padding: 4px 10px">Rs 255</span></button>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

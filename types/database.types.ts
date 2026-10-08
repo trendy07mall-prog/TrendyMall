@@ -99,6 +99,7 @@ export interface Database {
           city: string;
           district: string;
           postal_code: string | null;
+          province: string | null;
           is_default: boolean;
           is_deleted: boolean;
           created_at: string;
@@ -115,6 +116,7 @@ export interface Database {
           city: string;
           district: string;
           postal_code?: string | null;
+          province?: string | null;
           is_default?: boolean;
           is_deleted?: boolean;
           created_at?: string;
@@ -131,6 +133,7 @@ export interface Database {
           city?: string;
           district?: string;
           postal_code?: string | null;
+          province?: string | null;
           is_default?: boolean;
           is_deleted?: boolean;
           created_at?: string;

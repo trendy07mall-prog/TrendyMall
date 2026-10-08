@@ -201,3 +201,30 @@ describe("every area is storable in the existing address columns", () => {
     assert.equal(ALL_AREAS.filter((a) => a.isLocalAddition).length, 1);
   });
 });
+
+describe("Commit 2 re-check: the four cases, end to end through the picker", () => {
+  // Exactly the set asked for after wiring: a Colombo zone, the zone-key
+  // town, a Gampaha town, and a far district.
+  const cases: { area: string; expected: number; why: string }[] = [
+    { area: "Colombo 08 - Borella", expected: 255, why: "Colombo 1-15 postal range" },
+    { area: "Wellampitiya", expected: 255, why: "explicit zone key, NOT its 10600 postal code" },
+    { area: "Negombo", expected: 400, why: "Gampaha district, catch-all" },
+    { area: "Jaffna", expected: 400, why: "far district, catch-all" },
+  ];
+
+  for (const c of cases) {
+    test(`${c.area} -> Rs ${c.expected} (${c.why})`, () => {
+      const area = ALL_AREAS.find((a) => a.displayName === c.area);
+      assert.ok(area, `missing area: ${c.area}`);
+      const fields = areaToAddressFields(area);
+      const { zoneKey, postalCode } = resolveZoneSelection(fields.selectionValue);
+      const fee = calculateDeliveryFee(
+        { district: fields.district, postalCode, zoneKey, deliveryMethod: "standard" },
+        ZONES,
+      );
+      assert.equal(fee, c.expected);
+      // And the province the picker fills is a real one, ready for sql/104.
+      assert.ok(fields.province.length > 0, "province must be filled");
+    });
+  }
+});

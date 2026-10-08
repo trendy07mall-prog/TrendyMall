@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Checkout Phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#F6F7F9;color:#111827}
+a{color:#0F2D52}
+button{font-family:inherit;cursor:pointer}
+input,textarea{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 2900px; background: #F6F7F9; display: flex; flex-direction: column">
+<header style="background: #FFFFFF; border-bottom: 1px solid #E5E7EB; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: center"><div style="font-size: 20px; font-weight: 800; color: #0F2D52">TrendyMall</div><div style="font-size: 12px; font-weight: 700; color: #166534">Secure checkout</div></div>
+<div style="display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 600; color: #4B5563; justify-content: space-between"><span>✓ Cart</span><span aria-hidden="true">—</span><span style="color: #0F2D52; font-weight: 800">2 Checkout</span><span aria-hidden="true">—</span><span>3 Payment</span><span aria-hidden="true">—</span><span>4 Confirm</span></div>
+</header>
+
+<div style="padding: 16px; display: flex; flex-direction: column; gap: 16px">
+<div><h1 style="margin: 0; font-size: 26px; font-weight: 800">Checkout</h1><div style="font-size: 13px; color: #4B5563; margin-top: 2px"><span style="color: #B91C1C">*</span> Required fields</div></div>
+
+<button style="min-height: 56px; border: 1px solid #D6E0EF; background: #F1F5FB; border-radius: 12px; padding: 0 16px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 700; color: #0F2D52"><span>Show order summary ⌄</span><span style="font-weight: 800">Rs 2,004</span></button>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 26px; height: 26px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">1</span><h2 style="margin: 0; font-size: 17px; font-weight: 800">Contact</h2></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="em" style="font-size: 13px; font-weight: 700">Email <span style="color: #B91C1C">*</span></label><input id="em" type="email" value="name@example.com" style="min-height: 48px; box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 10px; padding: 0 14px; font-size: 16px"></div>
+<div style="background: #F1F5FB; border: 1px solid #D6E0EF; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 6px"><div style="font-size: 14px; font-weight: 800; color: #0F2D52">Why your email matters</div>
+<div style="font-size: 13px; line-height: 1.55; color: #1F2937">✓ Your order confirmation and receipt arrive here<br>✓ We send your order updates and tracking details here<br>✓ We use it to reach you if there is any problem with your order</div>
+<div style="font-size: 12px; color: #374151">Please check the spelling. A wrong email means you won't get your confirmation.</div></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 26px; height: 26px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">2</span><h2 style="margin: 0; font-size: 17px; font-weight: 800">Delivery</h2></div>
+<label for="d1" style="display: flex; gap: 12px; align-items: center; border: 2px solid #0F2D52; background: #F1F5FB; border-radius: 12px; padding: 14px"><input id="d1" type="radio" name="dm" checked style="width: 20px; height: 20px; accent-color: #0F2D52; flex: none"><div style="flex: 1"><div style="font-size: 15px; font-weight: 800">Standard delivery</div><div style="font-size: 13px; color: #374151">Delivered to your address</div></div><span style="font-size: 14px; font-weight: 800">Rs 255</span></label>
+<label for="d2" style="display: flex; gap: 12px; align-items: center; border: 1px solid #D1D5DB; border-radius: 12px; padding: 14px"><input id="d2" type="radio" name="dm" style="width: 20px; height: 20px; accent-color: #0F2D52; flex: none"><div style="flex: 1"><div style="font-size: 15px; font-weight: 800">Store pickup</div><div style="font-size: 13px; color: #374151">Salawatta Road, Wellampitiya</div></div><span style="font-size: 14px; font-weight: 800; color: #166534">Free</span></label>
+
+<div style="border-top: 1px solid #E5E7EB; padding-top: 14px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 12px; font-weight: 800; letter-spacing: 1px; color: #4B5563">DELIVERY ADDRESS</span>
+<div style="display: flex; gap: 8px; overflow-x: auto"><button style="flex: none; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 2px solid #0F2D52; background: #F1F5FB; color: #0F2D52; font-size: 13px; font-weight: 800">Mohammed M. · Colombo 12</button><button style="flex: none; min-height: 44px; padding: 0 14px; border-radius: 99px; border: 1px solid #9CA3AF; background: #fff; color: #374151; font-size: 13px; font-weight: 700">+ Add new</button></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="nm" style="font-size: 13px; font-weight: 700">Full name <span style="color: #B91C1C">*</span></label><input id="nm" value="Mohammed Majidh" style="min-height: 48px; box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 10px; padding: 0 14px; font-size: 16px"></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="ph" style="font-size: 13px; font-weight: 700">Mobile number <span style="color: #B91C1C">*</span></label><div style="display: flex"><span style="min-height: 48px; box-sizing: border-box; border: 1px solid #9CA3AF; border-right: 0; border-radius: 10px 0 0 10px; padding: 0 14px; background: #F3F4F6; font-size: 16px; font-weight: 600; display: flex; align-items: center">+94</span><input id="ph" value="77 123 4567" style="flex: 1; min-width: 0; min-height: 48px; box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 0 10px 10px 0; padding: 0 14px; font-size: 16px"></div></div>
+<label for="wa" style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #374151; min-height: 44px"><input id="wa" type="checkbox" checked style="width: 20px; height: 20px; accent-color: #0F2D52; flex: none">This number is on WhatsApp</label>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 13px; font-weight: 700">Find your area <span style="color: #B91C1C">*</span></span>
+<a href="MobileSheet.dc.html" style="min-height: 52px; box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 12px; padding: 0 14px; display: flex; align-items: center; gap: 10px; font-size: 15px; color: #4B5563; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4B5563" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>Type your city or area</a>
+</div>
+<div style="background: #F1F5FB; border: 1px solid #D6E0EF; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; gap: 10px; align-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><circle cx="12" cy="12" r="10"/><path d="M8 12.5l3 3 5-6"/></svg><div><div style="font-size: 15px; font-weight: 800; color: #0F2D52">Colombo 12 - Hultsdorf</div><div style="font-size: 12px; color: #374151">Colombo (1-15) · Western Province · 01200</div></div></div>
+<button style="min-height: 44px; border-radius: 10px; border: 1px solid #0F2D52; background: #fff; color: #0F2D52; font-size: 13px; font-weight: 700">Change area</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="da" style="font-size: 13px; font-weight: 700">House / street details <span style="color: #B91C1C">*</span></label>
+<textarea id="da" rows="3" style="box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 10px; padding: 12px 14px; font-size: 16px">Bandaranayake Mawatha, near the main junction</textarea>
+<div style="font-size: 12px; color: #4B5563">A landmark helps our rider find you. 45/200</div>
+</div>
+<div style="display: flex; gap: 10px"><button style="flex: 1; min-height: 48px; border-radius: 10px; border: 0; background: #0F2D52; color: #fff; font-size: 14px; font-weight: 700">Save address</button><button style="flex: 1; min-height: 48px; border-radius: 10px; border: 1px solid #9CA3AF; background: #fff; color: #374151; font-size: 14px; font-weight: 700">Cancel</button></div>
+<div style="display: flex; gap: 12px; align-items: center; border: 1px solid #BBF7D0; background: #F0FDF4; border-radius: 12px; padding: 12px 14px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+<div><div style="font-size: 14px; font-weight: 800; color: #14532D">Delivery: Rs 255</div><div style="font-size: 12px; color: #166534">Estimated delivery: Fri, Oct 9 - Sat, Oct 10</div></div>
+</div>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 26px; height: 26px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">3</span><h2 style="margin: 0; font-size: 17px; font-weight: 800">Payment method</h2></div>
+<label for="p1" style="display: flex; gap: 12px; align-items: center; border: 2px solid #0F2D52; background: #F1F5FB; border-radius: 12px; padding: 14px"><input id="p1" type="radio" name="pay" checked style="width: 20px; height: 20px; accent-color: #0F2D52; flex: none"><div><div style="font-size: 15px; font-weight: 800">Cash on Delivery</div><div style="font-size: 13px; color: #374151">Pay in cash when your order arrives</div></div></label>
+<label for="p2" style="display: flex; gap: 12px; align-items: center; border: 1px solid #D1D5DB; border-radius: 12px; padding: 14px"><input id="p2" type="radio" name="pay" style="width: 20px; height: 20px; accent-color: #0F2D52; flex: none"><div><div style="font-size: 15px; font-weight: 800">Bank Transfer</div><div style="font-size: 13px; color: #374151">Transfer to our account, then upload your slip</div></div></label>
+<div style="display: flex; gap: 12px; align-items: center; border: 1px dashed #D1D5DB; background: #F9FAFB; border-radius: 12px; padding: 14px; color: #4B5563"><span style="width: 20px; flex: none"></span><div><div style="font-size: 15px; font-weight: 700">Card Payment <span style="font-size: 10px; font-weight: 800; background: #E5E7EB; border-radius: 99px; padding: 3px 8px">COMING SOON</span></div><div style="font-size: 13px">Visa · Mastercard · American Express, via PayHere</div></div></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<label for="on" style="font-size: 16px; font-weight: 800">Order notes <span style="font-size: 13px; font-weight: 500; color: #4B5563">(optional)</span></label>
+<textarea id="on" rows="3" placeholder="Anything we should know?" style="box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 10px; padding: 12px 14px; font-size: 16px"></textarea>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 800">Order summary</h2>
+<div style="display: flex; gap: 12px; align-items: center"><div style="width: 56px; height: 56px; border-radius: 10px; background: #E8EEF6; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #0F2D52">PHOTO</div><div style="flex: 1; min-width: 0"><div style="font-size: 12px; font-weight: 800; color: #C2410C">Big Bang Flash Sale</div><div style="font-size: 14px; font-weight: 700">VEN-DENS 10000mAh Power Bank</div></div><div style="font-size: 14px; font-weight: 800">Rs 1,749</div></div>
+<div style="display: flex; gap: 8px"><label for="cp" style="position: absolute; left: -9999px">Coupon code</label><input id="cp" placeholder="Coupon code" style="flex: 1; min-width: 0; min-height: 44px; box-sizing: border-box; border: 1px solid #9CA3AF; border-radius: 10px; padding: 0 14px; font-size: 16px"><button style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid #9CA3AF; background: #fff; color: #374151; font-size: 14px; font-weight: 700">Apply</button></div>
+<div style="border-top: 1px solid #E5E7EB; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<div style="display: flex; justify-content: space-between"><span>Subtotal</span><span style="font-weight: 600">Rs 1,749</span></div>
+<div style="display: flex; justify-content: space-between"><span>Delivery to Colombo 12</span><span style="font-weight: 600">Rs 255</span></div>
+<div style="display: flex; justify-content: space-between; border-top: 1px solid #E5E7EB; padding-top: 10px; font-size: 17px; font-weight: 800"><span>Total</span><span>Rs 2,004</span></div></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 800">Shop with confidence</h2>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>Cash on Delivery</b> available</span></div>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>Easy order tracking</b> after you order</span></div>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>48-hour return window</b> for damaged, defective or wrong items</span></div>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>Genuine products</b> with warranty shown on each item</span></div>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>WhatsApp support</b> daily, 10 AM - 4 PM</span></div>
+<div style="font-size: 14px; line-height: 1.5; display: flex; gap: 10px"><span style="color: #166534; font-weight: 800">✓</span><span><b>Visit our shop:</b> Salawatta Road, Wellampitiya</span></div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 800">What happens next</h2>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 14px"><span style="width: 24px; height: 24px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: none">1</span>You get a confirmation email</div>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 14px"><span style="width: 24px; height: 24px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: none">2</span>We confirm it with you on WhatsApp or by phone</div>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 14px"><span style="width: 24px; height: 24px; border-radius: 99px; background: #0F2D52; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: none">3</span>The rider delivers and you pay in cash</div>
+</section>
+</div>
+
+<div style="margin-top: auto; position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #E5E7EB; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px">
+<button style="min-height: 56px; border-radius: 12px; border: 0; background: #C2410C; color: #FFFFFF; font-size: 17px; font-weight: 800">Place order · Rs 2,004</button>
+<div style="font-size: 12px; color: #166534; text-align: center; font-weight: 600">Secure checkout · Your information is protected</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2900}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

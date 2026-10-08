@@ -14,6 +14,12 @@ import { cartLineKey, formatPrice, isValidEmail } from "@/lib/utils";
 import { CampaignInfoBlock } from "@/components/marketing/CampaignInfoBlock";
 import { trackConversion } from "@/lib/analytics/track";
 import { describeDeliveryFee, resolveZoneSelection, type DeliveryZone } from "@/lib/delivery-fee";
+import { suggestEmailCorrection } from "@/lib/email-typo";
+import {
+  EmailWhyBox,
+  ShopWithConfidence,
+  WhatHappensNext,
+} from "@/components/checkout/CheckoutTrust";
 import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { PayHereRedirectForm } from "@/components/checkout/PayHereRedirectForm";
 import { CheckoutSteps } from "@/components/checkout/CheckoutSteps";
@@ -68,6 +74,7 @@ const EMPTY_ADDRESS_FIELDS: CheckoutAddressFields = {
   street: "",
   city: "",
   district: "",
+  province: "",
   postalCode: "",
 };
 
@@ -234,6 +241,9 @@ export function CheckoutForm({
   // preview and the submit below both price off the SAME derivation, so
   // they cannot disagree and log a DELIVERY_FEE_MISMATCH.
   const previewZone = resolveZoneSelection(addressFields.postalCode);
+  // Null unless the domain is a near-miss on a common one; see lib/email-typo.ts.
+  const emailSuggestion = suggestEmailCorrection(form.email);
+
   const { fee: shippingFee, reason: deliveryReason, isFastZone } = describeDeliveryFee(
     {
       district: addressFields.district,
@@ -792,7 +802,7 @@ export function CheckoutForm({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1240px] flex-1 px-6 py-8 max-sm:py-6 max-sm:pb-28">
+    <div className="checkout-fonts mx-auto w-full max-w-[1240px] flex-1 px-6 py-8 max-sm:py-6 max-sm:pb-28">
       <CheckoutSteps />
       <div className="mt-3">
         <h1 className="font-heading text-[28px] font-semibold tracking-tight sm:text-[32px]">Checkout</h1>
@@ -829,12 +839,34 @@ export function CheckoutForm({
                 error={errors.email}
                 required
               />
-              {!errors.email && form.email.trim() && isValidEmail(form.email) && (
+              {/* A SUGGESTION, never a block -- the domain list cannot know
+                  every valid address, so someone at an unusual domain must
+                  always be able to carry on. */}
+              {emailSuggestion && (
+                <p className="mt-1.5 text-xs text-[#374151]" role="status">
+                  Did you mean{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setField("email", emailSuggestion);
+                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
+                    className="font-bold text-[var(--pf-navy)] underline"
+                  >
+                    {emailSuggestion}
+                  </button>
+                  ?
+                </p>
+              )}
+              {!errors.email && !emailSuggestion && form.email.trim() && isValidEmail(form.email) && (
                 <p className="mt-1.5 flex items-center gap-1 text-xs text-[var(--muted)]">
                   <CheckIcon className="h-3 w-3 text-emerald-600" />
                   We&apos;ll send your order confirmation here.
                 </p>
               )}
+            </div>
+            <div className="mt-4">
+              <EmailWhyBox />
             </div>
           </section>
 
@@ -897,7 +929,8 @@ export function CheckoutForm({
                 ref={addressRef}
                 addresses={addresses}
                 onFieldsChange={setAddressFields}
-                requireFullAddress={deliveryMethod === "standard"}
+                zones={zones}
+            requireFullAddress={deliveryMethod === "standard"}
                 isLoggedIn={isLoggedIn}
               />
             </div>
@@ -1031,7 +1064,8 @@ export function CheckoutForm({
           </button>
         </form>
 
-        <div className="h-fit min-w-0 rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)] lg:sticky lg:top-[90px]">
+        <div className="flex h-fit min-w-0 flex-col gap-5 lg:sticky lg:top-[90px]">
+        <div className="min-w-0 rounded-[16px] border border-[var(--border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card-hover)]">
           <h2 className="text-lg font-medium">Order summary</h2>
           {priceNotice && (
             <p
@@ -1187,6 +1221,18 @@ export function CheckoutForm({
               <CheckIcon className="h-3 w-3" /> Easy order tracking
             </li>
           </ul>
+        </div>
+
+          {/* The approved design puts these under the summary, in the
+              same column. Every claim is one the site already makes --
+              see CheckoutTrust.tsx for the three that were removed
+              because they were not true. */}
+          <ShopWithConfidence
+            whatsappNumber={whatsappNumber}
+            pickupAddress={shippingSettings.pickupAddress}
+            pickupHours={shippingSettings.pickupHours}
+          />
+          <WhatHappensNext />
         </div>
       </div>
 

@@ -3,15 +3,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { saveAddress } from "@/lib/addresses";
 import { isValidSriLankanPhone } from "@/lib/utils";
-import { SRI_LANKAN_CITIES } from "@/lib/cities";
-import { SRI_LANKAN_DISTRICTS } from "@/lib/districts";
 import {
-  COLOMBO_ZONE_POSTAL_CODES,
   OTHER_COLOMBO_ZONE_VALUE,
-  WELLAMPITIYA_ZONE_KEY,
   resolveZoneSelection,
   zoneSelectionForStoredAddress,
+  type DeliveryZone,
 } from "@/lib/delivery-fee";
+import { CheckoutAreaField } from "@/components/checkout/CheckoutAreaField";
 import { FieldError } from "@/components/ui/FieldError";
 import { RequiredMark } from "@/components/ui/RequiredMark";
 import type { CustomerAddress } from "@/types";
@@ -31,7 +29,14 @@ export interface CheckoutAddressFields {
   city: string;
   district: string;
   postalCode: string;
+  // Added with the area picker (sql/104). Optional everywhere downstream:
+  // a saved address created before the picker has none, and that is a
+  // supported state, not an error.
+  province: string;
 }
+
+/** The approved design caps the house/street field at 200 characters. */
+export const STREET_MAX_LENGTH = 200;
 
 const EMPTY_FIELDS: CheckoutAddressFields = {
   firstName: "",
@@ -41,6 +46,7 @@ const EMPTY_FIELDS: CheckoutAddressFields = {
   city: "",
   district: "",
   postalCode: "",
+  province: "",
 };
 
 function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
@@ -66,6 +72,8 @@ function fieldsFromAddress(address: CustomerAddress): CheckoutAddressFields {
     city: address.city,
     district: address.district,
     postalCode,
+    // Pre-picker rows have no province; the summary simply omits the line.
+    province: address.province ?? "",
   };
 }
 
@@ -152,8 +160,12 @@ export const CheckoutAddress = forwardRef<
     // so selectedAddressId/editScope paths are already unreachable — this
     // only guards the "brand-new address" save-for-next-time path).
     isLoggedIn: boolean;
+    // Passed through to the area picker purely so each result can show the
+    // fee it would be charged. The picker never computes one -- see
+    // components/address/area-fee.ts.
+    zones: DeliveryZone[];
   }
->(function CheckoutAddress({ addresses, onFieldsChange, requireFullAddress, isLoggedIn }, ref) {
+>(function CheckoutAddress({ addresses, onFieldsChange, requireFullAddress, isLoggedIn, zones }, ref) {
   const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0] ?? null;
 
   const [mode, setMode] = useState<Mode>(defaultAddress ? "card" : "form");
@@ -386,132 +398,63 @@ export const CheckoutAddress = forwardRef<
         </div>
         {requireFullAddress && (
           <>
-            <div className="mt-4">
-              <AddrField
+            {/* "House / street details" in the approved design, and a
+                textarea rather than an input: this is where a landmark
+                goes, and a landmark does not fit on one line. Still the
+                same `street` column underneath. */}
+            <div className="mt-4 flex flex-col gap-[6px]">
+              <label htmlFor="checkout-street" className="text-[13px] font-bold">
+                House / street details
+                <RequiredMark />
+              </label>
+              <textarea
                 id="checkout-street"
-                label="Street address"
+                rows={3}
+                maxLength={STREET_MAX_LENGTH}
+                placeholder="House or flat no., street name, nearest landmark"
                 value={fields.street}
-                onChange={(v) => updateField("street", v)}
+                onChange={(e) => updateField("street", e.target.value)}
                 onBlur={() => handleBlur("street")}
-                error={errors.street}
-                required
+                aria-invalid={Boolean(errors.street)}
+                aria-describedby={errors.street ? "checkout-street-error" : "checkout-street-help"}
+                className={`resize-y rounded-[10px] border px-[14px] py-3 text-base ${
+                  errors.street ? "border-red-600" : "border-[#9CA3AF]"
+                }`}
               />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="checkout-city" className="text-sm font-medium">
-                  City
-                  <RequiredMark />
-                </label>
-                <input
-                  id="checkout-city"
-                  type="text"
-                  list="checkout-city-options"
-                  autoComplete="off"
-                  required
-                  value={fields.city}
-                  onChange={(e) => updateField("city", e.target.value)}
-                  onBlur={() => handleBlur("city")}
-                  aria-invalid={Boolean(errors.city)}
-                  aria-describedby={errors.city ? "checkout-city-error" : undefined}
-                  className={inputClass(Boolean(errors.city))}
-                />
-                <datalist id="checkout-city-options">
-                  {SRI_LANKAN_CITIES.map((city) => (
-                    <option key={city} value={city} />
-                  ))}
-                </datalist>
-                {errors.city && <FieldError id="checkout-city-error" message={errors.city} />}
+              <div
+                id="checkout-street-help"
+                className="flex justify-between gap-3 text-xs text-[#4B5563]"
+              >
+                <span>Our rider uses this to find your door. A landmark helps.</span>
+                <span>
+                  {fields.street.length}/{STREET_MAX_LENGTH}
+                </span>
               </div>
-              <div className="flex flex-col gap-1">
-                <label htmlFor="checkout-district" className="text-sm font-medium">
-                  District
-                  <RequiredMark />
-                </label>
-                <select
-                  id="checkout-district"
-                  value={fields.district}
-                  onChange={(e) => {
-                    // Postal code entry mode differs between Colombo (a
-                    // dropdown of canonical codes/"Other") and every other
-                    // district (free text) — a value from one mode is
-                    // meaningless (or literally the "Other" sentinel) in
-                    // the other, so switching resets it. Only the district
-                    // error (if shown) is live-revalidated here, same as
-                    // updateField — postalCode's error state is left alone
-                    // rather than immediately flagging the reset-to-empty
-                    // value the customer hasn't even looked at yet.
-                    const nextFields = { ...fields, district: e.target.value, postalCode: "" };
-                    setFields(nextFields);
-                    setErrors((prev) =>
-                      prev.district
-                        ? { ...prev, district: validateOneField("district", nextFields, requireFullAddress) }
-                        : prev,
-                    );
-                  }}
-                  onBlur={() => handleBlur("district")}
-                  required
-                  aria-invalid={Boolean(errors.district)}
-                  aria-describedby={errors.district ? "checkout-district-error" : undefined}
-                  className={inputClass(Boolean(errors.district))}
-                >
-                  <option value="">Select…</option>
-                  {SRI_LANKAN_DISTRICTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-                {errors.district && <FieldError id="checkout-district-error" message={errors.district} />}
-              </div>
+              {errors.street && <FieldError id="checkout-street-error" message={errors.street} />}
             </div>
+
             <div className="mt-4">
-              {fields.district === "Colombo" ? (
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="checkout-postalCode" className="text-sm font-medium">
-                    Colombo zone
-                    <RequiredMark />
-                  </label>
-                  <select
-                    id="checkout-postalCode"
-                    value={fields.postalCode}
-                    onChange={(e) => updateField("postalCode", e.target.value)}
-                    onBlur={() => handleBlur("postalCode")}
-                    required
-                    aria-invalid={Boolean(errors.postalCode)}
-                    aria-describedby={errors.postalCode ? "checkout-postalCode-error" : undefined}
-                    className={inputClass(Boolean(errors.postalCode))}
-                  >
-                    <option value="">Select…</option>
-                    {COLOMBO_ZONE_POSTAL_CODES.map((z) => (
-                      <option key={z.code} value={z.code}>
-                        {z.label}
-                      </option>
-                    ))}
-                    {/* Listed by name, below Colombo 1-15 and above
-                        "Other", because that is exactly the choice its
-                        customers were getting wrong: Wellampitiya's real
-                        postal code (10600) is nowhere near the 00100-01500
-                        range, so the only way to reach the correct rate
-                        used to be to guess it "counted as" Colombo 15. */}
-                    <option value={WELLAMPITIYA_ZONE_KEY}>Wellampitiya</option>
-                    <option value={OTHER_COLOMBO_ZONE_VALUE}>Other (outside Colombo city)</option>
-                  </select>
-                  {errors.postalCode && (
-                    <FieldError id="checkout-postalCode-error" message={errors.postalCode} />
-                  )}
-                </div>
-              ) : (
-                <AddrField
-                  id="checkout-postalCode"
-                  label="Postal code"
-                  value={fields.postalCode}
-                  onChange={(v) => updateField("postalCode", v)}
-                  onBlur={() => handleBlur("postalCode")}
-                  error={errors.postalCode}
-                  required
-                />
-              )}
+              <CheckoutAreaField
+                zones={zones}
+                value={{
+                  city: fields.city,
+                  district: fields.district,
+                  province: fields.province,
+                  postalCode: fields.postalCode,
+                }}
+                errors={{ city: errors.city, district: errors.district, postalCode: errors.postalCode }}
+                onChange={(next) => {
+                  const nextFields = { ...fields, ...next };
+                  setFields(nextFields);
+                  // Clear any area errors the moment a real area is chosen.
+                  setErrors((prev) => ({
+                    ...prev,
+                    city: next.city ? undefined : prev.city,
+                    district: next.district ? undefined : prev.district,
+                    postalCode: next.postalCode ? undefined : prev.postalCode,
+                  }));
+                }}
+              />
             </div>
           </>
         )}
@@ -609,6 +552,7 @@ function buildFormData(fields: CheckoutAddressFields, id: string | null): FormDa
   // "...Colombo OTHER" on the account page and loads into the account
   // form's free-text postal field. Wellampitiya stores its real 10600.
   formData.set("postalCode", resolveZoneSelection(fields.postalCode).postalCode ?? "");
+  formData.set("province", fields.province);
   return formData;
 }
 

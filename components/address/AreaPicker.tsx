@@ -156,7 +156,7 @@ export function AreaSearch({
           autoComplete="off"
           // 16px on purpose: anything smaller makes iOS Safari zoom the page
           // on focus, which the approved mobile design explicitly avoids.
-          className="min-h-[52px] w-full rounded-xl border border-[#9CA3AF] py-0 pr-[14px] pl-[44px] text-base focus:border-2 focus:border-[var(--pf-navy)] focus:outline-none"
+          className="min-h-[52px] w-full rounded-xl border border-[#9CA3AF] py-0 pr-[14px] pl-[44px] text-base focus:border-2 focus:border-[var(--pf-navy)] focus:outline-none sm:text-[15px]"
           placeholder={placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -269,15 +269,15 @@ export function AreaBrowser({
     <div className="flex flex-col gap-3">
       {/* Breadcrumb — mockup: Western › Colombo (1-15) › Choose city */}
       <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[#4B5563]">
-        <span className={province ? "" : "font-extrabold text-[var(--pf-navy)]"}>
+        <span className={province && !districtLabel ? "font-extrabold text-[var(--pf-navy)]" : ""}>
           {province ?? "Choose province"}
         </span>
         <span aria-hidden="true">›</span>
-        <span className={province && !districtLabel ? "font-extrabold text-[var(--pf-navy)]" : ""}>
+        <span className={districtLabel ? "font-extrabold text-[var(--pf-navy)]" : ""}>
           {districtLabel ?? "Choose district"}
         </span>
         <span aria-hidden="true">›</span>
-        <span className={districtLabel ? "font-extrabold text-[var(--pf-navy)]" : ""}>Choose city</span>
+        <span>Choose city</span>
       </div>
 
       <div className="flex h-[380px] overflow-hidden rounded-xl border border-[#D1D5DB]">
@@ -310,12 +310,9 @@ export function AreaBrowser({
                 role="option"
                 aria-selected={false}
                 onClick={() => onPick(area)}
-                className="flex min-h-[44px] shrink-0 items-center justify-between gap-2 border-0 bg-white px-[14px] text-left text-sm text-[#111827] hover:bg-black/[0.03]"
+                className="flex min-h-[44px] shrink-0 items-center border-0 bg-white px-[14px] text-left text-sm text-[#111827] hover:bg-black/[0.03]"
               >
                 <span className="truncate">{area.displayName}</span>
-                <span className="shrink-0 rounded-full bg-[#DCFCE7] px-2 py-[2px] text-[11px] font-bold text-[#166534]">
-                  {formatFee(feeForArea(area, zones))}
-                </span>
               </button>
             ))}
           </div>

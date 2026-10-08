@@ -71,6 +71,10 @@ export async function saveAddress(
   const city = String(formData.get("city") ?? "").trim();
   const district = String(formData.get("district") ?? "");
   const postalCode = String(formData.get("postalCode") ?? "").trim() || null;
+  // Added with the area picker (sql/104). Optional on purpose: an address
+  // saved before the picker, or one entered through the "my area isn't
+  // listed" fallback, legitimately has none.
+  const province = String(formData.get("province") ?? "").trim() || null;
   const makeDefault = formData.get("isDefault") === "on";
 
   if (!firstName || !lastName || !street || !city) {
@@ -93,6 +97,7 @@ export async function saveAddress(
     city,
     district,
     postal_code: postalCode,
+    province,
   };
 
   let savedId = id;
