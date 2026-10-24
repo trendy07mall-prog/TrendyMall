@@ -5,6 +5,8 @@ import { Carousel } from "@/components/marketing/Carousel";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
 import { BoltIcon } from "@/components/ui/Icon";
+import { DEFAULT_SECTION_BG, sectionInk } from "@/lib/section-color";
+import type { CSSProperties } from "react";
 import type { Campaign, ProductWithPrimaryImage } from "@/types";
 
 export interface CampaignSectionWithProducts {
@@ -41,6 +43,25 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
       ))}
     </>
   );
+}
+
+// The section's background (campaigns.section_bg_color, picked per campaign
+// in admin) and the text colour that stays readable on it, as CSS
+// variables for the section's own words. The yellow "Shop the sale"
+// button turns dark on a pale background, where yellow would vanish. The
+// value is checked as #rrggbb by both saveCampaign and a database
+// constraint before it gets here.
+function sectionColors(campaign: Campaign, fallback: string): CSSProperties {
+  const background = campaign.section_bg_color ?? fallback;
+  const ink = sectionInk(background);
+  const dark = ink === "#ffffff";
+  return {
+    background,
+    "--section-bg": background,
+    "--section-ink": ink,
+    "--section-button": dark ? "var(--color-accent-secondary)" : "#111111",
+    "--section-button-ink": dark ? "#111111" : "#ffffff",
+  } as CSSProperties;
 }
 
 function CampaignCards({
@@ -93,7 +114,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
   const overlap = hasSectionBanner ? "-mt-[31.25%] md:-mt-[15%]" : hasBanner ? "-mt-10 md:-mt-14" : "";
 
   return (
-    <div className="overflow-hidden rounded-2xl bg-[var(--color-flash)] pb-2.5 sm:rounded-[20px] sm:pb-5">
+    <div className="overflow-hidden rounded-2xl pb-2.5 sm:rounded-[20px] sm:pb-5" style={sectionColors(campaign, DEFAULT_SECTION_BG)}>
       {hasSectionBanner ? (
         <>
           <Link href={href} className="block" aria-label={`${campaign.name}: view the sale`}>
@@ -152,7 +173,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
       ) : (
         <div className="flex items-center gap-2 px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-5">
           <BoltIcon className="h-5 w-5 shrink-0 fill-current text-[var(--color-accent-secondary)] sm:h-7 sm:w-7" />
-          <h2 className="min-w-0 flex-1 truncate font-heading text-lg font-extrabold tracking-tight text-white sm:text-[28px] md:text-[32px]">
+          <h2 className="min-w-0 flex-1 truncate font-heading text-lg font-extrabold tracking-tight text-[var(--section-ink)] sm:text-[28px] md:text-[32px]">
             {campaign.name}
           </h2>
         </div>
@@ -174,7 +195,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
           )}
           <Link
             href={href}
-            className="flex h-11 shrink-0 items-center rounded-full border-[1.5px] border-white/70 px-4 text-sm font-semibold text-white transition-colors hover:bg-white hover:text-[var(--color-flash-text)] sm:px-5"
+            className="flex h-11 shrink-0 items-center rounded-full border-[1.5px] border-[color-mix(in_srgb,var(--section-ink)_70%,transparent)] px-4 text-sm font-semibold text-[var(--section-ink)] transition-colors hover:bg-[var(--section-ink)] hover:text-[var(--section-bg)] sm:px-5"
           >
             View All →
           </Link>
@@ -195,31 +216,34 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
   const shopButton = (
     <Link
       href={href}
-      className="flex h-11 items-center justify-center rounded-xl bg-[var(--color-accent-secondary)] px-4 text-sm font-bold text-[var(--foreground)] transition-opacity hover:opacity-90"
+      className="flex h-11 items-center justify-center rounded-xl bg-[var(--section-button)] px-4 text-sm font-bold text-[var(--section-button-ink)] transition-opacity hover:opacity-90"
     >
       Shop the sale →
     </Link>
   );
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-[var(--color-flash-hover)] p-2.5 sm:rounded-[20px] sm:p-5 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-5">
+    <div
+      style={sectionColors(campaign, "#b91c1c")}
+      className="flex flex-col gap-3 rounded-2xl p-2.5 sm:rounded-[20px] sm:p-5 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-5"
+    >
       <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-2.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-4 lg:flex lg:flex-col lg:items-stretch lg:gap-4">
         {banner ? (
           <Link href={href} className="relative block aspect-[800/600] w-full overflow-hidden rounded-xl" aria-label={`${campaign.name}: view the sale`}>
             <Image src={banner} alt="" fill loading="lazy" quality={88} sizes="(min-width: 1024px) 240px, (min-width: 640px) 200px, 132px" className="object-cover" />
           </Link>
         ) : (
-          <div className="flex aspect-[800/600] w-full items-center justify-center rounded-xl bg-[var(--color-flash)]">
+          <div className="flex aspect-[800/600] w-full items-center justify-center rounded-xl bg-black/15">
             <BoltIcon className="h-10 w-10 fill-current text-[var(--color-accent-secondary)]" />
           </div>
         )}
         <div className="flex min-w-0 flex-col gap-2 lg:gap-4">
-          <h2 className="font-heading text-[17px] leading-tight font-extrabold tracking-tight text-white sm:text-2xl lg:text-[26px]">
+          <h2 className="font-heading text-[17px] leading-tight font-extrabold tracking-tight text-[var(--section-ink)] sm:text-2xl lg:text-[26px]">
             {campaign.name}
           </h2>
           {campaign.show_countdown && campaign.end_at && (
             <div className="flex flex-col gap-2">
-              <span className="flex items-center gap-1.5 text-xs font-bold tracking-widest text-[#ffe08a]">
+              <span className="flex items-center gap-1.5 text-xs font-bold tracking-widest text-[var(--section-ink)] opacity-85">
                 <BoltIcon className="h-3 w-3 fill-current text-[var(--color-accent-secondary)]" />
                 ENDS IN
               </span>

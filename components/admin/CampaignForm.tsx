@@ -6,6 +6,7 @@ import { slugify } from "@/lib/utils";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
 import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import { useUploadBusy } from "@/lib/images/use-upload-busy";
+import { DEFAULT_SECTION_BG, isHexColor } from "@/lib/section-color";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import { SectionsEditor } from "@/components/admin/campaign-form/SectionsEditor";
 import { ProductPickerModal } from "@/components/admin/campaign-form/ProductPickerModal";
@@ -144,6 +145,8 @@ export function CampaignForm({
   const [sectionBannerMobileUrl, setSectionBannerMobileUrl] = useState(
     initial?.campaign.section_banner_mobile_url ?? null,
   );
+  // Empty means the default red; saved as null.
+  const [sectionBgColor, setSectionBgColor] = useState(initial?.campaign.section_bg_color ?? "");
 
   const [showOnHomepage, setShowOnHomepage] = useState(initial?.campaign.show_on_homepage ?? false);
   const [showInShop, setShowInShop] = useState(initial?.campaign.show_in_shop ?? false);
@@ -531,6 +534,42 @@ export function CampaignForm({
                   }
                 />
               </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="sectionBgColor" className="text-sm font-medium">
+                Section background colour
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Pick the section background colour"
+                  value={isHexColor(sectionBgColor) ? sectionBgColor : DEFAULT_SECTION_BG}
+                  onChange={(e) => setSectionBgColor(e.target.value)}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent p-1"
+                />
+                <input
+                  id="sectionBgColor"
+                  type="text"
+                  name="sectionBgColor"
+                  value={sectionBgColor}
+                  placeholder={`${DEFAULT_SECTION_BG} (default red)`}
+                  onChange={(e) => setSectionBgColor(e.target.value.trim())}
+                  className="w-48 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:ring-1 focus:ring-[var(--foreground)] focus:outline-none"
+                />
+                {sectionBgColor && (
+                  <button
+                    type="button"
+                    onClick={() => setSectionBgColor("")}
+                    className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-black/5"
+                  >
+                    Reset to default red
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-[var(--muted)]">
+                The colour behind the banner and product cards on the homepage. The section&apos;s own text switches
+                between white and dark automatically so it stays readable.
+              </p>
             </div>
           </div>
         </section>

@@ -8,6 +8,12 @@
 --
 -- Nullable and optional, also for publishing: a campaign without them
 -- falls back to its landing page banner in that section.
+--
+-- section_bg_color is that section's background, picked per campaign; null
+-- means the default red. Checked as #rrggbb here too, not only in
+-- saveCampaign, because the storefront writes it straight into a style.
 alter table public.campaigns
   add column section_banner_desktop_url text,
-  add column section_banner_mobile_url text;
+  add column section_banner_mobile_url text,
+  add column section_bg_color text
+    constraint campaigns_section_bg_color_hex check (section_bg_color ~ '^#[0-9a-fA-F]{6}$');

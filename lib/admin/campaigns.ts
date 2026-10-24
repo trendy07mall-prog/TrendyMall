@@ -6,6 +6,7 @@ import { requireAdminClient } from "@/lib/admin/guard";
 import { slugify, formatPrice } from "@/lib/utils";
 import { sriLankaInputToUtcIso } from "@/lib/campaign-datetime";
 import { campaignPriceUndercuts } from "@/lib/campaign-pricing";
+import { isHexColor } from "@/lib/section-color";
 import { getCampaignForEdit } from "@/lib/admin/campaigns-query";
 import type { CampaignPromotionType } from "@/types";
 
@@ -59,8 +60,12 @@ export async function saveCampaign(
   const status: "draft" | "published" =
     String(formData.get("status") ?? "draft") === "published" ? "published" : "draft";
   const productBannerUrl = String(formData.get("productBannerUrl") ?? "").trim() || null;
+  const sectionBgColor = String(formData.get("sectionBgColor") ?? "").trim().toLowerCase() || null;
 
   if (!name) return { error: "Name is required." };
+  if (sectionBgColor && !isHexColor(sectionBgColor)) {
+    return { error: "Section background colour must be a hex colour like #dc2626." };
+  }
   if (!PROMO_TYPES.includes(promotionTypeRaw as CampaignPromotionType)) {
     return { error: "Select a promotion type." };
   }
@@ -161,6 +166,7 @@ export async function saveCampaign(
     product_banner_url: productBannerUrl,
     section_banner_desktop_url: String(formData.get("sectionBannerDesktopUrl") ?? "").trim() || null,
     section_banner_mobile_url: String(formData.get("sectionBannerMobileUrl") ?? "").trim() || null,
+    section_bg_color: sectionBgColor,
     show_on_homepage: formData.get("showOnHomepage") === "on",
     show_in_shop: formData.get("showInShop") === "on",
     show_badge: formData.get("showBadge") === "on",
