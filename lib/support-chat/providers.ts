@@ -30,7 +30,21 @@ export interface AgentResult {
 const MAX_ROUNDS = 4;
 const REQUEST_TIMEOUT_MS = 20_000;
 
-class ProviderError extends Error {}
+class ProviderError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
+
+// Keys pasted into a dashboard easily pick up a stray space, newline or
+// pair of quotes, which the API then rejects as invalid.
+function cleanKey(value: string | undefined): string | undefined {
+  const key = value?.trim().replace(/^["']|["']$/g, "").trim();
+  return key || undefined;
+}
 
 async function postJson(url: string, headers: Record<string, string>, body: unknown): Promise<unknown> {
   const res = await fetch(url, {
@@ -42,7 +56,7 @@ async function postJson(url: string, headers: Record<string, string>, body: unkn
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+    throw new ProviderError(`HTTP ${res.status}: ${text.slice(0, 300)}`, res.status);
   }
   return res.json();
 }
@@ -84,8 +98,25 @@ function toGeminiSchema(parameters: ToolDefinition["parameters"]) {
   };
 }
 
+// Aliases and model names are retired over time; if the configured one is
+// gone (404), the next is tried rather than the chat going silent.
+const GEMINI_DEFAULT_MODELS = ["gemini-flash-latest", "gemini-2.5-flash"];
+
 async function runGemini(input: AgentInput, apiKey: string): Promise<string> {
-  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
+  const configured = process.env.GEMINI_MODEL?.trim();
+  const models = [...new Set([...(configured ? [configured] : []), ...GEMINI_DEFAULT_MODELS])];
+  for (const [i, model] of models.entries()) {
+    try {
+      return await runGeminiModel(input, apiKey, model);
+    } catch (error) {
+      if (!(error instanceof ProviderError && error.status === 404) || i === models.length - 1) throw error;
+      console.error(`[support-chat] Gemini model ${model} not found, trying the next one`);
+    }
+  }
+  throw new ProviderError("No Gemini model available");
+}
+
+async function runGeminiModel(input: AgentInput, apiKey: string, model: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
   const contents: GeminiContent[] = input.history.map((m) => ({
@@ -111,11 +142,17 @@ async function runGemini(input: AgentInput, apiKey: string): Promise<string> {
           },
         ],
         toolConfig: { functionCallingConfig: { mode: lastRound ? "NONE" : "AUTO" } },
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+        // Generous because newer Flash models spend part of this budget
+        // thinking before they write the reply.
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
       },
-    )) as { candidates?: { content?: { parts?: GeminiPart[] } }[] };
+    )) as {
+      candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
+      promptFeedback?: { blockReason?: string };
+    };
 
-    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const candidate = data.candidates?.[0];
+    const parts = candidate?.content?.parts ?? [];
     const calls = parts.filter((p) => p.functionCall);
 
     if (calls.length === 0) {
@@ -124,7 +161,10 @@ async function runGemini(input: AgentInput, apiKey: string): Promise<string> {
         .map((p) => p.text)
         .join("")
         .trim();
-      if (!text) throw new ProviderError("Empty reply");
+      if (!text) {
+        const reason = candidate?.finishReason ?? data.promptFeedback?.blockReason ?? "unknown";
+        throw new ProviderError(`Empty reply (${reason})`);
+      }
       return text;
     }
 
@@ -204,12 +244,12 @@ async function runOpenAiCompatible(input: AgentInput, apiKey: string): Promise<s
 }
 
 export function isSupportChatConfigured(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY || process.env.FALLBACK_AI_API_KEY);
+  return Boolean(cleanKey(process.env.GEMINI_API_KEY) || cleanKey(process.env.FALLBACK_AI_API_KEY));
 }
 
 export async function runSupportAgent(input: AgentInput): Promise<AgentResult> {
-  const primaryKey = process.env.GEMINI_API_KEY;
-  const fallbackKey = process.env.FALLBACK_AI_API_KEY;
+  const primaryKey = cleanKey(process.env.GEMINI_API_KEY);
+  const fallbackKey = cleanKey(process.env.FALLBACK_AI_API_KEY);
 
   if (primaryKey) {
     try {
