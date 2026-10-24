@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { FileInputButton } from "@/components/admin/FileInputButton";
 import { compressAndUpload, type UploadPrefix } from "@/lib/images/upload-with-compression";
@@ -65,9 +65,18 @@ export function SingleImageUploader({
   // image but preserves its aspect ratio, which is all that is read.
   const [aspectOff, setAspectOff] = useState(false);
 
+  // The form counts busy fields (useUploadBusy), so it must hear exactly
+  // one "busy" and one "done" per upload. The stage changes from
+  // compressing to uploading in between, and reporting that step as a
+  // second "busy" left the count one too high for good: Save stuck on
+  // "Waiting for images…" after the image had uploaded fine.
+  const reportedBusy = useRef(false);
   function setBusyState(next: "compressing" | "uploading" | null) {
     setBusy(next);
-    onBusyChange?.(next !== null);
+    if (reportedBusy.current !== (next !== null)) {
+      reportedBusy.current = next !== null;
+      onBusyChange?.(reportedBusy.current);
+    }
   }
 
   async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
