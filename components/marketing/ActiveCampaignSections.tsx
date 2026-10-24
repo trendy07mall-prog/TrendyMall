@@ -70,12 +70,11 @@ function CampaignCards({
 }
 
 // Plan 1: the campaign's own banner with the products on a white panel
-// that rises into its lower part. The overlap is a percentage of the
-// section's width, so it tracks the banner's height at every size: the
-// panel covers roughly the bottom 30% of a 4:3 phone banner and the bottom
-// 22% of a 3.2:1 desktop one. A
-// campaign without a banner image gets a plain red header instead, and the
-// panel sits below it rather than over it.
+// that rises a fixed 40-56px into its lower edge. The banner is shown whole
+// (never cropped) but capped narrower than the panel, so it stays short;
+// the red ground fills either side of it. A campaign without a banner
+// image gets a plain red header instead, and the panel sits below it
+// rather than over it.
 function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
   const desktop = campaign.desktop_banner_url ?? campaign.mobile_banner_url;
   const mobile = campaign.mobile_banner_url ?? campaign.desktop_banner_url;
@@ -86,24 +85,28 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
     <div className="overflow-hidden rounded-2xl bg-[var(--color-flash)] pb-2.5 sm:rounded-[20px] sm:pb-5">
       {hasBanner ? (
         <>
-          <Link href={href} className="block" aria-label={`${campaign.name}: view the sale`}>
+          <Link
+            href={href}
+            className="mx-auto block w-full max-w-[300px] px-2.5 pt-2.5 sm:px-5 sm:pt-5 md:max-w-[880px]"
+            aria-label={`${campaign.name}: view the sale`}
+          >
             {/* Same art direction and ratios as CampaignBanner: the 4:3
                 phone upload below md, the 3.2:1 desktop one from md up,
                 each only downloaded where it shows. */}
             {mobile && (
-              <div className="relative aspect-[800/600] w-full md:hidden">
-                <Image src={mobile} alt="" fill loading="lazy" quality={88} sizes="100vw" className="object-cover" />
+              <div className="relative aspect-[800/600] w-full overflow-hidden rounded-xl md:hidden">
+                <Image src={mobile} alt="" fill loading="lazy" quality={88} sizes="300px" className="object-cover" />
               </div>
             )}
             {desktop && (
-              <div className="relative hidden aspect-[1600/500] w-full md:block">
+              <div className="relative hidden aspect-[1600/500] w-full overflow-hidden rounded-xl md:block">
                 <Image
                   src={desktop}
                   alt=""
                   fill
                   loading="lazy"
                   quality={88}
-                  sizes="(min-width: 1180px) 1180px, 100vw"
+                  sizes="840px"
                   className="object-cover"
                 />
               </div>
@@ -120,7 +123,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
         </div>
       )}
 
-      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-[22%] md:-mt-[7%]" : ""}`}>
+      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-10 md:-mt-14" : ""}`}>
         <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
           <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
         </div>
