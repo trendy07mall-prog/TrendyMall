@@ -20,8 +20,8 @@ export function QuickAddButton({
   // every other render site (category/search/PDP-related/homepage) keeps
   // today's sizing untouched.
   variant?: "default" | "shop";
-  // Colour only: "flash" is the red button of a flash sale card
-  // (ProductCard's tone="flash"); sizing still comes from variant.
+  // "flash" is the flash sale card's button (ProductCard's tone="flash"):
+  // red, and a size smaller, since those cards sit six to a row.
   tone?: "default" | "flash";
   // Set only where the PAGE's own context makes buying from this card
   // wrong regardless of the product itself -- currently just a not-yet-
@@ -94,7 +94,9 @@ export function QuickAddButton({
       } ${
         variant === "shop"
           ? "h-12 rounded-[var(--radius-btn)] text-base"
-          : "h-[42px] rounded-xl text-[15px] md:h-11"
+          : tone === "flash"
+            ? "h-9 rounded-lg text-[13px] sm:h-10 sm:text-sm"
+            : "h-[42px] rounded-xl text-[15px] md:h-11"
       }`}
     >
       {outOfStock ? (

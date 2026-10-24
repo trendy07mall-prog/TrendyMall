@@ -41,9 +41,15 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
   );
 }
 
-function CampaignCards({ campaign, products, itemClassName }: CampaignSectionWithProducts & { itemClassName: string }) {
+function CampaignCards({
+  campaign,
+  products,
+  itemClassName,
+  perRow,
+}: CampaignSectionWithProducts & { itemClassName: string; perRow: number }) {
+  // Arrows only once there's more than one row's worth to scroll to.
   return (
-    <Carousel ariaLabel={`${campaign.name} products`} itemClassName={itemClassName} showArrows={products.length > 5}>
+    <Carousel ariaLabel={`${campaign.name} products`} itemClassName={itemClassName} showArrows={products.length > perRow}>
       {products.map((product) => (
         <ProductCard
           key={product.id}
@@ -63,8 +69,9 @@ function CampaignCards({ campaign, products, itemClassName }: CampaignSectionWit
 
 // Plan 1: the campaign's own banner with the products on a white panel
 // that rises into its lower part. The overlap is a percentage of the
-// section's width, so it tracks the banner's height at every size: about
-// 30% of a 4:3 phone banner's width, about 11% of a 3.2:1 desktop one. A
+// section's width, so it tracks the banner's height at every size: the
+// panel covers roughly the bottom 30% of a 4:3 phone banner and the bottom
+// 22% of a 3.2:1 desktop one. A
 // campaign without a banner image gets a plain red header instead, and the
 // panel sits below it rather than over it.
 function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
@@ -111,9 +118,9 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
         </div>
       )}
 
-      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-[30%] md:-mt-[11%]" : ""}`}>
+      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-[22%] md:-mt-[7%]" : ""}`}>
         <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
-          <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 lg:w-1/5" />
+          <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/6" perRow={6} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -140,8 +147,8 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
 // Plan 2: banner, name, a boxed countdown and the shop button in a column
 // beside the products (above them on a phone), so nothing covers the
 // banner. Uses the 4:3 phone banner at every size, since the column is
-// narrow; the panel beside it is narrower than Plan 1's, so it shows four
-// cards across on large screens instead of five.
+// narrow; the panel beside it is narrower than Plan 1's, so it shows five
+// cards across on large screens instead of six.
 function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
   const banner = campaign.mobile_banner_url ?? campaign.desktop_banner_url;
   const href = `/campaign/${campaign.slug}`;
@@ -184,7 +191,7 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
       </div>
 
       <div className="rounded-xl bg-white p-2 sm:rounded-[14px] sm:p-3.5">
-        <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 lg:w-1/4" />
+        <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
       </div>
 
       <div className="lg:hidden">{shopButton}</div>
