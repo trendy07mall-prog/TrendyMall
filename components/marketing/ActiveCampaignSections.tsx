@@ -69,21 +69,56 @@ function CampaignCards({
   );
 }
 
-// Plan 1: the campaign's own banner with the products on a white panel
-// that rises a fixed 40-56px into its lower edge. The banner is shown whole
-// (never cropped) but capped narrower than the panel, so it stays short;
-// the red ground fills either side of it. A campaign without a banner
-// image gets a plain red header instead, and the panel sits below it
-// rather than over it.
+// Plan 1: a banner with the products on a white panel rising into it.
+//
+// With the campaign's own section banner pair (sql/106), the banner runs
+// full width behind the panel, which covers its bottom part: 60% of the
+// 4:1 desktop image, half of the 8:5 phone one, exactly what the admin
+// form's diagrams show. The overlap is a percentage of the section's width
+// (percentage margins resolve against width), so it tracks the banner's
+// height at every size.
+//
+// Without that pair it falls back to the landing page banner, shown whole
+// but capped narrower than the panel so it stays short, with the panel
+// rising a fixed 40-56px into its lower edge. A campaign with no banner at
+// all gets a plain red header instead, and the panel sits below it.
 function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
+  const sectionDesktop = campaign.section_banner_desktop_url ?? campaign.section_banner_mobile_url;
+  const sectionMobile = campaign.section_banner_mobile_url ?? campaign.section_banner_desktop_url;
+  const hasSectionBanner = Boolean(sectionDesktop || sectionMobile);
   const desktop = campaign.desktop_banner_url ?? campaign.mobile_banner_url;
   const mobile = campaign.mobile_banner_url ?? campaign.desktop_banner_url;
-  const hasBanner = Boolean(desktop || mobile);
+  const hasBanner = hasSectionBanner || Boolean(desktop || mobile);
   const href = `/campaign/${campaign.slug}`;
+  const overlap = hasSectionBanner ? "-mt-[31.25%] md:-mt-[15%]" : hasBanner ? "-mt-10 md:-mt-14" : "";
 
   return (
     <div className="overflow-hidden rounded-2xl bg-[var(--color-flash)] pb-2.5 sm:rounded-[20px] sm:pb-5">
-      {hasBanner ? (
+      {hasSectionBanner ? (
+        <>
+          <Link href={href} className="block" aria-label={`${campaign.name}: view the sale`}>
+            {sectionMobile && (
+              <div className="relative aspect-[8/5] w-full md:hidden">
+                <Image src={sectionMobile} alt="" fill loading="lazy" quality={88} sizes="100vw" className="object-cover" />
+              </div>
+            )}
+            {sectionDesktop && (
+              <div className="relative hidden aspect-[4/1] w-full md:block">
+                <Image
+                  src={sectionDesktop}
+                  alt=""
+                  fill
+                  loading="lazy"
+                  quality={88}
+                  sizes="(min-width: 1180px) 1180px, 100vw"
+                  className="object-cover"
+                />
+              </div>
+            )}
+          </Link>
+          <h2 className="sr-only">{campaign.name}</h2>
+        </>
+      ) : hasBanner ? (
         <>
           <Link
             href={href}
@@ -123,7 +158,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
         </div>
       )}
 
-      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-10 md:-mt-14" : ""}`}>
+      <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${overlap}`}>
         <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
           <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
         </div>

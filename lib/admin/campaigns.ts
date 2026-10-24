@@ -159,6 +159,8 @@ export async function saveCampaign(
     mobile_banner_url: String(formData.get("mobileBannerUrl") ?? "").trim() || null,
     thumbnail_url: String(formData.get("thumbnailUrl") ?? "").trim() || null,
     product_banner_url: productBannerUrl,
+    section_banner_desktop_url: String(formData.get("sectionBannerDesktopUrl") ?? "").trim() || null,
+    section_banner_mobile_url: String(formData.get("sectionBannerMobileUrl") ?? "").trim() || null,
     show_on_homepage: formData.get("showOnHomepage") === "on",
     show_in_shop: formData.get("showInShop") === "on",
     show_badge: formData.get("showBadge") === "on",
