@@ -2045,6 +2045,35 @@ export interface Database {
         };
         Relationships: [];
       };
+      // sql/105. Website support chat log -- service-role only (RLS on,
+      // no policies).
+      support_chat_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          role: "user" | "assistant";
+          content: string;
+          provider: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          role: "user" | "assistant";
+          content: string;
+          provider?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          role?: "user" | "assistant";
+          content?: string;
+          provider?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       product_rating_summary: {
@@ -2166,6 +2195,10 @@ export interface Database {
         Returns: unknown;
       };
       check_guest_lookup_rate_limit: {
+        Args: { p_ip: string; p_max_attempts?: number; p_window_minutes?: number };
+        Returns: boolean;
+      };
+      check_support_chat_rate_limit: {
         Args: { p_ip: string; p_max_attempts?: number; p_window_minutes?: number };
         Returns: boolean;
       };

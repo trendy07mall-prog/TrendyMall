@@ -1,0 +1,171 @@
+import "server-only";
+import { searchProducts, getProductDetailBySlug } from "@/lib/data/products";
+import { trackOrder } from "@/lib/track-order";
+import { getVariantPrice } from "@/lib/utils";
+import { SITE_URL } from "@/lib/site";
+import { htmlToPlainText } from "@/lib/support-chat/prompt";
+
+// Tool parameters are plain JSON Schema; lib/support-chat/providers.ts
+// adapts them to each model API's own shape.
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, { type: "string" | "number"; description: string }>;
+    required: string[];
+  };
+}
+
+export const SUPPORT_TOOLS: ToolDefinition[] = [
+  {
+    name: "search_products",
+    description:
+      "Search the shop's live catalog. Returns up to 6 matching products with price, stock and link. The catalog search is English-only, so always pass English keywords (translate Sinhala/Tamil requests first), e.g. 'wireless earbuds', 'bluetooth speaker', 'type c charger'.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "English search keywords: product type, brand or model." },
+        max_price: { type: "number", description: "Optional maximum price in LKR." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_product_details",
+    description:
+      "Full details of one product: description, colours/variants with price and stock, compatible devices, what's in the box, warranty, COD and free delivery. Use the slug from a search_products result.",
+    parameters: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "The product's slug from search_products." },
+      },
+      required: ["slug"],
+    },
+  },
+  {
+    name: "track_order",
+    description:
+      "Look up an order's status. Needs the order number AND the phone number or email the customer used at checkout.",
+    parameters: {
+      type: "object",
+      properties: {
+        order_number: { type: "string", description: "Order number, e.g. TM-000123." },
+        contact: { type: "string", description: "Phone number or email used at checkout." },
+      },
+      required: ["order_number", "contact"],
+    },
+  },
+];
+
+const MAX_SEARCH_RESULTS = 6;
+const MAX_DESCRIPTION_LENGTH = 1500;
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+async function runSearchProducts(args: Record<string, unknown>) {
+  const query = str(args.query);
+  if (!query) return { error: "A search query is required." };
+  const maxPrice = typeof args.max_price === "number" && args.max_price > 0 ? args.max_price : undefined;
+
+  const products = await searchProducts(query, { sort: "newest", maxPrice });
+  if (products.length === 0) return { results: [], note: "No matching products found." };
+
+  return {
+    results: products.slice(0, MAX_SEARCH_RESULTS).map((p) => ({
+      name: p.name,
+      slug: p.slug,
+      brand: p.brand,
+      price: p.special_price ?? p.actual_price,
+      regular_price: p.special_price != null ? p.actual_price : undefined,
+      price_varies_by_option: p.hasMultiplePrices || undefined,
+      in_stock: p.stock > 0,
+      url: `${SITE_URL}/product/${p.slug}`,
+    })),
+  };
+}
+
+async function runGetProductDetails(args: Record<string, unknown>) {
+  const slug = str(args.slug);
+  if (!slug) return { error: "A product slug is required." };
+
+  const detail = await getProductDetailBySlug(slug);
+  if (!detail) return { error: "Product not found." };
+  const { product, variants } = detail;
+
+  return {
+    name: product.name,
+    brand: product.brand,
+    model: product.model,
+    description: htmlToPlainText(product.description).slice(0, MAX_DESCRIPTION_LENGTH),
+    compatible_devices: product.compatible_devices,
+    whats_in_box: product.whats_in_box,
+    bluetooth: product.bluetooth,
+    in_stock: product.stock > 0,
+    cash_on_delivery: product.cod_available,
+    free_delivery: product.free_delivery,
+    warranty_available: product.warranty_available,
+    options: variants.map((v) => {
+      const price = getVariantPrice(v);
+      return {
+        colour: v.color_name,
+        price,
+        regular_price: price < v.regular_price ? v.regular_price : undefined,
+        in_stock: v.stock == null ? product.stock > 0 : v.stock > 0,
+        offer: v.campaign_name ?? undefined,
+      };
+    }),
+    url: `${SITE_URL}/product/${product.slug}`,
+  };
+}
+
+async function runTrackOrder(args: Record<string, unknown>) {
+  // trackOrder applies the same order-number-plus-contact match and IP
+  // rate limit as the /track-order page, so the chat can't be used to
+  // probe other customers' orders any more than that page can.
+  const result = await trackOrder(str(args.order_number), str(args.contact));
+  if (!result.order) return { error: result.error ?? "Order not found." };
+  const order = result.order;
+
+  // Deliberately no name, phone, email or address: the model only needs
+  // the order's progress to answer, and keeping personal details out of
+  // the prompt keeps them out of the AI provider's hands too.
+  return {
+    order_number: order.orderNumber,
+    order_status: order.orderStatus,
+    payment_status: order.paymentStatus,
+    payment_method: order.paymentMethod,
+    delivery_method: order.deliveryMethod,
+    placed_at: order.createdAt,
+    total: order.total,
+    items: order.items.map((item) => ({
+      name: item.variantName ? `${item.productName} (${item.variantName})` : item.productName,
+      quantity: item.quantity,
+    })),
+    courier: order.courier,
+    tracking_number: order.trackingNumber,
+    tracking_url: order.trackingUrl,
+    failure_reason: order.failureReason ?? undefined,
+    order_page: `${SITE_URL}/track-order`,
+  };
+}
+
+export async function executeSupportTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  try {
+    switch (name) {
+      case "search_products":
+        return await runSearchProducts(args);
+      case "get_product_details":
+        return await runGetProductDetails(args);
+      case "track_order":
+        return await runTrackOrder(args);
+      default:
+        return { error: `Unknown tool: ${name}` };
+    }
+  } catch (error) {
+    console.error(`[support-chat] tool ${name} failed`, error);
+    return { error: "This lookup failed. Offer the customer WhatsApp support instead." };
+  }
+}

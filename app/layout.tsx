@@ -8,6 +8,7 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { WhatsAppButton } from "@/components/layout/WhatsAppButton";
+import { SupportChat } from "@/components/layout/SupportChat";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
@@ -31,7 +32,8 @@ import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { StorefrontOnly } from "@/components/analytics/StorefrontOnly";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, getWhatsAppUrl } from "@/lib/site";
+import { isSupportChatConfigured } from "@/lib/support-chat/providers";
 import "./globals.css";
 
 // Self-hosted (not next/font/google) -- avoids a build/dev-time dependency
@@ -278,6 +280,11 @@ export default async function RootLayout({
                       number={general.whatsappNumber}
                       defaultMessage={contact.whatsappDefaultMessage}
                     />
+                    {/* Only once an AI key is set in the environment
+                        (see SETUP.md, "Support chat") -- no key, no button. */}
+                    {isSupportChatConfigured() && (
+                      <SupportChat whatsappUrl={getWhatsAppUrl(undefined, general.whatsappNumber)} />
+                    )}
                     <MobileBottomNav />
                   </ConditionalChrome>
                 </ScrollStateProvider>

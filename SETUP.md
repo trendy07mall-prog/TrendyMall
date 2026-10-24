@@ -348,6 +348,39 @@ Once deployed, redo step 5 (create/promote an admin) against the production
 database if you haven't already — local and production point at the same
 Supabase project unless you created a separate one for each.
 
+## 11. Website support chat (optional)
+
+A chat button above the WhatsApp button answers customers in English,
+Sinhala and Tamil: products, prices and stock (live from the catalog),
+delivery charges, payment options, returns, warranty, and order status
+(order number plus checkout phone/email, same check as /track-order).
+Anything it can't handle is sent to your WhatsApp. It never reveals what
+the site or the assistant is built with.
+
+It runs on free AI tiers, so it costs nothing at normal traffic.
+
+1. Run `sql/105_support_chat.sql` in the Supabase SQL Editor (conversation
+   log + per-visitor rate limit of 20 messages per 10 minutes).
+2. Get a free Gemini API key at https://aistudio.google.com/apikey and add
+   it in Vercel → Settings → Environment Variables as `GEMINI_API_KEY`.
+3. Recommended: also add a free backup key, so the chat keeps working if
+   Gemini's daily free limit is reached. Create one at
+   https://console.groq.com/keys and add it as `FALLBACK_AI_API_KEY`.
+4. Redeploy. The chat button appears once a key is set; remove the keys to
+   hide it again.
+
+Notes:
+- Free AI tiers have daily limits, and on Gemini's free tier Google may use
+  the text of chats to improve its products. The assistant never sends
+  customers' names, phone numbers, emails or addresses to the AI; order
+  lookups only pass the order's status and items.
+- Every message and reply is saved in the `support_chat_messages` table
+  (Supabase → Table Editor), so you can read real conversations and see
+  where the assistant needs better information. The `provider` column
+  shows `fallback` when the backup answered, `error` when neither could.
+- Policies, delivery fees, payment options and contact details come from
+  admin Settings, so editing them there updates the assistant too.
+
 ## Reference: project structure
 
 - `app/` — Next.js App Router pages and route handlers
