@@ -2,8 +2,8 @@ import "server-only";
 import { searchProducts, getProductDetailBySlug } from "@/lib/data/products";
 import { trackOrder } from "@/lib/track-order";
 import { getVariantPrice } from "@/lib/utils";
-import { SITE_URL } from "@/lib/site";
 import { htmlToPlainText } from "@/lib/support-chat/prompt";
+import type { CardCollector, ProductCard } from "@/lib/support-chat/cards";
 
 // Tool parameters are plain JSON Schema; lib/support-chat/providers.ts
 // adapts them to each model API's own shape.
@@ -65,7 +65,7 @@ function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-async function runSearchProducts(args: Record<string, unknown>) {
+async function runSearchProducts(args: Record<string, unknown>, cards: CardCollector) {
   const query = str(args.query);
   if (!query) return { error: "A search query is required." };
   const maxPrice = typeof args.max_price === "number" && args.max_price > 0 ? args.max_price : undefined;
@@ -73,8 +73,29 @@ async function runSearchProducts(args: Record<string, unknown>) {
   const products = await searchProducts(query, { sort: "newest", maxPrice });
   if (products.length === 0) return { results: [], note: "No matching products found." };
 
+  const top = products.slice(0, MAX_SEARCH_RESULTS);
+  // In-stock first on the cards: a card the customer can't buy from is
+  // the least useful thing to show at the top.
+  cards.setSearchResults(
+    top
+      .map(
+        (p): ProductCard => ({
+          name: p.name,
+          href: `/product/${p.slug}`,
+          image: p.image,
+          price: p.special_price ?? p.actual_price,
+          regularPrice: p.special_price != null ? p.actual_price : undefined,
+          priceVaries: p.hasMultiplePrices || undefined,
+          inStock: p.stock > 0,
+        }),
+      )
+      .sort((a, b) => Number(b.inStock) - Number(a.inStock)),
+  );
+
+  // No links for the model: the widget shows each product as a card with
+  // its own link, so the reply itself stays a short paragraph.
   return {
-    results: products.slice(0, MAX_SEARCH_RESULTS).map((p) => ({
+    results: top.map((p) => ({
       name: p.name,
       slug: p.slug,
       brand: p.brand,
@@ -82,18 +103,40 @@ async function runSearchProducts(args: Record<string, unknown>) {
       regular_price: p.special_price != null ? p.actual_price : undefined,
       price_varies_by_option: p.hasMultiplePrices || undefined,
       in_stock: p.stock > 0,
-      url: `${SITE_URL}/product/${p.slug}`,
     })),
   };
 }
 
-async function runGetProductDetails(args: Record<string, unknown>) {
+async function runGetProductDetails(args: Record<string, unknown>, cards: CardCollector) {
   const slug = str(args.slug);
   if (!slug) return { error: "A product slug is required." };
 
   const detail = await getProductDetailBySlug(slug);
   if (!detail) return { error: "Product not found." };
-  const { product, variants } = detail;
+  const { product, variants, images } = detail;
+  const options = variants.map((v) => {
+    const price = getVariantPrice(v);
+    return {
+      colour: v.color_name,
+      price,
+      regular_price: price < v.regular_price ? v.regular_price : undefined,
+      in_stock: v.stock == null ? product.stock > 0 : v.stock > 0,
+      offer: v.campaign_name ?? undefined,
+    };
+  });
+
+  if (options.length > 0) {
+    const cheapest = options.reduce((a, b) => (b.price < a.price ? b : a));
+    cards.addDetail({
+      name: product.name,
+      href: `/product/${product.slug}`,
+      image: images[0]?.image_url ?? variants.find((v) => v.images.length > 0)?.images[0] ?? null,
+      price: cheapest.price,
+      regularPrice: cheapest.regular_price,
+      priceVaries: new Set(options.map((o) => o.price)).size > 1 || undefined,
+      inStock: product.stock > 0,
+    });
+  }
 
   return {
     name: product.name,
@@ -107,27 +150,29 @@ async function runGetProductDetails(args: Record<string, unknown>) {
     cash_on_delivery: product.cod_available,
     free_delivery: product.free_delivery,
     warranty_available: product.warranty_available,
-    options: variants.map((v) => {
-      const price = getVariantPrice(v);
-      return {
-        colour: v.color_name,
-        price,
-        regular_price: price < v.regular_price ? v.regular_price : undefined,
-        in_stock: v.stock == null ? product.stock > 0 : v.stock > 0,
-        offer: v.campaign_name ?? undefined,
-      };
-    }),
-    url: `${SITE_URL}/product/${product.slug}`,
+    options,
   };
 }
 
-async function runTrackOrder(args: Record<string, unknown>) {
+async function runTrackOrder(args: Record<string, unknown>, cards: CardCollector) {
   // trackOrder applies the same order-number-plus-contact match and IP
   // rate limit as the /track-order page, so the chat can't be used to
   // probe other customers' orders any more than that page can.
   const result = await trackOrder(str(args.order_number), str(args.contact));
   if (!result.order) return { error: result.error ?? "Order not found." };
   const order = result.order;
+  const items = order.items.map((item) => ({
+    name: item.variantName ? `${item.productName} (${item.variantName})` : item.productName,
+    quantity: item.quantity,
+  }));
+  cards.setOrder({
+    orderNumber: order.orderNumber,
+    status: order.orderStatus,
+    paymentMethod: order.paymentMethod,
+    total: order.total,
+    items,
+    trackingUrl: order.trackingUrl,
+  });
 
   // Deliberately no name, phone, email or address: the model only needs
   // the order's progress to answer, and keeping personal details out of
@@ -140,27 +185,26 @@ async function runTrackOrder(args: Record<string, unknown>) {
     delivery_method: order.deliveryMethod,
     placed_at: order.createdAt,
     total: order.total,
-    items: order.items.map((item) => ({
-      name: item.variantName ? `${item.productName} (${item.variantName})` : item.productName,
-      quantity: item.quantity,
-    })),
+    items,
     courier: order.courier,
     tracking_number: order.trackingNumber,
-    tracking_url: order.trackingUrl,
     failure_reason: order.failureReason ?? undefined,
-    order_page: `${SITE_URL}/track-order`,
   };
 }
 
-export async function executeSupportTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+export async function executeSupportTool(
+  name: string,
+  args: Record<string, unknown>,
+  cards: CardCollector,
+): Promise<unknown> {
   try {
     switch (name) {
       case "search_products":
-        return await runSearchProducts(args);
+        return await runSearchProducts(args, cards);
       case "get_product_details":
-        return await runGetProductDetails(args);
+        return await runGetProductDetails(args, cards);
       case "track_order":
-        return await runTrackOrder(args);
+        return await runTrackOrder(args, cards);
       default:
         return { error: `Unknown tool: ${name}` };
     }
