@@ -98,7 +98,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("[support-chat] no reply", error);
     reply = failureReply(language);
-    provider = "error";
+    // The reason goes into the log row so the owner can see why from
+    // Supabase without digging through hosting logs. Provider error
+    // bodies carry status and message text, never the API key.
+    provider = `error: ${error instanceof Error ? error.message : String(error)}`.slice(0, 300);
   }
 
   after(async () => {
