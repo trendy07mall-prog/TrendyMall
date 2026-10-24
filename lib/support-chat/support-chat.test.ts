@@ -10,6 +10,7 @@ import {
 } from "./guard";
 import { splitReply, linkLabel } from "./format";
 import { buildSystemPrompt, htmlToPlainText, type StoreContext } from "./prompt";
+import { CardCollector, orderProgress, orderStatusLabel } from "./cards";
 
 describe("sanitizeHistory", () => {
   test("keeps well-formed turns and trims them", () => {
@@ -141,6 +142,40 @@ describe("prompt", () => {
     assert.match(prompt, /Sinhala/);
     assert.match(prompt, /Tamil/);
     assert.match(prompt, /Never say what technology/);
+    assert.match(prompt, /You are CR7/);
+    assert.match(prompt, /ONE short, friendly paragraph/);
     assert.match(prompt, /https:\/\/wa\.me\/94770000000/);
+  });
+});
+
+describe("cards", () => {
+  const card = (href: string, inStock = true) => ({ name: href, href, image: null, price: 100, inStock });
+
+  test("search results show unless specific products were opened", () => {
+    const c = new CardCollector();
+    c.setSearchResults([card("/product/a"), card("/product/b")]);
+    assert.deepEqual(c.result().products?.map((p) => p.href), ["/product/a", "/product/b"]);
+    c.addDetail(card("/product/b"));
+    c.addDetail(card("/product/b"));
+    assert.deepEqual(c.result().products?.map((p) => p.href), ["/product/b"]);
+  });
+
+  test("no cards at all gives an empty object", () => {
+    assert.deepEqual(new CardCollector().result(), {});
+  });
+
+  test("caps the number of product cards", () => {
+    const c = new CardCollector();
+    c.setSearchResults(["a", "b", "c", "d", "e", "f"].map((x) => card(`/product/${x}`)));
+    assert.equal(c.result().products?.length, 4);
+  });
+
+  test("order progress follows the fulfilment status", () => {
+    assert.equal(orderProgress("pending"), 1);
+    assert.equal(orderProgress("packing"), 2);
+    assert.equal(orderProgress("out_for_delivery"), 3);
+    assert.equal(orderProgress("delivered"), 4);
+    assert.equal(orderProgress("cancelled"), null);
+    assert.equal(orderStatusLabel("failed_delivery"), "Delivery failed");
   });
 });

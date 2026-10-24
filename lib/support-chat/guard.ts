@@ -65,9 +65,9 @@ export function revealsInternals(reply: string): boolean {
 }
 
 const REDIRECT_REPLIES: Record<ChatLanguage, string> = {
-  en: "I'm TrendyMall's shopping assistant, so I can't share details about that. I'd be happy to help you find a product, check delivery charges or track your order. What are you looking for today?",
-  si: "මම TrendyMall හි සාප්පු සහායකයා, ඒ ගැන විස්තර බෙදාගන්න බැහැ. නිෂ්පාදනයක් සොයන්න, බෙදාහැරීමේ ගාස්තු බලන්න හෝ ඔබේ ඇණවුම පරීක්ෂා කරන්න මට උදව් කරන්න පුළුවන්. අද ඔබ සොයන්නේ මොනවාද?",
-  ta: "நான் TrendyMall இன் ஷாப்பிங் உதவியாளர், அதைப் பற்றிய விவரங்களைப் பகிர முடியாது. ஒரு பொருளைக் கண்டுபிடிக்க, டெலிவரி கட்டணத்தைப் பார்க்க அல்லது உங்கள் ஆர்டரைக் கண்காணிக்க உதவ முடியும். இன்று நீங்கள் எதைத் தேடுகிறீர்கள்?",
+  en: "I'm CR7, TrendyMall's shopping assistant, so I can't share details about that. I'd be happy to help you find a product, check delivery charges or track your order. What are you looking for today?",
+  si: "මම CR7, TrendyMall හි සාප්පු සහායකයා. ඒ ගැන විස්තර බෙදාගන්න බැහැ. නිෂ්පාදනයක් සොයන්න, බෙදාහැරීමේ ගාස්තු බලන්න හෝ ඔබේ ඇණවුම පරීක්ෂා කරන්න මට උදව් කරන්න පුළුවන්. අද ඔබ සොයන්නේ මොනවාද?",
+  ta: "நான் CR7, TrendyMall இன் ஷாப்பிங் உதவியாளர். அதைப் பற்றிய விவரங்களைப் பகிர முடியாது. ஒரு பொருளைக் கண்டுபிடிக்க, டெலிவரி கட்டணத்தைப் பார்க்க அல்லது உங்கள் ஆர்டரைக் கண்காணிக்க உதவ முடியும். இன்று நீங்கள் எதைத் தேடுகிறீர்கள்?",
 };
 
 export function redirectReply(language: ChatLanguage): string {
@@ -75,7 +75,7 @@ export function redirectReply(language: ChatLanguage): string {
 }
 
 const FAILURE_REPLIES: Record<ChatLanguage, string> = {
-  en: "Sorry, I can't answer right now. Please message us on WhatsApp and our team will help you.",
+  en: "Sorry, I can't answer right now. Please tap \"Chat with our team on WhatsApp\" below and our team will help you.",
   si: "සමාවන්න, මට දැන් පිළිතුරු දෙන්න බැහැ. කරුණාකර WhatsApp හරහා අපට පණිවිඩයක් එවන්න, අපේ කණ්ඩායම ඔබට උදව් කරයි.",
   ta: "மன்னிக்கவும், இப்போது பதிலளிக்க முடியவில்லை. தயவுசெய்து WhatsApp இல் எங்களுக்கு செய்தி அனுப்புங்கள், எங்கள் குழு உங்களுக்கு உதவும்.",
 };

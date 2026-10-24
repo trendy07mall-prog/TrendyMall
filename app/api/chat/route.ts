@@ -12,6 +12,7 @@ import {
 import { buildSystemPrompt } from "@/lib/support-chat/prompt";
 import { getSupportStoreContext } from "@/lib/support-chat/store-context";
 import { SUPPORT_TOOLS, executeSupportTool } from "@/lib/support-chat/tools";
+import { CardCollector, type ReplyCards } from "@/lib/support-chat/cards";
 import { isSupportChatConfigured, runSupportAgent } from "@/lib/support-chat/providers";
 
 // A reply can take a few model round trips (search, then details, then
@@ -33,7 +34,8 @@ function getRequestIp(request: Request): string {
   return request.headers.get("x-real-ip") ?? "unknown";
 }
 
-// POST { conversationId?, messages: [{ role, content }] } -> { reply, conversationId }.
+// POST { conversationId?, messages: [{ role, content }] }
+//   -> { reply, conversationId, products?, order? } (cards: lib/support-chat/cards.ts).
 // The widget keeps the conversation in the browser and sends the recent
 // turns each time; nothing here trusts that copy beyond its text
 // (sanitizeHistory), and the customer's latest message plus the reply are
@@ -80,13 +82,15 @@ export async function POST(request: Request) {
 
   let reply: string;
   let provider: string;
+  let cards: ReplyCards = {};
   try {
+    const collector = new CardCollector();
     const store = await getSupportStoreContext();
     const result = await runSupportAgent({
       system: buildSystemPrompt(store),
       history,
       tools: SUPPORT_TOOLS,
-      executeTool: executeSupportTool,
+      executeTool: (name, args) => executeSupportTool(name, args, collector),
     });
     if (revealsInternals(result.reply)) {
       reply = redirectReply(language);
@@ -94,6 +98,7 @@ export async function POST(request: Request) {
     } else {
       reply = result.reply;
       provider = result.provider;
+      cards = collector.result();
     }
   } catch (error) {
     console.error("[support-chat] no reply", error);
@@ -114,5 +119,5 @@ export async function POST(request: Request) {
     if (error) console.error("[support-chat] log failed", error);
   });
 
-  return NextResponse.json({ reply, conversationId });
+  return NextResponse.json({ reply, conversationId, ...cards });
 }
