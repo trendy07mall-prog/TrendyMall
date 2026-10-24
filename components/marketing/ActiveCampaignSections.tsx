@@ -64,6 +64,14 @@ function sectionColors(campaign: Campaign, fallback: string): CSSProperties {
   } as CSSProperties;
 }
 
+// Widths that subtract the carousel's 1.25rem gaps, so a row is exactly
+// that many whole cards: plain fractions overflowed by the gaps, and the
+// last scroll position left the first visible card cut off at the left.
+const FIVE_ACROSS =
+  "w-[calc((100%-1.25rem)/2)] sm:w-[calc((100%-2.5rem)/3)] md:w-[calc((100%-3.75rem)/4)] lg:w-[calc((100%-5rem)/5)]";
+const FOUR_ACROSS =
+  "w-[calc((100%-1.25rem)/2)] sm:w-[calc((100%-2.5rem)/3)] md:w-[calc((100%-3.75rem)/4)]";
+
 function CampaignCards({
   campaign,
   products,
@@ -181,7 +189,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
 
       <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${overlap}`}>
         <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
-          <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
+          <CampaignCards campaign={campaign} products={products} itemClassName={FIVE_ACROSS} perRow={5} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -255,7 +263,7 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
       </div>
 
       <div className="rounded-xl bg-white p-2 sm:rounded-[14px] sm:p-3.5">
-        <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4" perRow={4} />
+        <CampaignCards campaign={campaign} products={products} itemClassName={FOUR_ACROSS} perRow={4} />
       </div>
 
       <div className="lg:hidden">{shopButton}</div>
