@@ -12,6 +12,7 @@ const ADDED_MS = 1200;
 export function QuickAddButton({
   product,
   variant = "default",
+  tone = "default",
   unavailableLabel = null,
 }: {
   product: ProductWithPrimaryImage;
@@ -19,6 +20,9 @@ export function QuickAddButton({
   // every other render site (category/search/PDP-related/homepage) keeps
   // today's sizing untouched.
   variant?: "default" | "shop";
+  // Colour only: "flash" is the red button of a flash sale card
+  // (ProductCard's tone="flash"); sizing still comes from variant.
+  tone?: "default" | "flash";
   // Set only where the PAGE's own context makes buying from this card
   // wrong regardless of the product itself -- currently just a not-yet-
   // started (or already-ended) campaign's own landing page, where an
@@ -83,7 +87,11 @@ export function QuickAddButton({
       type="button"
       disabled={outOfStock || unavailable || status !== "idle"}
       onClick={handleClick}
-      className={`transition-brand group-hover:bg-[var(--color-btn-hover)] flex w-full items-center justify-center gap-1.5 bg-[var(--foreground)] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`transition-brand flex w-full items-center justify-center gap-1.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
+        tone === "flash"
+          ? "bg-[var(--color-flash)] group-hover:bg-[var(--color-flash-hover)]"
+          : "bg-[var(--foreground)] group-hover:bg-[var(--color-btn-hover)]"
+      } ${
         variant === "shop"
           ? "h-12 rounded-[var(--radius-btn)] text-base"
           : "h-[42px] rounded-xl text-[15px] md:h-11"

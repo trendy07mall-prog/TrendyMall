@@ -35,6 +35,16 @@
   --color-accent: #ff3b30;
   --color-accent-secondary: #ffd43b;
 
+  /* Flash sale cards and the campaign banner section on the homepage
+     (ProductCard tone="flash", ActiveCampaignSections). #dc2626 carries
+     white text at AA; the darker #b91c1c is for red text on white or on
+     the pale --color-flash-soft chip. */
+  --color-flash: #dc2626;
+  --color-flash-hover: #b91c1c;
+  --color-flash-text: #b91c1c;
+  --color-flash-soft: #fef2f2;
+  --color-flash-border: #fecaca;
+
   /* Search bar animated border glow (below-navbar redesign) — a small
      traveling light point, not a solid ring, so these are only ever used
      as conic-gradient stops (.search-glow below), never as fills/text. */

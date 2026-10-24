@@ -39,7 +39,9 @@ export function CampaignCountdown({
   // compact/full modes and the campaign landing page's own hero countdown. "sm" is
   // additive, for contexts with less room to spare (ProductCard's one-line Slot A)
   // than a compact CampaignInfoBlock already assumed it'd have.
-  size?: "md" | "sm";
+  // "boxes" is the homepage's side-banner campaign section: each unit in
+  // its own white box with a caption under it, no label.
+  size?: "md" | "sm" | "boxes";
   // "muted" (default, unchanged) is every existing caller's color -- the
   // label reads in --muted, digits inherit whatever the caller's own text
   // color is. "navy" and "white" are additive, both for
@@ -47,7 +49,7 @@ export function CampaignCountdown({
   // its image-banner variant's dark scrim -- neither can rely on --muted's
   // gray or on inheriting the caller's color, since both sit on
   // backgrounds none of this component's other callers use.
-  tone?: "muted" | "navy" | "white";
+  tone?: "muted" | "navy" | "white" | "flash";
 }) {
   const targetMs = new Date(target).getTime();
   // Starts at null (rendered identically on server and at first client
@@ -78,12 +80,43 @@ export function CampaignCountdown({
 
   const { days, hours, minutes, seconds } = splitRemaining(remaining);
   const toneColorClass =
-    tone === "navy" ? "text-[#0F2D52]" : tone === "white" ? "text-white" : "text-[var(--muted)]";
+    tone === "navy"
+      ? "text-[#0F2D52]"
+      : tone === "white"
+        ? "text-white"
+        : tone === "flash"
+          ? "text-[var(--color-flash-text)]"
+          : "text-[var(--muted)]";
   // The digits span never inherited --muted (only the label did), so
   // "muted" here means "leave it unset, inherit the caller's own color" --
   // navy/white both need to set it explicitly, since GalleryCampaignBar's
   // two variants don't have a reliable ambient text color to inherit.
   const digitsColorClass = tone === "muted" ? "" : toneColorClass;
+
+  if (size === "boxes") {
+    const units = [
+      { value: days, caption: "DAYS" },
+      { value: hours, caption: "HRS" },
+      { value: minutes, caption: "MIN" },
+      { value: seconds, caption: "SEC" },
+    ];
+    return (
+      <div ref={ref} role="timer" aria-label={`${label} ${days}d ${hours}h ${minutes}m ${seconds}s`} className="flex gap-1.5">
+        {units.map((unit) => (
+          <div
+            key={unit.caption}
+            aria-hidden="true"
+            className="flex flex-1 flex-col items-center gap-0.5 rounded-[10px] bg-white py-1.5 sm:py-2"
+          >
+            <span className="font-heading text-lg leading-none font-extrabold text-[var(--color-flash-text)] tabular-nums sm:text-2xl">
+              {pad(unit.value)}
+            </span>
+            <span className="text-[10px] font-semibold tracking-wider text-[#7f1d1d]">{unit.caption}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div
