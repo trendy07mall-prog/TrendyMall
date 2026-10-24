@@ -6,6 +6,7 @@ import { slugify } from "@/lib/utils";
 import { utcIsoToSriLankaInputValue } from "@/lib/campaign-datetime";
 import { DateTimePicker } from "@/components/admin/DateTimePicker";
 import { useUploadBusy } from "@/lib/images/use-upload-busy";
+import { DEFAULT_SECTION_BG, isHexColor } from "@/lib/section-color";
 import { SingleImageUploader } from "@/components/admin/SingleImageUploader";
 import { SectionsEditor } from "@/components/admin/campaign-form/SectionsEditor";
 import { ProductPickerModal } from "@/components/admin/campaign-form/ProductPickerModal";
@@ -137,6 +138,15 @@ export function CampaignForm({
   // saveCampaign blocks publishing without one; a draft can be saved
   // without it same as any other optional field.
   const [productBannerUrl, setProductBannerUrl] = useState(initial?.campaign.product_banner_url ?? null);
+  // The homepage campaign section's own banner pair (sql/106), optional.
+  const [sectionBannerDesktopUrl, setSectionBannerDesktopUrl] = useState(
+    initial?.campaign.section_banner_desktop_url ?? null,
+  );
+  const [sectionBannerMobileUrl, setSectionBannerMobileUrl] = useState(
+    initial?.campaign.section_banner_mobile_url ?? null,
+  );
+  // Empty means the default red; saved as null.
+  const [sectionBgColor, setSectionBgColor] = useState(initial?.campaign.section_bg_color ?? "");
 
   const [showOnHomepage, setShowOnHomepage] = useState(initial?.campaign.show_on_homepage ?? false);
   const [showInShop, setShowInShop] = useState(initial?.campaign.show_in_shop ?? false);
@@ -480,6 +490,88 @@ export function CampaignForm({
               </div>
             </div>
           </div>
+
+          {/* The homepage section's own pair: this campaign's products
+              sit on a white panel over the lower part of these, so they
+              have their own shape and their own "keep it in the top"
+              rule, and the diagrams show exactly how much gets covered. */}
+          <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-5">
+            <div>
+              <h3 className="text-sm font-semibold">Homepage section banner</h3>
+              <p className="text-xs text-[var(--muted)]">
+                Optional. Shown full width behind this campaign&apos;s product cards on the homepage. Without it, the
+                desktop and mobile banners above are used there instead.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] p-4">
+                <SectionBannerExample ratio="4 / 1" covered="60%" caption="Desktop: 1600 × 400 px (4:1)" />
+                <SingleImageUploader
+                  label="Section banner (desktop)"
+                  kind="heroDesktop"
+                  onBusyChange={onBusyChange}
+                  name="sectionBannerDesktopUrl"
+                  value={sectionBannerDesktopUrl}
+                  onChange={setSectionBannerDesktopUrl}
+                  hint={
+                    "Ratio 4:1, e.g. 1600 × 400 px.\n" +
+                    "The product cards cover the bottom 60%: keep the sale name and any text in the top 40%."
+                  }
+                />
+              </div>
+              <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] p-4">
+                <SectionBannerExample ratio="8 / 5" covered="50%" caption="Phone: 800 × 500 px (8:5)" />
+                <SingleImageUploader
+                  label="Section banner (phone)"
+                  kind="heroMobile"
+                  onBusyChange={onBusyChange}
+                  name="sectionBannerMobileUrl"
+                  value={sectionBannerMobileUrl}
+                  onChange={setSectionBannerMobileUrl}
+                  hint={
+                    "Ratio 8:5, e.g. 800 × 500 px.\n" +
+                    "The product cards cover the bottom half: keep the sale name and any text in the top half."
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="sectionBgColor" className="text-sm font-medium">
+                Section background colour
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Pick the section background colour"
+                  value={isHexColor(sectionBgColor) ? sectionBgColor : DEFAULT_SECTION_BG}
+                  onChange={(e) => setSectionBgColor(e.target.value)}
+                  className="h-9 w-12 shrink-0 cursor-pointer rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent p-1"
+                />
+                <input
+                  id="sectionBgColor"
+                  type="text"
+                  name="sectionBgColor"
+                  value={sectionBgColor}
+                  placeholder={`${DEFAULT_SECTION_BG} (default red)`}
+                  onChange={(e) => setSectionBgColor(e.target.value.trim())}
+                  className="w-48 rounded-[var(--radius-sm)] border border-[var(--border)] bg-transparent px-3 py-2 text-sm focus:ring-1 focus:ring-[var(--foreground)] focus:outline-none"
+                />
+                {sectionBgColor && (
+                  <button
+                    type="button"
+                    onClick={() => setSectionBgColor("")}
+                    className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:bg-black/5"
+                  >
+                    Reset to default red
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-[var(--muted)]">
+                The colour behind the banner and product cards on the homepage. The section&apos;s own text switches
+                between white and dark automatically so it stays readable.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* 7. SECTIONS */}
@@ -651,5 +743,30 @@ export function CampaignForm({
         </div>
       </form>
     </div>
+  );
+}
+
+// A to-scale sketch of the homepage section banner: the banner's ratio,
+// with the part the product panel covers shaded, so whoever designs the
+// image can see where text stays visible.
+function SectionBannerExample({ ratio, covered, caption }: { ratio: string; covered: string; caption: string }) {
+  return (
+    <figure className="flex flex-col gap-1.5">
+      <div
+        className="relative w-full overflow-hidden rounded-lg border border-dashed border-[var(--border-hover)] bg-[repeating-linear-gradient(135deg,#fee2e2_0_8px,#fef2f2_8px_16px)]"
+        style={{ aspectRatio: ratio }}
+      >
+        <span className="absolute inset-x-0 top-0 flex items-center justify-center text-[11px] font-semibold text-[#b91c1c]" style={{ bottom: covered }}>
+          Text and logo here
+        </span>
+        <span
+          className="absolute inset-x-[4%] bottom-0 flex items-center justify-center rounded-t-md bg-white/90 text-[11px] font-medium text-[var(--muted)] shadow-sm"
+          style={{ height: covered }}
+        >
+          Covered by product cards
+        </span>
+      </div>
+      <figcaption className="text-xs font-medium">{caption}</figcaption>
+    </figure>
   );
 }

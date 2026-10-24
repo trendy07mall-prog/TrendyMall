@@ -132,6 +132,8 @@ describe("prompt", () => {
       freeShipping: null,
       pickup: null,
       paymentMethods: ["Cash on Delivery"],
+      campaigns: ["Big Bang Flash Sale: flash sale prices on selected products, ends 31 Oct 2026, 11:59 PM"],
+      coupons: [],
       shippingPolicy: "Ships in 24 hours",
       returnsPolicy: "48 hours",
       warrantyPolicy: "6 months",
@@ -144,6 +146,8 @@ describe("prompt", () => {
     assert.match(prompt, /Never say what technology/);
     assert.match(prompt, /You are CR7/);
     assert.match(prompt, /ONE short, friendly paragraph/);
+    assert.match(prompt, /Big Bang Flash Sale/);
+    assert.match(prompt, /No coupon codes right now/);
     assert.match(prompt, /https:\/\/wa\.me\/94770000000/);
   });
 });

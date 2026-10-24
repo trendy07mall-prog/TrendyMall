@@ -1608,6 +1608,10 @@ export interface Database {
           // desktop_banner_url/mobile_banner_url above (the campaign
           // landing page's own hero pair).
           product_banner_url: string | null;
+          // sql/106. The homepage campaign section's own banner pair.
+          section_banner_desktop_url: string | null;
+          section_banner_mobile_url: string | null;
+          section_bg_color: string | null;
           show_on_homepage: boolean;
           show_in_shop: boolean;
           show_badge: boolean;
@@ -1635,6 +1639,9 @@ export interface Database {
           mobile_banner_url?: string | null;
           thumbnail_url?: string | null;
           product_banner_url?: string | null;
+          section_banner_desktop_url?: string | null;
+          section_banner_mobile_url?: string | null;
+          section_bg_color?: string | null;
           show_on_homepage?: boolean;
           show_in_shop?: boolean;
           show_badge?: boolean;
@@ -1662,6 +1669,9 @@ export interface Database {
           mobile_banner_url?: string | null;
           thumbnail_url?: string | null;
           product_banner_url?: string | null;
+          section_banner_desktop_url?: string | null;
+          section_banner_mobile_url?: string | null;
+          section_bg_color?: string | null;
           show_on_homepage?: boolean;
           show_in_shop?: boolean;
           show_badge?: boolean;
