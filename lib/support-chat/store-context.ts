@@ -7,10 +7,13 @@ import {
   type BusinessHoursWeek,
 } from "@/lib/data/settings";
 import { getActiveDeliveryZones } from "@/lib/data/delivery-zones";
+import { getActiveCampaigns } from "@/lib/data/campaigns";
+import { getActiveCoupons } from "@/lib/data/coupons";
 import { getWhatsAppUrl, SITE_URL } from "@/lib/site";
 import { formatPrice } from "@/lib/utils";
-import { formatStoreDate } from "@/lib/datetime";
+import { formatStoreDate, formatStoreDateTime } from "@/lib/datetime";
 import { htmlToPlainText, type StoreContext } from "@/lib/support-chat/prompt";
+import type { Campaign, Coupon } from "@/types";
 
 const DAY_LABELS: Record<string, string> = {
   mon: "Mon",
@@ -28,16 +31,63 @@ function describeHours(week: BusinessHoursWeek): string {
     .join(", ");
 }
 
+const PROMOTION_LABELS: Record<Campaign["promotion_type"], string> = {
+  product_discount: "discounts on selected products",
+  flash_sale: "flash sale prices on selected products",
+  free_shipping: "free delivery",
+  coupon: "coupon savings",
+};
+
+function describeCampaign(campaign: Campaign): string {
+  const parts = [
+    `${campaign.name}: ${PROMOTION_LABELS[campaign.promotion_type] ?? "special offers"}`,
+    campaign.free_shipping_enabled && campaign.promotion_type !== "free_shipping" ? "with free delivery" : "",
+    campaign.end_at ? `ends ${formatStoreDateTime(campaign.end_at)}` : "no end date announced",
+    `page ${SITE_URL}/campaign/${campaign.slug}`,
+  ];
+  const description = campaign.description ? htmlToPlainText(campaign.description).slice(0, 200) : "";
+  return parts.filter(Boolean).join(", ") + (description ? `. ${description}` : "");
+}
+
+function describeCoupon(coupon: Coupon): string {
+  const saving =
+    coupon.type === "percentage"
+      ? `${coupon.value}% off${coupon.max_discount_amount ? ` (up to ${formatPrice(coupon.max_discount_amount)})` : ""}`
+      : coupon.type === "fixed"
+        ? `${formatPrice(coupon.value)} off`
+        : "free delivery";
+  return [
+    `Code ${coupon.code}: ${saving}`,
+    coupon.min_order_value > 0 ? `on orders of ${formatPrice(coupon.min_order_value)} or more` : "",
+    coupon.expires_at ? `valid until ${formatStoreDateTime(coupon.expires_at)}` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+// Offers are best-effort: a failed campaign or coupon read shouldn't stop
+// the chat answering everything else.
+async function orEmpty<T>(load: () => Promise<T[]>, label: string): Promise<T[]> {
+  try {
+    return await load();
+  } catch (error) {
+    console.error(`[support-chat] ${label} unavailable`, error);
+    return [];
+  }
+}
+
 // Read from the same Settings rows the storefront renders, so an admin edit
 // to a policy, fee or phone number reaches the assistant on the next
 // message with nothing else to update.
 export async function getSupportStoreContext(): Promise<StoreContext> {
-  const [general, shipping, payment, policies, zones] = await Promise.all([
+  const [general, shipping, payment, policies, zones, campaigns, coupons] = await Promise.all([
     getGeneralSettings(),
     getShippingSettings(),
     getPaymentSettings(),
     getPoliciesSettings(),
     getActiveDeliveryZones(),
+    orEmpty(getActiveCampaigns, "campaigns"),
+    orEmpty(getActiveCoupons, "coupons"),
   ]);
 
   const paymentMethods = [
@@ -67,6 +117,8 @@ export async function getSupportStoreContext(): Promise<StoreContext> {
           .join(", ")}`
       : null,
     paymentMethods,
+    campaigns: campaigns.map(describeCampaign),
+    coupons: coupons.map(describeCoupon),
     shippingPolicy: htmlToPlainText(policies.shippingBody),
     returnsPolicy: htmlToPlainText(policies.returnsBody),
     warrantyPolicy: htmlToPlainText(policies.warrantyBody),

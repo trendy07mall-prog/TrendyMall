@@ -1,9 +1,12 @@
 import "server-only";
-import { searchProducts, getProductDetailBySlug } from "@/lib/data/products";
+import { searchProducts, getProductDetailBySlug, getProductsByIds } from "@/lib/data/products";
+import { getActiveCampaigns, getCampaignSections } from "@/lib/data/campaigns";
 import { trackOrder } from "@/lib/track-order";
 import { getVariantPrice } from "@/lib/utils";
 import { htmlToPlainText } from "@/lib/support-chat/prompt";
+import { formatStoreDateTime } from "@/lib/datetime";
 import type { CardCollector, ProductCard } from "@/lib/support-chat/cards";
+import type { ProductWithPrimaryImage } from "@/types";
 
 // Tool parameters are plain JSON Schema; lib/support-chat/providers.ts
 // adapts them to each model API's own shape.
@@ -44,6 +47,18 @@ export const SUPPORT_TOOLS: ToolDefinition[] = [
     },
   },
   {
+    name: "get_offers",
+    description:
+      "Products in the campaigns and flash sales running right now, with their offer prices and stock. Use it when the customer asks what's on sale or what is in a campaign.",
+    parameters: {
+      type: "object",
+      properties: {
+        campaign: { type: "string", description: "Optional campaign name from CURRENT OFFERS, to show only that campaign." },
+      },
+      required: [],
+    },
+  },
+  {
     name: "track_order",
     description:
       "Look up an order's status. Needs the order number AND the phone number or email the customer used at checkout.",
@@ -65,6 +80,22 @@ function str(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function toCard(p: ProductWithPrimaryImage): ProductCard {
+  return {
+    name: p.name,
+    href: `/product/${p.slug}`,
+    image: p.image,
+    price: p.special_price ?? p.actual_price,
+    regularPrice: p.special_price != null ? p.actual_price : undefined,
+    priceVaries: p.hasMultiplePrices || undefined,
+    inStock: p.stock > 0,
+  };
+}
+
+function inStockFirst(cards: ProductCard[]): ProductCard[] {
+  return [...cards].sort((a, b) => Number(b.inStock) - Number(a.inStock));
+}
+
 async function runSearchProducts(args: Record<string, unknown>, cards: CardCollector) {
   const query = str(args.query);
   if (!query) return { error: "A search query is required." };
@@ -76,21 +107,7 @@ async function runSearchProducts(args: Record<string, unknown>, cards: CardColle
   const top = products.slice(0, MAX_SEARCH_RESULTS);
   // In-stock first on the cards: a card the customer can't buy from is
   // the least useful thing to show at the top.
-  cards.setSearchResults(
-    top
-      .map(
-        (p): ProductCard => ({
-          name: p.name,
-          href: `/product/${p.slug}`,
-          image: p.image,
-          price: p.special_price ?? p.actual_price,
-          regularPrice: p.special_price != null ? p.actual_price : undefined,
-          priceVaries: p.hasMultiplePrices || undefined,
-          inStock: p.stock > 0,
-        }),
-      )
-      .sort((a, b) => Number(b.inStock) - Number(a.inStock)),
-  );
+  cards.setSearchResults(inStockFirst(top.map(toCard)));
 
   // No links for the model: the widget shows each product as a card with
   // its own link, so the reply itself stays a short paragraph.
@@ -105,6 +122,50 @@ async function runSearchProducts(args: Record<string, unknown>, cards: CardColle
       in_stock: p.stock > 0,
     })),
   };
+}
+
+const MAX_OFFER_PRODUCTS = 8;
+
+async function runGetOffers(args: Record<string, unknown>, cards: CardCollector) {
+  const wanted = str(args.campaign).toLowerCase();
+  const active = await getActiveCampaigns();
+  // A loose name match, so "big bang" finds "Big Bang Flash Sale"; when
+  // nothing matches, every running campaign is a better answer than none.
+  const matching = wanted
+    ? active.filter((c) => c.name.toLowerCase().includes(wanted) || wanted.includes(c.name.toLowerCase()))
+    : [];
+  const campaigns = matching.length > 0 ? matching : active;
+  if (campaigns.length === 0) return { campaigns: [], note: "No campaign is running right now." };
+
+  const sections = await getCampaignSections(campaigns);
+  const ids = [...new Set(sections.flatMap((s) => s.productIds))].slice(0, 40);
+  const products = new Map((await getProductsByIds(ids)).map((p) => [p.id, p]));
+
+  const shown: ProductWithPrimaryImage[] = [];
+  const result = campaigns.map((campaign) => {
+    const section = sections.find((s) => s.campaign.id === campaign.id);
+    const items = (section?.productIds ?? [])
+      .map((id) => products.get(id))
+      .filter((p): p is ProductWithPrimaryImage => Boolean(p))
+      .slice(0, MAX_OFFER_PRODUCTS);
+    shown.push(...items);
+    return {
+      name: campaign.name,
+      ends: campaign.end_at ? formatStoreDateTime(campaign.end_at) : undefined,
+      free_delivery: campaign.free_shipping_enabled || undefined,
+      product_count: section?.productIds.length ?? 0,
+      products: items.map((p) => ({
+        name: p.name,
+        slug: p.slug,
+        price: p.special_price ?? p.actual_price,
+        regular_price: p.special_price != null ? p.actual_price : undefined,
+        in_stock: p.stock > 0,
+      })),
+    };
+  });
+
+  cards.setSearchResults(inStockFirst(shown.map(toCard)));
+  return { campaigns: result };
 }
 
 async function runGetProductDetails(args: Record<string, unknown>, cards: CardCollector) {
@@ -203,6 +264,8 @@ export async function executeSupportTool(
         return await runSearchProducts(args, cards);
       case "get_product_details":
         return await runGetProductDetails(args, cards);
+      case "get_offers":
+        return await runGetOffers(args, cards);
       case "track_order":
         return await runTrackOrder(args, cards);
       default:
