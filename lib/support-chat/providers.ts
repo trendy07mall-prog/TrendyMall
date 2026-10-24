@@ -28,7 +28,7 @@ export interface AgentResult {
 // Tool rounds per customer message. The last round forbids tools so the
 // model has to answer with what it already has.
 const MAX_ROUNDS = 4;
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 25_000;
 
 class ProviderError extends Error {
   constructor(
@@ -107,7 +107,15 @@ async function runGemini(input: AgentInput, apiKey: string): Promise<string> {
   const models = [...new Set([...(configured ? [configured] : []), ...GEMINI_DEFAULT_MODELS])];
   for (const [i, model] of models.entries()) {
     try {
-      return await runGeminiModel(input, apiKey, model);
+      try {
+        return await runGeminiModel(input, apiKey, model, false);
+      } catch (error) {
+        // A model that refuses the no-thinking setting (400) still gets
+        // asked, just with its default thinking.
+        if (!(error instanceof ProviderError && error.status === 400)) throw error;
+        console.error(`[support-chat] Gemini model ${model} rejected thinkingBudget 0, retrying with defaults`);
+        return await runGeminiModel(input, apiKey, model, true);
+      }
     } catch (error) {
       if (!(error instanceof ProviderError && error.status === 404) || i === models.length - 1) throw error;
       console.error(`[support-chat] Gemini model ${model} not found, trying the next one`);
@@ -116,7 +124,12 @@ async function runGemini(input: AgentInput, apiKey: string): Promise<string> {
   throw new ProviderError("No Gemini model available");
 }
 
-async function runGeminiModel(input: AgentInput, apiKey: string, model: string): Promise<string> {
+async function runGeminiModel(
+  input: AgentInput,
+  apiKey: string,
+  model: string,
+  allowThinking: boolean,
+): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
   const contents: GeminiContent[] = input.history.map((m) => ({
@@ -142,9 +155,15 @@ async function runGeminiModel(input: AgentInput, apiKey: string, model: string):
           },
         ],
         toolConfig: { functionCallingConfig: { mode: lastRound ? "NONE" : "AUTO" } },
-        // Generous because newer Flash models spend part of this budget
-        // thinking before they write the reply.
-        generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+        // Thinking is switched off: with it on, Flash models were taking
+        // over 20s to say hello, and support answers come from tool
+        // results, not reasoning. maxOutputTokens stays generous for the
+        // retry with thinking on, which spends part of it thinking.
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4096,
+          ...(allowThinking ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+        },
       },
     )) as {
       candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
