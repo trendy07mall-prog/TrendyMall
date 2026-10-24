@@ -32,7 +32,9 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
       {sections.map((section, index) => (
         <section
           key={section.campaign.id}
-          className="mx-auto w-full max-w-[var(--home-container-width)] px-3 py-[var(--home-section-padding-y)] sm:px-6"
+          // Narrower than the page's other sections: at full width the
+          // 3.2:1 banner alone stood taller than most screens' first view.
+          className="mx-auto w-full max-w-[1180px] px-3 py-[var(--home-section-padding-y)] sm:px-6"
         >
           <FadeIn>{index === 0 ? <BannerCampaign {...section} /> : <SideBannerCampaign {...section} />}</FadeIn>
         </section>
@@ -101,7 +103,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
                   fill
                   loading="lazy"
                   quality={88}
-                  sizes="(min-width: 1400px) 1400px, 100vw"
+                  sizes="(min-width: 1180px) 1180px, 100vw"
                   className="object-cover"
                 />
               </div>
@@ -120,7 +122,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
 
       <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${hasBanner ? "-mt-[22%] md:-mt-[7%]" : ""}`}>
         <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
-          <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/6" perRow={6} />
+          <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -147,8 +149,8 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
 // Plan 2: banner, name, a boxed countdown and the shop button in a column
 // beside the products (above them on a phone), so nothing covers the
 // banner. Uses the 4:3 phone banner at every size, since the column is
-// narrow; the panel beside it is narrower than Plan 1's, so it shows five
-// cards across on large screens instead of six.
+// narrow; the panel beside it is narrower than Plan 1's, so it shows four
+// cards across on large screens instead of five.
 function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
   const banner = campaign.mobile_banner_url ?? campaign.desktop_banner_url;
   const href = `/campaign/${campaign.slug}`;
@@ -162,11 +164,11 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
   );
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl bg-[var(--color-flash-hover)] p-2.5 sm:rounded-[20px] sm:p-5 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-5">
-      <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-2.5 sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-4 lg:flex lg:flex-col lg:items-stretch lg:gap-4">
+    <div className="flex flex-col gap-3 rounded-2xl bg-[var(--color-flash-hover)] p-2.5 sm:rounded-[20px] sm:p-5 lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-5">
+      <div className="grid grid-cols-[132px_minmax(0,1fr)] items-center gap-2.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-4 lg:flex lg:flex-col lg:items-stretch lg:gap-4">
         {banner ? (
           <Link href={href} className="relative block aspect-[800/600] w-full overflow-hidden rounded-xl" aria-label={`${campaign.name}: view the sale`}>
-            <Image src={banner} alt="" fill loading="lazy" quality={88} sizes="(min-width: 1024px) 300px, (min-width: 640px) 220px, 132px" className="object-cover" />
+            <Image src={banner} alt="" fill loading="lazy" quality={88} sizes="(min-width: 1024px) 240px, (min-width: 640px) 200px, 132px" className="object-cover" />
           </Link>
         ) : (
           <div className="flex aspect-[800/600] w-full items-center justify-center rounded-xl bg-[var(--color-flash)]">
@@ -191,7 +193,7 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
       </div>
 
       <div className="rounded-xl bg-white p-2 sm:rounded-[14px] sm:p-3.5">
-        <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/5" perRow={5} />
+        <CampaignCards campaign={campaign} products={products} itemClassName="w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4" perRow={4} />
       </div>
 
       <div className="lg:hidden">{shopButton}</div>
