@@ -35,13 +35,17 @@ const V = {
   grid: { w: null, pad: 10, name: 15, price: 20, btnH: 38, btnText: 14, opacity: 1 },
 } as const;
 
-const TINT = "#FFF4EC";
-const CARD_BORDER = "#F3D9C6";
-const PHOTO_BG = "#F3E8DE";
+// Theme-aware colours (light values and their dark-mode swaps live in
+// app/globals.css under --combo-* / --home-*). ORANGE and EMERALD read on
+// both, so they stay fixed.
+const TINT = "var(--combo-tint)";
+const CARD_BORDER = "var(--combo-border)";
+const PHOTO_BG = "var(--combo-photo-bg)";
 const ORANGE = "#F97316";
-const NAVY = "#0F2D52";
+const NAVY = "var(--home-navy-text)";
 const EMERALD = "#16A34A";
-const GREY = "#6B7280";
+const GREY = "var(--color-text-secondary)";
+const INK = "var(--foreground)";
 
 export interface ComboCardData {
   product: ProductWithPrimaryImage;
@@ -147,7 +151,7 @@ export function ComboCard({
             price and button around from card to card. */}
         <h3
           className="truncate font-bold"
-          style={{ fontSize: v.name, color: "#111111" }}
+          style={{ fontSize: v.name, color: INK }}
         >
           {product.name}
         </h3>

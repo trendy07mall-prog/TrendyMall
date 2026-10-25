@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 :root {
+  /* Combo Deals and homepage navy text: theme-aware so dark mode can swap
+     them (see html[data-theme="dark"] near the end of this file). */
+  --combo-tint: #fff4ec;
+  --combo-border: #f3d9c6;
+  --combo-photo-bg: #f3e8de;
+  --combo-dot: #e5c9b3;
+  --home-navy-text: #0f2d52;
+
   --background: #fafafa;
   --foreground: #111111;
   --muted: #666666;
@@ -877,4 +885,202 @@ input:-webkit-autofill:focus {
 }
 @media (prefers-reduced-motion: reduce) {
   .search-orbit::before { animation: none; opacity: 0.5; }
+}
+
+/* ---------------------------------------------------------------------
+   Dark mode (storefront only). lib/theme.ts puts data-theme="dark" on
+   <html>; the admin panel never gets it.
+
+   Most of the site already paints from the tokens above, so swapping them
+   does the bulk of the work. The rest is components that write a light
+   colour straight into a class (bg-white, text-[#0F2D52]...). Those are
+   mapped here one class at a time, matched as whole class names with ~=
+   so hover:/sm: variants are untouched. Brand orange, the red campaign
+   section, banners and product photos are deliberately left as they are.
+   --------------------------------------------------------------------- */
+
+/* The header switch (components/theme/ThemeToggle.tsx). The knob position
+   comes from the attribute, so it is right on the first paint. */
+.theme-toggle {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  justify-content: flex-start;
+}
+.theme-toggle-knob {
+  background: #ffffff;
+}
+.theme-toggle-moon {
+  display: none;
+}
+html[data-theme="dark"] .theme-toggle {
+  background: #1b2a44;
+  border-color: #2b3d5c;
+  justify-content: flex-end;
+}
+html[data-theme="dark"] .theme-toggle-knob {
+  background: #0f2d52;
+}
+html[data-theme="dark"] .theme-toggle-sun {
+  display: none;
+}
+html[data-theme="dark"] .theme-toggle-moon {
+  display: block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .theme-toggle {
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #f3f4f6;
+  --muted: #9ca3af;
+  --border: #22314a;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --color-card: #131d31;
+  --color-text-secondary: #9ca3af;
+  --color-btn-primary: #f97316;
+  --color-btn-hover: #fb923c;
+  --color-flash-text: #f87171;
+  --color-flash-soft: #3a1a1d;
+  --color-flash-border: #5b2328;
+  --color-navy: #1e4e8c;
+  --combo-tint: #1e1a1a;
+  --combo-border: #4a3424;
+  --combo-photo-bg: #2a2320;
+  --combo-dot: #4a3424;
+  --home-navy-text: #c7d7ee;
+}
+html[data-theme="dark"] body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Surfaces */
+html[data-theme="dark"] [class~="bg-white"],
+html[data-theme="dark"] [class~="bg-[#F3F4F6]"],
+html[data-theme="dark"] [class~="bg-[#f4f4f5]"],
+html[data-theme="dark"] [class~="bg-[#F9FAFB]"],
+html[data-theme="dark"] [class~="bg-[#f9fafb]"],
+html[data-theme="dark"] [class~="bg-[#F1F5FB]"],
+html[data-theme="dark"] [class~="bg-[#eff6ff]"] {
+  background-color: #131d31;
+}
+html[data-theme="dark"] [class~="bg-white/95"],
+html[data-theme="dark"] [class~="bg-white/90"],
+html[data-theme="dark"] [class~="bg-white/85"],
+html[data-theme="dark"] [class~="bg-white/80"],
+html[data-theme="dark"] [class~="bg-white/70"] {
+  background-color: rgba(19, 29, 49, 0.92);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"] [class~="bg-[#FAFAFA]"],
+html[data-theme="dark"] [class~="bg-[#fafafa]"] {
+  background-color: var(--background);
+}
+html[data-theme="dark"] [class~="bg-[#e5e7eb]"],
+html[data-theme="dark"] [class~="bg-[#D1D5DB]"] {
+  background-color: #22314a;
+}
+html[data-theme="dark"] [class~="bg-[#fef2f2]"],
+html[data-theme="dark"] [class~="bg-[#FEF2F2]"] {
+  background-color: #3a1a1d;
+}
+html[data-theme="dark"] [class~="bg-[#ecfdf5]"] {
+  background-color: #10291f;
+}
+/* Solid black buttons would vanish on the dark page: brand orange. */
+html[data-theme="dark"] button[class~="bg-[#111111]"],
+html[data-theme="dark"] a[class~="bg-[#111111]"],
+html[data-theme="dark"] button[class~="bg-[var(--foreground)]"],
+html[data-theme="dark"] a[class~="bg-[var(--foreground)]"],
+html[data-theme="dark"] button[class~="bg-black"],
+html[data-theme="dark"] a[class~="bg-black"] {
+  background-color: #f97316;
+  color: #111111;
+}
+/* The announcement strip and small black badges use
+   bg-[var(--foreground)], which is now light: keep them near-black. */
+html[data-theme="dark"] div[class~="bg-[var(--foreground)]"],
+html[data-theme="dark"] span[class~="bg-[var(--foreground)]"] {
+  background-color: #050a14;
+}
+/* Navy fills (badges, buttons) lift a little so they stay visible. */
+html[data-theme="dark"] [class~="bg-[#0F2D52]"] {
+  background-color: #1e4e8c;
+}
+
+/* Text */
+html[data-theme="dark"] [class~="text-[#111111]"],
+html[data-theme="dark"] [class~="text-[#111827]"],
+html[data-theme="dark"] [class~="text-[#1F2937]"],
+html[data-theme="dark"] [class~="text-black"] {
+  color: #f3f4f6;
+}
+html[data-theme="dark"] [class~="text-[#111111]/80"] {
+  color: rgba(243, 244, 246, 0.85);
+}
+html[data-theme="dark"] .footer-prose-link {
+  color: #c7d7ee;
+}
+html[data-theme="dark"] .footer-prose-link:hover {
+  color: #f97316;
+}
+html[data-theme="dark"] [class~="text-[#0F2D52]"] {
+  color: #c7d7ee;
+}
+html[data-theme="dark"] [class~="text-[#374151]"],
+html[data-theme="dark"] [class~="text-[#4B5563]"],
+html[data-theme="dark"] [class~="text-[#4b5563]"],
+html[data-theme="dark"] [class~="text-[#6B7280]"] {
+  color: #9ca3af;
+}
+html[data-theme="dark"] [class~="text-[#C2410C]"],
+html[data-theme="dark"] [class~="text-[#EA580C]"] {
+  color: #fb923c;
+}
+html[data-theme="dark"] [class~="text-[#DC2626]"],
+html[data-theme="dark"] [class~="text-[#b91c1c]"] {
+  color: #f87171;
+}
+html[data-theme="dark"] [class~="text-[#16A34A]"],
+html[data-theme="dark"] [class~="text-[#16a34a]"],
+html[data-theme="dark"] [class~="text-[#166534]"],
+html[data-theme="dark"] [class~="text-[#047857]"] {
+  color: #4ade80;
+}
+
+/* Lines */
+html[data-theme="dark"] [class~="border-[#E5E7EB]"],
+html[data-theme="dark"] [class~="border-[#D1D5DB]"],
+html[data-theme="dark"] [class~="border-[#d1d5db]"],
+html[data-theme="dark"] [class~="border-[#CBD5E1]"],
+html[data-theme="dark"] [class~="border-[#D6E0EF]"],
+html[data-theme="dark"] [class~="border-[#F3F4F6]"],
+html[data-theme="dark"] [class~="border-[#f0f0f0]"],
+html[data-theme="dark"] [class~="border-white/60"] {
+  border-color: #22314a;
+}
+html[data-theme="dark"] [class~="border-[#0F2D52]"] {
+  border-color: #3b5f91;
+}
+
+/* Hover tints written for a white page. */
+html[data-theme="dark"] [class~="hover:bg-black/5"]:hover,
+html[data-theme="dark"] [class~="hover:bg-black/[0.03]"]:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Glass category cards (CategoryCard.tsx): darker frosted glass. */
+html[data-theme="dark"] .category-marquee a,
+html[data-theme="dark"] a[href^="/category/"][class~="backdrop-blur-[18px]"] {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] a[href^="/category/"] [class~="bg-white/85"] {
+  background-color: #1b2a44;
+  border-color: rgba(255, 255, 255, 0.1);
 }

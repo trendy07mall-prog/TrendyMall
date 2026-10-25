@@ -15,6 +15,8 @@ import { ConditionalChrome } from "@/components/layout/ConditionalChrome";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { HomeSearchBar } from "@/components/layout/HomeSearchBar";
+import { ThemeController } from "@/components/theme/ThemeController";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { ScrollStateProvider } from "@/context/ScrollStateContext";
 import {
   getCachedGeneralSettings,
@@ -199,8 +201,13 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${manrope.variable} ${inter.variable} ${jakarta.variable} h-full antialiased`}
+      // The theme script below sets data-theme before React hydrates.
+      suppressHydrationWarning
     >
       <head>
+        {/* Dark / light mode, applied before the first paint so a
+            dark-mode visitor never sees a white flash (lib/theme.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* The Meta pixel stays exactly where it is -- afterInteractive,
             async, after hydration -- because its own script is the single
             largest blocking item on the page (measured: a 5.6 s task on
@@ -232,6 +239,7 @@ export default async function RootLayout({
         style={{ paddingBottom: "var(--pdp-floating-bar-height, 0px)" }}
       >
         <JsonLd data={organizationSchema} />
+        <ThemeController />
         <StorefrontOnly>
           <GoogleAnalytics />
           <MetaPixel />

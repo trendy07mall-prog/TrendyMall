@@ -16,10 +16,11 @@ import { ComboCard, type ComboCardData, type ComboVariant } from "@/components/m
 // here -- published, and available -- and every figure on a card was
 // worked out before it arrived.
 
+// NAVY / GREY / DOT_INACTIVE follow the theme (app/globals.css).
 const ORANGE = "#F97316";
-const NAVY = "#0F2D52";
-const GREY = "#6B7280";
-const DOT_INACTIVE = "#E5C9B3";
+const NAVY = "var(--home-navy-text)";
+const GREY = "var(--color-text-secondary)";
+const DOT_INACTIVE = "var(--combo-dot)";
 
 // How the five desktop slots relate to the centre: two out on each side.
 const OFFSETS = [-2, -1, 0, 1, 2] as const;
@@ -76,7 +77,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
   return (
     <section
       className="combo-fonts w-full py-10 md:py-14"
-      style={{ backgroundColor: "#FAFAFA" }}
+      style={{ backgroundColor: "var(--background)" }}
       aria-labelledby="combo-deals-heading"
     >
       <div className="mx-auto w-full max-w-[var(--home-container-width)] px-6">
@@ -123,7 +124,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
                 onClick={() => go(-1)}
                 aria-label="Previous combo deal"
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:ring-offset-2 focus-visible:outline-none"
-                style={{ border: "1px solid #E5E7EB" }}
+                style={{ border: "1px solid var(--border)" }}
               >
                 <Chevron direction="left" />
               </button>
@@ -144,7 +145,7 @@ export function ComboDealsSection({ deals }: { deals: ComboCardData[] }) {
                 onClick={() => go(1)}
                 aria-label="Next combo deal"
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white transition-colors hover:bg-black/[0.03] focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:ring-offset-2 focus-visible:outline-none"
-                style={{ border: "1px solid #E5E7EB" }}
+                style={{ border: "1px solid var(--border)" }}
               >
                 <Chevron direction="right" />
               </button>
