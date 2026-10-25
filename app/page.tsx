@@ -165,8 +165,10 @@ export default async function HomePage() {
           is a rotating campaign slider whose text is not a page title.
           Kept small, since the hero above it is still the visual headline.
           "Explore by Category" below stays an <h2>, so the document now
-          runs h1 -> h2 in order. */}
-      <h1 className="font-heading mx-auto w-full max-w-[var(--home-container-width)] px-6 pt-6 text-base font-bold tracking-tight text-[#0F2D52] sm:text-lg">
+          runs h1 -> h2 in order. Visually hidden (sr-only) at the owner's
+          request: Google and screen readers still read it as the page
+          title, shoppers just don't see the extra line. */}
+      <h1 className="sr-only">
         Mobile Accessories in Sri Lanka
       </h1>
 
