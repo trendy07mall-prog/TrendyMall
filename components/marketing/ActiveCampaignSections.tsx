@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ProductCard } from "@/components/product/ProductCard";
+import { CampaignProductCard } from "@/components/marketing/CampaignProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
@@ -20,8 +20,8 @@ export interface CampaignSectionWithProducts {
 // same "additive, nothing to show means nothing rendered" rule
 // CampaignBannerCarousel already follows.
 //
-// Two looks, both on a red ground with every card in the flash sale style
-// (ProductCard tone="flash"); the products, order and carousel behaviour
+// Two looks, both on the campaign's own colour with compact campaign cards
+// (CampaignProductCard) on a panel; the products, order and carousel behaviour
 // are the same in both. The first campaign (sections arrive soonest-ending
 // first) gets the full-width banner with its cards rising into it; any
 // further campaigns get the side banner, so a second or third sale reads
@@ -82,10 +82,9 @@ function CampaignCards({
   return (
     <Carousel ariaLabel={`${campaign.name} products`} itemClassName={itemClassName} showArrows={products.length > perRow}>
       {products.map((product) => (
-        <ProductCard
+        <CampaignProductCard
           key={product.id}
           product={product}
-          tone="flash"
           // Every product here already carries its own
           // campaign-featured variant id as defaultVariantId (see
           // applyCampaignFeaturedDisplay) -- the PDP must open on
@@ -98,7 +97,7 @@ function CampaignCards({
   );
 }
 
-// Plan 1: a banner with the products on a white panel rising into it.
+// Plan 1: a banner with the products on a panel rising into it.
 //
 // With the campaign's own section banner pair (sql/106), the banner runs
 // full width behind the panel, which covers its bottom part: 60% of the
@@ -188,7 +187,7 @@ function BannerCampaign({ campaign, products }: CampaignSectionWithProducts) {
       )}
 
       <div className={`relative mx-2.5 flex flex-col gap-2.5 sm:mx-5 sm:gap-3.5 ${overlap}`}>
-        <div className="rounded-xl bg-white p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
+        <div className="campaign-panel rounded-xl p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)] sm:rounded-[14px] sm:p-3.5">
           <CampaignCards campaign={campaign} products={products} itemClassName={FIVE_ACROSS} perRow={5} />
         </div>
 
@@ -262,7 +261,7 @@ function SideBannerCampaign({ campaign, products }: CampaignSectionWithProducts)
         <div className="hidden lg:mt-auto lg:block">{shopButton}</div>
       </div>
 
-      <div className="rounded-xl bg-white p-2 sm:rounded-[14px] sm:p-3.5">
+      <div className="campaign-panel rounded-xl p-2 sm:rounded-[14px] sm:p-3.5">
         <CampaignCards campaign={campaign} products={products} itemClassName={FOUR_ACROSS} perRow={4} />
       </div>
 
