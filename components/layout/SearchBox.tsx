@@ -28,7 +28,10 @@ export function SearchBox() {
         type="button"
         aria-label="Search"
         onClick={() => setOpen(true)}
-        className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-black/5"
+        // search-orbit (globals.css): a small orange light circling the
+        // icon, so the one way into search now that the big bar is gone
+        // still catches the eye.
+        className="search-orbit relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-black/5"
       >
         <SearchIcon className="h-5 w-5" />
       </button>

@@ -620,7 +620,7 @@ export function NavbarClient({
           <Link
             href="/search"
             aria-label="Search"
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-brand sm:hidden ${iconHoverClass}`}
+            className={`search-orbit relative flex h-11 w-11 items-center justify-center rounded-full transition-brand sm:hidden ${iconHoverClass}`}
           >
             <SearchIcon className="h-5 w-5" />
           </Link>
