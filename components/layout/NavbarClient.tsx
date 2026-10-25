@@ -9,6 +9,7 @@ import { useScrollState } from "@/context/ScrollStateContext";
 import { CartCount } from "@/components/cart/CartCount";
 import { WishlistCount } from "@/components/cart/WishlistCount";
 import { SearchBox } from "@/components/layout/SearchBox";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   CartIcon,
   ChevronDownIcon,
@@ -629,6 +630,7 @@ export function NavbarClient({
               input is a real text field, so it stays fully opaque white
               regardless of header state (see SearchBox.tsx, unchanged) —
               same reasoning as the Categories dropdown above. */}
+          <ThemeToggle className="mr-1 hidden sm:flex" />
           <div className="hidden sm:block">
             <SearchBox />
           </div>
@@ -824,6 +826,8 @@ export function NavbarClient({
                   <CategoryTree nodes={categories} variant="mobile" onNavigate={closeDrawer} />
                 </div>
               </div>
+
+              <ThemeToggle label className="rounded-xl px-3 text-[15px] font-medium" />
 
               <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] pt-4 text-sm font-medium">
                 <Link
