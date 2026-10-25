@@ -314,13 +314,6 @@ export async function HeroSlider({ campaigns }: { campaigns: Campaign[] }) {
           )}
         </div>
       )}
-
-      {/* Watched by the homepage's sticky search bar (see
-          components/layout/HomeSearchBar.tsx) to know when the user has
-          scrolled past the hero — not visible, not part of the carousel.
-          There is one carousel now rather than a CSS-hidden pair, so this
-          sentinel simply follows the hero at every width. */}
-      <div id="hero-sentinel" aria-hidden="true" />
     </div>
   );
 }

@@ -848,3 +848,33 @@ input:-webkit-autofill:focus {
   .category-marquee[data-loop] .category-marquee-track { animation: none; }
   .category-marquee [data-copy] { display: none; }
 }
+
+/* Header search icon (SearchBox.tsx on desktop, NavbarClient's /search
+   link on mobile): a small orange light circling the button's edge. The
+   mask cuts the conic gradient down to a 2px ring with a see-through
+   middle, so it reads the same over the solid white header and the navy
+   glass one. Off for reduced motion. */
+.search-orbit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 230deg,
+    rgba(249, 115, 22, 0) 236deg,
+    #f97316 310deg,
+    #fdba74 332deg,
+    transparent 346deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  animation: search-orbit-spin 2.6s linear infinite;
+}
+@keyframes search-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-orbit::before { animation: none; opacity: 0.5; }
+}
