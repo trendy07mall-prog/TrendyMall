@@ -20,7 +20,7 @@ import { HeroSlider } from "@/components/marketing/HeroSlider";
 import { ServiceCards } from "@/components/marketing/ServiceCards";
 import { CampaignBannerCarousel } from "@/components/marketing/CampaignBannerCarousel";
 import { ActiveCampaignSections } from "@/components/marketing/ActiveCampaignSections";
-import { CategoryCard } from "@/components/marketing/CategoryCard";
+import { CategoryMarquee } from "@/components/marketing/CategoryMarquee";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Carousel } from "@/components/marketing/Carousel";
 import { CustomerFavouritesSection, CustomerFavouritesSkeleton } from "@/components/marketing/CustomerFavouritesSection";
@@ -174,11 +174,7 @@ export default async function HomePage() {
         <section id="categories" className="mx-auto w-full max-w-[var(--home-container-width)] px-6 py-[var(--home-section-padding-y)]">
           <SectionHeader title="Explore by Category" viewAllHref="/shop" />
           <div className="mt-6">
-            <Carousel ariaLabel="Categories" itemClassName="w-[70%] sm:w-1/2 lg:w-1/6" showArrows={false}>
-              {categories.map((category) => (
-                <CategoryCard key={category.id} category={category} />
-              ))}
-            </Carousel>
+            <CategoryMarquee categories={categories} />
           </div>
         </section>
       )}
