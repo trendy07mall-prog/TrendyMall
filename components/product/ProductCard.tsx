@@ -119,14 +119,13 @@ export function ProductCard({
           )}
           {/* Campaign name moved here from the content area below -- only
               for a variant actually joined to an active campaign (same
-              hasCampaign check the countdown in Slot A below uses). Same
-              blur/opacity recipe already established for the site's other
-              glass surfaces (header's scrolled state, the mobile bottom
-              nav) -- backdrop-blur + backdrop-saturate-150 -- just a dark
-              tint here instead of their light one, since this sits on a
-              photo rather than the page background. */}
+              hasCampaign check the countdown in Slot A below uses). A
+              plain dark tint, no backdrop blur: a homepage carries dozens
+              of these inside scrolling rows, and a blur layer per card is
+              GPU memory iPhone Safari can't spare (see
+              GalleryCampaignBar's note on the same trade). */}
           {hasCampaign && (
-            <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/45 px-2 py-1.5 backdrop-blur-md backdrop-saturate-150">
+            <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/60 px-2 py-1.5">
               <span aria-hidden="true" className="text-xs text-white">
                 ⚡
               </span>
