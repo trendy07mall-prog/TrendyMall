@@ -821,3 +821,30 @@ input:-webkit-autofill:focus {
 @media (prefers-reduced-motion: reduce) {
   .cr7-in, .cr7-pop, .cr7-live, .cr7-bob, .cr7-dot, .cr7-fill, .cr7-stagger > * { animation: none; }
 }
+
+/* Homepage category row (components/marketing/CategoryMarquee.tsx). The
+   track holds the list twice; sliding it from -50% to 0 moves the cards
+   left to right and lands the copy exactly where the original started, so
+   the loop never jumps. It holds still under the pointer or keyboard focus
+   so a card is easy to pick. A short list, or a visitor who asks for
+   reduced motion, gets a plain swipeable row with the copy hidden. */
+@keyframes category-marquee {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.category-marquee[data-loop] .category-marquee-track {
+  animation: category-marquee var(--marquee-duration, 40s) linear infinite;
+}
+.category-marquee:hover .category-marquee-track,
+.category-marquee:focus-within .category-marquee-track {
+  animation-play-state: paused;
+}
+.category-marquee:not([data-loop]) {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .category-marquee[data-loop] { overflow-x: auto; scrollbar-width: none; }
+  .category-marquee[data-loop] .category-marquee-track { animation: none; }
+  .category-marquee [data-copy] { display: none; }
+}
