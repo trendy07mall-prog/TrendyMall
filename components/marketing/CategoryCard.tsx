@@ -11,10 +11,11 @@ import type { Category } from "@/types";
 // the adjacent heading already conveys the name — the image is redundant
 // decoration once paired with visible text, so it shouldn't be announced
 // twice.
-export function CategoryCard({ category }: { category: Category }) {
+export function CategoryCard({ category, tabIndex }: { category: Category; tabIndex?: number }) {
   return (
     <Link
       href={`/category/${category.slug}`}
+      tabIndex={tabIndex}
       className="group flex h-[88px] items-center gap-2.5 rounded-[18px] border border-white/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.72),rgba(255,255,255,0.38))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(15,45,82,0.06),0_8px_24px_rgba(15,45,82,0.12)] backdrop-blur-[18px] backdrop-saturate-[1.8] transition-[translate,box-shadow] duration-200 ease-in-out hover:-translate-y-1 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_0_0_1.5px_rgba(249,115,22,0.55),0_16px_36px_rgba(15,45,82,0.18)] sm:h-[104px] sm:gap-3.5 sm:rounded-[20px] sm:p-3.5"
     >
       <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[12px] border border-white/90 bg-white/85 shadow-[0_2px_8px_rgba(15,45,82,0.08)] sm:h-[72px] sm:w-[72px] sm:rounded-[14px]">
