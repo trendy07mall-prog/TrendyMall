@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
-import { CartIcon } from "@/components/ui/Icon";
+import { CartIcon, CheckIcon } from "@/components/ui/Icon";
 import { trackConversion } from "@/lib/analytics/track";
 import type { ProductWithPrimaryImage } from "@/types";
 
@@ -12,7 +12,7 @@ const ADDED_MS = 1200;
 export function QuickAddButton({
   product,
   variant = "default",
-  tone = "default",
+  shape = "bar",
   unavailableLabel = null,
 }: {
   product: ProductWithPrimaryImage;
@@ -20,9 +20,9 @@ export function QuickAddButton({
   // every other render site (category/search/PDP-related/homepage) keeps
   // today's sizing untouched.
   variant?: "default" | "shop";
-  // "flash" is the flash sale card's button (ProductCard's tone="flash"):
-  // red, and a size smaller, since those cards sit six to a row.
-  tone?: "default" | "flash";
+  // "round" is the icon-only orange button beside the price on a campaign
+  // card (CampaignProductCard); its label goes in aria-label instead.
+  shape?: "bar" | "round";
   // Set only where the PAGE's own context makes buying from this card
   // wrong regardless of the product itself -- currently just a not-yet-
   // started (or already-ended) campaign's own landing page, where an
@@ -82,21 +82,46 @@ export function QuickAddButton({
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  const disabled = outOfStock || unavailable || status !== "idle";
+
+  if (shape === "round") {
+    const label = outOfStock
+      ? "Out of stock"
+      : unavailable
+        ? unavailableLabel!
+        : status === "adding"
+          ? "Adding to cart"
+          : status === "added"
+            ? "Added to cart"
+            : `Add ${product.name} to cart`;
+    return (
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={handleClick}
+        aria-label={label}
+        title={outOfStock || unavailable ? label : undefined}
+        // Colours in globals.css (.campaign-cart) so dark mode keeps them.
+        className="campaign-cart transition-brand flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {status === "adding" && !reducedMotion ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-black/25 border-t-[#111111]" />
+        ) : status === "added" ? (
+          <CheckIcon className="h-5 w-5" />
+        ) : (
+          <CartIcon className="h-5 w-5" />
+        )}
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
-      disabled={outOfStock || unavailable || status !== "idle"}
+      disabled={disabled}
       onClick={handleClick}
-      className={`transition-brand flex w-full items-center justify-center gap-1.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 ${
-        tone === "flash"
-          ? "bg-[var(--color-flash)] group-hover:bg-[var(--color-flash-hover)]"
-          : "bg-[var(--foreground)] group-hover:bg-[var(--color-btn-hover)]"
-      } ${
-        variant === "shop"
-          ? "h-12 rounded-[var(--radius-btn)] text-base"
-          : tone === "flash"
-            ? "h-9 rounded-lg text-[13px] sm:h-10 sm:text-sm"
-            : "h-[42px] rounded-xl text-[15px] md:h-11"
+      className={`transition-brand flex w-full items-center justify-center gap-1.5 bg-[var(--foreground)] font-semibold text-white group-hover:bg-[var(--color-btn-hover)] disabled:cursor-not-allowed disabled:opacity-40 ${
+        variant === "shop" ? "h-12 rounded-[var(--radius-btn)] text-base" : "h-[42px] rounded-xl text-[15px] md:h-11"
       }`}
     >
       {outOfStock ? (

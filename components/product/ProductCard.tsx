@@ -5,7 +5,7 @@ import { WishlistButton } from "@/components/product/WishlistButton";
 import { QuickAddButton } from "@/components/product/QuickAddButton";
 import { StarRating } from "@/components/product/StarRating";
 import { CampaignCountdown } from "@/components/marketing/CampaignCountdown";
-import { BoltIcon, EyeIcon } from "@/components/ui/Icon";
+import { EyeIcon } from "@/components/ui/Icon";
 import { formatPrice, getDiscountPercent } from "@/lib/utils";
 import { bundleSaving } from "@/lib/bundles";
 import type { ProductWithPrimaryImage } from "@/types";
@@ -44,7 +44,6 @@ export function ProductCard({
   variant = "default",
   linkVariantId = null,
   unavailableLabel = null,
-  tone = "default",
 }: {
   product: ProductWithPrimaryImage;
   // Page-level "can't buy from here right now" reason, forwarded to
@@ -65,15 +64,7 @@ export function ProductCard({
   // happens to be. Every other render site leaves this null/omitted, so
   // its product links are byte-for-byte unchanged.
   linkVariantId?: string | null;
-  // Look only, never layout: "flash" is the red flash sale card used inside
-  // a homepage campaign section (ActiveCampaignSections). Every slot keeps
-  // its fixed height, so a flash card lines up row-for-row with a default
-  // one; what changes is colour, the campaign name bar on the photo (the
-  // section around the card already names the campaign) and the countdown
-  // drawn as a chip.
-  tone?: "default" | "flash";
 }) {
-  const flash = tone === "flash";
   const productHref = linkVariantId
     ? `/product/${product.slug}?variant=${linkVariantId}`
     : `/product/${product.slug}`;
@@ -101,11 +92,7 @@ export function ProductCard({
 
   return (
     <div
-      className={`group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-card)] transition-[border-color,box-shadow] duration-200 ease-in-out ${
-        flash
-          ? "border-[1.5px] border-[var(--color-flash-border)] hover:border-[var(--color-flash)] hover:shadow-[0_6px_18px_rgba(220,38,38,0.12)]"
-          : "border border-[var(--border)] hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]"
-      }`}
+      className="group flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--color-card)] transition-[border-color,box-shadow] duration-200 ease-in-out hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-card-hover)]"
     >
       <div className="relative">
         {/* Edge-to-edge, clipped to the card's own rounded corners by the
@@ -138,7 +125,7 @@ export function ProductCard({
               nav) -- backdrop-blur + backdrop-saturate-150 -- just a dark
               tint here instead of their light one, since this sits on a
               photo rather than the page background. */}
-          {hasCampaign && !flash && (
+          {hasCampaign && (
             <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-black/45 px-2 py-1.5 backdrop-blur-md backdrop-saturate-150">
               <span aria-hidden="true" className="text-xs text-white">
                 ⚡
@@ -158,21 +145,12 @@ export function ProductCard({
             </span>
           )}
           {product.badgeLabel && (
-            <span
-              className={`flex items-center gap-[3px] rounded-full px-2 py-[2px] text-[9px] font-semibold text-white ${
-                flash ? "bg-[var(--color-flash)]" : "bg-[var(--color-warning)]"
-              }`}
-            >
-              {flash && <BoltIcon className="h-[9px] w-[9px] fill-current text-[var(--color-accent-secondary)]" />}
+            <span className="flex items-center rounded-full bg-[var(--color-warning)] px-2 py-[2px] text-[9px] font-semibold text-white">
               {product.badgeLabel}
             </span>
           )}
           {discountPercent != null && (
-            <span
-              className={`flex items-center rounded-full px-2 py-[2px] text-[9px] font-semibold text-white ${
-                flash ? "bg-[var(--foreground)]" : "bg-[var(--color-discount)]"
-              }`}
-            >
+            <span className="flex items-center rounded-full bg-[var(--color-discount)] px-2 py-[2px] text-[9px] font-semibold text-white">
               -{discountPercent}%
             </span>
           )}
@@ -233,16 +211,8 @@ export function ProductCard({
           <div
             className={`flex ${SLOT_A_HEIGHT} flex-nowrap items-center justify-between gap-x-1 overflow-hidden text-[11px] whitespace-nowrap sm:text-[13px]`}
           >
-            {hasCampaign && product.campaignEndAt && !flash && (
+            {hasCampaign && product.campaignEndAt && (
               <CampaignCountdown target={product.campaignEndAt} label="Ends in" size="sm" />
-            )}
-            {hasCampaign && product.campaignEndAt && flash && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-flash-soft)] px-2 font-bold">
-                <BoltIcon className="h-2.5 w-2.5 shrink-0 fill-current text-[var(--color-flash)]" />
-                {/* No "Ends in" here: the bolt says it, and the label would
-                    push the digits out of a phone-width card. */}
-                <CampaignCountdown target={product.campaignEndAt} label="" size="sm" tone="flash" />
-              </span>
             )}
             {/* Campaign-attributed sold count -- deliberately the SAME
                 soldCount field CampaignInfoBlock elsewhere reads (see
@@ -255,9 +225,7 @@ export function ProductCard({
                 can't fully fit, rather than the row wrapping or the
                 countdown itself getting cut off mid-digit. */}
             {hasCampaign && product.soldCount != null && product.soldCount > 0 && (
-              <span
-                className={`min-w-0 truncate ${flash ? "text-[11px] font-semibold text-[var(--color-flash-text)]" : "text-[var(--muted)]"}`}
-              >
+              <span className="min-w-0 truncate text-[var(--muted)]">
                 {product.soldCount} sold
               </span>
             )}
@@ -283,17 +251,13 @@ export function ProductCard({
             current-price pair that still doesn't fit at the narrowest
             mobile widths now wraps onto a second line instead of silently
             clipping against the card's own overflow-hidden. */}
-        {/* The current price inherits this colour; the was-price keeps
-            its own muted grey. */}
-        <div className={flash ? "text-[var(--color-flash-text)]" : undefined}>
-          <PriceDisplay
-            actualPrice={product.actual_price}
-            specialPrice={product.special_price}
-            size="sm"
-            showDiscountBadge={false}
-            allowWrap
-          />
-        </div>
+        <PriceDisplay
+          actualPrice={product.actual_price}
+          specialPrice={product.special_price}
+          size="sm"
+          showDiscountBadge={false}
+          allowWrap
+        />
 
         {/* Rating (left) + lifetime total sold (right) -- always rendered,
             reserving its height, so the button below never creeps up on a
@@ -328,7 +292,7 @@ export function ProductCard({
             padding here on top of it was the redundant "leftover empty
             space before Add to Cart." */}
         <div className="mt-auto">
-          <QuickAddButton product={product} variant={variant} tone={tone} unavailableLabel={unavailableLabel} />
+          <QuickAddButton product={product} variant={variant} unavailableLabel={unavailableLabel} />
         </div>
       </div>
     </div>

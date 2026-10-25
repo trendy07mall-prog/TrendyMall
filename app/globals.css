@@ -44,7 +44,7 @@
   --color-accent-secondary: #ffd43b;
 
   /* Flash sale cards and the campaign banner section on the homepage
-     (ProductCard tone="flash", ActiveCampaignSections). #dc2626 carries
+     (ActiveCampaignSections and its countdowns). #dc2626 carries
      white text at AA; the darker #b91c1c is for red text on white or on
      the pale --color-flash-soft chip. */
   --color-flash: #dc2626;
@@ -1083,4 +1083,70 @@ html[data-theme="dark"] a[href^="/category/"][class~="backdrop-blur-[18px]"] {
 html[data-theme="dark"] a[href^="/category/"] [class~="bg-white/85"] {
   background-color: #1b2a44;
   border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Campaign product cards (CampaignProductCard) and the panel they sit on
+   in a homepage campaign section. White in light mode; frosted glass in
+   dark mode. The photo tile stays white in both, so product shots never
+   sit on a dark background. */
+.campaign-panel {
+  background: #ffffff;
+}
+.campaign-card {
+  --cc-ink: #0f2d52;
+  --cc-ink-hover: #c2410c;
+  --cc-price: #dc2626;
+  --cc-muted: #6b7280;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 6px 16px rgba(15, 45, 82, 0.08);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.campaign-card:hover {
+  border-color: #f97316;
+  box-shadow: 0 10px 24px rgba(15, 45, 82, 0.14);
+}
+.campaign-photo {
+  background: #ffffff;
+}
+.campaign-wish {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f2d52;
+  box-shadow: 0 2px 8px rgba(15, 45, 82, 0.18);
+}
+.campaign-wish:hover {
+  background: #ffffff;
+  color: #dc2626;
+}
+html[data-theme="dark"] .campaign-panel {
+  background: rgba(11, 18, 32, 0.94);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+html[data-theme="dark"] .campaign-card {
+  --cc-ink: #f3f4f6;
+  --cc-ink-hover: #fb923c;
+  --cc-price: #ffffff;
+  --cc-muted: #9ca3af;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 10px 26px rgba(0, 0, 0, 0.3);
+}
+html[data-theme="dark"] .campaign-card:hover {
+  border-color: rgba(251, 146, 60, 0.6);
+}
+.campaign-cart {
+  background: #f97316;
+  color: #111111;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35);
+}
+.campaign-cart:hover:not(:disabled) {
+  background: #fb923c;
+}
+.campaign-cart:disabled {
+  box-shadow: none;
 }
