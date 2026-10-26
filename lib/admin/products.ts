@@ -9,6 +9,7 @@ import { setProductTags } from "@/lib/admin/tags";
 import { setProductSpecValues } from "@/lib/admin/spec-templates";
 import { setProductAttributeValues } from "@/lib/admin/attributes";
 import { slugify } from "@/lib/utils";
+import { colorKey } from "@/lib/variant-options";
 import type { ProductStatus } from "@/types";
 
 export type ProductFormState = { error: string } | undefined;
@@ -288,6 +289,18 @@ async function syncProductVariants(
   }
   if (validVariants.length === 0) {
     throw new Error("Every product needs at least one priced variant.");
+  }
+
+  // The product page picks a variant by colour + options, so two rows with
+  // the same ones would make one of them impossible to buy. The admin form
+  // blocks this too; this is the check that can't be skipped.
+  const combos = new Set<string>();
+  for (const v of validVariants) {
+    const combo = [colorKey(v.colorName), ...[...(v.attributeValueIds ?? [])].sort()].join("|");
+    if (combos.has(combo)) {
+      throw new Error("Two variants have the same colour and options. Change or untick one.");
+    }
+    combos.add(combo);
   }
 
   for (const v of validVariants) {
