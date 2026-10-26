@@ -1176,11 +1176,3 @@ html[data-theme="dark"] .checkout-fonts [class~="bg-[#F1F5FB]"] {
 html[data-theme="dark"] .checkout-fonts [class~="bg-[var(--pf-navy)]"] {
   background-color: #1e4e8c;
 }
-
-/* TEMPORARY iPhone crash test switch, see app/layout.tsx. Remove before merging. */
-html[data-test~="noanim"] *,
-html[data-test~="noanim"] *::before,
-html[data-test~="noanim"] *::after { animation: none !important; transition: none !important; }
-html[data-test~="noblur"] * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-html[data-test~="nocat"] .category-marquee { display: none !important; }
-html[data-test~="nocamp"] .campaign-section { display: none !important; }

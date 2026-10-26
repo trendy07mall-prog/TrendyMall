@@ -36,7 +36,7 @@ export function ActiveCampaignSections({ sections }: { sections: CampaignSection
           key={section.campaign.id}
           // Narrower than the page's other sections: at full width the
           // 3.2:1 banner alone stood taller than most screens' first view.
-          className="campaign-section mx-auto w-full max-w-[1180px] px-3 py-[var(--home-section-padding-y)] sm:px-6"
+          className="mx-auto w-full max-w-[1180px] px-3 py-[var(--home-section-padding-y)] sm:px-6"
         >
           <FadeIn>{index === 0 ? <BannerCampaign {...section} /> : <SideBannerCampaign {...section} />}</FadeIn>
         </section>

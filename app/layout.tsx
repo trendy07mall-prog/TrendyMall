@@ -208,13 +208,6 @@ export default async function RootLayout({
         {/* Dark / light mode, applied before the first paint so a
             dark-mode visitor never sees a white flash (lib/theme.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-        {/* TEMPORARY iPhone crash test switch (?test=noanim,noblur,nocat,nocamp).
-            Remove before merging. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var q=new URLSearchParams(location.search).get("test");if(q!==null)sessionStorage.setItem("tm-test",q);var t=sessionStorage.getItem("tm-test");if(t)document.documentElement.setAttribute("data-test",t.split(",").join(" "))}catch(e){}})()`,
-          }}
-        />
         {/* The Meta pixel stays exactly where it is -- afterInteractive,
             async, after hydration -- because its own script is the single
             largest blocking item on the page (measured: a 5.6 s task on
