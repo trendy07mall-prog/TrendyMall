@@ -203,7 +203,11 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {
-    viewTransition: true,
+    // viewTransition is deliberately OFF. The <ViewTransition> it powered
+    // wrapped every page, so each navigation made the browser snapshot the
+    // whole old and new page as images. On iPhone Safari that ran out of
+    // memory and the page reloaded ("A problem repeatedly occurred"),
+    // usually on the second or third tap of a product card.
     // Default is 1MB, well under the 5MB image uploads this app allows
     // (lib/admin/uploads.ts, lib/uploadPaymentSlip.ts) -- without this, a
     // file between 1-5MB never reaches that code's own size check at all;

@@ -280,22 +280,10 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* View Transitions (app/layout.tsx's <ViewTransition>) don't automatically
-   respect prefers-reduced-motion the way the Framer Motion animations
-   elsewhere in this app do — this override is required, not optional. */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-  }
-}
-
 /* Zeroes the single shared motion token (defangs every transition-brand
    use sitewide) and stops the Skeleton component's pulse shimmer — both
-   are plain CSS transitions/animations that, unlike the View Transitions
-   above and the Framer Motion animations elsewhere, don't respect this
+   are plain CSS transitions/animations that, unlike the Framer Motion
+   animations elsewhere, don't respect this
    setting on their own. */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -802,10 +790,6 @@ input:-webkit-autofill:focus {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
-@keyframes cr7-ring {
-  0% { box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.3), 0 10px 40px rgba(0, 0, 0, 0.18); }
-  80%, 100% { box-shadow: 0 0 0 14px rgba(17, 17, 17, 0), 0 10px 40px rgba(0, 0, 0, 0.18); }
-}
 @keyframes cr7-blink {
   0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-3px); }
@@ -817,7 +801,11 @@ input:-webkit-autofill:focus {
 .cr7-in { animation: cr7-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .cr7-pop { transform-origin: bottom right; animation: cr7-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .cr7-live { animation: cr7-pulse 2s infinite; }
-.cr7-bob { animation: cr7-bob 2.6s ease-in-out infinite, cr7-ring 2.6s ease-out infinite; }
+/* Bob only (transform, which the GPU moves for free). The widening ring
+   that used to run with it animated box-shadow, a full repaint every
+   frame of a fixed button over the page, which iPhone Safari could not
+   afford on the homepage. The resting shadow stays. */
+.cr7-bob { animation: cr7-bob 2.6s ease-in-out infinite; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18); }
 .cr7-bob:hover { animation-play-state: paused; }
 .cr7-dot { animation: cr7-blink 1s infinite; }
 .cr7-fill { transform-origin: left center; animation: cr7-fill 0.45s ease-out both; }
@@ -858,27 +846,23 @@ input:-webkit-autofill:focus {
 }
 
 /* Header search icon (SearchBox.tsx on desktop, NavbarClient's /search
-   link on mobile): a small orange light circling the button's edge. The
-   mask cuts the conic gradient down to a 2px ring with a see-through
-   middle, so it reads the same over the solid white header and the navy
-   glass one. Off for reduced motion. */
+   link on mobile): a small orange light circling the button's edge. It
+   is one soft dot on a rotating layer, with no mask and no conic
+   gradient: the earlier masked ring was re-painted every frame, which is
+   too much for iPhone Safari on top of the rest of the homepage. The
+   light stops while the phone header is hidden ([data-hidden]) and for
+   reduced motion. */
 .search-orbit::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 9999px;
   pointer-events: none;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 230deg,
-    rgba(249, 115, 22, 0) 236deg,
-    #f97316 310deg,
-    #fdba74 332deg,
-    transparent 346deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  background: radial-gradient(circle at 50% 2px, #f97316 0 2px, rgba(249, 115, 22, 0.45) 3px, transparent 5px);
   animation: search-orbit-spin 2.6s linear infinite;
+}
+@media (max-width: 47.99rem) {
+  header[data-hidden] .search-orbit::before { animation-play-state: paused; }
 }
 @keyframes search-orbit-spin {
   to { transform: rotate(360deg); }
@@ -1147,4 +1131,36 @@ html[data-theme="dark"] .campaign-card:hover {
 }
 .campaign-cart:disabled {
   box-shadow: none;
+}
+
+/* Checkout in dark mode. The page has its own palette (.checkout-fonts
+   above) and its section cards and options are styled by class, so the
+   general overrides never reached them: white cards with light text on
+   top. Re-point the palette instead. --pf-navy doubles as a text colour
+   and a fill behind white text, so it goes light here and the fills get
+   their own darker blue. */
+html[data-theme="dark"] .checkout-fonts {
+  --pf-navy: #c7d7ee;
+  --co-page: var(--background);
+  --co-card-border: #22314a;
+  --co-tint: #16233b;
+  --co-tint-border: #2b4266;
+  --co-green: #4ade80;
+  --co-green-bg: rgba(74, 222, 128, 0.14);
+  --co-muted: #9ca3af;
+  --co-input-border: #4b5d7a;
+}
+html[data-theme="dark"] .checkout-fonts .co-card {
+  background: var(--color-card);
+}
+html[data-theme="dark"] .checkout-fonts .co-option {
+  background: #0f1828;
+  border-color: #2b3a55;
+}
+html[data-theme="dark"] .checkout-fonts .co-option[data-selected="true"],
+html[data-theme="dark"] .checkout-fonts [class~="bg-[#F1F5FB]"] {
+  background: #16233b;
+}
+html[data-theme="dark"] .checkout-fonts [class~="bg-[var(--pf-navy)]"] {
+  background-color: #1e4e8c;
 }

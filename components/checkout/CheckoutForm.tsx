@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -197,6 +197,14 @@ export function CheckoutForm({
   // attempted — the order number is on screen immediately and stays
   // there if router.replace fails for any reason (see handleSubmit).
   const [placedOrder, setPlacedOrder] = useState<{ orderNumber: string; orderId: string } | null>(null);
+
+  // Swapping the long form for the short "Order placed" panel left the
+  // window scrolled to where the Place order button was, so the customer
+  // saw the footer flash past before the confirmation page loaded. Jump
+  // to the top before that frame is painted.
+  useLayoutEffect(() => {
+    if (placedOrder) window.scrollTo(0, 0);
+  }, [placedOrder]);
 
   const [addressFields, setAddressFields] = useState<CheckoutAddressFields>(EMPTY_ADDRESS_FIELDS);
   const addressRef = useRef<CheckoutAddressHandle>(null);
@@ -771,7 +779,7 @@ export function CheckoutForm({
   if (placedOrder) {
     const url = confirmationUrl(placedOrder.orderNumber, placedOrder.orderId, isLoggedIn);
     return (
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-20 text-center">
+      <div className="mx-auto flex min-h-[70vh] w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-20 text-center">
         <h1 className="font-heading text-2xl font-bold tracking-tight">Order placed</h1>
         <p className="mt-2 text-[var(--muted)]">
           Order <strong>{placedOrder.orderNumber}</strong> has been received.

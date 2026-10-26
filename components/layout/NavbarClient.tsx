@@ -358,12 +358,17 @@ export function NavbarClient({
   // occupying its own reserved flow space -- sliding it away reveals
   // exactly what was already sitting behind it, not a blank gap.
   const autoHideClass = stuck ? "max-md:pointer-events-none max-md:-translate-y-full max-md:opacity-0" : "";
+  // While it is hidden on a phone, the header also drops its blur. An
+  // invisible backdrop-filter is still recomputed on every scroll frame,
+  // and iPhone Safari reloads the page when that adds up with the rest of
+  // the homepage. The search light pauses too (globals.css, [data-hidden]).
+  const hiddenBlurClass = stuck ? "max-md:[-webkit-backdrop-filter:none] max-md:[backdrop-filter:none]" : "";
 
   const headerOuterClass = glass
     ? `sticky top-0 z-[var(--z-nav)] px-3 pt-3 transition-[padding,transform,opacity] duration-[var(--transition-duration)] ease-in-out print:hidden sm:px-4 sm:pt-4 ${autoHideClass}`
     : `sticky top-0 z-[var(--z-nav)] border-b bg-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.06)] backdrop-blur transition-[color,background-color,border-color,transform,opacity] duration-[var(--transition-duration)] print:hidden ${
         isCheckout || scrolled ? "border-[var(--border)]" : "border-transparent"
-      } ${autoHideClass}`;
+      } ${autoHideClass} ${hiddenBlurClass}`;
 
   // Dark-tinted glass (not the bottom nav's light frosted glass) — this
   // header needs to carry WHITE content, and white text on a mostly-white
@@ -380,7 +385,7 @@ export function NavbarClient({
   // plain white page, confirmed via Playwright screenshots to still look
   // right (not over-blurred/muddy) over busy product-grid imagery too.
   const headerInnerClass = glass
-    ? "mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between rounded-[22px] border border-white/15 bg-black/32 px-3 py-3 text-white shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-[32px] backdrop-saturate-150 transition-[background-color,border-radius,box-shadow,color] duration-[var(--transition-duration)] ease-in-out sm:px-6 [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]"
+    ? `mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between rounded-[22px] border border-white/15 bg-black/32 px-3 py-3 text-white shadow-[0_8px_32px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-[32px] backdrop-saturate-150 transition-[background-color,border-radius,box-shadow,color] duration-[var(--transition-duration)] ease-in-out sm:px-6 [text-shadow:0_1px_3px_rgba(0,0,0,0.45)] ${hiddenBlurClass}`
     : `mx-auto flex w-full max-w-[var(--container-width)] items-center justify-between px-3 sm:px-6 ${
         isCheckout ? "py-2.5" : "py-5"
       }`;
@@ -393,7 +398,7 @@ export function NavbarClient({
 
   return (
     <>
-      <header ref={headerRef} className={headerOuterClass}>
+      <header ref={headerRef} className={headerOuterClass} data-hidden={stuck || undefined}>
       <div className={headerInnerClass}>
         <Link
           href="/"

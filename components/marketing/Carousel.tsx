@@ -129,12 +129,15 @@ export function Carousel({
               out; the same button pinned to one size across all
               breakpoints never crashed once). Losing the tablet/desktop
               size bump is the tradeoff for a homepage that doesn't crash
-              Safari/WebKit visitors. */}
+              Safari/WebKit visitors. No backdrop-filter either: these sit
+              over the scrolling track (the homepage campaign rows), so a
+              blur here is re-rendered on every swipe, and iPhone Safari
+              reloads the page under that load. Solid black/60 instead. */}
           <button
             type="button"
             aria-label="Previous"
             onClick={() => scrollByPage(-1)}
-            className="absolute top-1/2 left-0 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110"
+            className="absolute top-1/2 left-0 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-brand hover:scale-110"
           >
             <ChevronLeftIcon className="h-[18px] w-[18px]" />
           </button>
@@ -142,7 +145,7 @@ export function Carousel({
             type="button"
             aria-label="Next"
             onClick={() => scrollByPage(1)}
-            className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-black/45 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] backdrop-blur-sm transition-brand hover:scale-110"
+            className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-black/60 text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-brand hover:scale-110"
           >
             <ChevronRightIcon className="h-[18px] w-[18px]" />
           </button>
