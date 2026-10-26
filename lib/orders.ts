@@ -216,7 +216,7 @@ export async function createOrder(
     if (user) {
       const { data: items } = await supabase
         .from("order_items")
-        .select("product_id, product_name, quantity, subtotal, variant_name, bundle_id")
+        .select("product_id, product_name, quantity, subtotal, variant_name, attribute_selections, bundle_id")
         .eq("order_id", row.order_id);
 
       const { data: order } = await supabase
@@ -238,6 +238,7 @@ export async function createOrder(
               productId: item.product_id,
               bundleId: item.bundle_id,
               variantName: item.variant_name,
+              attributeSelections: item.attribute_selections as { attributeName: string; value: string }[] | null,
             })),
             subtotal: order.subtotal,
             shippingFee: order.shipping_fee,
@@ -279,6 +280,7 @@ export async function createOrder(
               productId: item.productId,
               bundleId: item.bundleId,
               variantName: item.variantName,
+              attributeSelections: item.attributeSelections ?? null,
             })),
             subtotal: guestOrder.subtotal,
             shippingFee: guestOrder.shippingFee,

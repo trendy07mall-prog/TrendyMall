@@ -8,7 +8,9 @@ import type { Attribute, AttributeValue } from "@/types";
 // When this attribute is variant-defining for the product, selecting a
 // value participates in the same combination lookup as Color (price/stock/
 // SKU/gallery all follow); when it isn't, the selection stays
-// reference-only, exactly as before.
+// reference-only, exactly as before. Each row is picked on its own:
+// ProductPurchaseSection never greys out a value just because of another
+// row's pick (lib/variant-options.ts).
 export function AttributeSelector({
   attribute,
   values,
@@ -22,8 +24,8 @@ export function AttributeSelector({
   values: AttributeValue[];
   selectedId: string | null;
   onSelect: (value: AttributeValue) => void;
-  // Values with no matching variant given the rest of the current
-  // selection -- an impossible combination, greyed out and unclickable.
+  // Values nothing can be bought with (no variant has them, or every one
+  // that does is sold out) -- greyed out and unclickable.
   disabledIds?: Set<string>;
   // True whenever this group is genuinely unselected right now -- driven
   // live off selection state, not gated behind a failed Add to Cart click,
@@ -32,10 +34,9 @@ export function AttributeSelector({
   // initialization populates every group, but stays as a visible safety
   // net for any future edge case rather than a silent block.
   hasError?: boolean;
-  // True for ~300ms right after THIS group's available options changed as
-  // a side effect of a different selector (e.g. Capacity's options after a
-  // Color change) -- lets the customer perceive the connection between two
-  // now-adjacent selectors instead of only noticing on close inspection.
+  // Briefly true right after a tap in ANOTHER row had to change this
+  // row's value (e.g. tapping 10000mAh switched Connectors to Type-C), so
+  // the customer sees which row moved, next to the note that says why.
   flash?: boolean;
 }) {
   if (values.length === 0) return null;

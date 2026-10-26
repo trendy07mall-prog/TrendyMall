@@ -1,3 +1,4 @@
+import { variantSummary } from "@/lib/variant-options";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
@@ -43,13 +44,10 @@ export function OrderSummaryCard({ order, zones }: { order: GuestOrderDetail; zo
               <div className="flex flex-1 items-center justify-between">
                 <span>
                   {item.productName}
-                  {item.variantName && (
-                    <span className="text-[var(--muted)]"> ({item.variantName})</span>
-                  )}
-                  {item.attributeSelections && item.attributeSelections.length > 0 && (
+                  {variantSummary(item.variantName, item.attributeSelections) && (
                     <span className="text-[var(--muted)]">
                       {" "}
-                      ({item.attributeSelections.map((s) => `${s.attributeName}: ${s.value}`).join(", ")})
+                      ({variantSummary(item.variantName, item.attributeSelections)})
                     </span>
                   )}{" "}
                   × {item.quantity}

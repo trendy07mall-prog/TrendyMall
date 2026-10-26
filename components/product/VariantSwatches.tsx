@@ -19,6 +19,7 @@ export function VariantSwatches({
   selectedKey,
   onSelect,
   hasError = false,
+  flash = false,
 }: {
   options: ColorSwatchOption[];
   selectedKey: string | null;
@@ -26,6 +27,9 @@ export function VariantSwatches({
   // See AttributeSelector's identical prop -- live, pre-click visibility
   // into an unselected group rather than only a post-click error message.
   hasError?: boolean;
+  // Briefly true after another row's tap had to change the colour -- see
+  // AttributeSelector's identical prop.
+  flash?: boolean;
 }) {
   if (options.length === 0) return null;
 
@@ -42,8 +46,8 @@ export function VariantSwatches({
         </span>
       </div>
       <div
-        className={`mt-3 flex flex-wrap gap-3 rounded-[var(--radius-md)] ${
-          hasError ? "ring-1 ring-[var(--color-discount)]" : ""
+        className={`mt-3 flex flex-wrap gap-3 rounded-[var(--radius-md)] transition-shadow duration-300 ease-in-out motion-reduce:transition-none ${
+          hasError ? "ring-1 ring-[var(--color-discount)]" : flash ? "ring-2 ring-[var(--color-warning)] ring-offset-4 ring-offset-[var(--color-card)]" : ""
         }`}
       >
         {options.map((option) => (

@@ -1,3 +1,4 @@
+import { variantSummary } from "@/lib/variant-options";
 import { Resend } from "resend";
 import { formatPrice, isValidEmail } from "@/lib/utils";
 import { describeDeliveryFee, type DeliveryZone } from "@/lib/delivery-fee";
@@ -22,6 +23,11 @@ function fromHeader(fromEmail: string): string {
 // for the header/footer, not a separate asset.
 const EMAIL_LOGO_HTML = `<img src="${SITE_URL}/images/logo/trendymall-logo.png" alt="TrendyMall" width="120" height="71" style="display:block; margin-bottom: 16px;" />`;
 
+// Variant text comes from admin-typed colour and option names.
+function escapeEmailText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 interface OrderEmailItem {
   name: string;
   quantity: number;
@@ -34,6 +40,9 @@ interface OrderEmailItem {
   // The line's own product id, so a contents line can find its bundle.
   productId?: string | null;
   variantName?: string | null;
+  // Mah, Connector... as picked on the product page, shown after the
+  // colour ("Blue · 10000mAh · Type-C").
+  attributeSelections?: { attributeName: string; value: string }[] | null;
 }
 
 interface OrderEmailData {
@@ -62,7 +71,9 @@ interface OrderEmailData {
 function buildOrderEmailHtml(order: OrderEmailData, forOwner: boolean, zones: DeliveryZone[]): string {
   const itemsHtml = groupBundleLines(order.items)
     .map(({ line: item, contents }) => {
-      const priced = `<tr><td style="padding:4px 0;">${item.name} &times; ${item.quantity}</td><td style="padding:4px 0; text-align:right;">${formatPrice(item.subtotal)}</td></tr>`;
+      const variant = variantSummary(item.variantName, item.attributeSelections);
+      const variantHtml = variant ? ` <span style="color:#6B7280;">(${escapeEmailText(variant)})</span>` : "";
+      const priced = `<tr><td style="padding:4px 0;">${item.name}${variantHtml} &times; ${item.quantity}</td><td style="padding:4px 0; text-align:right;">${formatPrice(item.subtotal)}</td></tr>`;
       if (contents.length === 0) return priced;
       // What was in the bundle, indented and with the price cell left
       // empty -- never "Rs 0", which would read as a free gift.
