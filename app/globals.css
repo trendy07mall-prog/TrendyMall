@@ -802,10 +802,6 @@ input:-webkit-autofill:focus {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
-@keyframes cr7-ring {
-  0% { box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.3), 0 10px 40px rgba(0, 0, 0, 0.18); }
-  80%, 100% { box-shadow: 0 0 0 14px rgba(17, 17, 17, 0), 0 10px 40px rgba(0, 0, 0, 0.18); }
-}
 @keyframes cr7-blink {
   0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
   40% { opacity: 1; transform: translateY(-3px); }
@@ -817,7 +813,11 @@ input:-webkit-autofill:focus {
 .cr7-in { animation: cr7-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .cr7-pop { transform-origin: bottom right; animation: cr7-pop 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .cr7-live { animation: cr7-pulse 2s infinite; }
-.cr7-bob { animation: cr7-bob 2.6s ease-in-out infinite, cr7-ring 2.6s ease-out infinite; }
+/* Bob only (transform, which the GPU moves for free). The widening ring
+   that used to run with it animated box-shadow, a full repaint every
+   frame of a fixed button over the page, which iPhone Safari could not
+   afford on the homepage. The resting shadow stays. */
+.cr7-bob { animation: cr7-bob 2.6s ease-in-out infinite; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18); }
 .cr7-bob:hover { animation-play-state: paused; }
 .cr7-dot { animation: cr7-blink 1s infinite; }
 .cr7-fill { transform-origin: left center; animation: cr7-fill 0.45s ease-out both; }
@@ -858,27 +858,23 @@ input:-webkit-autofill:focus {
 }
 
 /* Header search icon (SearchBox.tsx on desktop, NavbarClient's /search
-   link on mobile): a small orange light circling the button's edge. The
-   mask cuts the conic gradient down to a 2px ring with a see-through
-   middle, so it reads the same over the solid white header and the navy
-   glass one. Off for reduced motion. */
+   link on mobile): a small orange light circling the button's edge. It
+   is one soft dot on a rotating layer, with no mask and no conic
+   gradient: the earlier masked ring was re-painted every frame, which is
+   too much for iPhone Safari on top of the rest of the homepage. The
+   light stops while the phone header is hidden ([data-hidden]) and for
+   reduced motion. */
 .search-orbit::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 9999px;
   pointer-events: none;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 230deg,
-    rgba(249, 115, 22, 0) 236deg,
-    #f97316 310deg,
-    #fdba74 332deg,
-    transparent 346deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  background: radial-gradient(circle at 50% 2px, #f97316 0 2px, rgba(249, 115, 22, 0.45) 3px, transparent 5px);
   animation: search-orbit-spin 2.6s linear infinite;
+}
+@media (max-width: 47.99rem) {
+  header[data-hidden] .search-orbit::before { animation-play-state: paused; }
 }
 @keyframes search-orbit-spin {
   to { transform: rotate(360deg); }

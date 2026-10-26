@@ -416,7 +416,7 @@ export function SlideCarousel({
             type="button"
             aria-label="Previous slide"
             onClick={prev}
-            className="absolute top-4 left-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white opacity-100 backdrop-blur-sm transition-all sm:top-6 lg:top-8 md:opacity-0 md:hover:scale-110 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+            className="absolute top-4 left-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white opacity-100 transition-all sm:top-6 lg:top-8 md:opacity-0 md:hover:scale-110 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
           >
             <ChevronLeftIcon className="h-[18px] w-[18px]" />
           </button>
@@ -424,7 +424,7 @@ export function SlideCarousel({
             type="button"
             aria-label="Next slide"
             onClick={next}
-            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white opacity-100 backdrop-blur-sm transition-all sm:top-6 lg:top-8 md:opacity-0 md:hover:scale-110 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
+            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white opacity-100 transition-all sm:top-6 lg:top-8 md:opacity-0 md:hover:scale-110 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
           >
             <ChevronRightIcon className="h-[18px] w-[18px]" />
           </button>
