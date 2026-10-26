@@ -1148,3 +1148,35 @@ html[data-theme="dark"] .campaign-card:hover {
 .campaign-cart:disabled {
   box-shadow: none;
 }
+
+/* Checkout in dark mode. The page has its own palette (.checkout-fonts
+   above) and its section cards and options are styled by class, so the
+   general overrides never reached them: white cards with light text on
+   top. Re-point the palette instead. --pf-navy doubles as a text colour
+   and a fill behind white text, so it goes light here and the fills get
+   their own darker blue. */
+html[data-theme="dark"] .checkout-fonts {
+  --pf-navy: #c7d7ee;
+  --co-page: var(--background);
+  --co-card-border: #22314a;
+  --co-tint: #16233b;
+  --co-tint-border: #2b4266;
+  --co-green: #4ade80;
+  --co-green-bg: rgba(74, 222, 128, 0.14);
+  --co-muted: #9ca3af;
+  --co-input-border: #4b5d7a;
+}
+html[data-theme="dark"] .checkout-fonts .co-card {
+  background: var(--color-card);
+}
+html[data-theme="dark"] .checkout-fonts .co-option {
+  background: #0f1828;
+  border-color: #2b3a55;
+}
+html[data-theme="dark"] .checkout-fonts .co-option[data-selected="true"],
+html[data-theme="dark"] .checkout-fonts [class~="bg-[#F1F5FB]"] {
+  background: #16233b;
+}
+html[data-theme="dark"] .checkout-fonts [class~="bg-[var(--pf-navy)]"] {
+  background-color: #1e4e8c;
+}
