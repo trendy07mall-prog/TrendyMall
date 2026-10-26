@@ -26,27 +26,19 @@ import { getEstimatedDeliveryRange } from "@/lib/delivery";
 import { trackConversion } from "@/lib/analytics/track";
 import { VariantSwatches, type ColorSwatchOption } from "@/components/product/VariantSwatches";
 import type { ProductVariantWithImages } from "@/lib/data/products";
+import {
+  COLOR_GROUP,
+  cleanColorName,
+  colorKey,
+  findVariant,
+  isValueUnavailable,
+  selectOption,
+  type OptionDims,
+} from "@/lib/variant-options";
 import type { Attribute, AttributeSelection, AttributeValue, Product, ProductRatingSummary } from "@/types";
 import type { ReviewWithReviewerName } from "@/lib/reviews";
 import type { DisplaySpec } from "@/lib/data/spec-templates";
 import { BundleWhatsInside, type BundleInsideItem } from "@/components/product/BundleWhatsInside";
-
-function normalizeColor(name: string | null): string {
-  return (name ?? "").trim().toLowerCase();
-}
-
-// Some variants' color_name has extra "- Capacity - Connector" text baked
-// into it (an admin data-entry slip -- the full variant descriptor typed
-// into the color field instead of just the color, e.g. "White - 5000 mah -
-// Lighting"), so the Colour row would otherwise print that whole string
-// instead of the actual color. Display only the leading segment. The
-// matching/dedup key (normalizeColor, above) still hashes the FULL raw
-// name completely unchanged -- this only touches what text is shown, never
-// which variants a color click resolves to.
-function displayColorName(name: string): string {
-  const [first] = name.split(/\s+-\s+/);
-  return first.trim() || name;
-}
 
 export function ProductPurchaseSection({
   product,
@@ -94,148 +86,91 @@ export function ProductPurchaseSection({
   // same place pickWinningVariant's own fallback already lives.
   const variantIdParam = useSearchParams().get("variant");
 
-  // Color options are every distinct color across this product's variants
-  // (deduped -- two variants can share a color, e.g. the same white in two
-  // capacities, and must render as ONE swatch, not two identical ones). A
-  // variant with no color at all (the invisible "default" variant every
-  // single-option product now gets) never contributes a swatch.
+  // The option groups this product's variants are chosen by: Colour (when
+  // there is more than one) and every attribute at least one variant is
+  // linked to (Mah, Connector...). An attribute no variant links to stays
+  // a reference-only choice, exactly as before. Each variant becomes a
+  // set of "dims" (group key -> value id) so lib/variant-options.ts can
+  // do the choosing, with tests.
+  //
+  // Colours are grouped by their CLEAN name (cleanColorName), so "White",
+  // "White-new" and "White - 5000 mah - Lighting" are one swatch, not three
+  // that look identical. A variant with no colour (the invisible "default"
+  // variant every single-option product gets) never contributes one.
   const colorOptions: { key: string; name: string; hex: string }[] = [];
-  const seenColorKeys = new Set<string>();
   for (const v of variants) {
     if (!v.color_name || !v.color_hex) continue;
-    const key = normalizeColor(v.color_name);
-    if (!seenColorKeys.has(key)) {
-      seenColorKeys.add(key);
-      colorOptions.push({ key, name: displayColorName(v.color_name), hex: v.color_hex });
+    const key = colorKey(v.color_name);
+    if (key && !colorOptions.some((o) => o.key === key)) {
+      colorOptions.push({ key, name: cleanColorName(v.color_name), hex: v.color_hex });
     }
   }
+  const hasColorChoice = colorOptions.length > 0;
 
-  // An attribute only participates in variant matching if at least one of
-  // this product's variants is actually linked to one of its values --
-  // every other attribute (the common case, every product untouched by
-  // this feature) stays exactly what it's always been: a required
-  // reference-only choice with zero effect on price/stock/SKU.
-  const variantDefiningAttributeIds = new Set(
-    attributes
-      .filter((group) => {
-        const groupValueIds = new Set(group.values.map((v) => v.id));
-        return variants.some((v) => v.attributeValueIds.some((id) => groupValueIds.has(id)));
-      })
-      .map((group) => group.attribute.id),
-  );
+  const variantDefiningGroups = attributes.filter((group) => {
+    const groupValueIds = new Set(group.values.map((v) => v.id));
+    return variants.some((v) => v.attributeValueIds.some((id) => groupValueIds.has(id)));
+  });
+  const variantDefiningAttributeIds = new Set(variantDefiningGroups.map((g) => g.attribute.id));
 
-  function valueIdForGroup(variant: ProductVariantWithImages, groupValueIds: Set<string>): string | undefined {
-    return variant.attributeValueIds.find((id) => groupValueIds.has(id));
+  function dimsFor(variant: ProductVariantWithImages): OptionDims {
+    const dims: OptionDims = {};
+    if (hasColorChoice) {
+      const key = colorKey(variant.color_name);
+      if (key) dims[COLOR_GROUP] = key;
+    }
+    for (const group of variantDefiningGroups) {
+      const id = variant.attributeValueIds.find((valueId) => group.values.some((v) => v.id === valueId));
+      if (id) dims[group.attribute.id] = id;
+    }
+    return dims;
   }
+  const optionVariants = variants.map((variant) => ({ variant, dims: dimsFor(variant), stock: variant.stock }));
 
-  // Finds every variant matching the given dimensions -- color and/or
-  // variant-defining attribute value ids. A dimension left `undefined`
-  // (not yet decided) doesn't constrain the search at all; this is what
-  // lets the same function answer both "what's the ONE active variant for
-  // my full current selection" and "does ANY variant exist if I changed
-  // just this one dimension."
-  function findMatchingVariants(dimensions: {
-    color?: string;
-    [attributeId: string]: string | undefined;
-  }): ProductVariantWithImages[] {
-    return variants.filter((v) => {
-      if (colorOptions.length > 0 && dimensions.color !== undefined) {
-        if (normalizeColor(v.color_name) !== dimensions.color) return false;
-      }
-      for (const group of attributes) {
-        if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
-        const selected = dimensions[group.attribute.id];
-        if (selected === undefined) continue;
-        const groupValueIds = new Set(group.values.map((x) => x.id));
-        if (valueIdForGroup(v, groupValueIds) !== selected) return false;
-      }
-      return true;
-    });
-  }
+  // Every group a variant must answer: a variant missing one of these (an
+  // old row never linked to, say, a Mah value) can't be the opening pick
+  // when a fully described one exists.
+  const requiredGroupKeys = [
+    ...(hasColorChoice ? [COLOR_GROUP] : []),
+    ...variantDefiningGroups.map((g) => g.attribute.id),
+  ];
 
-  // The attribute values a given variant "carries" -- for a variant-
-  // defining group this is the value actually linked to the variant; for a
-  // non-variant-defining group (a reference-only spec, e.g. a single-value
-  // "Mah" assigned at the product level, never tied to any specific
-  // variant -- the common case per the comment above) there's no
-  // variant-driven answer, so it defaults to that group's first value
-  // instead. That's always a safe pick: a non-variant-defining group has
-  // zero effect on price/stock/SKU/matching by definition, so ANY of its
-  // values is equally correct -- the alternative (leaving it unselected)
-  // is what blocked Add to Cart with "Please select a Mah" until the
-  // customer manually tapped a choice that changed nothing. Shared by
-  // defaultDimensions (page load) and handleColorSelect (picking a color
-  // whose only variant(s) need a different value on some other dimension
-  // too).
-  function attributeValuesForVariant(variant: ProductVariantWithImages): Record<string, AttributeValue> {
-    const attributeValues: Record<string, AttributeValue> = {};
+  // Where the page opens: the ?variant= one when it's real and fully
+  // described (a campaign card's link), else the same winner the product
+  // card showed a price for (pickWinningVariant), so the two never
+  // disagree. Reference-only groups start on their first value.
+  function initialSelection(): OptionDims {
+    if (variants.length === 0) return {};
+    const fullyDescribed = optionVariants.filter((o) => requiredGroupKeys.every((k) => o.dims[k] !== undefined));
+    const pool = fullyDescribed.length > 0 ? fullyDescribed : optionVariants;
+    const requested = variantIdParam ? pool.find((o) => o.variant.id === variantIdParam) : undefined;
+    const winner = requested?.variant ?? pickWinningVariant(pool.map((o) => o.variant));
+    const selection: OptionDims = { ...(optionVariants.find((o) => o.variant.id === winner.id)?.dims ?? {}) };
     for (const group of attributes) {
-      if (group.values.length === 0) continue;
-      if (!variantDefiningAttributeIds.has(group.attribute.id)) {
-        attributeValues[group.attribute.id] = group.values[0];
-        continue;
+      if (!variantDefiningAttributeIds.has(group.attribute.id) && group.values[0]) {
+        selection[group.attribute.id] = group.values[0].id;
       }
-      const groupValueIds = new Set(group.values.map((v) => v.id));
-      const matchedId = valueIdForGroup(variant, groupValueIds);
-      const matchedValue = group.values.find((v) => v.id === matchedId);
-      if (matchedValue) attributeValues[group.attribute.id] = matchedValue;
     }
-    return attributeValues;
+    return selection;
   }
 
-  // A variant "fully" resolves the product's variant-defining attributes
-  // when it's actually linked to a value for every one of them -- normally
-  // true for every variant (that's what "variant-defining" means: at least
-  // one variant links to it), but a single variant added without a link
-  // for one of those groups would otherwise land the page on an
-  // unaddable-without-clicking selection despite this fix. Defensive, not
-  // yet triggered by any real product in the catalog.
-  function variantFullyResolvesAttributes(variant: ProductVariantWithImages): boolean {
-    const linkedIds = new Set(variant.attributeValueIds);
-    for (const group of attributes) {
-      if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
-      if (!group.values.some((v) => linkedIds.has(v.id))) return false;
-    }
-    return true;
-  }
+  const [selection, setSelection] = useState<OptionDims>(initialSelection);
+  // Shown when a tap had to change another group ("10000mAh isn't made
+  // with Lightning, so we changed Connectors to Type-C") -- nothing on
+  // this page changes a customer's choice without saying so.
+  const [switchNote, setSwitchNote] = useState<string | null>(null);
+  const [flashingIds, setFlashingIds] = useState<Set<string>>(new Set());
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+  }, []);
 
-  function defaultDimensions(): {
-    colorKey: string | null;
-    attributeValues: Record<string, AttributeValue>;
-  } {
-    if (variants.length === 0) return { colorKey: null, attributeValues: {} };
-    // Same algorithm the shop card uses to pick a product's displayed
-    // variant (lib/utils.ts's pickWinningVariant) -- the PDP must land on
-    // the exact variant the card already showed a price for, or the two
-    // surfaces show different numbers for the same product on load. If
-    // that variant can't fully populate every variant-defining attribute
-    // (see above), fall back to the highest-ranked variant among those
-    // that can, rather than opening the page on a selection the customer
-    // can't add to cart without first fixing it themselves.
-    const fullyResolved = variants.filter(variantFullyResolvesAttributes);
-    // A ?variant= id that's real, belongs to this product, and can fully
-    // populate every variant-defining attribute wins over the usual
-    // pickWinningVariant pick -- exactly what a campaign card's link
-    // pointed at. Anything else (no param, a stale/foreign id, a variant
-    // that can't fully resolve) falls straight through to today's default,
-    // never an error.
-    const requestedVariant = variantIdParam
-      ? fullyResolved.find((v) => v.id === variantIdParam)
-      : undefined;
-    const defaultVariant =
-      requestedVariant ?? pickWinningVariant(fullyResolved.length > 0 ? fullyResolved : variants);
-    return {
-      colorKey: colorOptions.length > 0 ? normalizeColor(defaultVariant.color_name) : null,
-      attributeValues: attributeValuesForVariant(defaultVariant),
-    };
+  const selectedColorKey = hasColorChoice ? (selection[COLOR_GROUP] ?? null) : null;
+  const selectedAttributeValues: Record<string, AttributeValue> = {};
+  for (const group of attributes) {
+    const value = group.values.find((v) => v.id === selection[group.attribute.id]);
+    if (value) selectedAttributeValues[group.attribute.id] = value;
   }
-
-  const [selectedColorKey, setSelectedColorKey] = useState<string | null>(
-    () => defaultDimensions().colorKey,
-  );
-  const [selectedAttributeValues, setSelectedAttributeValues] = useState<
-    Record<string, AttributeValue>
-  >(() => defaultDimensions().attributeValues);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
 
@@ -261,17 +196,18 @@ export function ProductPurchaseSection({
     return () => observer.disconnect();
   }, []);
 
-  const dimensions: { color?: string; [attributeId: string]: string | undefined } = {
-    color: selectedColorKey ?? undefined,
-  };
-  for (const [attributeId, value] of Object.entries(selectedAttributeValues)) {
-    dimensions[attributeId] = value.id;
+  // Only the groups variants are chosen by -- a reference-only group's
+  // pick never decides which variant you get.
+  const variantSelection: OptionDims = {};
+  for (const key of requiredGroupKeys) {
+    if (selection[key] !== undefined) variantSelection[key] = selection[key];
   }
   // The one variant matching the FULL current selection -- every other
   // piece of derived state (price, stock, SKU, gallery, cart payload)
   // reads off this, so nothing can ever go stale or fall back silently to
   // the wrong variant.
-  const resolvedVariant = variants.length > 0 ? (findMatchingVariants(dimensions)[0] ?? null) : null;
+  const resolvedVariant =
+    variants.length > 0 ? (findVariant(optionVariants, variantSelection)?.variant ?? null) : null;
   // Same price-band resolution resolveCardDisplay uses server-side for
   // cards -- reused, not reimplemented, so the PDP and the shop card never
   // disagree about which price band (regular/sale/campaign) wins. Pure
@@ -312,126 +248,61 @@ export function ProductPurchaseSection({
   const outOfStock = effectiveStock <= 0;
   const primaryImage = resolvedVariant?.images[0] ?? images[0] ?? null;
 
-  // Clamps quantity to whatever the NEXT selection's resolved variant can
-  // actually fulfill -- computed synchronously against the current
-  // dimensions plus this one change, since the underlying state update
-  // (and therefore resolvedVariant) hasn't landed yet at the point this
-  // runs. Covers both a color change and an attribute change identically.
-  function clampQuantityFor(nextDimensions: { color?: string; [attributeId: string]: string | undefined }) {
-    const nextVariant = findMatchingVariants(nextDimensions)[0] ?? null;
+  // Every option tap goes through here, colour or attribute. The tap
+  // always wins; when the rest of the selection can't go with it,
+  // selectOption changes the fewest other groups and this says which.
+  function handleOptionSelect(key: string, valueId: string) {
+    setSelectionError(null);
+    if (!requiredGroupKeys.includes(key)) {
+      setSelection((prev) => ({ ...prev, [key]: valueId }));
+      return;
+    }
+    const { selection: next, changed } = selectOption(optionVariants, selection, key, valueId);
+    setSelection(next);
+
+    const nextVariant = findVariant(optionVariants, next)?.variant ?? null;
     const nextStock = nextVariant?.stock != null ? nextVariant.stock : product.stock;
     setQuantity((q) => Math.max(1, Math.min(q, Math.max(1, nextStock))));
-  }
 
-  // Picking a color can require some OTHER attribute to change too (e.g.
-  // this product's two variants are White/1000-5000mAh and White-new/
-  // 5000-10000mAh -- there's no variant at all for White + 5000-10000mAh).
-  // If the color you clicked doesn't exist combined with what's currently
-  // selected elsewhere, jump straight to a real variant of that color (same
-  // pickWinningVariant tie-break as defaultDimensions) instead of leaving
-  // the click landing on an unreachable combination the user could never
-  // get out of by clicking one swatch at a time.
-  function handleColorSelect(key: string) {
-    setSelectionError(null);
-    const stillMatches = findMatchingVariants({ ...dimensions, color: key }).length > 0;
-    let nextDimensions: { color?: string; [attributeId: string]: string | undefined } = {
-      ...dimensions,
-      color: key,
-    };
-
-    if (!stillMatches) {
-      const colorVariants = variants.filter((v) => normalizeColor(v.color_name) === key);
-      const target = colorVariants.length > 0 ? pickWinningVariant(colorVariants) : undefined;
-      if (target) {
-        const nextAttributeValues = attributeValuesForVariant(target);
-        setSelectedAttributeValues(nextAttributeValues);
-        nextDimensions = { color: key };
-        for (const [attributeId, value] of Object.entries(nextAttributeValues)) {
-          nextDimensions[attributeId] = value.id;
-        }
-      }
+    if (changed.length > 0) {
+      const tapped = optionLabel(key, valueId);
+      const from = changed.map((c) => (c.from ? optionLabel(c.key, c.from) : null)).filter(Boolean);
+      const to = changed.map((c) => `${groupName(c.key)} to ${optionLabel(c.key, c.to)}`);
+      setSwitchNote(
+        `${tapped} isn\u2019t available${from.length > 0 ? ` with ${from.join(" + ")}` : ""}, so we changed ${to.join(" and ")}.`,
+      );
+      if (flashTimer.current) clearTimeout(flashTimer.current);
+      setFlashingIds(new Set(changed.map((c) => c.key)));
+      flashTimer.current = setTimeout(() => setFlashingIds(new Set()), 1200);
+    } else {
+      setSwitchNote(null);
     }
 
-    setSelectedColorKey(key);
-    clampQuantityFor(nextDimensions);
-  }
-
-  function handleAttributeSelect(attributeId: string, value: AttributeValue) {
-    setSelectedAttributeValues((prev) => ({ ...prev, [attributeId]: value }));
-    setSelectionError(null);
-    clampQuantityFor({ ...dimensions, [attributeId]: value.id });
-  }
-
-  // A color swatch is only ever struck-through/unclickable for a genuine
-  // "every variant of this color is sold out" -- NOT for "impossible with
-  // whatever's currently selected on another dimension," since
-  // handleColorSelect above always resolves that case to a real variant
-  // instead. (Attribute pills, e.g. Mah, keep the stricter
-  // impossible-OR-sold-out disabling below -- unchanged, by design.)
-  function isColorSoldOut(key: string): boolean {
-    const colorVariants = variants.filter((v) => normalizeColor(v.color_name) === key);
-    return colorVariants.length === 0 || colorVariants.every((v) => v.stock === 0);
-  }
-
-  function isAttributeValueDisabled(attributeId: string, valueId: string): boolean {
-    const matches = findMatchingVariants({ ...dimensions, [attributeId]: valueId });
-    return matches.length === 0 || matches.every((v) => v.stock === 0);
-  }
-
-  // Flags any variant-defining group whose disabled-options set just
-  // changed as a side effect of a DIFFERENT selector (e.g. Mah's options
-  // after a Color tap) -- a group's own disabled set never depends on its
-  // own current selection, only on other dimensions, so this naturally
-  // never flags the control the customer just tapped themselves.
-  //
-  // disabledSnapshot itself is plain derived data, cheap to recompute every
-  // render. The diff/flash-timer logic, though, has to live inside an
-  // effect keyed on a STABLE string (disabledSnapshotKey), not on
-  // disabledSnapshot directly (a new object identity every render, which
-  // would make the effect re-run on every render regardless of whether
-  // availability actually changed) and not ref reads/writes during render
-  // (this project's lint config -- react-hooks/refs -- rejects that; same
-  // "no side effects during the render phase" family of rule as the
-  // set-state-in-effect one that caught the CartContext bug earlier).
-  const disabledSnapshot: Record<string, string> = {};
-  for (const group of attributes) {
-    if (!variantDefiningAttributeIds.has(group.attribute.id)) continue;
-    disabledSnapshot[group.attribute.id] = group.values
-      .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
-      .map((v) => v.id)
-      .sort()
-      .join(",");
-  }
-  const disabledSnapshotKey = Object.entries(disabledSnapshot)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([id, val]) => `${id}:${val}`)
-    .join("|");
-
-  const prevDisabledRef = useRef<Record<string, string> | null>(null);
-  const [flashingIds, setFlashingIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const prev = prevDisabledRef.current;
-    prevDisabledRef.current = disabledSnapshot;
-    if (!prev) return;
-    const changed = new Set<string>();
-    for (const id of Object.keys(disabledSnapshot)) {
-      if (prev[id] !== disabledSnapshot[id]) changed.add(id);
+    // Keep the address in step with the pick, so a refresh or a shared
+    // link opens this exact variant (the same ?variant= a campaign card
+    // uses). replaceState, so Back still leaves the product.
+    if (nextVariant) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("variant", nextVariant.id);
+      window.history.replaceState(null, "", url);
     }
-    if (changed.size === 0) return;
-    // One-off sync of derived UI state to an external-ish change
-    // (disabledSnapshotKey), same legitimate case CartContext.tsx already
-    // disables this rule for -- there's no callback/subscription to defer
-    // this into, the whole point is flagging it the instant it changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFlashingIds(changed);
-    const timer = setTimeout(() => setFlashingIds(new Set()), 300);
-    return () => clearTimeout(timer);
-    // disabledSnapshotKey is the complete, stable summary of everything
-    // this effect reads (disabledSnapshot is recomputed from the exact
-    // same source data every render, just not a stable object identity).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disabledSnapshotKey]);
+  }
+
+  function groupName(key: string): string {
+    if (key === COLOR_GROUP) return "Colour";
+    return attributes.find((g) => g.attribute.id === key)?.attribute.name ?? "";
+  }
+
+  function optionLabel(key: string, valueId: string): string {
+    if (key === COLOR_GROUP) return colorOptions.find((o) => o.key === valueId)?.name ?? valueId;
+    return attributes.find((g) => g.attribute.id === key)?.values.find((v) => v.id === valueId)?.value ?? "";
+  }
+
+  // A swatch or pill is greyed out only when nothing with it can be bought
+  // -- never because of what is picked in another row.
+  function isOptionUnavailable(key: string, valueId: string): boolean {
+    return isValueUnavailable(optionVariants, key, valueId);
+  }
 
   // A single color (or none at all -- the invisible "default" variant)
   // means there's no real choice to present, so no swatch section at all,
@@ -440,7 +311,7 @@ export function ProductPurchaseSection({
     colorOptions.length > 1
       ? colorOptions.map((option) => ({
           ...option,
-          disabled: isColorSoldOut(option.key),
+          disabled: isOptionUnavailable(COLOR_GROUP, option.key),
         }))
       : [];
 
@@ -450,7 +321,7 @@ export function ProductPurchaseSection({
   // as before), and if somehow the full selection still resolves to no
   // real variant, block rather than silently fall back to a wrong price.
   function validateSelections(): string | null {
-    if (colorOptions.length > 0 && !selectedColorKey) {
+    if (hasColorChoice && !selectedColorKey) {
       return "Please select a color before adding to cart.";
     }
     const missing = attributes.find((group) => !selectedAttributeValues[group.attribute.id]);
@@ -479,9 +350,9 @@ export function ProductPurchaseSection({
   // Live, not gated behind a failed Add to Cart click -- lets the customer
   // see which group needs attention before they ever hit the error
   // message. Should never actually be true post page-load now that
-  // initialization populates every group (see attributeValuesForVariant),
-  // but stays as a visible safety net rather than a silent block.
-  const colorSelectionMissing = colorOptions.length > 0 && !selectedColorKey;
+  // initialization populates every group, but stays as a visible safety
+  // net rather than a silent block.
+  const colorSelectionMissing = hasColorChoice && !selectedColorKey;
 
   // Presentational-only stock categorization, same 3-tier scheme
   // ProductCard already uses (in/low/out) -- derived from the exact same
@@ -633,8 +504,9 @@ export function ProductPurchaseSection({
             <VariantSwatches
               options={colorSwatchOptions}
               selectedKey={selectedColorKey}
-              onSelect={handleColorSelect}
+              onSelect={(key) => handleOptionSelect(COLOR_GROUP, key)}
               hasError={colorSelectionMissing}
+              flash={flashingIds.has(COLOR_GROUP)}
             />
 
             {attributes.map((group) => (
@@ -643,14 +515,14 @@ export function ProductPurchaseSection({
                 attribute={group.attribute}
                 values={group.values}
                 selectedId={selectedAttributeValues[group.attribute.id]?.id ?? null}
-                onSelect={(value) => handleAttributeSelect(group.attribute.id, value)}
+                onSelect={(value) => handleOptionSelect(group.attribute.id, value.id)}
                 hasError={!selectedAttributeValues[group.attribute.id]}
                 flash={flashingIds.has(group.attribute.id)}
                 disabledIds={
                   variantDefiningAttributeIds.has(group.attribute.id)
                     ? new Set(
                         group.values
-                          .filter((v) => isAttributeValueDisabled(group.attribute.id, v.id))
+                          .filter((v) => isOptionUnavailable(group.attribute.id, v.id))
                           .map((v) => v.id),
                       )
                     : undefined
@@ -659,6 +531,17 @@ export function ProductPurchaseSection({
             ))}
           </AttributeCard>
         )}
+
+        {/* role="status": a screen reader hears the change too. */}
+        <p role="status" aria-live="polite" className={switchNote ? "variant-switch-note mt-3 flex items-start gap-2 rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm leading-snug" : "sr-only"}>
+          {switchNote && (
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-0.5 h-4 w-4 shrink-0">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v5M12 16h.01" />
+            </svg>
+          )}
+          {switchNote}
+        </p>
 
         {/* Quantity now lives in the price card above; Share stays the last
             child here so this observed block's bottom edge -- which drives

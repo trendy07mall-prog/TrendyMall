@@ -1,5 +1,6 @@
 "use client";
 
+import { variantSummary } from "@/lib/variant-options";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -1129,7 +1130,10 @@ export function CheckoutForm({
                       )}
                       <span className="line-clamp-2">
                         {item.name}
-                        {item.variantName ? ` (${item.variantName})` : ""} × {item.quantity}
+                        {variantSummary(item.variantName, item.attributeSelections)
+                          ? ` (${variantSummary(item.variantName, item.attributeSelections)})`
+                          : ""}{" "}
+                        × {item.quantity}
                       </span>
                     </span>
                     <span className="shrink-0 font-medium">{formatPrice(item.price * item.quantity)}</span>

@@ -1,3 +1,4 @@
+import { cleanColorName } from "@/lib/variant-options";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -45,6 +46,16 @@ export default async function AdminOrderDetailPage({
     getActiveDeliveryZones(),
     getCachedGeneralSettings(),
   ]);
+
+  // The packer needs the SKU of the exact variant. order_items has no sku
+  // column, so it's looked up live from the variant (a SKU almost never
+  // changes once set -- same reasoning as lib/admin/orders-query.ts).
+  const variantIds = [...new Set((items ?? []).map((i) => i.variant_id).filter((v): v is string => Boolean(v)))];
+  const { data: variantSkus } =
+    variantIds.length > 0
+      ? await supabase.from("product_variants").select("id, sku").in("id", variantIds)
+      : { data: [] as { id: string; sku: string | null }[] };
+  const skuByVariantId = new Map((variantSkus ?? []).map((v) => [v.id, v.sku]));
 
   const deliveryLabel =
     order.delivery_method === "pickup"
@@ -176,26 +187,48 @@ export default async function AdminOrderDetailPage({
                   <Image src={item.product_image_url} alt="" fill sizes="48px" className="object-cover" />
                 )}
               </div>
-              <div className="flex flex-1 items-center justify-between">
-                <span>
-                  {item.product_name}
-                  {item.variant_name && (
-                    <span className="text-[var(--muted)]"> ({item.variant_name})</span>
-                  )}
-                  {(item.attribute_selections as { attributeName: string; value: string }[] | null)
-                    ?.length ? (
-                    <span className="text-[var(--muted)]">
-                      {" "}
-                      (
-                      {(item.attribute_selections as { attributeName: string; value: string }[])
-                        .map((s) => `${s.attributeName}: ${s.value}`)
-                        .join(", ")}
-                      )
+              <div className="flex flex-1 items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <span>
+                    {item.product_name} × {item.quantity}
+                  </span>
+                  {/* One chip per choice, so the packer reads exactly what
+                      the customer picked. The colour text is cleaned:
+                      older rows saved things like "White - 5000 mah". */}
+                  {(cleanColorName(item.variant_name) ||
+                    ((item.attribute_selections as { attributeName: string; value: string }[] | null)?.length ?? 0) > 0) && (
+                    <span className="flex flex-wrap gap-1.5">
+                      {cleanColorName(item.variant_name) && (
+                        <span className="flex items-center gap-1.5 rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-medium">
+                          {item.variant_color_hex && (
+                            <span
+                              aria-hidden="true"
+                              className="h-2.5 w-2.5 rounded-full border border-black/15"
+                              style={{ backgroundColor: item.variant_color_hex }}
+                            />
+                          )}
+                          Colour: {cleanColorName(item.variant_name)}
+                        </span>
+                      )}
+                      {((item.attribute_selections as { attributeName: string; value: string }[] | null) ?? []).map(
+                        (s) => (
+                          <span
+                            key={s.attributeName}
+                            className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-medium"
+                          >
+                            {s.attributeName}: {s.value}
+                          </span>
+                        ),
+                      )}
                     </span>
-                  ) : null}{" "}
-                  × {item.quantity}
-                </span>
-                <span>{formatPrice(item.subtotal)}</span>
+                  )}
+                  {item.variant_id && skuByVariantId.get(item.variant_id) && (
+                    <span className="font-mono text-xs text-[var(--muted)]">
+                      SKU {skuByVariantId.get(item.variant_id)}
+                    </span>
+                  )}
+                </div>
+                <span className="shrink-0">{formatPrice(item.subtotal)}</span>
               </div>
             </div>
             <BundleContents

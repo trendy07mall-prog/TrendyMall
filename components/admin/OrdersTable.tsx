@@ -1,5 +1,6 @@
 "use client";
 
+import { cleanColorName } from "@/lib/variant-options";
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -331,7 +332,7 @@ function OrderItemLine({ item }: { item: AdminOrderItemRow }) {
                 aria-hidden="true"
               />
             )}
-            {item.variantName && <span>{item.variantName}</span>}
+            {item.variantName && <span>{cleanColorName(item.variantName)}</span>}
             {item.attributeSelections?.map((sel) => (
               <span key={sel.attributeName}>
                 {sel.attributeName}: {sel.value}

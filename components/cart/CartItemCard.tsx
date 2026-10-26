@@ -1,5 +1,6 @@
 "use client";
 
+import { variantSummary } from "@/lib/variant-options";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
@@ -113,7 +114,7 @@ export function CartItemCard({
             <Link href={`/product/${item.slug}`} className="font-medium hover:underline">
               {item.name}
             </Link>
-            {item.variantName && (
+            {variantSummary(item.variantName, item.attributeSelections) && (
               <div className="mt-0.5 flex items-center gap-1.5 text-xs text-[var(--muted)]">
                 {item.variantColorHex && (
                   <span
@@ -121,7 +122,9 @@ export function CartItemCard({
                     style={{ backgroundColor: item.variantColorHex }}
                   />
                 )}
-                {item.variantName}
+                {/* Colour plus every option picked, e.g. "Blue · 10000mAh ·
+                    Type-C" -- the same line checkout and the order show. */}
+                {variantSummary(item.variantName, item.attributeSelections)}
               </div>
             )}
             <div className="mt-1">

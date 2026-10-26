@@ -1164,3 +1164,12 @@ html[data-theme="dark"] .checkout-fonts [class~="bg-[#F1F5FB]"] {
 html[data-theme="dark"] .checkout-fonts [class~="bg-[var(--pf-navy)]"] {
   background-color: #1e4e8c;
 }
+
+/* Product page: the note shown when a tap had to change another option
+   ("10000mAh isn't available with Lightning, so we changed Connectors to
+   Type-C"). Fixed colours, so the dark-mode token overrides don't touch it. */
+.variant-switch-note { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; }
+html[data-theme="dark"] .variant-switch-note { background: #2a1d0e; border-color: #7c4a12; color: #fed7aa; }
+/* The selected colour swatch's navy ring is near-invisible on the dark
+   card; orange matches the selected option pills. */
+html[data-theme="dark"] [class~="ring-[#0F2D52]"] { --tw-ring-color: #f97316; }
