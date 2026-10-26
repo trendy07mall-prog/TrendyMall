@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ViewTransition } from "react";
 import localFont from "next/font/local";
 import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
@@ -278,7 +277,7 @@ export default async function RootLayout({
                         "calc(var(--mobile-nav-height, 0px) + var(--pdp-floating-bar-height, 0px))",
                     }}
                   >
-                    <ViewTransition>{children}</ViewTransition>
+                    {children}
                   </main>
                   <ConditionalChrome>
                     <TrustSection businessHoursSummary={formatBusinessHoursSummary(general.businessHours)} />

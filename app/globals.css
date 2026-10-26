@@ -280,22 +280,10 @@ input:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* View Transitions (app/layout.tsx's <ViewTransition>) don't automatically
-   respect prefers-reduced-motion the way the Framer Motion animations
-   elsewhere in this app do — this override is required, not optional. */
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
-  ::view-transition-new(*),
-  ::view-transition-group(*) {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-  }
-}
-
 /* Zeroes the single shared motion token (defangs every transition-brand
    use sitewide) and stops the Skeleton component's pulse shimmer — both
-   are plain CSS transitions/animations that, unlike the View Transitions
-   above and the Framer Motion animations elsewhere, don't respect this
+   are plain CSS transitions/animations that, unlike the Framer Motion
+   animations elsewhere, don't respect this
    setting on their own. */
 @media (prefers-reduced-motion: reduce) {
   :root {
