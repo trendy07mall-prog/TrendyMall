@@ -21,7 +21,14 @@ import { BrandField } from "./product-form/BrandField";
 import { TagsField } from "./product-form/TagsField";
 import { AttributesField } from "./product-form/AttributesField";
 import { SpecFieldsEditor } from "./product-form/SpecFieldsEditor";
-import { VariantsEditor, BLANK_VARIANT_DRAFT, type VariantDraft } from "./product-form/VariantsEditor";
+import {
+  VariantsEditor,
+  BLANK_VARIANT_DRAFT,
+  draftsToSave,
+  gridGroupsFor,
+  type VariantDraft,
+} from "./product-form/VariantsEditor";
+import { gridProblemText, gridProblems, tidyRows } from "@/lib/variant-grid";
 import { WhatsInBoxEditor } from "./product-form/WhatsInBoxEditor";
 import { GalleryUploader } from "./product-form/GalleryUploader";
 import { FormSection } from "./product-form/FormSection";
@@ -105,7 +112,9 @@ export function ProductForm({
     // section -- every product needs at least one variant to hold its
     // price now, so this is what makes that requirement visible from the
     // start instead of only surfacing as a save-time error.
-    return existing.length > 0 ? existing : [{ ...BLANK_VARIANT_DRAFT }];
+    // tidyRows: "White-new" / "White - 5000 mah" load as plain "White" with
+    // one swatch per colour, so the next save stores clean names.
+    return existing.length > 0 ? tidyRows(existing) : [{ ...BLANK_VARIANT_DRAFT }];
   });
   const [attributeValueIds, setAttributeValueIds] = useState<string[]>(defaultAttributeValueIds);
 
@@ -134,6 +143,12 @@ export function ProductForm({
     setSkuVerdicts((prev) => (prev[sku] === taken ? prev : { ...prev, [sku]: taken }));
   }, []);
   const skuConflict = variantDrafts.some((row) => skuVerdicts[row.sku.trim()]);
+  // Two rows for the same colour + options, a sold row with an option left
+  // empty, or a sold row with no price: Save stays off and the bar says why.
+  const variantProblem = gridProblemText(
+    gridProblems(variantDrafts, gridGroupsFor(checkedNonColorAttributes)),
+  );
+  const savedDrafts = draftsToSave(variantDrafts);
   // `name` and `stock` are the two required fields that stayed
   // uncontrolled, and they must stay that way -- making them controlled is
   // what the form-reset fix in onSubmit deliberately avoids needing. So
@@ -195,8 +210,7 @@ export function ProductForm({
       // `required` already on that input.
       label: "Variants & pricing",
       complete:
-        variantDrafts.length > 0 &&
-        variantDrafts.every((row) => row.regularPrice.trim() !== ""),
+        savedDrafts.length > 0 && variantProblem === null,
     },
   ];
 
@@ -205,7 +219,9 @@ export function ProductForm({
   // submit stays enabled through it, so this must not imply a block the
   // button doesn't actually enforce. The unique index is still the only
   // thing that decides, at save time.
-  const statusText = skuConflict
+  const statusText = variantProblem
+    ? variantProblem
+    : skuConflict
     ? "This SKU is already in use"
     : completeCount + " of " + sections.length + " sections complete";
 
@@ -479,7 +495,7 @@ export function ProductForm({
       <input
         type="hidden"
         name="variants"
-        value={JSON.stringify(variantDrafts.length > 0 ? variantDrafts : [BLANK_VARIANT_DRAFT])}
+        value={JSON.stringify(savedDrafts.length > 0 ? savedDrafts : [BLANK_VARIANT_DRAFT])}
       />
 
       {state?.error && (
@@ -496,14 +512,14 @@ export function ProductForm({
           aria-live="polite"
           className={
             "text-[13px] " +
-            (skuConflict ? "text-[var(--pf-bad)]" : "text-[var(--pf-text-2)]")
+            (skuConflict || variantProblem ? "text-[var(--pf-bad)]" : "text-[var(--pf-text-2)]")
           }
         >
           {statusText}
         </p>
         <button
           type="submit"
-          disabled={pending || uploadBusy}
+          disabled={pending || uploadBusy || variantProblem !== null}
           className="rounded-[var(--radius-btn)] bg-[var(--pf-navy)] px-6 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {pending
